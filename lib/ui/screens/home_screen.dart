@@ -91,13 +91,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final created = await _notes.create(folderId: 'inbox');
     if (!mounted) return;
     await navigator.push(
-      MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: created.id)),
+      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: created.id)),
     );
   }
 
   Future<void> _open(Note note) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: note.id)),
+      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: note.id)),
     );
   }
 
@@ -112,21 +112,21 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Demander à mes notes',
             icon: const Icon(Icons.psychology_outlined),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AiChatScreen()),
+              MaterialPageRoute<void>(builder: (_) => const AiChatScreen()),
             ),
           ),
           IconButton(
             tooltip: 'Recherche avancée',
             icon: const Icon(Icons.travel_explore),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SearchScreen()),
+              MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
             ),
           ),
           IconButton(
             tooltip: 'Réglages',
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],

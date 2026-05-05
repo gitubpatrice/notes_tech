@@ -193,9 +193,55 @@ class NotesDao {
     }
   }
 
+  /// Auto-complétion par titre. Filtre case-insensitif côté SQLite
+  /// (`LOWER(title) LIKE ?`). L'appelant raffine ensuite en Dart pour
+  /// gérer la sensibilité aux diacritiques. `lowerNeedle` doit déjà
+  /// être en lowercase ; les méta-caractères LIKE (`%` `_` `\`) sont
+  /// échappés ici. Le pattern matché est `lowerNeedle%` OU `% lowerNeedle%`
+  /// (préfixe de mot).
+  Future<List<Note>> findByTitleLike(
+    String lowerNeedle, {
+    required int limit,
+    String? excludeId,
+  }) async {
+    final cleaned = lowerNeedle.trim();
+    if (cleaned.isEmpty) return const <Note>[];
+    final escaped = _escapeLike(cleaned);
+    final whereParts = <String>[
+      "(LOWER(title) LIKE ? ESCAPE '\\' OR LOWER(title) LIKE ? ESCAPE '\\')",
+      'trashed_at IS NULL',
+    ];
+    final args = <Object?>['$escaped%', '% $escaped%'];
+    if (excludeId != null) {
+      whereParts.add('id <> ?');
+      args.add(excludeId);
+    }
+    try {
+      final rows = await _db.query(
+        'notes',
+        where: whereParts.join(' AND '),
+        whereArgs: args,
+        orderBy: 'updated_at DESC',
+        limit: limit,
+      );
+      return rows.map(Note.fromRow).toList(growable: false);
+    } catch (e) {
+      throw DatabaseException('findByTitleLike échoué', cause: e);
+    }
+  }
+
+  /// Échappe `%`, `_` et `\` pour usage avec `ESCAPE '\\'`.
+  static String _escapeLike(String s) => s
+      .replaceAll(r'\', r'\\')
+      .replaceAll('%', r'\%')
+      .replaceAll('_', r'\_');
+
   // ---------------------------------------------------------------------
   // Recherche FTS5
   // ---------------------------------------------------------------------
+
+  /// Token autorisant le suffixe `*` côté FTS5 (caractères Unicode lettres/chiffres).
+  static final RegExp _ftsPrefixable = RegExp(r'^[\p{L}\p{N}]+$', unicode: true);
 
   /// Recherche plein-texte dans les notes non corbeille / non archivées.
   /// Le préfixe `*` est ajouté au dernier token pour la recherche incrémentale.
@@ -235,7 +281,7 @@ class NotesDao {
       final isLast = i == tokens.length - 1;
       // Préfixe seulement si le token est alphanumérique (FTS5 limitation).
       final t = tokens[i];
-      final canPrefix = isLast && RegExp(r'^[\p{L}\p{N}]+$', unicode: true).hasMatch(t);
+      final canPrefix = isLast && _ftsPrefixable.hasMatch(t);
       quoted.add(canPrefix ? '"$t"*' : '"$t"');
     }
     return quoted.join(' ');

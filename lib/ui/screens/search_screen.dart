@@ -14,6 +14,7 @@ import '../../data/models/note.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../services/indexing_service.dart';
 import '../../services/semantic_search_service.dart';
+import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/note_card.dart';
@@ -76,6 +77,16 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_query.isNotEmpty) _runSearch();
   }
 
+  /// Si la recherche sémantique avancée est désactivée et que l'utilisateur
+  /// se trouvait sur cet onglet, on bascule en FTS pour ne pas exposer un
+  /// résultat dégradé issu de `LocalEmbedder` sans le signaler.
+  void _coerceModeForSettings(bool semanticEnabled) {
+    if (!semanticEnabled && _mode == _SearchMode.semantic) {
+      setState(() => _mode = _SearchMode.fts);
+      if (_query.isNotEmpty) _runSearch();
+    }
+  }
+
   void _runSearch() {
     if (_query.isEmpty) {
       setState(() => _future = null);
@@ -98,6 +109,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final semanticEnabled = context.watch<SettingsService>().semanticSearchEnabled;
+    // Garde-fou : si l'utilisateur désactive la recherche sémantique pendant
+    // qu'il était sur cet onglet, on rebascule en FTS proprement.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _coerceModeForSettings(semanticEnabled);
+    });
     return Scaffold(
       appBar: AppBar(
         title: TextField(
@@ -119,26 +136,27 @@ class _SearchScreenState extends State<SearchScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: SegmentedButton<_SearchMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: _SearchMode.fts,
-                    icon: Icon(Icons.text_fields),
-                    label: Text('Mots exacts'),
-                  ),
-                  ButtonSegment(
-                    value: _SearchMode.semantic,
-                    icon: Icon(Icons.auto_awesome),
-                    label: Text('Similaires'),
-                  ),
-                ],
-                selected: {_mode},
-                showSelectedIcon: false,
-                onSelectionChanged: (s) => _setMode(s.first),
+            if (semanticEnabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: SegmentedButton<_SearchMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: _SearchMode.fts,
+                      icon: Icon(Icons.text_fields),
+                      label: Text('Mots exacts'),
+                    ),
+                    ButtonSegment(
+                      value: _SearchMode.semantic,
+                      icon: Icon(Icons.auto_awesome),
+                      label: Text('Similaires'),
+                    ),
+                  ],
+                  selected: {_mode},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (s) => _setMode(s.first),
+                ),
               ),
-            ),
             Expanded(child: _buildResults()),
           ],
         ),
@@ -156,7 +174,7 @@ class _SearchScreenState extends State<SearchScreen> {
         title: 'Tapez pour rechercher',
         subtitle: _mode == _SearchMode.semantic
             ? 'La recherche par similarité trouve des notes proches '
-                "même sans le mot exact."
+                'même sans le mot exact.'
             : 'Recherche plein texte instantanée et 100% locale.',
       );
     }
@@ -189,7 +207,7 @@ class _SearchScreenState extends State<SearchScreen> {
             return NoteCard(
               note: n,
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
+                MaterialPageRoute<void>(
                   builder: (_) => NoteEditorScreen(noteId: n.id),
                 ),
               ),

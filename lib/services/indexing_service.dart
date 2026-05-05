@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/constants.dart';
 import '../data/models/note.dart';
+import '../data/models/note_change.dart';
 import '../data/models/note_embedding.dart';
 import '../data/repositories/embeddings_repository.dart';
 import '../data/repositories/notes_repository.dart';
@@ -62,7 +63,7 @@ class IndexingService {
 
   static const Duration _writeDebounce = Duration(seconds: 1);
 
-  StreamSubscription<void>? _changesSub;
+  StreamSubscription<NoteChangeEvent>? _changesSub;
   Timer? _debounceTimer;
   bool _running = false;
   bool _dirty = false;
@@ -95,10 +96,24 @@ class IndexingService {
   }
 
   /// À appeler une fois après instanciation.
+  ///
+  /// Le purge des modèles obsolètes est différé après le 1er frame pour
+  /// ne pas bloquer le bootstrap (P11). L'écoute des changements démarre
+  /// immédiatement : aucune écriture utilisateur n'est perdue car la
+  /// passe d'indexation est de toute façon debouncée.
   Future<void> start() async {
-    await _embeddings.purgeOtherModels(_embedder.modelId);
     _changesSub = _notes.changes.listen((_) => _scheduleRun());
-    _scheduleRun();
+    unawaited(Future<void>.microtask(() async {
+      if (_disposed) return;
+      try {
+        await _embeddings.purgeOtherModels(_embedder.modelId);
+      } catch (e, st) {
+        if (kDebugMode) {
+          debugPrint('IndexingService: purgeOtherModels — $e\n$st');
+        }
+      }
+      _scheduleRun();
+    }));
   }
 
   Future<void> dispose() async {

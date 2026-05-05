@@ -124,10 +124,11 @@ class _AiChatScreenState extends State<AiChatScreen> {
     }
   }
 
-  /// Stratégie d'import en deux étapes :
-  ///  1. Tentative directe sur `/sdcard/Download/gemma3-1b-it-int4.task`
-  ///     (chemin canonique attendu, lisible sans permission sur Android 13+).
-  ///  2. Fallback SAF avec ouverture sur Téléchargements.
+  /// Import via Storage Access Framework uniquement.
+  /// Pas de chemin direct codé en dur : sur Android 13+ la lecture
+  /// dans `/storage/emulated/0/Download` exige `READ_MEDIA_*` ou
+  /// `MANAGE_EXTERNAL_STORAGE`, permissions volontairement absentes
+  /// du manifest. Le SAF traverse cette barrière sans permission.
   Future<void> _pickAndImport() async {
     setState(() => _phaseError = null);
 
@@ -157,21 +158,6 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Future<File?> _resolveSource() async {
-    // 1) Chemin direct dans Téléchargements.
-    const directPath =
-        '/storage/emulated/0/Download/gemma3-1b-it-int4.task';
-    final direct = File(directPath);
-    if (direct.existsSync()) {
-      try {
-        // Vérifie la lisibilité (pas juste l'existence) en lisant 4 octets.
-        await direct.openRead(0, 4).first;
-        return direct;
-      } catch (_) {
-        // Permission refusée → fallback SAF.
-      }
-    }
-
-    // 2) Fallback : Storage Access Framework.
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['task'],
@@ -307,7 +293,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
       subtitle: _phaseError ??
           'Importe le fichier gemma3-1b-it-int4.task (≈ 530 Mo) '
               "depuis ton téléphone. Il sera copié dans l'app et "
-              "fonctionnera 100% hors ligne.",
+              'fonctionnera 100% hors ligne.',
       action: FilledButton.icon(
         onPressed: _pickAndImport,
         icon: const Icon(Icons.file_open_outlined),
@@ -405,7 +391,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   title: 'Pose une question sur tes notes',
                   subtitle:
                       'Le modèle répond uniquement à partir des notes les '
-                      "plus proches de ta question.",
+                      'plus proches de ta question.',
                 )
               : ListView.builder(
                   controller: _scrollCtrl,
@@ -563,7 +549,7 @@ class _SourcesRow extends StatelessWidget {
 
   void _openNote(BuildContext context, Note note) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: note.id)),
+      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: note.id)),
     );
   }
 }

@@ -1,7 +1,12 @@
 /// Repository façade au-dessus de NotesDao.
 ///
 /// Centralise validation, génération d'ID, horodatage, et notifications.
-/// Les écouteurs (UI providers) s'abonnent à `changes` pour rafraîchir.
+/// Les écouteurs (UI providers, indexation, backlinks) s'abonnent à
+/// `changes` pour rafraîchir.
+///
+/// Le stream émet désormais des `NoteChangeEvent` typés (id + kind +
+/// titre avant/après) afin que les services aval puissent cibler la
+/// seule note modifiée.
 library;
 
 import 'dart:async';
@@ -12,16 +17,17 @@ import '../../core/constants.dart';
 import '../../core/exceptions.dart';
 import '../db/notes_dao.dart';
 import '../models/note.dart';
+import '../models/note_change.dart';
 
 class NotesRepository {
   NotesRepository(this._dao);
 
   final NotesDao _dao;
   static const _uuid = Uuid();
-  final _changes = StreamController<void>.broadcast();
+  final _changes = StreamController<NoteChangeEvent>.broadcast();
 
   /// S'abonner pour être notifié à chaque écriture.
-  Stream<void> get changes => _changes.stream;
+  Stream<NoteChangeEvent> get changes => _changes.stream;
 
   void dispose() => _changes.close();
 
@@ -47,14 +53,27 @@ class NotesRepository {
   /// d'embeddings — pas par l'UI.
   Future<List<Note>> listAllAlive() => _dao.listAllAlive();
 
-  // -------- Méthodes préparées pour v0.2 (vue dossiers / corbeille / favoris). --------
-
   Future<List<Note>> favorites() => _dao.listFavorites();
 
   Future<List<Note>> trash() => _dao.listTrash();
 
   Future<List<Note>> search(String query) =>
       _dao.search(query, limit: AppConstants.searchResultsLimit);
+
+  /// Auto-complétion : pré-filtre côté SQLite (insensible à la casse,
+  /// pas aux diacritiques — affinage Dart à charge de l'appelant).
+  /// Pousser le filtrage en SQL évite de charger toutes les notes
+  /// pour chaque keystroke.
+  Future<List<Note>> findByTitleLike(
+    String lowerNeedle, {
+    int limit = 32,
+    String? excludeId,
+  }) =>
+      _dao.findByTitleLike(
+        lowerNeedle,
+        limit: limit,
+        excludeId: excludeId,
+      );
 
   // ---------------------------------------------------------------------
   // Écriture
@@ -78,45 +97,48 @@ class NotesRepository {
       updatedAt: now,
     );
     await _dao.insert(note);
-    _emit();
+    _emit(NoteChangeEvent(
+      kind: NoteChangeKind.created,
+      id: note.id,
+      currentTitle: note.title,
+    ));
     return note;
   }
 
+  /// Sauvegarde idempotente : récupère le titre précédent pour permettre
+  /// aux services aval (backlinks) de détecter un renommage.
   Future<Note> save(Note note) async {
     _validateTitle(note.title);
+    final previous = await _dao.findById(note.id);
     final updated = note.copyWith(updatedAt: DateTime.now());
     await _dao.update(updated);
-    _emit();
+    _emit(NoteChangeEvent(
+      kind: NoteChangeKind.updated,
+      id: updated.id,
+      previousTitle: previous?.title,
+      currentTitle: updated.title,
+    ));
     return updated;
   }
 
-  Future<Note> togglePin(Note note) async {
-    final updated = note.copyWith(
-      pinned: !note.pinned,
-      updatedAt: DateTime.now(),
-    );
-    await _dao.update(updated);
-    _emit();
-    return updated;
-  }
+  Future<Note> togglePin(Note note) =>
+      _toggleFlag(note, note.copyWith(pinned: !note.pinned));
 
-  Future<Note> toggleFavorite(Note note) async {
-    final updated = note.copyWith(
-      favorite: !note.favorite,
-      updatedAt: DateTime.now(),
-    );
-    await _dao.update(updated);
-    _emit();
-    return updated;
-  }
+  Future<Note> toggleFavorite(Note note) =>
+      _toggleFlag(note, note.copyWith(favorite: !note.favorite));
 
-  Future<Note> toggleArchive(Note note) async {
-    final updated = note.copyWith(
-      archived: !note.archived,
-      updatedAt: DateTime.now(),
-    );
+  Future<Note> toggleArchive(Note note) =>
+      _toggleFlag(note, note.copyWith(archived: !note.archived));
+
+  Future<Note> _toggleFlag(Note original, Note candidate) async {
+    final updated = candidate.copyWith(updatedAt: DateTime.now());
     await _dao.update(updated);
-    _emit();
+    _emit(NoteChangeEvent(
+      kind: NoteChangeKind.updated,
+      id: updated.id,
+      previousTitle: original.title,
+      currentTitle: updated.title,
+    ));
     return updated;
   }
 
@@ -125,7 +147,13 @@ class NotesRepository {
       trashedAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ));
-    _emit();
+    // Une note en corbeille disparaît de toutes les vues vivantes :
+    // on la traite comme une suppression côté indexation/backlinks.
+    _emit(NoteChangeEvent(
+      kind: NoteChangeKind.deleted,
+      id: note.id,
+      previousTitle: note.title,
+    ));
   }
 
   Future<void> restoreFromTrash(Note note) async {
@@ -133,12 +161,21 @@ class NotesRepository {
       clearTrashedAt: true,
       updatedAt: DateTime.now(),
     ));
-    _emit();
+    _emit(NoteChangeEvent(
+      kind: NoteChangeKind.created,
+      id: note.id,
+      currentTitle: note.title,
+    ));
   }
 
   Future<void> deletePermanently(String id) async {
+    final note = await _dao.findById(id);
     await _dao.deleteHard(id);
-    _emit();
+    _emit(NoteChangeEvent(
+      kind: NoteChangeKind.deleted,
+      id: id,
+      previousTitle: note?.title,
+    ));
   }
 
   /// Purge automatique de la corbeille au-delà de la rétention.
@@ -147,7 +184,7 @@ class NotesRepository {
       const Duration(days: AppConstants.trashRetentionDays),
     );
     final n = await _dao.purgeTrashOlderThan(cutoff);
-    if (n > 0) _emit();
+    if (n > 0) _emit(NoteChangeEvent.bulk);
     return n;
   }
 
@@ -159,7 +196,7 @@ class NotesRepository {
     }
   }
 
-  void _emit() {
-    if (!_changes.isClosed) _changes.add(null);
+  void _emit(NoteChangeEvent event) {
+    if (!_changes.isClosed) _changes.add(event);
   }
 }

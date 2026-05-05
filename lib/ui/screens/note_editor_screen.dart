@@ -242,7 +242,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     await _saveNow();
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: noteId)),
+      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: noteId)),
     );
   }
 
@@ -256,7 +256,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
     if (!mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (_) => NoteEditorScreen(noteId: created.id),
       ),
     );

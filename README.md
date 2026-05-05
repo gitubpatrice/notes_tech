@@ -17,34 +17,50 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 - Aucune télémétrie
 - Open source Apache 2.0
 - `allowBackup=false` + `dataExtractionRules` complet (pas d'exfiltration via Smart Switch ou Android Backup)
+- Modèle Gemma importé via SAF (jamais bundlé, jamais téléchargé en réseau)
 
 ---
 
-## ✨ Fonctionnalités v0.2.1
+## ✨ Fonctionnalités v0.4.1
 
-- Création / édition de notes Markdown
-- Auto-save debounced 500 ms
-- Recherche plein texte instantanée (SQLite FTS5, tokenizer `unicode61`, accents normalisés)
-- **Recherche sémantique on-device** via le modèle `all-MiniLM-L6-v2` quantifié int8 (~22 Mo)
-  → trouve des notes proches par le sens, même sans le mot exact (cross-langue FR/EN)
-  → repli automatique sur encodeur n-grammes local si le modèle est absent
-- Indexation incrémentale en arrière-plan, idempotente, **sans permission réseau**
-- Épingler / favoris / corbeille (rétention 30 jours)
+### Édition
+- Notes Markdown — création / édition / auto-save debounced
+- Épingler / favoris / archives / corbeille (rétention 30 j)
 - Mode clair / sombre / système (palette GitHub)
 - Tri configurable (modifié, créé, titre)
 
+### Recherche
+- **FTS5** instantané (tokenizer `unicode61`, diacritiques normalisés)
+- **Recherche sémantique on-device** *(opt-in, paramètre dédié)* via `all-MiniLM-L6-v2` quantifié int8 (~22 Mo)
+  → trouve des notes proches par le sens, même sans le mot exact (cross-langue FR/EN)
+  → repli automatique sur encodeur n-grammes local si MiniLM est désactivé
+
+### IA on-device
+- **Q&A « Demander à mes notes »** via Gemma 3 1B int4 (~530 Mo, importé via SAF)
+- **RAG** : top-K sémantique injecté dans un prompt durci (délimiteurs `<note>` + sanitisation anti-injection)
+- Streaming token-par-token, conversation effaçable, **aucun envoi réseau**
+
+### Backlinks
+- Liens `[[Titre]]` dans n'importe quelle note
+- Auto-complétion de titres existants
+- Panneau « Mentions » (rétroliens) + liens sortants
+- Réindexation **ciblée** : seule la note modifiée est retraitée (O(1) par save)
+- Liens fantômes auto-résolus à la création / au renommage de la note cible
+
+---
+
 ## 🛣 Roadmap
 
-| Version | Contenu |
-|---------|---------|
-| ✅ **v0.1** | Éditeur Markdown + FTS5 + thème + corbeille |
-| ✅ **v0.2** | Recherche par similarité (encodeur local + cosine) |
-| ✅ **v0.2.1** | MiniLM L6 v2 ONNX int8 — vraie recherche sémantique on-device |
-| **v0.3** | Gemma 3 1B int4 (Q&A, résumé, tags auto) |
-| **v0.4** | Backlinks + graphe + versioning + vault Argon2id+AES-GCM |
-| **v0.5** | Mode "Journal praticien" + export PDF par séance |
-| **v1.0** | Capture multimodale (Voice Tech / PDF Tech / OCR) + vault par dossier |
-| **v1.1** | Import Obsidian / Notesnook / Apple Notes + mode panique |
+| Version | Contenu | État |
+|---------|---------|------|
+| **v0.1** | Éditeur Markdown + FTS5 + thème + corbeille | ✅ |
+| **v0.2 / v0.2.1** | Recherche par similarité (LocalEmbedder + MiniLM ONNX int8) | ✅ |
+| **v0.3 / v0.3.x** | Gemma 3 1B int4 — Q&A on-device + RAG + indexation throttlée | ✅ |
+| **v0.4** | Backlinks `[[Titre]]` + auto-complétion + panneau mentions | ✅ |
+| **v0.4.1** | Audit complet appliqué : réindex ciblé, anti-injection RAG, init order, SAF only, lints stricts | ✅ |
+| **v0.5** | Vault Argon2id + AES-GCM scellé Keystore + FLAG_SECURE + versioning notes | ⏳ |
+| **v1.0** | Capture multimodale (Voice / PDF / OCR) + vault par dossier + export PDF séance | ⏳ |
+| **v1.1** | Import Obsidian / Notesnook / Apple Notes + mode panique | ⏳ |
 
 ---
 
@@ -52,30 +68,42 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 ```
 lib/
-├── main.dart                       # init parallèle + DI Provider
-├── app.dart                        # MaterialApp
-├── core/                           # constants, exceptions, theme
+├── main.dart                          # bootstrap parallèle + DI Provider
+├── app.dart                           # MaterialApp
+├── core/                              # constants, exceptions, theme
 ├── data/
-│   ├── models/                     # Note, Folder, NoteEmbedding
-│   ├── db/                         # database (SQLite + FTS5), DAOs
-│   └── repositories/               # façades + streams de changement
+│   ├── models/                        # Note, Folder, NoteEmbedding,
+│   │                                    NoteLink, NoteChangeEvent
+│   ├── db/                            # SQLite (FTS5 + sqlcipher), DAOs
+│   └── repositories/                  # façades + streams typés
 ├── services/
-│   ├── embedding/                  # EmbeddingProvider, LocalEmbedder
-│   ├── indexing_service.dart       # worker incrémental, idempotent
-│   ├── semantic_search_service.dart # top-K cosine, cache invalidé
+│   ├── embedding/                     # EmbeddingProvider, LocalEmbedder,
+│   │                                    MiniLmEmbedder, BertTokenizer
+│   ├── ai/                            # GemmaService, RagService
+│   ├── indexing_service.dart          # worker idempotent (hash diff)
+│   ├── embedder_coordinator.dart      # swap Local ↔ MiniLM à chaud
+│   ├── semantic_search_service.dart   # top-K cosine, cache invalidé
+│   ├── backlinks_service.dart         # parsing [[]], résolution, suggestions
+│   ├── note_actions.dart              # actions UI réutilisables
 │   └── settings_service.dart
 ├── ui/
-│   ├── screens/                    # home, editor, search, settings, about
-│   └── widgets/                    # NoteCard, EmptyState
-└── utils/                          # debouncer, vector_math
+│   ├── screens/                       # home, editor, search, ai_chat,
+│   │                                    settings, about
+│   └── widgets/                       # NoteCard, BacklinksPanel,
+│                                        LinkAutocompleteSheet, IndexingBanner,
+│                                        EmptyState
+└── utils/                             # debouncer, hash_utils, text_utils,
+                                          vector_math
 ```
 
 ## 🛠 Stack
 
 - Flutter 3.41 / Dart 3.x
-- `sqflite` + FTS5 (tri composite, index couvrants)
-- `provider` pour l'injection de dépendances
-- `shared_preferences` pour la configuration
+- `sqflite_sqlcipher` (SQLite avec FTS5 garanti, prêt pour le chiffrement v0.5)
+- `onnxruntime` (MiniLM L6 v2 quantifié)
+- `flutter_gemma` (Gemma 3 1B int4)
+- `provider` (DI)
+- `shared_preferences` (settings)
 - Aucune dépendance réseau
 
 ## 🚀 Build
@@ -83,10 +111,11 @@ lib/
 ```bash
 flutter pub get
 flutter analyze
+flutter test
 flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
 ```
 
-APK release arm64 actuel : ~46 Mo (modèle ONNX 22 Mo + onnxruntime ~6 Mo, R8 + obfuscation actifs).
+APK release arm64 actuel : ~217 Mo (MiniLM ONNX 22 Mo + onnxruntime ~6 Mo + assets — Gemma téléchargé séparément, non bundlé).
 
 ## 📱 Cible
 

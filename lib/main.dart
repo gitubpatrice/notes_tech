@@ -81,11 +81,10 @@ Future<void> main() async {
   // pour réindexer en arrière-plan (debounced).
   final backlinks = BacklinksService(notes: notesRepo, links: linksRepo);
 
-  // L'indexation locale démarre tout de suite (sans bloquer le 1er frame).
-  unawaited(indexing.start());
-  unawaited(backlinks.start());
-
   // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
+  // Démarré AVANT `indexing.start()` pour qu'un toggle MiniLM=ON déjà
+  // persisté soit honoré dès la première passe d'indexation, sans
+  // qu'une passe locale soit lancée puis tuée par le swap (B4).
   final coordinator = EmbedderCoordinator(
     settings: settings,
     indexing: indexing,
@@ -93,6 +92,11 @@ Future<void> main() async {
     activeEmbedder: activeEmbedder,
     localEmbedder: localEmbedder,
   )..start();
+
+  // L'indexation et l'indexation des liens démarrent ensuite, sans
+  // bloquer le 1er frame.
+  unawaited(indexing.start());
+  unawaited(backlinks.start());
 
   runApp(
     MultiProvider(

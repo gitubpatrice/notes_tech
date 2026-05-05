@@ -1,7 +1,7 @@
 name: notes_tech
-description: "Notes Tech — private notes with on-device AI."
+description: "Notes Tech — private notes with on-device AI (RAG + Q&A + backlinks, 100% offline)."
 publish_to: 'none'
-version: 0.3.3+8
+version: 0.4.1+9
 
 environment:
   sdk: ^3.11.5
@@ -17,8 +17,8 @@ dependencies:
   # Storage : sqflite_sqlcipher embarque sa propre SQLite (avec FTS5),
   # contrairement au sqflite "vanilla" qui dépend du SQLite système Android
   # — certains OEM (Samsung) compilent SQLite sans FTS5.
-  # On n'utilise pas le chiffrement pour l'instant ; il pourra être activé
-  # facilement en v0.4 (vault).
+  # Le chiffrement at-rest (Argon2id KEK + clé scellée Keystore) sera
+  # activé en v0.5 avec le vault.
   sqflite_sqlcipher: ^3.1.0
   path: ^1.9.0
   path_provider: ^2.1.4
@@ -34,8 +34,7 @@ dependencies:
   intl: ^0.19.0
 
   # NB : flutter_secure_storage / cryptography / local_auth seront ajoutés
-  # quand le vault Argon2id+AES-GCM sera implémenté (v0.4).
-  # flutter_markdown / markdown viendront avec la preview WYSIWYG (v0.2).
+  # quand le vault Argon2id+AES-GCM sera implémenté (v0.5).
 
 dev_dependencies:
   flutter_test:

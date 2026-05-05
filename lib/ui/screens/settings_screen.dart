@@ -58,7 +58,7 @@ class SettingsScreen extends StatelessWidget {
             title: const Text('Notes Tech'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const AboutScreen()),
+              MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
             ),
           ),
         ],
