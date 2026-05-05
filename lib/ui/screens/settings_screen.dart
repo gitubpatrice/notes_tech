@@ -1,10 +1,12 @@
 /// Réglages utilisateur : thème, tri par défaut.
 library;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/models/note.dart';
+import '../../services/embedder_coordinator.dart';
 import '../../services/settings_service.dart';
 import 'about_screen.dart';
 
@@ -46,6 +48,9 @@ class SettingsScreen extends StatelessWidget {
             ),
             value: settings.semanticSearchEnabled,
             onChanged: (v) => settings.setSemanticSearchEnabled(v),
+          ),
+          _SemanticErrorTile(
+            error: context.read<EmbedderCoordinator>().lastError,
           ),
           _Section(label: 'À propos', theme: theme),
           ListTile(
@@ -109,6 +114,29 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
     if (selected != null) await settings.setSortMode(selected);
+  }
+}
+
+/// Tuile d'avertissement affichée quand l'activation de MiniLM a échoué.
+/// Visible seulement si `error.value != null`.
+class _SemanticErrorTile extends StatelessWidget {
+  const _SemanticErrorTile({required this.error});
+  final ValueListenable<String?> error;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ValueListenableBuilder<String?>(
+      valueListenable: error,
+      builder: (_, msg, _) {
+        if (msg == null) return const SizedBox.shrink();
+        return ListTile(
+          leading: Icon(Icons.warning_amber_outlined,
+              color: theme.colorScheme.error),
+          title: Text(msg, style: TextStyle(color: theme.colorScheme.error)),
+        );
+      },
+    );
   }
 }
 

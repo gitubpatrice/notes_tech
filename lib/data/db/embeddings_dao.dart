@@ -3,7 +3,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:sqflite/sqflite.dart' hide DatabaseException;
+import 'package:sqflite_sqlcipher/sqflite.dart' hide DatabaseException;
 
 import '../../core/exceptions.dart';
 import '../../utils/vector_math.dart';

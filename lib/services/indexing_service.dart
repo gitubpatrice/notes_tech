@@ -79,10 +79,16 @@ class IndexingService {
   Stream<IndexingProgress?> get progress => _progress.stream;
   IndexingProgress? get currentProgress => _lastProgress;
 
-  /// Bascule l'encodeur à chaud (Local ↔ MiniLM). Purge les embeddings
-  /// associés à l'ancien modèle puis relance l'indexation.
+  /// Bascule l'encodeur à chaud (Local ↔ MiniLM). Attend la fin de la passe
+  /// en cours pour éviter d'écrire des embeddings tagués avec un modelId
+  /// après un purge déjà effectué. Purge ensuite et relance.
   Future<void> swapEmbedder(EmbeddingProvider next) async {
     if (next.modelId == _embedder.modelId) return;
+    // Attente coopérative : laisse la passe courante s'achever.
+    while (_running && !_disposed) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    if (_disposed) return;
     _embedder = next;
     await _embeddings.purgeOtherModels(next.modelId);
     _scheduleRun();
@@ -161,20 +167,22 @@ class IndexingService {
     }
 
     // 3) Encode coopératif : 1 note → yield → écrire → délai → suivante.
-    // Le délai inter-note dépend de l'embedder (cf. AppConstants).
-    final delay = _embedder is LocalEmbedder
+    // L'embedder est capturé localement pour éviter qu'un swap concurrent
+    // ne mélange deux modèles dans une même passe.
+    final embedder = _embedder;
+    final delay = embedder is LocalEmbedder
         ? AppConstants.indexingDelayLocal
         : AppConstants.indexingDelayMiniLm;
 
     var done = 0;
     for (final note in toIndex) {
-      if (_disposed) break;
+      if (_disposed || !identical(_embedder, embedder)) break;
       _emitProgress(IndexingProgress(
         done: done,
         total: toIndex.length,
-        modelId: _embedder.modelId,
+        modelId: embedder.modelId,
       ));
-      final emb = _encode(note);
+      final emb = _encodeWith(embedder, note);
       await _embeddings.save(emb);
       done++;
       if (delay > Duration.zero) {
@@ -200,8 +208,7 @@ class IndexingService {
     if (!_progress.isClosed) _progress.add(p);
   }
 
-  NoteEmbedding _encode(Note n) {
-    final embedder = _embedder;
+  NoteEmbedding _encodeWith(EmbeddingProvider embedder, Note n) {
     final body = _capContent(n.content);
     final vec = embedder is LocalEmbedder
         ? embedder.embedTitleAndBody(title: n.title, body: body)

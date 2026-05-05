@@ -5,6 +5,9 @@
 /// - Toggle pin / favori / corbeille sans round-trip DB.
 library;
 
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +29,7 @@ class NoteEditorScreen extends StatefulWidget {
 
 class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late final NotesRepository _repo;
+  StreamSubscription<void>? _changesSub;
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
   final _autosave = Debouncer(AppConstants.autosaveDebounce);
@@ -33,6 +37,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Note? _note;
   bool _loading = true;
+  bool _stale = false; // note supprimée / mise en corbeille → édition désactivée
   String? _error;
   Future<void>? _pendingSave;
 
@@ -41,19 +46,35 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     super.initState();
     _repo = context.read<NotesRepository>();
     _load();
+    // Si la note est supprimée/mise à la corbeille depuis un autre écran,
+    // on désactive l'édition pour éviter de "ressusciter" la note via
+    // un save final dans dispose.
+    _changesSub = _repo.changes.listen((_) async {
+      if (!mounted) return;
+      final fresh = await _repo.get(widget.noteId);
+      if (!mounted) return;
+      if (fresh == null || fresh.isTrashed) {
+        setState(() => _stale = true);
+      }
+    });
   }
 
   @override
   void dispose() {
-    // Annule le timer puis lance un save final non bloquant.
+    _changesSub?.cancel();
     _autosave.cancel();
+    // Save final SEULEMENT si la note est encore valide.
     final n = _note;
-    if (n != null) {
-      // Snapshot synchrone des champs avant dispose des controllers.
+    if (n != null && !_stale) {
       final title = _titleCtrl.text;
       final content = _contentCtrl.text;
       if (title != n.title || content != n.content) {
-        _repo.save(n.copyWith(title: title, content: content));
+        unawaited(_repo
+            .save(n.copyWith(title: title, content: content))
+            .catchError((Object e) {
+          if (kDebugMode) debugPrint('flush save (dispose) : $e');
+          return n;
+        }));
       }
     }
     _titleCtrl.dispose();

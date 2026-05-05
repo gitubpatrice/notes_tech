@@ -14,12 +14,11 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart' show Database;
+import 'package:sqflite_sqlcipher/sqflite.dart' show Database;
 
 import 'app.dart';
 import 'data/db/database.dart';
@@ -30,9 +29,9 @@ import 'data/repositories/embeddings_repository.dart';
 import 'data/repositories/folders_repository.dart';
 import 'data/repositories/notes_repository.dart';
 import 'services/ai/gemma_service.dart';
+import 'services/embedder_coordinator.dart';
 import 'services/embedding/embedding_provider.dart';
 import 'services/embedding/local_embedder.dart';
-import 'services/embedding/minilm_embedder.dart';
 import 'services/indexing_service.dart';
 import 'services/semantic_search_service.dart';
 import 'services/settings_service.dart';
@@ -78,13 +77,13 @@ Future<void> main() async {
   unawaited(indexing.start());
 
   // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
-  final coordinator = _EmbedderCoordinator(
+  final coordinator = EmbedderCoordinator(
     settings: settings,
     indexing: indexing,
     semantic: semantic,
     activeEmbedder: activeEmbedder,
     localEmbedder: localEmbedder,
-  )..startListening();
+  )..start();
 
   runApp(
     MultiProvider(
@@ -108,7 +107,7 @@ Future<void> main() async {
           create: (_) => gemma,
           dispose: (_, s) => s.dispose(),
         ),
-        Provider<_EmbedderCoordinator>(
+        Provider<EmbedderCoordinator>(
           create: (_) => coordinator,
           dispose: (_, c) => c.dispose(),
         ),
@@ -118,96 +117,3 @@ Future<void> main() async {
   );
 }
 
-/// Réagit aux changements du toggle "Recherche sémantique avancée"
-/// dans Settings et bascule l'embedder à chaud.
-///
-/// - OFF → LocalEmbedder (par défaut)
-/// - ON  → tente MiniLM en arrière-plan ; si succès, swap.
-class _EmbedderCoordinator {
-  _EmbedderCoordinator({
-    required SettingsService settings,
-    required IndexingService indexing,
-    required SemanticSearchService semantic,
-    required ValueNotifier<EmbeddingProvider> activeEmbedder,
-    required LocalEmbedder localEmbedder,
-  })  : _settings = settings,
-        _indexing = indexing,
-        _semantic = semantic,
-        _active = activeEmbedder,
-        _local = localEmbedder;
-
-  final SettingsService _settings;
-  final IndexingService _indexing;
-  final SemanticSearchService _semantic;
-  final ValueNotifier<EmbeddingProvider> _active;
-  final LocalEmbedder _local;
-
-  MiniLmEmbedder? _miniLm;
-  bool _busy = false;
-  bool _lastEnabled = false;
-
-  void startListening() {
-    _lastEnabled = _settings.semanticSearchEnabled;
-    _settings.addListener(_onSettingsChanged);
-    if (_lastEnabled) unawaited(_upgrade());
-  }
-
-  Future<void> dispose() async {
-    _settings.removeListener(_onSettingsChanged);
-    await _miniLm?.dispose();
-    _miniLm = null;
-  }
-
-  void _onSettingsChanged() {
-    final enabled = _settings.semanticSearchEnabled;
-    if (enabled == _lastEnabled) return;
-    _lastEnabled = enabled;
-    if (enabled) {
-      unawaited(_upgrade());
-    } else {
-      unawaited(_downgrade());
-    }
-  }
-
-  Future<void> _upgrade() async {
-    if (_busy) return;
-    _busy = true;
-    try {
-      final available = await MiniLmEmbedder.assetsAvailable();
-      if (!available) {
-        if (kDebugMode) debugPrint('MiniLM assets absents, upgrade ignoré.');
-        return;
-      }
-      final m = _miniLm ?? MiniLmEmbedder();
-      await m.warmUp();
-      _miniLm = m;
-      _semantic.setEmbedder(m);
-      await _indexing.swapEmbedder(m);
-      _active.value = m;
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('Upgrade MiniLM échoué : $e\n$st');
-      }
-    } finally {
-      _busy = false;
-    }
-  }
-
-  Future<void> _downgrade() async {
-    if (_busy) return;
-    _busy = true;
-    try {
-      _semantic.setEmbedder(_local);
-      await _indexing.swapEmbedder(_local);
-      _active.value = _local;
-      // On garde le `_miniLm` chargé en RAM si l'utilisateur réactive vite.
-      // Le dispose se fera à la fin du process.
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('Downgrade vers Local échoué : $e\n$st');
-      }
-    } finally {
-      _busy = false;
-    }
-  }
-}

@@ -1,7 +1,7 @@
 /// Accès direct à la table `folders`.
 library;
 
-import 'package:sqflite/sqflite.dart' hide DatabaseException;
+import 'package:sqflite_sqlcipher/sqflite.dart' hide DatabaseException;
 
 import '../../core/exceptions.dart';
 import '../models/folder.dart';

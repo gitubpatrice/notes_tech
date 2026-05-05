@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI."
 publish_to: 'none'
-version: 0.3.1+6
+version: 0.3.2+7
 
 environment:
   sdk: ^3.11.5
@@ -14,8 +14,12 @@ dependencies:
   # State / DI
   provider: ^6.1.2
 
-  # Storage
-  sqflite: ^2.4.0
+  # Storage : sqflite_sqlcipher embarque sa propre SQLite (avec FTS5),
+  # contrairement au sqflite "vanilla" qui dépend du SQLite système Android
+  # — certains OEM (Samsung) compilent SQLite sans FTS5.
+  # On n'utilise pas le chiffrement pour l'instant ; il pourra être activé
+  # facilement en v0.4 (vault).
+  sqflite_sqlcipher: ^3.1.0
   path: ^1.9.0
   path_provider: ^2.1.4
   shared_preferences: ^2.3.2

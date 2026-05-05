@@ -58,6 +58,11 @@ class GemmaService {
   bool _busy = false;
   Completer<void>? _warmUpInFlight;
 
+  /// Gate de sérialisation pour `ask` / `stopGeneration`.
+  /// Garantit qu'une opération sur le chat (close, recréation, génération)
+  /// ne chevauche pas une autre, même en cas d'utilisateur très rapide.
+  Future<void> _gate = Future<void>.value();
+
   // ---------------------------------------------------------------------
   // Détection / installation
   // ---------------------------------------------------------------------
@@ -235,30 +240,48 @@ class GemmaService {
     );
   }
 
+  /// Sérialise une opération sur le chat via `_gate`.
+  /// Toute opération ask/stop passe par cette file pour éviter
+  /// les races sur `_chat?.close()` et `model.createChat()`.
+  Future<T> _serialize<T>(Future<T> Function() op) {
+    final completer = Completer<T>();
+    _gate = _gate.then((_) async {
+      try {
+        completer.complete(await op());
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
+
   /// Pose une question. Yield les morceaux de texte au fil de la génération.
-  /// Concurrent-safe : un seul `ask` à la fois.
+  /// Concurrent-safe via le gate.
   /// Le contexte est réinitialisé à chaque appel (Q&A, pas de chat suivi).
   Stream<String> ask(String prompt) async* {
     if (_chat == null) {
       throw const _GemmaException('Modèle non chargé. Appeler warmUp() avant.');
     }
     if (_busy) {
-      throw const _GemmaException(
-        'Une génération est déjà en cours.',
-      );
+      throw const _GemmaException('Une génération est déjà en cours.');
     }
     var cleaned = prompt.trim();
     if (cleaned.isEmpty) return;
     if (cleaned.length > _maxPromptChars) {
-      cleaned = cleaned.substring(0, _maxPromptChars);
+      cleaned = _safeSubstring(cleaned, _maxPromptChars);
     }
 
     _busy = true;
     try {
-      // Repart d'un chat vierge → contexte RAG injecté à neuf, pas de fuite.
-      await _resetChat();
-      await _chat!.addQueryChunk(Message.text(text: cleaned, isUser: true));
+      // Phase 1 (sérialisée) : reset chat + push prompt.
+      await _serialize<void>(() async {
+        await _resetChat();
+        await _chat!
+            .addQueryChunk(Message.text(text: cleaned, isUser: true));
+      });
 
+      // Phase 2 : streaming. Le stream natif n'a pas de close-on-cancel,
+      // mais `stopGeneration` ferme la session ce qui le coupe.
       yield* _chat!.generateChatResponseAsync().map((r) {
         if (r is TextResponse) return r.token;
         return '';
@@ -268,20 +291,30 @@ class GemmaService {
     }
   }
 
-  /// Force l'arrêt d'une génération en cours en réinitialisant le chat.
-  /// `flutter_gemma` 0.14 n'a pas d'API d'annulation explicite — recréer
-  /// la session est le moyen propre d'arrêter l'inférence native.
+  /// Force l'arrêt d'une génération en cours via reset chat sérialisé.
   Future<void> stopGeneration() async {
-    if (!_busy) return;
-    await _resetChat();
+    if (!_busy && _chat != null) return;
     _busy = false;
+    await _serialize<void>(_resetChat);
+  }
+
+  /// Substring qui ne coupe pas une surrogate pair UTF-16.
+  static String _safeSubstring(String s, int max) {
+    if (s.length <= max) return s;
+    var end = max;
+    if (end > 0 && (s.codeUnitAt(end - 1) & 0xFC00) == 0xD800) {
+      end -= 1; // évite de couper le high surrogate orphelin
+    }
+    return s.substring(0, end);
   }
 
   Future<void> _resetChat() async {
     final model = _model;
     if (model == null) return;
+    final old = _chat;
+    _chat = null; // ferme la fenêtre où ask() pourrait toucher l'ancienne session
     try {
-      await _chat?.close();
+      await old?.close();
     } catch (e) {
       if (kDebugMode) debugPrint('Gemma _resetChat close: $e');
     }

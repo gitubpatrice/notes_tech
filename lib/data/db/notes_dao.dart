@@ -3,7 +3,7 @@
 /// Aucun couplage UI. Les exceptions remontent en `DatabaseException`.
 library;
 
-import 'package:sqflite/sqflite.dart' hide DatabaseException;
+import 'package:sqflite_sqlcipher/sqflite.dart' hide DatabaseException;
 
 import '../../core/exceptions.dart';
 import '../models/note.dart';

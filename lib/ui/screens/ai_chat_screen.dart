@@ -334,13 +334,39 @@ class _AiChatScreenState extends State<AiChatScreen> {
   Widget _buildError() {
     return EmptyState(
       icon: Icons.error_outline,
-      title: 'Erreur',
-      subtitle: _phaseError ?? 'Inconnue',
-      action: FilledButton(
-        onPressed: _initialize,
-        child: const Text('Réessayer'),
+      title: 'Chargement impossible',
+      subtitle: '${_phaseError ?? "Erreur inconnue"}\n\n'
+          'Si le modèle est corrompu, supprimez-le et réimportez le fichier.',
+      action: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton.icon(
+            onPressed: _initialize,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Réessayer'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _reinstallModel,
+            icon: const Icon(Icons.delete_sweep_outlined),
+            label: const Text('Supprimer et réimporter'),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _reinstallModel() async {
+    try {
+      await _gemma.uninstall();
+    } catch (_) {
+      // Best-effort : si la suppression échoue, on enchaîne quand même.
+    }
+    if (!mounted) return;
+    setState(() {
+      _phase = _Phase.notInstalled;
+      _phaseError = null;
+    });
   }
 
   Widget _buildChat() {

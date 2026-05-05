@@ -5,7 +5,7 @@ library;
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart' hide DatabaseException;
+import 'package:sqflite_sqlcipher/sqflite.dart' hide DatabaseException;
 
 import '../../core/constants.dart';
 import '../../core/exceptions.dart';
@@ -33,6 +33,7 @@ class AppDatabase {
         onConfigure: _onConfigure,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
+        onOpen: _onOpen,
       );
       _db = db;
       return db;
@@ -55,11 +56,19 @@ class AppDatabase {
 
   Future<void> _onConfigure(Database db) async {
     await db.execute('PRAGMA foreign_keys = ON;');
-    await db.execute('PRAGMA journal_mode = WAL;');
+    // `journal_mode` retourne une valeur (le mode appliqué) ; sur Android
+    // récent, sqflite impose alors `rawQuery` plutôt que `execute`.
+    await db.rawQuery('PRAGMA journal_mode = WAL;');
     await db.execute('PRAGMA synchronous = NORMAL;');
     await db.execute('PRAGMA temp_store = MEMORY;');
-    // 8 Mo de cache page (négatif = Ko). Améliore les scans FTS / listes longues.
+    // 8 Mo de cache page (négatif = Ko). Améliore scans FTS / listes longues.
     await db.execute('PRAGMA cache_size = -8000;');
+  }
+
+  Future<void> _onOpen(Database db) async {
+    // Garantit que `inbox` existe à chaque ouverture (suppression accidentelle,
+    // restauration de backup, migration future).
+    await _ensureInboxFolder(db);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -166,17 +175,19 @@ class AppDatabase {
     // Embeddings — table v2 (créée d'emblée pour les nouvelles installations).
     await _createEmbeddingsTable(txn);
 
-    // Dossier racine par défaut
+    // Dossier racine par défaut.
+    await _ensureInboxFolder(txn);
+  }
+
+  /// Garantit l'existence du dossier racine `inbox`. Idempotent — peut être
+  /// rappelé à chaque ouverture sans risque (INSERT OR IGNORE).
+  Future<void> _ensureInboxFolder(DatabaseExecutor txn) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    await txn.insert('folders', {
-      'id': 'inbox',
-      'name': 'Boîte de réception',
-      'parent_id': null,
-      'color': null,
-      'icon': 'inbox',
-      'created_at': now,
-      'updated_at': now,
-    });
+    await txn.rawInsert('''
+      INSERT OR IGNORE INTO folders
+        (id, name, parent_id, color, icon, created_at, updated_at)
+      VALUES (?, ?, NULL, NULL, ?, ?, ?);
+    ''', ['inbox', 'Boîte de réception', 'inbox', now, now]);
   }
 
   Future<void> _createEmbeddingsTable(Transaction txn) async {
