@@ -1,12 +1,11 @@
 /// Recherche par similarité cosinus sur les embeddings indexés.
 ///
 /// - Charge les vecteurs en mémoire à la demande (lazy + cache).
-/// - Recalcule la query → vecteur, puis dot product (vecteurs L2-normalisés).
-/// - Retourne le top-K avec score, joint aux notes via NotesRepository.
+/// - Encode la query, puis dot product (vecteurs L2-normalisés).
+/// - Retourne le top-K avec score, joint aux notes via `getMany` (1 SELECT).
 ///
-/// Stratégie de cache : la liste des embeddings est rechargée si la table
-/// a vu des écritures depuis le dernier load. On ré-écoute le stream
-/// `embeddingsChanged` (cf. IndexingService) pour invalider.
+/// Stratégie de cache : la liste est rechargée si invalidée par
+/// `IndexingService` (qu'on suit en interne dès la construction).
 library;
 
 import 'dart:async';
@@ -20,6 +19,7 @@ import '../data/repositories/notes_repository.dart';
 import '../utils/vector_math.dart';
 import 'embedding/embedding_provider.dart';
 import 'embedding/local_embedder.dart';
+import 'indexing_service.dart';
 
 class SemanticHit {
   const SemanticHit({required this.note, required this.score});
@@ -32,19 +32,34 @@ class SemanticSearchService {
     required NotesRepository notes,
     required EmbeddingsRepository embeddings,
     required EmbeddingProvider embedder,
+    required IndexingService indexing,
   })  : _notes = notes,
         _embeddings = embeddings,
-        _embedder = embedder;
+        _embedder = embedder {
+    _indexSub = indexing.changes.listen((_) => invalidateCache());
+  }
 
   final NotesRepository _notes;
   final EmbeddingsRepository _embeddings;
-  final EmbeddingProvider _embedder;
+  EmbeddingProvider _embedder;
+  late final StreamSubscription<void> _indexSub;
 
   List<NoteEmbedding>? _cache;
   Future<List<NoteEmbedding>>? _loading;
 
-  /// Invalide le cache (appelé après modifications de l'index).
+  /// Permet à `main.dart` de basculer l'embedder à chaud (Local → MiniLM).
+  void setEmbedder(EmbeddingProvider next) {
+    if (next.modelId == _embedder.modelId) return;
+    _embedder = next;
+    invalidateCache();
+  }
+
   void invalidateCache() {
+    _cache = null;
+  }
+
+  Future<void> dispose() async {
+    await _indexSub.cancel();
     _cache = null;
   }
 
@@ -60,20 +75,23 @@ class SemanticSearchService {
     final embeddings = await _ensureLoaded();
     if (embeddings.isEmpty) return const [];
 
-    // Top-K via min-heap léger (liste triée maintenue de taille `limit`).
+    // Top-K via liste triée bornée.
     final scored = <_Scored>[];
     for (final e in embeddings) {
       if (e.dim != queryVec.length) continue;
       final score = VectorMath.cosineNormalized(queryVec, e.vector);
-      if (score < minScore) continue;
+      if (!score.isFinite || score < minScore) continue;
       _insertTopK(scored, _Scored(e.noteId, score), limit);
     }
     if (scored.isEmpty) return const [];
 
-    // Hydrate les notes (ordre préservé).
+    // Hydrate les notes en un seul SELECT, puis re-trie selon les scores.
+    final ids = scored.map((s) => s.noteId).toList(growable: false);
+    final notes = await _notes.getMany(ids);
+    final byId = <String, Note>{for (final n in notes) n.id: n};
     final hits = <SemanticHit>[];
     for (final s in scored) {
-      final note = await _notes.get(s.noteId);
+      final note = byId[s.noteId];
       if (note != null && !note.isTrashed) {
         hits.add(SemanticHit(note: note, score: s.score));
       }

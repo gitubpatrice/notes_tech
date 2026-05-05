@@ -8,6 +8,7 @@ import '../../core/constants.dart';
 import '../../services/embedding/embedding_provider.dart';
 import '../../services/indexing_service.dart';
 
+
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
 
@@ -85,12 +86,14 @@ class _SearchEngineInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final embedder = context.read<EmbeddingProvider>();
+    final embedderNotifier =
+        context.watch<ValueNotifier<EmbeddingProvider>>();
     final indexing = context.read<IndexingService>();
+    final embedder = embedderNotifier.value;
     final isMiniLm = embedder.modelId.startsWith('minilm');
     final label = isMiniLm
         ? 'Modèle MiniLM-L6-v2 (quantifié) — recherche sémantique'
-        : 'Encodeur local (n-grammes + hashing trick)';
+        : 'Encodeur local (n-grammes + hashing trick) — chargement sémantique en arrière-plan';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

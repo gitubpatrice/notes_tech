@@ -1,4 +1,10 @@
 /// Point d'entrée — initialisation parallèle puis injection de dépendances.
+///
+/// Stratégie de démarrage :
+///   1. Bootstrap minimal (settings, DB) → runApp avec LocalEmbedder.
+///   2. Détection MiniLM en arrière-plan ; si dispo, warmUp puis swap
+///      à chaud côté IndexingService + SemanticSearchService.
+/// Ainsi le 1er frame n'attend jamais le chargement ONNX (~1-2 s).
 library;
 
 import 'dart:async';
@@ -32,7 +38,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Initialisations indépendantes lancées en parallèle.
+  // Initialisations bloquantes parallèles (toutes < 100 ms).
   final dateInit = initializeDateFormatting('fr_FR');
   final settingsInit = SettingsService.create();
   final dbInit = AppDatabase.instance.db;
@@ -45,22 +51,31 @@ Future<void> main() async {
   final foldersRepo = FoldersRepository(FoldersDao(db));
   final embeddingsRepo = EmbeddingsRepository(EmbeddingsDao(db));
 
-  // Encodeur : MiniLM si modèle ONNX présent, sinon repli sur LocalEmbedder.
-  final embedder = await _selectEmbedder();
+  // Démarrage immédiat avec l'encodeur léger.
+  const localEmbedder = LocalEmbedder();
+  final activeEmbedder = ValueNotifier<EmbeddingProvider>(localEmbedder);
 
   final indexing = IndexingService(
     notes: notesRepo,
     embeddings: embeddingsRepo,
-    embedder: embedder,
+    embedder: localEmbedder,
   );
   final semantic = SemanticSearchService(
     notes: notesRepo,
     embeddings: embeddingsRepo,
-    embedder: embedder,
+    embedder: localEmbedder,
+    indexing: indexing,
   );
 
-  // Démarrage de l'indexation après runApp pour ne pas retarder le 1er frame.
+  // L'indexation locale démarre tout de suite (sans bloquer le 1er frame).
   unawaited(indexing.start());
+
+  // Tente de basculer sur MiniLM en arrière-plan.
+  unawaited(_tryUpgradeToMiniLm(
+    indexing: indexing,
+    semantic: semantic,
+    activeEmbedder: activeEmbedder,
+  ));
 
   runApp(
     MultiProvider(
@@ -69,31 +84,41 @@ Future<void> main() async {
         Provider<NotesRepository>.value(value: notesRepo),
         Provider<FoldersRepository>.value(value: foldersRepo),
         Provider<EmbeddingsRepository>.value(value: embeddingsRepo),
-        Provider<EmbeddingProvider>.value(value: embedder),
-        Provider<IndexingService>.value(value: indexing),
-        Provider<SemanticSearchService>.value(value: semantic),
+        ChangeNotifierProvider<ValueNotifier<EmbeddingProvider>>.value(
+          value: activeEmbedder,
+        ),
+        Provider<IndexingService>(
+          create: (_) => indexing,
+          dispose: (_, s) => s.dispose(),
+        ),
+        Provider<SemanticSearchService>(
+          create: (_) => semantic,
+          dispose: (_, s) => s.dispose(),
+        ),
       ],
       child: const NotesTechApp(),
     ),
   );
 }
 
-/// Sélection de l'encodeur :
-/// 1. tente MiniLM si ses assets sont bundlés et que le warmUp réussit
-/// 2. sinon repli silencieux sur LocalEmbedder (toujours disponible)
-///
-/// Toute exception MiniLM est capturée — l'app doit toujours démarrer.
-Future<EmbeddingProvider> _selectEmbedder() async {
+/// Charge MiniLM en background si les assets sont présents et le warmUp OK.
+/// En cas d'échec, on reste sur LocalEmbedder sans bruit.
+Future<void> _tryUpgradeToMiniLm({
+  required IndexingService indexing,
+  required SemanticSearchService semantic,
+  required ValueNotifier<EmbeddingProvider> activeEmbedder,
+}) async {
   try {
     final available = await MiniLmEmbedder.assetsAvailable();
-    if (!available) return const LocalEmbedder();
+    if (!available) return;
     final m = MiniLmEmbedder();
     await m.warmUp();
-    return m;
+    semantic.setEmbedder(m);
+    await indexing.swapEmbedder(m);
+    activeEmbedder.value = m;
   } catch (e, st) {
     if (kDebugMode) {
-      debugPrint('MiniLM indisponible, repli LocalEmbedder : $e\n$st');
+      debugPrint('MiniLM indisponible, on reste sur LocalEmbedder : $e\n$st');
     }
-    return const LocalEmbedder();
   }
 }

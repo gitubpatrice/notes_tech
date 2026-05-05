@@ -17,6 +17,8 @@ class EmbeddingsRepository {
   Future<void> saveAll(Iterable<NoteEmbedding> items) =>
       _dao.upsertBatch(items);
   Future<void> remove(String noteId) => _dao.deleteByNoteId(noteId);
+  Future<int> deleteOrphans(Set<String> aliveIds) =>
+      _dao.deleteOrphans(aliveIds);
   Future<int> purgeOtherModels(String currentModelId) =>
       _dao.deleteWhereModelNot(currentModelId);
   Future<int> count(String modelId) => _dao.count(modelId);

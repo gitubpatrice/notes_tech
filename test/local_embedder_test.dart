@@ -1,15 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:notes_tech/core/constants.dart';
 import 'package:notes_tech/services/embedding/local_embedder.dart';
 import 'package:notes_tech/utils/vector_math.dart';
 
 void main() {
   const e = LocalEmbedder();
 
-  test('dimension stable et conforme à AppConstants', () {
-    expect(e.dim, AppConstants.embeddingDim);
+  test('dimension stable et > 0', () {
+    expect(e.dim, greaterThan(0));
     final v = e.embed('bonjour le monde');
-    expect(v.length, AppConstants.embeddingDim);
+    expect(v.length, e.dim);
   });
 
   test('vecteurs L2-normalisés', () {

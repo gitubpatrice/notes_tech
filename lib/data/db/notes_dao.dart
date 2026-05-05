@@ -12,6 +12,33 @@ class NotesDao {
   NotesDao(this._db);
   final Database _db;
 
+  /// Récupère plusieurs notes par leur id en une seule requête.
+  /// L'ordre du résultat n'est pas garanti — l'appelant doit re-trier
+  /// selon ses besoins (ex. score de similarité).
+  Future<List<Note>> findManyByIds(List<String> ids) async {
+    if (ids.isEmpty) return const [];
+    // SQLite limite SQLITE_MAX_VARIABLE_NUMBER (≈999 par défaut).
+    // On chunke en 500 pour rester confortable.
+    const chunkSize = 500;
+    final out = <Note>[];
+    try {
+      for (var start = 0; start < ids.length; start += chunkSize) {
+        final end = (start + chunkSize).clamp(0, ids.length);
+        final chunk = ids.sublist(start, end);
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        final rows = await _db.query(
+          'notes',
+          where: 'id IN ($placeholders)',
+          whereArgs: chunk,
+        );
+        out.addAll(rows.map(Note.fromRow));
+      }
+      return out;
+    } catch (e) {
+      throw DatabaseException('findManyByIds échoué', cause: e);
+    }
+  }
+
   Future<Note?> findById(String id) async {
     try {
       final rows = await _db.query(

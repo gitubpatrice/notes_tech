@@ -17,6 +17,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 
+import '../../utils/text_utils.dart';
+
 class BertEncoded {
   const BertEncoded({
     required this.inputIds,
@@ -84,8 +86,15 @@ class BertTokenizer {
   // ---------------------------------------------------------------------
 
   /// Encode un texte en `BertEncoded` borné à `maxLength` (incl. [CLS]/[SEP]).
+  ///
+  /// Pour éviter le coût `O(N)` de la normalisation sur des entrées
+  /// gigantesques, le texte est pré-tronqué à `maxLength * 32` caractères.
+  /// On ne perd rien d'utile : 32 caractères/token est largement supérieur
+  /// au pire cas réel (mots français ~5 char + WordPiece subword).
   BertEncoded encode(String text, {int maxLength = 128}) {
-    final cleaned = _normalize(text);
+    final hardCap = maxLength * 32;
+    final clipped = text.length > hardCap ? text.substring(0, hardCap) : text;
+    final cleaned = _normalize(clipped);
     final words = _preTokenize(cleaned);
     final ids = <int>[clsToken];
     for (final w in words) {
@@ -126,7 +135,7 @@ class BertTokenizer {
         buf.writeCharCode(0x20);
         continue;
       }
-      buf.writeCharCode(_stripAccent(cu));
+      buf.writeCharCode(TextUtils.stripLatinDiacritic(cu));
     }
     return buf.toString();
   }
@@ -141,54 +150,6 @@ class BertTokenizer {
   static bool _isControl(int cu) =>
       (cu >= 0 && cu < 0x20 && cu != 0x09 && cu != 0x0A && cu != 0x0D) ||
       cu == 0x7F;
-
-  static int _stripAccent(int cu) {
-    // Latin-1 supplement & Latin Extended-A : table de mapping minimaliste FR.
-    switch (cu) {
-      case 0x00E0:
-      case 0x00E1:
-      case 0x00E2:
-      case 0x00E3:
-      case 0x00E4:
-      case 0x00E5:
-        return 0x61;
-      case 0x00E7:
-        return 0x63;
-      case 0x00E8:
-      case 0x00E9:
-      case 0x00EA:
-      case 0x00EB:
-        return 0x65;
-      case 0x00EC:
-      case 0x00ED:
-      case 0x00EE:
-      case 0x00EF:
-        return 0x69;
-      case 0x00F1:
-        return 0x6E;
-      case 0x00F2:
-      case 0x00F3:
-      case 0x00F4:
-      case 0x00F5:
-      case 0x00F6:
-        return 0x6F;
-      case 0x00F9:
-      case 0x00FA:
-      case 0x00FB:
-      case 0x00FC:
-        return 0x75;
-      case 0x00FD:
-      case 0x00FF:
-        return 0x79;
-      // œ → oe, æ → ae (approximations utiles)
-      case 0x0153:
-        return 0x6F; // on garde 1 caractère, BERT trouvera "oe" via subword
-      case 0x00E6:
-        return 0x61;
-      default:
-        return cu;
-    }
-  }
 
   // ---------------------------------------------------------------------
   // Pré-tokenisation : split sur whitespace + isolement de la ponctuation.

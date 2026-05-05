@@ -120,6 +120,44 @@ class EmbeddingsDao {
     }
   }
 
+  /// Supprime les embeddings dont le `note_id` n'est plus dans la liste
+  /// d'IDs vivants. Chunke pour respecter la limite de variables SQLite.
+  Future<int> deleteOrphans(Set<String> aliveIds) async {
+    try {
+      if (aliveIds.isEmpty) {
+        // Toutes les notes ont disparu → on vide la table.
+        return await _db.delete('note_embeddings');
+      }
+      // Implémentation via différence : on récupère les note_id existants
+      // puis on supprime ceux absents de `aliveIds`.
+      final existing = await _db.query(
+        'note_embeddings',
+        columns: ['note_id'],
+      );
+      final toDelete = <String>[];
+      for (final r in existing) {
+        final id = r['note_id']! as String;
+        if (!aliveIds.contains(id)) toDelete.add(id);
+      }
+      if (toDelete.isEmpty) return 0;
+      const chunkSize = 500;
+      var total = 0;
+      for (var start = 0; start < toDelete.length; start += chunkSize) {
+        final end = (start + chunkSize).clamp(0, toDelete.length);
+        final chunk = toDelete.sublist(start, end);
+        final placeholders = List.filled(chunk.length, '?').join(',');
+        total += await _db.delete(
+          'note_embeddings',
+          where: 'note_id IN ($placeholders)',
+          whereArgs: chunk,
+        );
+      }
+      return total;
+    } catch (e) {
+      throw DatabaseException('emb.deleteOrphans échoué', cause: e);
+    }
+  }
+
   /// Purge tout embedding qui n'appartient pas au modèle courant
   /// (utile lorsqu'on bascule LocalEmbedder → MiniLm).
   Future<int> deleteWhereModelNot(String currentModelId) async {
@@ -150,11 +188,12 @@ class EmbeddingsDao {
 
   static NoteEmbedding _fromRow(Map<String, Object?> row) {
     final blob = row['vector']! as Uint8List;
-    final vector = VectorMath.decodeBlob(blob);
+    final dim = row['dim']! as int;
+    final vector = VectorMath.decodeBlob(blob, expectedDim: dim);
     return NoteEmbedding(
       noteId: row['note_id']! as String,
       vector: vector,
-      dim: row['dim']! as int,
+      dim: dim,
       modelId: row['model_id']! as String,
       sourceHash: row['source_hash']! as int,
       updatedAt:

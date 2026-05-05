@@ -45,5 +45,27 @@ void main() {
         expect(back[i], closeTo(v[i], 1e-6));
       }
     });
+
+    test('decodeBlob valide expectedDim', () {
+      final v = Float32List.fromList([1, 2, 3, 4]);
+      final blob = Uint8List.fromList(VectorMath.encodeBlob(v));
+      expect(
+        () => VectorMath.decodeBlob(blob, expectedDim: 5),
+        throwsArgumentError,
+      );
+    });
+
+    test('cosine NaN-safe', () {
+      final a = Float32List.fromList([double.nan, 0, 0]);
+      final b = Float32List.fromList([1, 0, 0]);
+      expect(VectorMath.cosineNormalized(a, b), 0);
+      expect(VectorMath.cosine(a, b), 0);
+    });
+
+    test('normalizeInPlace remet à zéro un vecteur NaN', () {
+      final v = Float32List.fromList([double.nan, 1, 1]);
+      VectorMath.normalizeInPlace(v);
+      expect(v.every((x) => x == 0), isTrue);
+    });
   });
 }

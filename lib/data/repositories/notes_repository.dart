@@ -31,6 +31,8 @@ class NotesRepository {
 
   Future<Note?> get(String id) => _dao.findById(id);
 
+  Future<List<Note>> getMany(List<String> ids) => _dao.findManyByIds(ids);
+
   Future<List<Note>> listByFolder(
     String folderId, {
     NoteSortMode sort = NoteSortMode.updatedDesc,

@@ -18,18 +18,22 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import '../../core/constants.dart';
+import '../../utils/hash_utils.dart';
+import '../../utils/text_utils.dart';
 import '../../utils/vector_math.dart';
 import 'embedding_provider.dart';
 
 class LocalEmbedder implements EmbeddingProvider {
   const LocalEmbedder();
 
-  @override
-  String get modelId => AppConstants.embeddingModelId;
+  static const String _modelId = 'local-hash-v1';
+  static const int _dim = 256;
 
   @override
-  int get dim => AppConstants.embeddingDim;
+  String get modelId => _modelId;
+
+  @override
+  int get dim => _dim;
 
   // ---------------------------------------------------------------------
   // API publique
@@ -78,55 +82,9 @@ class LocalEmbedder implements EmbeddingProvider {
     final lower = s.toLowerCase();
     final buf = StringBuffer();
     for (var i = 0; i < lower.length; i++) {
-      final cu = lower.codeUnitAt(i);
-      buf.writeCharCode(_stripDiacritic(cu));
+      buf.writeCharCode(TextUtils.stripLatinDiacritic(lower.codeUnitAt(i)));
     }
     return buf.toString();
-  }
-
-  /// Mapping minimal des diacritiques latins courants → ASCII.
-  /// Plus rapide qu'une regex Unicode normalize().
-  static int _stripDiacritic(int cu) {
-    // Voyelles accentuées + ç (cas couvrant 99% du FR).
-    switch (cu) {
-      case 0x00E0: // à
-      case 0x00E1: // á
-      case 0x00E2: // â
-      case 0x00E3: // ã
-      case 0x00E4: // ä
-      case 0x00E5: // å
-        return 0x61; // a
-      case 0x00E7: // ç
-        return 0x63; // c
-      case 0x00E8: // è
-      case 0x00E9: // é
-      case 0x00EA: // ê
-      case 0x00EB: // ë
-        return 0x65; // e
-      case 0x00EC: // ì
-      case 0x00ED: // í
-      case 0x00EE: // î
-      case 0x00EF: // ï
-        return 0x69; // i
-      case 0x00F1: // ñ
-        return 0x6E; // n
-      case 0x00F2: // ò
-      case 0x00F3: // ó
-      case 0x00F4: // ô
-      case 0x00F5: // õ
-      case 0x00F6: // ö
-        return 0x6F; // o
-      case 0x00F9: // ù
-      case 0x00FA: // ú
-      case 0x00FB: // û
-      case 0x00FC: // ü
-        return 0x75; // u
-      case 0x00FD: // ý
-      case 0x00FF: // ÿ
-        return 0x79; // y
-      default:
-        return cu;
-    }
   }
 
   static final RegExp _splitNonWord = RegExp(r'[^a-z0-9]+');
@@ -153,24 +111,8 @@ class LocalEmbedder implements EmbeddingProvider {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // FNV-1a 32-bit (déterministe, rapide, indépendant de Object.hashCode).
-  // ---------------------------------------------------------------------
-
-  static const int _fnvOffset = 0x811c9dc5;
-  static const int _fnvPrime = 0x01000193;
-
   void _hashAdd(Float32List v, String key, double weight) {
-    final idx = _fnv1a(key) % v.length;
+    final idx = HashUtils.fnv1a32(key) % v.length;
     v[idx] += weight;
-  }
-
-  static int _fnv1a(String s) {
-    var h = _fnvOffset;
-    for (var i = 0; i < s.length; i++) {
-      h ^= s.codeUnitAt(i) & 0xFF;
-      h = (h * _fnvPrime) & 0xFFFFFFFF;
-    }
-    return h;
   }
 }

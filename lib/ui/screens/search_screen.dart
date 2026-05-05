@@ -38,7 +38,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   _SearchMode _mode = _SearchMode.fts;
   String _query = '';
-  Future<List<_Result>>? _future;
+  Future<List<Note>>? _future;
 
   @override
   void initState() {
@@ -89,16 +89,11 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  Future<List<_Result>> _runFts() async {
-    final notes = await _notes.search(_query);
-    return notes.map((n) => _Result(note: n)).toList(growable: false);
-  }
+  Future<List<Note>> _runFts() => _notes.search(_query);
 
-  Future<List<_Result>> _runSemantic() async {
+  Future<List<Note>> _runSemantic() async {
     final hits = await _semantic.search(_query);
-    return hits
-        .map((h) => _Result(note: h.note, score: h.score))
-        .toList(growable: false);
+    return hits.map((h) => h.note).toList(growable: false);
   }
 
   @override
@@ -165,7 +160,7 @@ class _SearchScreenState extends State<SearchScreen> {
             : 'Recherche plein texte instantanée et 100% locale.',
       );
     }
-    return FutureBuilder<List<_Result>>(
+    return FutureBuilder<List<Note>>(
       future: f,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -190,12 +185,12 @@ class _SearchScreenState extends State<SearchScreen> {
           itemCount: results.length,
           separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
-            final r = results[i];
+            final n = results[i];
             return NoteCard(
-              note: r.note,
+              note: n,
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => NoteEditorScreen(noteId: r.note.id),
+                  builder: (_) => NoteEditorScreen(noteId: n.id),
                 ),
               ),
             );
@@ -204,10 +199,4 @@ class _SearchScreenState extends State<SearchScreen> {
       },
     );
   }
-}
-
-class _Result {
-  const _Result({required this.note, this.score});
-  final Note note;
-  final double? score;
 }

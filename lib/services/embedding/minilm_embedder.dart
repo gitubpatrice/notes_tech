@@ -13,10 +13,11 @@
 /// L'extraction n'a lieu qu'au premier `warmUp`.
 library;
 
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show AssetManifest, rootBundle;
 import 'package:onnxruntime/onnxruntime.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -44,6 +45,7 @@ class MiniLmEmbedder implements EmbeddingProvider {
   OrtSession? _session;
   BertTokenizer? _tokenizer;
   bool _warmedUp = false;
+  Completer<void>? _warmUpInFlight;
 
   @override
   String get modelId => _modelId;
@@ -55,22 +57,15 @@ class MiniLmEmbedder implements EmbeddingProvider {
   // Init / dispose
   // ---------------------------------------------------------------------
 
-  /// Vérifie la présence des assets sans tout charger.
-  /// Utilisé au démarrage pour décider Local vs MiniLM.
+  /// Vérifie la présence des assets via `AssetManifest` — zéro octet lu.
   static Future<bool> assetsAvailable({
     String modelAsset = 'assets/models/all-MiniLM-L6-v2-quant.onnx',
     String tokenizerAsset = 'assets/models/tokenizer.json',
   }) async {
     try {
-      // `loadStructured` n'existe pas → on tente un load léger.
-      // `load` charge tout en mémoire ; on évite ça pour le modèle.
-      // Astuce : `rootBundle.load` met en cache une fois résolu, et la
-      // détection d'absence est instantanée. Pour le modèle, on ne charge
-      // que les premiers octets via `loadStructuredBinaryData` ? Indispo.
-      // Compromis : on tente un load complet, pratique car appelé qu'au démarrage.
-      await rootBundle.load(modelAsset);
-      await rootBundle.loadString(tokenizerAsset);
-      return true;
+      final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+      final keys = manifest.listAssets().toSet();
+      return keys.contains(modelAsset) && keys.contains(tokenizerAsset);
     } catch (_) {
       return false;
     }
@@ -79,16 +74,33 @@ class MiniLmEmbedder implements EmbeddingProvider {
   @override
   Future<void> warmUp() async {
     if (_warmedUp) return;
-    OrtEnv.instance.init();
-    final tokenizer = await BertTokenizer.loadFromAsset(_tokenizerAsset);
-    final modelPath = await _ensureModelOnDisk();
+    final inFlight = _warmUpInFlight;
+    if (inFlight != null) return inFlight.future;
+    final completer = Completer<void>();
+    _warmUpInFlight = completer;
+    try {
+      OrtEnv.instance.init();
+      // Chargement parallèle : tokenizer JSON + extraction modèle disque.
+      final results = await Future.wait<Object>([
+        BertTokenizer.loadFromAsset(_tokenizerAsset),
+        _ensureModelOnDisk(),
+      ]);
+      final tokenizer = results[0] as BertTokenizer;
+      final modelPath = results[1] as String;
 
-    final sessionOptions = OrtSessionOptions();
-    final session = OrtSession.fromFile(File(modelPath), sessionOptions);
+      final sessionOptions = OrtSessionOptions();
+      final session = OrtSession.fromFile(File(modelPath), sessionOptions);
 
-    _tokenizer = tokenizer;
-    _session = session;
-    _warmedUp = true;
+      _tokenizer = tokenizer;
+      _session = session;
+      _warmedUp = true;
+      completer.complete();
+    } catch (e, st) {
+      completer.completeError(e, st);
+      rethrow;
+    } finally {
+      _warmUpInFlight = null;
+    }
   }
 
   @override
@@ -170,6 +182,11 @@ class MiniLmEmbedder implements EmbeddingProvider {
     for (var t = 0; t < seqLen; t++) {
       if (mask[t] == 0) continue;
       final tokenVec = batch[t] as List;
+      if (tokenVec.length != _dim) {
+        throw StateError(
+          'MiniLm: dimension de sortie ${tokenVec.length} ≠ $_dim attendu',
+        );
+      }
       for (var i = 0; i < _dim; i++) {
         out[i] += (tokenVec[i] as num).toDouble();
       }
