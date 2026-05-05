@@ -124,16 +124,15 @@ class _AiChatScreenState extends State<AiChatScreen> {
     }
   }
 
+  /// Stratégie d'import en deux étapes :
+  ///  1. Tentative directe sur `/sdcard/Download/gemma3-1b-it-int4.task`
+  ///     (chemin canonique attendu, lisible sans permission sur Android 13+).
+  ///  2. Fallback SAF avec ouverture sur Téléchargements.
   Future<void> _pickAndImport() async {
     setState(() => _phaseError = null);
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['task'],
-      allowMultiple: false,
-    );
-    if (result == null || result.files.single.path == null) return;
-    final path = result.files.single.path!;
-    final source = File(path);
+
+    final source = await _resolveSource();
+    if (source == null) return;
 
     setState(() {
       _phase = _Phase.importing;
@@ -155,6 +154,33 @@ class _AiChatScreenState extends State<AiChatScreen> {
         });
       }
     }
+  }
+
+  Future<File?> _resolveSource() async {
+    // 1) Chemin direct dans Téléchargements.
+    const directPath =
+        '/storage/emulated/0/Download/gemma3-1b-it-int4.task';
+    final direct = File(directPath);
+    if (direct.existsSync()) {
+      try {
+        // Vérifie la lisibilité (pas juste l'existence) en lisant 4 octets.
+        await direct.openRead(0, 4).first;
+        return direct;
+      } catch (_) {
+        // Permission refusée → fallback SAF.
+      }
+    }
+
+    // 2) Fallback : Storage Access Framework.
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['task'],
+      allowMultiple: false,
+      initialDirectory: '/storage/emulated/0/Download',
+      dialogTitle: 'Sélectionnez gemma3-1b-it-int4.task',
+    );
+    if (result == null || result.files.single.path == null) return null;
+    return File(result.files.single.path!);
   }
 
   // ---------------------------------------------------------------------

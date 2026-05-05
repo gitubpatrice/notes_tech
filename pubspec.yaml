@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI."
 publish_to: 'none'
-version: 0.3.2+7
+version: 0.3.3+8
 
 environment:
   sdk: ^3.11.5
@@ -41,6 +41,15 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  image: ^4.3.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#0D1117"
+  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
 
 flutter:
   uses-material-design: true

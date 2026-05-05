@@ -110,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             tooltip: 'Demander à mes notes',
-            icon: const Icon(Icons.auto_awesome),
+            icon: const Icon(Icons.psychology_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const AiChatScreen()),
             ),
