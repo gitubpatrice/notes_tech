@@ -62,4 +62,30 @@ class SettingsService extends ChangeNotifier {
     await _prefs.setBool(AppConstants.prefKeySemanticSearchEnabled, value);
     notifyListeners();
   }
+
+  // -------- Sécurité v0.5 --------
+
+  /// FLAG_SECURE : empêche la capture d'écran et masque l'aperçu dans le
+  /// sélecteur d'apps Android. Activé par défaut — la promesse de
+  /// confidentialité justifie cette légère friction (impossible de prendre
+  /// un screenshot d'une note).
+  bool get secureWindowEnabled =>
+      _prefs.getBool(AppConstants.prefKeySecureWindowEnabled) ?? true;
+
+  Future<void> setSecureWindowEnabled(bool value) async {
+    await _prefs.setBool(AppConstants.prefKeySecureWindowEnabled, value);
+    notifyListeners();
+  }
+
+  /// Réglage avancé : accepter un modèle Gemma dont le SHA-256 ne
+  /// correspond pas à l'empreinte de référence. Désactivé par défaut.
+  /// L'utilisateur informé peut activer pour importer une variante
+  /// (Gemma 3 4B int4, build différent, etc.).
+  bool get acceptUnknownGemmaHash =>
+      _prefs.getBool(AppConstants.prefKeyAcceptUnknownGemmaHash) ?? false;
+
+  Future<void> setAcceptUnknownGemmaHash(bool value) async {
+    await _prefs.setBool(AppConstants.prefKeyAcceptUnknownGemmaHash, value);
+    notifyListeners();
+  }
 }

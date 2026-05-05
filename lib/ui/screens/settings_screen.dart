@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../data/models/note.dart';
 import '../../services/embedder_coordinator.dart';
+import '../../services/secure_window_service.dart';
 import '../../services/settings_service.dart';
 import 'about_screen.dart';
 
@@ -51,6 +52,32 @@ class SettingsScreen extends StatelessWidget {
           ),
           _SemanticErrorTile(
             error: context.read<EmbedderCoordinator>().lastError,
+          ),
+          _Section(label: 'Sécurité', theme: theme),
+          SwitchListTile(
+            secondary: const Icon(Icons.visibility_off_outlined),
+            title: const Text('Masquer dans les apps récentes'),
+            subtitle: const Text(
+              'Empêche les captures d\'écran et masque l\'aperçu de l\'app '
+              'dans le sélecteur Android (FLAG_SECURE).',
+            ),
+            value: settings.secureWindowEnabled,
+            onChanged: (v) async {
+              final secure = context.read<SecureWindowService>();
+              await settings.setSecureWindowEnabled(v);
+              await secure.setEnabled(v);
+            },
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.warning_amber_outlined),
+            title: const Text('Accepter un modèle Gemma non vérifié'),
+            subtitle: const Text(
+              'Réglage avancé : permet d\'importer un .task dont le SHA-256 '
+              'ne correspond pas au modèle officiel (variantes, builds tiers). '
+              'À vos risques.',
+            ),
+            value: settings.acceptUnknownGemmaHash,
+            onChanged: settings.setAcceptUnknownGemmaHash,
           ),
           _Section(label: 'À propos', theme: theme),
           ListTile(

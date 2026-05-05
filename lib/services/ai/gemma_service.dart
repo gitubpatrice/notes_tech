@@ -23,13 +23,19 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../core/constants.dart';
+
 class GemmaService {
-  GemmaService();
+  GemmaService({String expectedSha256 = AppConstants.gemmaModelSha256})
+      : _expectedSha256 = expectedSha256.toLowerCase();
+
+  final String _expectedSha256;
 
   /// Nom canonique du fichier modèle dans le sandbox.
   static const String _modelFileName = 'gemma3-1b-it-int4.task';
@@ -107,7 +113,18 @@ class GemmaService {
   /// Copie un .task choisi par l'utilisateur vers le sandbox app.
   /// Stream `(copied, total)` à intervalles de `_importYieldEvery` octets
   /// pour ne pas saturer la boucle UI sur de gros fichiers.
-  Stream<({int copied, int total})> importFromFile(File source) async* {
+  ///
+  /// Sécurité v0.5 :
+  ///  - SHA-256 calculé en streaming (pas de re-lecture après copie).
+  ///  - Le fichier est écrit en `.tmp` puis vérifié contre
+  ///    `_expectedSha256` AVANT le rename atomique vers la destination
+  ///    finale. Mismatch ⇒ suppression du `.tmp` et exception détaillée.
+  ///  - L'override `acceptUnknownHash` permet à l'utilisateur averti
+  ///    d'accepter une variante non listée (toggle Réglages).
+  Stream<({int copied, int total})> importFromFile(
+    File source, {
+    bool acceptUnknownHash = false,
+  }) async* {
     if (!source.existsSync()) {
       throw const _GemmaException('Fichier source introuvable');
     }
@@ -129,6 +146,8 @@ class GemmaService {
     final tmp = File('${dest.path}.tmp');
     if (tmp.existsSync()) tmp.deleteSync();
 
+    final digestSink = _DigestSink();
+    final hashSink = sha256.startChunkedConversion(digestSink);
     final input = source.openRead();
     final output = tmp.openWrite();
     var copied = 0;
@@ -136,6 +155,7 @@ class GemmaService {
     try {
       await for (final chunk in input) {
         output.add(chunk);
+        hashSink.add(chunk);
         copied += chunk.length;
         if (copied - lastYielded >= _importYieldEvery || copied == size) {
           await output.flush();
@@ -145,10 +165,20 @@ class GemmaService {
       }
       await output.flush();
       await output.close();
+      hashSink.close();
     } catch (_) {
       await output.close();
       if (tmp.existsSync()) tmp.deleteSync();
       rethrow;
+    }
+
+    final actualHex = digestSink.value.toString().toLowerCase();
+    if (actualHex != _expectedSha256 && !acceptUnknownHash) {
+      if (tmp.existsSync()) tmp.deleteSync();
+      throw GemmaHashMismatchException(
+        expected: _expectedSha256,
+        actual: actualHex,
+      );
     }
 
     if (dest.existsSync()) dest.deleteSync();
@@ -343,4 +373,42 @@ class _GemmaException implements Exception {
   final String message;
   @override
   String toString() => 'GemmaException: $message';
+}
+
+/// Sink one-shot pour récupérer le `Digest` final d'un
+/// `sha256.startChunkedConversion`.
+class _DigestSink implements Sink<Digest> {
+  Digest? _value;
+  @override
+  void add(Digest data) => _value = data;
+  @override
+  void close() {}
+  Digest get value {
+    final v = _value;
+    if (v == null) {
+      throw StateError('Hash non calculé : sink fermé sans données.');
+    }
+    return v;
+  }
+}
+
+/// L'utilisateur a importé un fichier dont le SHA-256 ne correspond
+/// pas au modèle officiel attendu. Soit le fichier est corrompu,
+/// soit il s'agit d'une variante non listée. L'utilisateur peut
+/// activer le toggle `acceptUnknownHash` dans les réglages avancés
+/// pour passer outre en connaissance de cause.
+class GemmaHashMismatchException implements Exception {
+  const GemmaHashMismatchException({
+    required this.expected,
+    required this.actual,
+  });
+  final String expected;
+  final String actual;
+  @override
+  String toString() =>
+      'Empreinte SHA-256 inattendue.\n'
+      'Attendu : $expected\n'
+      'Calculé : $actual\n'
+      'Si tu fais confiance au fichier, active "Accepter un modèle '
+      'non vérifié" dans Réglages → Avancé.';
 }

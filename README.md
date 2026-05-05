@@ -12,16 +12,17 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 ## 🔒 Promesse de confidentialité
 
 - Aucune permission `INTERNET` dans le manifeste — vérifiable à l'œil nu
-- Aucun compte, aucune inscription
-- Aucun tracker, aucune publicité
-- Aucune télémétrie
+- **Base SQLite chiffrée AES-256 (SQLCipher 4)** ; clé maître scellée par AndroidKeystore (hardware-backed sur S24)
+- **FLAG_SECURE** activé par défaut — pas de capture d'écran ni d'aperçu dans les apps récentes
+- **SHA-256 obligatoire** sur le modèle Gemma à l'import (rejet d'un .task non vérifié, override explicite réservé aux utilisateurs avertis)
+- Aucun compte, aucune inscription, aucun tracker, aucune publicité, aucune télémétrie
 - Open source Apache 2.0
 - `allowBackup=false` + `dataExtractionRules` complet (pas d'exfiltration via Smart Switch ou Android Backup)
 - Modèle Gemma importé via SAF (jamais bundlé, jamais téléchargé en réseau)
 
 ---
 
-## ✨ Fonctionnalités v0.4.1
+## ✨ Fonctionnalités v0.5.0
 
 ### Édition
 - Notes Markdown — création / édition / auto-save debounced
@@ -58,9 +59,10 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 | **v0.3 / v0.3.x** | Gemma 3 1B int4 — Q&A on-device + RAG + indexation throttlée | ✅ |
 | **v0.4** | Backlinks `[[Titre]]` + auto-complétion + panneau mentions | ✅ |
 | **v0.4.1** | Audit complet appliqué : réindex ciblé, anti-injection RAG, init order, SAF only, lints stricts | ✅ |
-| **v0.5** | Vault Argon2id + AES-GCM scellé Keystore + FLAG_SECURE + versioning notes | ⏳ |
-| **v1.0** | Capture multimodale (Voice / PDF / OCR) + vault par dossier + export PDF séance | ⏳ |
-| **v1.1** | Import Obsidian / Notesnook / Apple Notes + mode panique | ⏳ |
+| **v0.5** | DB chiffrée SQLCipher (KEK Keystore) + migration auto + FLAG_SECURE + SHA-256 Gemma + nouvelle icône | ✅ |
+| **v0.6** | Versioning des notes + mode panique (wipe vault) + journal praticien + export PDF séance | ⏳ |
+| **v1.0** | Capture multimodale (Voice / PDF / OCR) + vault par dossier | ⏳ |
+| **v1.1** | Import Obsidian / Notesnook / Apple Notes | ⏳ |
 
 ---
 
@@ -79,7 +81,9 @@ lib/
 ├── services/
 │   ├── embedding/                     # EmbeddingProvider, LocalEmbedder,
 │   │                                    MiniLmEmbedder, BertTokenizer
-│   ├── ai/                            # GemmaService, RagService
+│   ├── ai/                            # GemmaService (SHA-256), RagService
+│   ├── security/                      # VaultService (KEK Keystore)
+│   ├── secure_window_service.dart     # FLAG_SECURE via MethodChannel
 │   ├── indexing_service.dart          # worker idempotent (hash diff)
 │   ├── embedder_coordinator.dart      # swap Local ↔ MiniLM à chaud
 │   ├── semantic_search_service.dart   # top-K cosine, cache invalidé
@@ -99,7 +103,9 @@ lib/
 ## 🛠 Stack
 
 - Flutter 3.41 / Dart 3.x
-- `sqflite_sqlcipher` (SQLite avec FTS5 garanti, prêt pour le chiffrement v0.5)
+- `sqflite_sqlcipher` (SQLite chiffré AES-256 + FTS5 garanti)
+- `flutter_secure_storage` (KEK scellée AndroidKeystore)
+- `crypto` (SHA-256 streaming pour vérification du modèle Gemma)
 - `onnxruntime` (MiniLM L6 v2 quantifié)
 - `flutter_gemma` (Gemma 3 1B int4)
 - `provider` (DI)

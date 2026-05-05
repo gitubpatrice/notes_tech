@@ -5,13 +5,24 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '0.4.0';
+  static const String appVersion = '0.5.0';
+  // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
+  // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
+  // automatiquement par `shared_preferences` au moment de la persistance).
   static const String appAuthor = 'Patrice Haltaya';
   static const String githubUrl = 'https://github.com/gitubpatrice/notes_tech';
 
   // Base de données
   static const String dbFileName = 'notes_tech.db';
   static const int dbVersion = 3;
+
+  /// SHA-256 du modèle Gemma 3 1B int4 officiel (gemma3-1b-it-int4.task,
+  /// 554 661 243 octets, publié sur Kaggle/HuggingFace).
+  /// Vérifié à l'import pour garantir l'intégrité du modèle.
+  /// Si l'utilisateur souhaite importer une variante différente, il doit
+  /// activer le toggle `acceptUnknownGemmaHash` dans les réglages avancés.
+  static const String gemmaModelSha256 =
+      'e3d981c01aeaaac69a84ffa0d4be13281b3176731063f1bea1c9fe6887bd9dee';
 
   // Recherche sémantique (la dim et le modelId réels sont portés par
   // l'EmbeddingProvider actif — voir LocalEmbedder / MiniLmEmbedder).
@@ -42,4 +53,11 @@ class AppConstants {
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeySortMode = 'note_sort_mode';
   static const String prefKeySemanticSearchEnabled = 'semantic_search_enabled';
+  static const String prefKeySecureWindowEnabled = 'secure_window_enabled';
+  static const String prefKeyAcceptUnknownGemmaHash =
+      'accept_unknown_gemma_hash';
+  /// `true` une fois la migration vers la base SQLite chiffrée terminée.
+  /// Absent / `false` ⇒ la prochaine ouverture déclenche la migration
+  /// d'une éventuelle DB en clair vers une DB chiffrée par la KEK du vault.
+  static const String prefKeyDbEncryptedV1 = 'db_encrypted_v1';
 }

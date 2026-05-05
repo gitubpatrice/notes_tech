@@ -26,6 +26,7 @@ import '../../data/models/note.dart';
 import '../../services/ai/gemma_service.dart';
 import '../../services/ai/rag_service.dart';
 import '../../services/semantic_search_service.dart';
+import '../../services/settings_service.dart';
 import '../widgets/empty_state.dart';
 import 'note_editor_screen.dart';
 
@@ -130,10 +131,16 @@ class _AiChatScreenState extends State<AiChatScreen> {
   /// `MANAGE_EXTERNAL_STORAGE`, permissions volontairement absentes
   /// du manifest. Le SAF traverse cette barrière sans permission.
   Future<void> _pickAndImport() async {
+    // Lecture du toggle AVANT tout `await` — évite l'usage de `context`
+    // après async gap (analyse statique stricte).
+    final acceptUnknownHash =
+        context.read<SettingsService>().acceptUnknownGemmaHash;
+
     setState(() => _phaseError = null);
 
     final source = await _resolveSource();
     if (source == null) return;
+    if (!mounted) return;
 
     setState(() {
       _phase = _Phase.importing;
@@ -141,7 +148,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
     });
 
     try {
-      await for (final p in _gemma.importFromFile(source)) {
+      await for (final p in _gemma.importFromFile(
+        source,
+        acceptUnknownHash: acceptUnknownHash,
+      )) {
         if (!mounted) return;
         setState(() => _importProgress = p);
       }

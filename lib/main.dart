@@ -36,6 +36,8 @@ import 'services/embedder_coordinator.dart';
 import 'services/embedding/embedding_provider.dart';
 import 'services/embedding/local_embedder.dart';
 import 'services/indexing_service.dart';
+import 'services/secure_window_service.dart';
+import 'services/security/vault_service.dart';
 import 'services/semantic_search_service.dart';
 import 'services/settings_service.dart';
 
@@ -46,6 +48,11 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // VaultService injecté avant tout accès DB : `AppDatabase` réutilisera
+  // la même instance (source de vérité unique pour la KEK, testable).
+  final vault = VaultService();
+  AppDatabase.instance.useVault(vault);
+
   // Bootstraps en parallèle (~50-100 ms cumulés).
   final dateInit = initializeDateFormatting('fr_FR');
   final settingsInit = SettingsService.create();
@@ -53,6 +60,13 @@ Future<void> main() async {
   await dateInit;
   final settings = await settingsInit;
   final Database db = await dbInit;
+
+  // FLAG_SECURE est appliqué côté natif dans `MainActivity.onCreate` à
+  // partir de la pref persistée — l'appel ci-dessous est défensif :
+  // garantit l'alignement Dart ⇄ natif si la pref a été modifiée
+  // pendant que l'activity était en pause.
+  final secureWindow = SecureWindowService();
+  unawaited(secureWindow.setEnabled(settings.secureWindowEnabled));
 
   // Couche données.
   final notesRepo = NotesRepository(NotesDao(db));
@@ -102,6 +116,8 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider<SettingsService>.value(value: settings),
+        Provider<VaultService>.value(value: vault),
+        Provider<SecureWindowService>.value(value: secureWindow),
         Provider<NotesRepository>.value(value: notesRepo),
         Provider<FoldersRepository>.value(value: foldersRepo),
         Provider<EmbeddingsRepository>.value(value: embeddingsRepo),
