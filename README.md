@@ -20,14 +20,15 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 ---
 
-## ✨ Fonctionnalités v0.2
+## ✨ Fonctionnalités v0.2.1
 
 - Création / édition de notes Markdown
 - Auto-save debounced 500 ms
 - Recherche plein texte instantanée (SQLite FTS5, tokenizer `unicode61`, accents normalisés)
-- **Recherche par similarité** (embeddings vectoriels locaux, cosine top-K)
-  → trouve des notes proches même sans le mot exact (tolère fautes / conjugaisons / synonymes morphologiques)
-- Indexation incrémentale en arrière-plan, idempotente, sans permission réseau
+- **Recherche sémantique on-device** via le modèle `all-MiniLM-L6-v2` quantifié int8 (~22 Mo)
+  → trouve des notes proches par le sens, même sans le mot exact (cross-langue FR/EN)
+  → repli automatique sur encodeur n-grammes local si le modèle est absent
+- Indexation incrémentale en arrière-plan, idempotente, **sans permission réseau**
 - Épingler / favoris / corbeille (rétention 30 jours)
 - Mode clair / sombre / système (palette GitHub)
 - Tri configurable (modifié, créé, titre)
@@ -38,7 +39,7 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 |---------|---------|
 | ✅ **v0.1** | Éditeur Markdown + FTS5 + thème + corbeille |
 | ✅ **v0.2** | Recherche par similarité (encodeur local + cosine) |
-| **v0.2.1** | Bascule encodeur MiniLM ONNX (vraie recherche sémantique cross-langue) |
+| ✅ **v0.2.1** | MiniLM L6 v2 ONNX int8 — vraie recherche sémantique on-device |
 | **v0.3** | Gemma 3 1B int4 (Q&A, résumé, tags auto) |
 | **v0.4** | Backlinks + graphe + versioning + vault Argon2id+AES-GCM |
 | **v0.5** | Mode "Journal praticien" + export PDF par séance |
@@ -85,7 +86,7 @@ flutter analyze
 flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/symbols
 ```
 
-APK release arm64 actuel : ~17 Mo (R8 + obfuscation actifs).
+APK release arm64 actuel : ~46 Mo (modèle ONNX 22 Mo + onnxruntime ~6 Mo, R8 + obfuscation actifs).
 
 ## 📱 Cible
 

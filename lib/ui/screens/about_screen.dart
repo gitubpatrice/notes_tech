@@ -2,8 +2,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
+import '../../services/embedding/embedding_provider.dart';
+import '../../services/indexing_service.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -62,6 +65,10 @@ class AboutScreen extends StatelessWidget {
             text: 'Données stockées localement, jamais envoyées',
           ),
           const SizedBox(height: 24),
+          Text('Recherche par similarité', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          const _SearchEngineInfo(),
+          const SizedBox(height: 24),
           Text('Auteur', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(AppConstants.appAuthor, style: theme.textTheme.bodyMedium),
@@ -69,6 +76,43 @@ class AboutScreen extends StatelessWidget {
           Text('Licence Apache 2.0', style: theme.textTheme.bodySmall),
         ],
       ),
+    );
+  }
+}
+
+class _SearchEngineInfo extends StatelessWidget {
+  const _SearchEngineInfo();
+
+  @override
+  Widget build(BuildContext context) {
+    final embedder = context.read<EmbeddingProvider>();
+    final indexing = context.read<IndexingService>();
+    final isMiniLm = embedder.modelId.startsWith('minilm');
+    final label = isMiniLm
+        ? 'Modèle MiniLM-L6-v2 (quantifié) — recherche sémantique'
+        : 'Encodeur local (n-grammes + hashing trick)';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Badge(
+          icon: isMiniLm ? Icons.auto_awesome : Icons.functions,
+          text: label,
+        ),
+        _Badge(
+          icon: Icons.straighten,
+          text: 'Dimension : ${embedder.dim}',
+        ),
+        FutureBuilder<int>(
+          future: indexing.indexedCount(),
+          builder: (_, snap) {
+            final n = snap.data ?? 0;
+            return _Badge(
+              icon: Icons.inventory_2_outlined,
+              text: 'Notes indexées : $n',
+            );
+          },
+        ),
+      ],
     );
   }
 }
