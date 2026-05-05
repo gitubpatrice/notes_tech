@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI (RAG + Q&A + backlinks, 100% offline)."
 publish_to: 'none'
-version: 0.5.0+10
+version: 0.5.1+11
 
 environment:
   sdk: ^3.11.5
@@ -52,8 +52,14 @@ flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/app_icon.png"
-  adaptive_icon_background: "#0D1117"
-  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
+  # Adaptive icon : on utilise le master COLORÉ comme foreground, pas
+  # un foreground texte-seul transparent. Sinon les launchers Android
+  # appliquent un inset de 16% sur un texte qui devient minuscule, et
+  # ne montrent que le fond — l'icône paraît "noire". Le master
+  # contient déjà ses propres quadrants bleu/rouge ; le background
+  # reste un fallback neutre seulement visible aux coins arrondis.
+  adaptive_icon_background: "#262660"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
 flutter:
   uses-material-design: true

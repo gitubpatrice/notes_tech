@@ -111,6 +111,24 @@ void main() {
       expect(bytes.every((b) => b == 0), isTrue);
     });
 
+    test('KEK persistée robuste à un encodage corrompu', () async {
+      final storage = _InMemoryStorage();
+      // Simule un payload corrompu (longueur correcte, caractères non-hex).
+      await storage.write(
+        key: 'notes_tech.vault.kek.v1',
+        value: 'g' * 64,
+      );
+      final vault = VaultService(storage: storage);
+      // L'erreur doit être générique, sans fragment du payload corrompu.
+      try {
+        await vault.getOrCreateKek();
+        fail('Une exception était attendue');
+      } on FormatException catch (e) {
+        expect(e.message, isNot(contains('gg')));
+        expect(e.message, contains('KEK'));
+      }
+    });
+
     test('appels parallèles partagent la même KEK (pas de double génération)',
         () async {
       final storage = _InMemoryStorage();

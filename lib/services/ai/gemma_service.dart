@@ -173,7 +173,8 @@ class GemmaService {
     }
 
     final actualHex = digestSink.value.toString().toLowerCase();
-    if (actualHex != _expectedSha256 && !acceptUnknownHash) {
+    if (!_constantTimeEquals(actualHex, _expectedSha256) &&
+        !acceptUnknownHash) {
       if (tmp.existsSync()) tmp.deleteSync();
       throw GemmaHashMismatchException(
         expected: _expectedSha256,
@@ -326,6 +327,19 @@ class GemmaService {
     if (!_busy && _chat != null) return;
     _busy = false;
     await _serialize<void>(_resetChat);
+  }
+
+  /// Compare deux chaînes hex en temps constant : XOR octet par octet
+  /// jusqu'à la fin systématique, sans court-circuit. Garde-fou contre
+  /// une attaque par timing si l'attaquant pouvait observer la latence
+  /// d'import (peu probable en local, mais coût nul).
+  static bool _constantTimeEquals(String a, String b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return diff == 0;
   }
 
   /// Substring qui ne coupe pas une surrogate pair UTF-16.

@@ -119,13 +119,21 @@ class VaultService {
     return buf.toString();
   }
 
+  /// Décodage hex sans fuite : `int.parse` rejette tout caractère
+  /// hors `[0-9a-fA-F]` mais pourrait inclure le fragment fautif dans
+  /// son `FormatException.toString()`. On rethrow une exception générique
+  /// pour ne pas faire fuiter d'octets de la KEK persistée.
   static Uint8List _decodeHex(String hex) {
     if (hex.length.isOdd) {
-      throw const FormatException('Hex KEK invalide (longueur impaire).');
+      throw const FormatException('KEK persistée : longueur invalide.');
     }
     final out = Uint8List(hex.length ~/ 2);
-    for (var i = 0; i < out.length; i++) {
-      out[i] = int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16);
+    try {
+      for (var i = 0; i < out.length; i++) {
+        out[i] = int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16);
+      }
+    } catch (_) {
+      throw const FormatException('KEK persistée : encodage corrompu.');
     }
     return out;
   }
