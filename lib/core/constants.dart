@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '0.3.0';
+  static const String appVersion = '0.3.1';
   static const String appAuthor = 'Patrice Haltaya';
   static const String githubUrl = 'https://github.com/gitubpatrice/notes_tech';
 
@@ -33,7 +33,13 @@ class AppConstants {
   static const Duration searchDebounce = Duration(milliseconds: 200);
   static const Duration autosaveDebounce = Duration(milliseconds: 500);
 
+  // Throttle d'indexation : laisse l'UI respirer entre chaque encodage.
+  // Calibré pour Samsung S24 (CPU MiniLM ~30-60 ms par note).
+  static const Duration indexingDelayLocal = Duration.zero;
+  static const Duration indexingDelayMiniLm = Duration(milliseconds: 80);
+
   // Préférences (clés SharedPreferences)
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeySortMode = 'note_sort_mode';
+  static const String prefKeySemanticSearchEnabled = 'semantic_search_enabled';
 }

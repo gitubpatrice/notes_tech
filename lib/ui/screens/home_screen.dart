@@ -12,6 +12,7 @@ import '../../data/repositories/notes_repository.dart';
 import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
 import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
@@ -138,6 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            const IndexingBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: TextField(

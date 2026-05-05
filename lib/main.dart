@@ -1,10 +1,15 @@
 /// Point d'entrée — initialisation parallèle puis injection de dépendances.
 ///
 /// Stratégie de démarrage :
-///   1. Bootstrap minimal (settings, DB) → runApp avec LocalEmbedder.
-///   2. Détection MiniLM en arrière-plan ; si dispo, warmUp puis swap
-///      à chaud côté IndexingService + SemanticSearchService.
-/// Ainsi le 1er frame n'attend jamais le chargement ONNX (~1-2 s).
+///   1. Bootstrap minimal (settings + DB + repos) → runApp avec LocalEmbedder.
+///   2. Si l'utilisateur a activé la recherche sémantique avancée
+///      dans les réglages, MiniLM est chargé en arrière-plan puis
+///      pris en relais à chaud (swap d'embedder + reindex incrémental).
+///   3. Le toggle peut être basculé à tout moment depuis Settings :
+///      le `_EmbedderCoordinator` réagit à la prefs et upgrade/downgrade
+///      sans relancer l'app.
+///
+/// Le 1er frame n'attend jamais ONNX ou MediaPipe.
 library;
 
 import 'dart:async';
@@ -39,7 +44,7 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Initialisations bloquantes parallèles (toutes < 100 ms).
+  // Bootstraps en parallèle (~50-100 ms cumulés).
   final dateInit = initializeDateFormatting('fr_FR');
   final settingsInit = SettingsService.create();
   final dbInit = AppDatabase.instance.db;
@@ -67,20 +72,19 @@ Future<void> main() async {
     embedder: localEmbedder,
     indexing: indexing,
   );
+  final gemma = GemmaService();
 
   // L'indexation locale démarre tout de suite (sans bloquer le 1er frame).
   unawaited(indexing.start());
 
-  // Service IA — singleton paresseux, ne charge le modèle qu'à la demande
-  // depuis l'écran de chat.
-  final gemma = GemmaService();
-
-  // Tente de basculer sur MiniLM en arrière-plan.
-  unawaited(_tryUpgradeToMiniLm(
+  // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
+  final coordinator = _EmbedderCoordinator(
+    settings: settings,
     indexing: indexing,
     semantic: semantic,
     activeEmbedder: activeEmbedder,
-  ));
+    localEmbedder: localEmbedder,
+  )..startListening();
 
   runApp(
     MultiProvider(
@@ -104,30 +108,106 @@ Future<void> main() async {
           create: (_) => gemma,
           dispose: (_, s) => s.dispose(),
         ),
+        Provider<_EmbedderCoordinator>(
+          create: (_) => coordinator,
+          dispose: (_, c) => c.dispose(),
+        ),
       ],
       child: const NotesTechApp(),
     ),
   );
 }
 
-/// Charge MiniLM en background si les assets sont présents et le warmUp OK.
-/// En cas d'échec, on reste sur LocalEmbedder sans bruit.
-Future<void> _tryUpgradeToMiniLm({
-  required IndexingService indexing,
-  required SemanticSearchService semantic,
-  required ValueNotifier<EmbeddingProvider> activeEmbedder,
-}) async {
-  try {
-    final available = await MiniLmEmbedder.assetsAvailable();
-    if (!available) return;
-    final m = MiniLmEmbedder();
-    await m.warmUp();
-    semantic.setEmbedder(m);
-    await indexing.swapEmbedder(m);
-    activeEmbedder.value = m;
-  } catch (e, st) {
-    if (kDebugMode) {
-      debugPrint('MiniLM indisponible, on reste sur LocalEmbedder : $e\n$st');
+/// Réagit aux changements du toggle "Recherche sémantique avancée"
+/// dans Settings et bascule l'embedder à chaud.
+///
+/// - OFF → LocalEmbedder (par défaut)
+/// - ON  → tente MiniLM en arrière-plan ; si succès, swap.
+class _EmbedderCoordinator {
+  _EmbedderCoordinator({
+    required SettingsService settings,
+    required IndexingService indexing,
+    required SemanticSearchService semantic,
+    required ValueNotifier<EmbeddingProvider> activeEmbedder,
+    required LocalEmbedder localEmbedder,
+  })  : _settings = settings,
+        _indexing = indexing,
+        _semantic = semantic,
+        _active = activeEmbedder,
+        _local = localEmbedder;
+
+  final SettingsService _settings;
+  final IndexingService _indexing;
+  final SemanticSearchService _semantic;
+  final ValueNotifier<EmbeddingProvider> _active;
+  final LocalEmbedder _local;
+
+  MiniLmEmbedder? _miniLm;
+  bool _busy = false;
+  bool _lastEnabled = false;
+
+  void startListening() {
+    _lastEnabled = _settings.semanticSearchEnabled;
+    _settings.addListener(_onSettingsChanged);
+    if (_lastEnabled) unawaited(_upgrade());
+  }
+
+  Future<void> dispose() async {
+    _settings.removeListener(_onSettingsChanged);
+    await _miniLm?.dispose();
+    _miniLm = null;
+  }
+
+  void _onSettingsChanged() {
+    final enabled = _settings.semanticSearchEnabled;
+    if (enabled == _lastEnabled) return;
+    _lastEnabled = enabled;
+    if (enabled) {
+      unawaited(_upgrade());
+    } else {
+      unawaited(_downgrade());
+    }
+  }
+
+  Future<void> _upgrade() async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      final available = await MiniLmEmbedder.assetsAvailable();
+      if (!available) {
+        if (kDebugMode) debugPrint('MiniLM assets absents, upgrade ignoré.');
+        return;
+      }
+      final m = _miniLm ?? MiniLmEmbedder();
+      await m.warmUp();
+      _miniLm = m;
+      _semantic.setEmbedder(m);
+      await _indexing.swapEmbedder(m);
+      _active.value = m;
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('Upgrade MiniLM échoué : $e\n$st');
+      }
+    } finally {
+      _busy = false;
+    }
+  }
+
+  Future<void> _downgrade() async {
+    if (_busy) return;
+    _busy = true;
+    try {
+      _semantic.setEmbedder(_local);
+      await _indexing.swapEmbedder(_local);
+      _active.value = _local;
+      // On garde le `_miniLm` chargé en RAM si l'utilisateur réactive vite.
+      // Le dispose se fera à la fin du process.
+    } catch (e, st) {
+      if (kDebugMode) {
+        debugPrint('Downgrade vers Local échoué : $e\n$st');
+      }
+    } finally {
+      _busy = false;
     }
   }
 }

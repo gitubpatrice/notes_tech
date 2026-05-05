@@ -36,6 +36,17 @@ class SettingsScreen extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showSortDialog(context, settings),
           ),
+          _Section(label: 'Recherche sémantique', theme: theme),
+          SwitchListTile(
+            secondary: const Icon(Icons.auto_awesome_outlined),
+            title: const Text('Mode avancé (MiniLM)'),
+            subtitle: const Text(
+              'Plus pertinent pour les synonymes et les paraphrases. '
+              'La première activation indexe vos notes en arrière-plan.',
+            ),
+            value: settings.semanticSearchEnabled,
+            onChanged: (v) => settings.setSemanticSearchEnabled(v),
+          ),
           _Section(label: 'À propos', theme: theme),
           ListTile(
             leading: const Icon(Icons.info_outline),

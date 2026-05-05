@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI."
 publish_to: 'none'
-version: 0.3.0+5
+version: 0.3.1+6
 
 environment:
   sdk: ^3.11.5

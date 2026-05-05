@@ -50,4 +50,16 @@ class SettingsService extends ChangeNotifier {
     await _prefs.setString(AppConstants.prefKeySortMode, mode.name);
     notifyListeners();
   }
+
+  // -------- Recherche sémantique avancée (MiniLM) --------
+  // Désactivée par défaut : LocalEmbedder est instantané et suffit pour
+  // démarrer. L'utilisateur active MiniLM quand il accepte de patienter
+  // pour la première indexation (quelques secondes par centaine de notes).
+  bool get semanticSearchEnabled =>
+      _prefs.getBool(AppConstants.prefKeySemanticSearchEnabled) ?? false;
+
+  Future<void> setSemanticSearchEnabled(bool value) async {
+    await _prefs.setBool(AppConstants.prefKeySemanticSearchEnabled, value);
+    notifyListeners();
+  }
 }
