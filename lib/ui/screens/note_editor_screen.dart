@@ -15,9 +15,13 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../core/exceptions.dart';
 import '../../data/models/note.dart';
+import '../../data/models/note_link.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../services/backlinks_service.dart';
 import '../../services/note_actions.dart';
 import '../../utils/debouncer.dart';
+import '../widgets/backlinks_panel.dart';
+import '../widgets/link_autocomplete_sheet.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   const NoteEditorScreen({super.key, required this.noteId});
@@ -190,6 +194,74 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------
+  // Backlinks `[[Titre]]`
+  // ---------------------------------------------------------------------
+
+  /// Ouvre la bottom sheet d'auto-complétion et insère `[[Titre]]` à la
+  /// position du curseur du contenu. Crée la note cible si nécessaire.
+  Future<void> _insertLink() async {
+    if (_note == null) return;
+    final service = context.read<BacklinksService>();
+    final result = await showLinkAutocompleteSheet(
+      context: context,
+      service: service,
+      excludeNoteId: _note?.id,
+    );
+    if (result == null || !mounted) return;
+
+    String title = result.title;
+    if (result.isCreate) {
+      // Crée la note dans la même boîte que celle en cours.
+      final folderId = _note?.folderId ?? 'inbox';
+      final created = await _repo.create(folderId: folderId, title: title);
+      title = created.title;
+    }
+    _insertAtCursor('[[$title]]');
+    _scheduleSave();
+  }
+
+  void _insertAtCursor(String text) {
+    final ctrl = _contentCtrl;
+    final sel = ctrl.selection;
+    final value = ctrl.text;
+    final start = sel.start >= 0 ? sel.start : value.length;
+    final end = sel.end >= 0 ? sel.end : value.length;
+    final updated = value.replaceRange(start, end, text);
+    ctrl.value = TextEditingValue(
+      text: updated,
+      selection: TextSelection.collapsed(offset: start + text.length),
+    );
+  }
+
+  /// Ouvre la note ciblée par un backlink (id résolu).
+  Future<void> _openLinkedNote(String noteId) async {
+    if (noteId == widget.noteId) return; // self-link, no-op
+    // Flush avant de naviguer pour ne pas perdre les modifs.
+    _autosave.cancel();
+    await _saveNow();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => NoteEditorScreen(noteId: noteId)),
+    );
+  }
+
+  /// Lien fantôme tapé : on propose de créer la note cible avec ce titre,
+  /// puis de l'ouvrir directement.
+  Future<void> _createFromDangling(NoteLink link) async {
+    final folderId = _note?.folderId ?? 'inbox';
+    final created = await _repo.create(
+      folderId: folderId,
+      title: link.targetTitle,
+    );
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NoteEditorScreen(noteId: created.id),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -236,6 +308,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             tooltip: note.favorite ? 'Retirer des favoris' : 'Favori',
             icon: Icon(note.favorite ? Icons.star : Icons.star_outline),
             onPressed: _toggleFavorite,
+          ),
+          IconButton(
+            tooltip: 'Insérer un lien [[note]]',
+            icon: const Icon(Icons.link),
+            onPressed: _insertLink,
           ),
           PopupMenuButton<String>(
             onSelected: (v) {
@@ -305,7 +382,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   keyboardType: TextInputType.multiline,
                   style: theme.textTheme.bodyLarge,
                   decoration: const InputDecoration(
-                    hintText: 'Écrivez en Markdown…',
+                    hintText: 'Écrivez en Markdown… ([[Titre]] pour lier)',
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
@@ -313,6 +390,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     contentPadding: EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
+              ),
+              BacklinksPanel(
+                note: note,
+                onOpenNoteId: _openLinkedNote,
+                onTapDangling: _createFromDangling,
               ),
             ],
           ),

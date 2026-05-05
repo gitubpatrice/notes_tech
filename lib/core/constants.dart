@@ -5,13 +5,13 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '0.3.3';
+  static const String appVersion = '0.4.0';
   static const String appAuthor = 'Patrice Haltaya';
   static const String githubUrl = 'https://github.com/gitubpatrice/notes_tech';
 
   // Base de données
   static const String dbFileName = 'notes_tech.db';
-  static const int dbVersion = 2;
+  static const int dbVersion = 3;
 
   // Recherche sémantique (la dim et le modelId réels sont portés par
   // l'EmbeddingProvider actif — voir LocalEmbedder / MiniLmEmbedder).

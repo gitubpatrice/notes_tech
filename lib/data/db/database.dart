@@ -81,12 +81,18 @@ class AppDatabase {
     // Migrations forward-only. Chaque version applique son delta.
     await db.transaction((txn) async {
       if (oldV < 2) await _migrateToV2(txn);
+      if (oldV < 3) await _migrateToV3(txn);
     });
   }
 
   /// v2 : ajout de la table `note_embeddings` (recherche par similarité).
   Future<void> _migrateToV2(Transaction txn) async {
     await _createEmbeddingsTable(txn);
+  }
+
+  /// v3 : ajout de la table `note_links` (backlinks `[[Titre]]`).
+  Future<void> _migrateToV3(Transaction txn) async {
+    await _createLinksTable(txn);
   }
 
   // ---------------------------------------------------------------------
@@ -175,6 +181,9 @@ class AppDatabase {
     // Embeddings — table v2 (créée d'emblée pour les nouvelles installations).
     await _createEmbeddingsTable(txn);
 
+    // Liens entre notes — table v3.
+    await _createLinksTable(txn);
+
     // Dossier racine par défaut.
     await _ensureInboxFolder(txn);
   }
@@ -204,6 +213,37 @@ class AppDatabase {
     ''');
     await txn.execute(
       'CREATE INDEX idx_emb_model ON note_embeddings(model_id);',
+    );
+  }
+
+  /// Liens `[[Titre]]` extraits des notes.
+  ///
+  /// `target_id` peut être NULL si le lien pointe vers un titre qui
+  /// n'existe pas encore (lien fantôme — sera résolu si l'utilisateur
+  /// crée une note avec ce titre plus tard).
+  /// `target_title_norm` est la version normalisée (lowercase + accents
+  /// dépouillés) du titre cible — utilisée pour le matching insensible
+  /// à la casse et aux diacritiques.
+  Future<void> _createLinksTable(Transaction txn) async {
+    await txn.execute('''
+      CREATE TABLE note_links (
+        source_id          TEXT NOT NULL,
+        target_id          TEXT,
+        target_title       TEXT NOT NULL,
+        target_title_norm  TEXT NOT NULL,
+        position           INTEGER NOT NULL,
+        FOREIGN KEY (source_id) REFERENCES notes(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE SET NULL
+      );
+    ''');
+    await txn.execute(
+      'CREATE INDEX idx_links_source ON note_links(source_id);',
+    );
+    await txn.execute(
+      'CREATE INDEX idx_links_target ON note_links(target_id);',
+    );
+    await txn.execute(
+      'CREATE INDEX idx_links_target_norm ON note_links(target_title_norm);',
     );
   }
 }

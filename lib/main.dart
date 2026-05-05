@@ -24,11 +24,14 @@ import 'app.dart';
 import 'data/db/database.dart';
 import 'data/db/embeddings_dao.dart';
 import 'data/db/folders_dao.dart';
+import 'data/db/links_dao.dart';
 import 'data/db/notes_dao.dart';
 import 'data/repositories/embeddings_repository.dart';
 import 'data/repositories/folders_repository.dart';
+import 'data/repositories/links_repository.dart';
 import 'data/repositories/notes_repository.dart';
 import 'services/ai/gemma_service.dart';
+import 'services/backlinks_service.dart';
 import 'services/embedder_coordinator.dart';
 import 'services/embedding/embedding_provider.dart';
 import 'services/embedding/local_embedder.dart';
@@ -55,6 +58,7 @@ Future<void> main() async {
   final notesRepo = NotesRepository(NotesDao(db));
   final foldersRepo = FoldersRepository(FoldersDao(db));
   final embeddingsRepo = EmbeddingsRepository(EmbeddingsDao(db));
+  final linksRepo = LinksRepository(LinksDao(db));
 
   // Démarrage immédiat avec l'encodeur léger.
   const localEmbedder = LocalEmbedder();
@@ -73,8 +77,13 @@ Future<void> main() async {
   );
   final gemma = GemmaService();
 
+  // Service de backlinks `[[Titre]]` — écoute les changements de notes
+  // pour réindexer en arrière-plan (debounced).
+  final backlinks = BacklinksService(notes: notesRepo, links: linksRepo);
+
   // L'indexation locale démarre tout de suite (sans bloquer le 1er frame).
   unawaited(indexing.start());
+  unawaited(backlinks.start());
 
   // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
   final coordinator = EmbedderCoordinator(
@@ -92,6 +101,10 @@ Future<void> main() async {
         Provider<NotesRepository>.value(value: notesRepo),
         Provider<FoldersRepository>.value(value: foldersRepo),
         Provider<EmbeddingsRepository>.value(value: embeddingsRepo),
+        Provider<LinksRepository>(
+          create: (_) => linksRepo,
+          dispose: (_, r) => r.dispose(),
+        ),
         ChangeNotifierProvider<ValueNotifier<EmbeddingProvider>>.value(
           value: activeEmbedder,
         ),
@@ -105,6 +118,10 @@ Future<void> main() async {
         ),
         Provider<GemmaService>(
           create: (_) => gemma,
+          dispose: (_, s) => s.dispose(),
+        ),
+        Provider<BacklinksService>(
+          create: (_) => backlinks,
           dispose: (_, s) => s.dispose(),
         ),
         Provider<EmbedderCoordinator>(
