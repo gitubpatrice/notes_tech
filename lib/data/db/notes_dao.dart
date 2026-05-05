@@ -50,6 +50,21 @@ class NotesDao {
     }
   }
 
+  /// Toutes les notes hors corbeille, archives incluses.
+  /// Utilisé par l'indexeur d'embeddings.
+  Future<List<Note>> listAllAlive() async {
+    try {
+      final rows = await _db.query(
+        'notes',
+        where: 'trashed_at IS NULL',
+        orderBy: 'updated_at DESC',
+      );
+      return rows.map(Note.fromRow).toList(growable: false);
+    } catch (e) {
+      throw DatabaseException('listAllAlive échoué', cause: e);
+    }
+  }
+
   Future<List<Note>> listRecent({required int limit}) async {
     try {
       final rows = await _db.query(

@@ -41,6 +41,10 @@ class NotesRepository {
   Future<List<Note>> recent() =>
       _dao.listRecent(limit: AppConstants.recentNotesLimit);
 
+  /// Toutes les notes vivantes (hors corbeille). Utilisé par l'indexation
+  /// d'embeddings — pas par l'UI.
+  Future<List<Note>> listAllAlive() => _dao.listAllAlive();
+
   // -------- Méthodes préparées pour v0.2 (vue dossiers / corbeille / favoris). --------
 
   Future<List<Note>> favorites() => _dao.listFavorites();

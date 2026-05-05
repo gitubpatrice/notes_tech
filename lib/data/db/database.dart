@@ -70,7 +70,14 @@ class AppDatabase {
 
   Future<void> _onUpgrade(Database db, int oldV, int newV) async {
     // Migrations forward-only. Chaque version applique son delta.
-    // Aucune migration > v1 à ce jour.
+    await db.transaction((txn) async {
+      if (oldV < 2) await _migrateToV2(txn);
+    });
+  }
+
+  /// v2 : ajout de la table `note_embeddings` (recherche par similarité).
+  Future<void> _migrateToV2(Transaction txn) async {
+    await _createEmbeddingsTable(txn);
   }
 
   // ---------------------------------------------------------------------
@@ -156,6 +163,9 @@ class AppDatabase {
       END;
     ''');
 
+    // Embeddings — table v2 (créée d'emblée pour les nouvelles installations).
+    await _createEmbeddingsTable(txn);
+
     // Dossier racine par défaut
     final now = DateTime.now().millisecondsSinceEpoch;
     await txn.insert('folders', {
@@ -167,5 +177,22 @@ class AppDatabase {
       'created_at': now,
       'updated_at': now,
     });
+  }
+
+  Future<void> _createEmbeddingsTable(Transaction txn) async {
+    await txn.execute('''
+      CREATE TABLE note_embeddings (
+        note_id     TEXT PRIMARY KEY NOT NULL,
+        vector      BLOB NOT NULL,
+        dim         INTEGER NOT NULL,
+        model_id    TEXT NOT NULL,
+        source_hash INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+      );
+    ''');
+    await txn.execute(
+      'CREATE INDEX idx_emb_model ON note_embeddings(model_id);',
+    );
   }
 }

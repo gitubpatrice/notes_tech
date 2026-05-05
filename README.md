@@ -20,11 +20,14 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 ---
 
-## ✨ Fonctionnalités v0.1
+## ✨ Fonctionnalités v0.2
 
 - Création / édition de notes Markdown
 - Auto-save debounced 500 ms
 - Recherche plein texte instantanée (SQLite FTS5, tokenizer `unicode61`, accents normalisés)
+- **Recherche par similarité** (embeddings vectoriels locaux, cosine top-K)
+  → trouve des notes proches même sans le mot exact (tolère fautes / conjugaisons / synonymes morphologiques)
+- Indexation incrémentale en arrière-plan, idempotente, sans permission réseau
 - Épingler / favoris / corbeille (rétention 30 jours)
 - Mode clair / sombre / système (palette GitHub)
 - Tri configurable (modifié, créé, titre)
@@ -33,7 +36,9 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 | Version | Contenu |
 |---------|---------|
-| **v0.2** | Embeddings MiniLM + recherche sémantique |
+| ✅ **v0.1** | Éditeur Markdown + FTS5 + thème + corbeille |
+| ✅ **v0.2** | Recherche par similarité (encodeur local + cosine) |
+| **v0.2.1** | Bascule encodeur MiniLM ONNX (vraie recherche sémantique cross-langue) |
 | **v0.3** | Gemma 3 1B int4 (Q&A, résumé, tags auto) |
 | **v0.4** | Backlinks + graphe + versioning + vault Argon2id+AES-GCM |
 | **v0.5** | Mode "Journal praticien" + export PDF par séance |
@@ -46,18 +51,22 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 ```
 lib/
-├── main.dart                # init parallèle + DI Provider
-├── app.dart                 # MaterialApp
-├── core/                    # constants, exceptions, theme
+├── main.dart                       # init parallèle + DI Provider
+├── app.dart                        # MaterialApp
+├── core/                           # constants, exceptions, theme
 ├── data/
-│   ├── models/              # Note, Folder
-│   ├── db/                  # database (SQLite + FTS5), DAOs
-│   └── repositories/        # façades + streams de changement
-├── services/                # settings, note actions
+│   ├── models/                     # Note, Folder, NoteEmbedding
+│   ├── db/                         # database (SQLite + FTS5), DAOs
+│   └── repositories/               # façades + streams de changement
+├── services/
+│   ├── embedding/                  # EmbeddingProvider, LocalEmbedder
+│   ├── indexing_service.dart       # worker incrémental, idempotent
+│   ├── semantic_search_service.dart # top-K cosine, cache invalidé
+│   └── settings_service.dart
 ├── ui/
-│   ├── screens/             # home, editor, search, settings, about
-│   └── widgets/             # NoteCard, EmptyState
-└── utils/                   # debouncer
+│   ├── screens/                    # home, editor, search, settings, about
+│   └── widgets/                    # NoteCard, EmptyState
+└── utils/                          # debouncer, vector_math
 ```
 
 ## 🛠 Stack
