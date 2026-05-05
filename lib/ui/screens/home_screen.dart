@@ -13,6 +13,7 @@ import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/note_card.dart';
+import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
@@ -106,6 +107,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text(AppConstants.appName),
         actions: [
+          IconButton(
+            tooltip: 'Demander à mes notes',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AiChatScreen()),
+            ),
+          ),
           IconButton(
             tooltip: 'Recherche avancée',
             icon: const Icon(Icons.travel_explore),

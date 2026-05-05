@@ -1,9 +1,23 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!--
       Notes Tech — 100% local, zéro réseau.
       Aucune permission INTERNET n'est déclarée intentionnellement.
       Toute future fonctionnalité réseau devra être justifiée et auditable.
+
+      Les déclarations `tools:node="remove"` ci-dessous neutralisent les
+      permissions que des dépendances transitives essaient d'injecter
+      (ex. `background_downloader` tiré par flutter_gemma) — l'app
+      n'utilise PAS ces fonctions et ne doit JAMAIS demander ces droits.
+      À auditer sur chaque release via `aapt dump permissions`.
     -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
 
     <application
         android:label="Notes Tech"
@@ -32,6 +46,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!--
+          flutter_gemma / MediaPipe : OpenCL natif pour accélération GPU.
+          `required="false"` → app fonctionne sans (CPU fallback).
+        -->
+        <uses-native-library
+            android:name="libOpenCL.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libOpenCL-car.so"
+            android:required="false" />
+        <uses-native-library
+            android:name="libOpenCL-pixel.so"
+            android:required="false" />
     </application>
 
     <queries>

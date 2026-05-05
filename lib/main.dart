@@ -24,6 +24,7 @@ import 'data/db/notes_dao.dart';
 import 'data/repositories/embeddings_repository.dart';
 import 'data/repositories/folders_repository.dart';
 import 'data/repositories/notes_repository.dart';
+import 'services/ai/gemma_service.dart';
 import 'services/embedding/embedding_provider.dart';
 import 'services/embedding/local_embedder.dart';
 import 'services/embedding/minilm_embedder.dart';
@@ -70,6 +71,10 @@ Future<void> main() async {
   // L'indexation locale démarre tout de suite (sans bloquer le 1er frame).
   unawaited(indexing.start());
 
+  // Service IA — singleton paresseux, ne charge le modèle qu'à la demande
+  // depuis l'écran de chat.
+  final gemma = GemmaService();
+
   // Tente de basculer sur MiniLM en arrière-plan.
   unawaited(_tryUpgradeToMiniLm(
     indexing: indexing,
@@ -93,6 +98,10 @@ Future<void> main() async {
         ),
         Provider<SemanticSearchService>(
           create: (_) => semantic,
+          dispose: (_, s) => s.dispose(),
+        ),
+        Provider<GemmaService>(
+          create: (_) => gemma,
           dispose: (_, s) => s.dispose(),
         ),
       ],

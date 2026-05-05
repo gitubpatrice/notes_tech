@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI."
 publish_to: 'none'
-version: 0.2.2+4
+version: 0.3.0+5
 
 environment:
   sdk: ^3.11.5
@@ -22,6 +22,8 @@ dependencies:
 
   # IA on-device
   onnxruntime: ^1.4.1
+  flutter_gemma: ^0.14.5
+  file_picker: ^10.3.3
 
   # Utils
   uuid: ^4.5.1

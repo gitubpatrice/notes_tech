@@ -54,3 +54,10 @@ build/symbols/
 
 # OS
 Thumbs.db
+
+# Modèles IA externes (trop volumineux pour Git)
+*.task
+*.tflite
+assets/models/gemma*
+assets/models/*.task
+
