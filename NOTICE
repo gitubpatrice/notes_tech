@@ -1,0 +1,24 @@
+Notes Tech
+Copyright 2026 Files Tech / Patrice Haltaya
+
+This product includes software developed by Files Tech / Patrice Haltaya
+(https://www.files-tech.com).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see LICENSE for details.
+
+Notes Tech est une application Android de prise de notes 100 % locale
+avec IA on-device, dictée vocale Whisper et chiffrement AES-256-GCM.
+
+Composants tiers — voir THIRD_PARTY_NOTICES.md pour la liste exhaustive
+des dépendances Dart/Flutter et leurs licences respectives.
+
+Modèles d'intelligence artificielle (NON bundlés, importés par
+l'utilisateur depuis les sources officielles) :
+- Gemma 3 1B int4 — Google Kaggle, licence Gemma
+- Whisper Base / Tiny — OpenAI / port ggml par Georgi Gerganov, MIT
+- MiniLM-L6-v2 — Microsoft, licence MIT (bundlé, ~22 Mo)
+
+Module sibling Files Tech utilisé :
+- files_tech_voice (Apache 2.0) — wrapper Whisper.cpp on-device
+  https://github.com/gitubpatrice/files_tech_voice

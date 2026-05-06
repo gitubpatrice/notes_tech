@@ -61,3 +61,7 @@ Thumbs.db
 assets/models/gemma*
 assets/models/*.task
 
+
+# Variables d'environnement (jamais commiter)
+.env
+.env.local

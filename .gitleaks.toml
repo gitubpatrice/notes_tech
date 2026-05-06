@@ -1,0 +1,28 @@
+# Configuration gitleaks pour Notes Tech.
+#
+# Hérite des règles par défaut (cf. https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml)
+# et ajoute des allowlists pour les faux positifs identifiés lors du
+# `health_check.sh` :
+#
+#  - `db_encrypted_v1` : clé de SharedPreferences publique (pas un secret).
+#    Marque dans les prefs Android que la migration v0.4→v0.5 vers DB
+#    chiffrée a été effectuée. Aucune valeur sensible.
+#
+#  - `AES_256_GCM_NoPadding` : nom canonique d'un algorithme JCA
+#    (javax.crypto.Cipher). Apparaît dans les commentaires explicatifs
+#    de VaultService. Identifiant standard, pas un secret.
+#
+# Le fichier est lu automatiquement par gitleaks 8+ depuis la racine
+# du repo. Ne pas étendre cette allowlist sans justification.
+
+title = "Notes Tech — gitleaks allowlist"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Faux positifs identifiés et justifiés"
+regexes = [
+  '''db_encrypted_v1''',
+  '''AES_256_GCM_NoPadding''',
+]
