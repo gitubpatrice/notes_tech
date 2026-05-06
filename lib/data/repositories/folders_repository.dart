@@ -64,6 +64,16 @@ class FoldersRepository {
     _emit();
   }
 
+  /// Persiste l'ensemble des champs d'un [Folder] (rename, métadonnées,
+  /// colonnes vault). Émet un `changes` event pour rafraîchir l'UI.
+  /// Le caller est responsable de l'`updatedAt` (typiquement
+  /// `folder.copyWith(updatedAt: DateTime.now())` avant appel).
+  Future<Folder> update(Folder folder) async {
+    await _dao.update(folder);
+    _emit();
+    return folder;
+  }
+
   void _emit() {
     if (!_changes.isClosed) _changes.add(null);
   }
