@@ -187,10 +187,17 @@ class GemmaService {
   }
 
   /// Supprime le modèle installé (libère l'espace disque).
+  ///
+  /// Utilise `delete()` async (et non `deleteSync`) : sur 530 Mo, le
+  /// `unlink()` bloque l'isolate Dart 50-300 ms sur eMMC moyen,
+  /// ce qui freezerait visiblement le `CircularProgressIndicator` du
+  /// mode panique. La forme async libère l'event loop.
   Future<void> uninstall() async {
     await dispose();
     final f = await _modelFile();
-    if (f.existsSync()) f.deleteSync();
+    if (await f.exists()) {
+      await f.delete();
+    }
   }
 
   // ---------------------------------------------------------------------

@@ -1,6 +1,7 @@
 /// Réglages utilisateur : thème, tri par défaut, export, voix.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -16,9 +17,12 @@ import '../../data/repositories/notes_repository.dart';
 import '../../services/embedder_coordinator.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/secure_window_service.dart';
+import '../../services/security/panic_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/voice/voice_service.dart';
+import '../widgets/panic_confirm_dialog.dart';
 import 'about_screen.dart';
+import 'panic_complete_screen.dart';
 import 'voice_setup_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -93,6 +97,8 @@ class SettingsScreen extends StatelessWidget {
           const _VoiceSection(),
           _Section(label: 'Exporter mes données', theme: theme),
           const _ExportSection(),
+          _Section(label: 'Mode panique', theme: theme),
+          const _PanicSection(),
           _Section(label: 'À propos', theme: theme),
           ListTile(
             leading: const Icon(Icons.info_outline),
@@ -438,6 +444,124 @@ class _ExportSectionState extends State<_ExportSection> {
             )
           : const Icon(Icons.share_outlined),
       onTap: _busy ? null : _exportAllAsZip,
+    );
+  }
+}
+
+/// Section "Mode panique" : trigger d'effacement irréversible.
+///
+/// UI volontairement austère et discrète (pas de FAB rouge clignotant) :
+/// - Tile en couleur d'erreur pour signaler la nature destructrice.
+/// - Confirmation par phrase tapée (cf. `confirmPanicDialog`).
+/// - Pendant l'exécution : Scaffold de blocage (impossible de revenir
+///   en arrière). À la fin : navigation `pushReplacement` vers
+///   PanicCompleteScreen — la pile précédente référence des objets dont
+///   les données sont détruites.
+class _PanicSection extends StatefulWidget {
+  const _PanicSection();
+
+  @override
+  State<_PanicSection> createState() => _PanicSectionState();
+}
+
+class _PanicSectionState extends State<_PanicSection> {
+  bool _running = false;
+
+  Future<void> _trigger() async {
+    if (_running) return;
+    final panic = context.read<PanicService>();
+    final confirmed = await confirmPanicDialog(context);
+    if (confirmed != true || !mounted) return;
+
+    // Affiche un loader bloquant pendant l'exécution. Le mode panique
+    // doit aboutir en quelques secondes même sur S9 — Gemma uninstall
+    // (~530 Mo delete) + DB wipe (zeroize + delete) + tmp purge.
+    setState(() => _running = true);
+    final navigator = Navigator.of(context);
+    // `unawaited` explicite : le dialog est non-bloquant côté code, mais
+    // visuellement modal côté utilisateur. On le ferme manuellement après
+    // `panic.trigger()`. Pas de `await` ici sinon on attendrait la
+    // fermeture du dialog (ce qui n'arrive jamais sans pop manuel).
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _PanicProgressDialog(),
+      ),
+    );
+
+    try {
+      await panic.trigger();
+    } catch (_) {
+      // Tous les steps sont best-effort dans PanicService.trigger ;
+      // l'exception est cosmétique (ne devrait pas remonter), mais
+      // on ne veut pas planter ici. La séquence a au minimum tenté
+      // de détruire la KEK.
+    }
+    if (!mounted) return;
+    // Ferme le dialogue de progression PUIS remplace la stack pour que
+    // l'utilisateur ne puisse pas revenir sur Settings (les services
+    // sont vides désormais).
+    navigator.pop(); // ferme le dialog
+    await navigator.pushAndRemoveUntil<void>(
+      MaterialPageRoute<void>(builder: (_) => const PanicCompleteScreen()),
+      (_) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return ListTile(
+      leading: Icon(Icons.local_fire_department_outlined, color: cs.error),
+      title: Text(
+        'Tout effacer maintenant',
+        style: TextStyle(color: cs.error, fontWeight: FontWeight.w600),
+      ),
+      subtitle: const Text(
+        'Détruit notes + clé maître + modèles IA + préférences en quelques '
+        'secondes. Action irréversible — confirmation par mot tapé.',
+      ),
+      trailing: _running
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(Icons.chevron_right, color: cs.error),
+      onTap: _running ? null : _trigger,
+    );
+  }
+}
+
+/// Dialogue modal pendant l'exécution de la panique. PopScope bloque le
+/// retour — l'utilisateur ne doit pas pouvoir interrompre l'effacement
+/// en cours (sinon état partiellement détruit, rare mais possible).
+class _PanicProgressDialog extends StatelessWidget {
+  const _PanicProgressDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Effacement en cours…',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Quelques secondes.',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -39,6 +39,7 @@ import 'services/embedding/local_embedder.dart';
 import 'services/indexing_service.dart';
 import 'services/ml/ml_memory_guard.dart';
 import 'services/secure_window_service.dart';
+import 'services/security/panic_service.dart';
 import 'services/security/vault_service.dart';
 import 'services/semantic_search_service.dart';
 import 'services/settings_service.dart';
@@ -116,6 +117,16 @@ Future<void> main() async {
   voice = VoiceService(prefs: voicePrefs, mlGuard: mlGuard);
   unawaited(voice.bootstrap());
 
+  // Mode panique (v0.7) — orchestrateur d'effacement irréversible. Tous
+  // les services qu'il a besoin de wiper lui sont injectés explicitement
+  // pour rester testable. Pas de Singleton magique : un test peut créer
+  // un PanicService avec des fakes.
+  //
+  // `beforeDbWipe` ferme proprement les background workers (Embedder
+  // Coordinator, Indexing, Backlinks) AVANT que la DB soit écrasée :
+  // sans ça, une écriture en vol via `notesRepo.changes` pourrait
+  // tomber sur une DB fermée et lever une exception cosmétique.
+
   // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
   // Démarré AVANT `indexing.start()` pour qu'un toggle MiniLM=ON déjà
   // persisté soit honoré dès la première passe d'indexation, sans
@@ -132,6 +143,29 @@ Future<void> main() async {
   // bloquer le 1er frame.
   unawaited(indexing.start());
   unawaited(backlinks.start());
+
+  // PanicService instancié ICI car son hook `beforeDbWipe` capture
+  // coordinator / indexing / backlinks pour les disposer avant le
+  // wipe DB (cf. doc panic_service.dart).
+  final panic = PanicService(
+    voice: voice,
+    gemma: gemma,
+    vault: vault,
+    database: AppDatabase.instance,
+    secureWindow: secureWindow,
+    prefs: voicePrefs,
+    beforeDbWipe: () async {
+      // Ordre : coordinator d'abord (libère les listeners de settings),
+      // puis indexing (annule le throttle pending), puis backlinks
+      // (ferme son StreamSubscription sur notesRepo.changes).
+      // Toutes les méthodes retournent Future<void>, on les attend en
+      // séquence : on veut que les services soient EFFECTIVEMENT
+      // arrêtés avant que `db.wipe()` ne ferme la base.
+      await coordinator.dispose();
+      await indexing.dispose();
+      await backlinks.dispose();
+    },
+  );
 
   runApp(
     MultiProvider(
@@ -171,6 +205,7 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider<VoiceService>.value(value: voice),
         Provider<MlMemoryGuard>.value(value: mlGuard),
+        Provider<PanicService>.value(value: panic),
         // Variante nullable pour les call sites optionnels (`context.read<
         // MlMemoryGuard?>()?.requestGemma()` dans ai_chat_screen) — Provider
         // résout le type non-nullable mais le call site accepte un null
