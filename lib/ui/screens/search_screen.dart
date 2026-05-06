@@ -117,19 +117,23 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     return Scaffold(
       appBar: AppBar(
-        title: TextField(
-          controller: _ctrl,
-          autofocus: true,
-          onChanged: _onChanged,
-          enableSuggestions: false,
-          autocorrect: false,
-          textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintText: 'Rechercher…',
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            filled: false,
+        title: Semantics(
+          label: 'Champ de recherche avancée',
+          textField: true,
+          child: TextField(
+            controller: _ctrl,
+            autofocus: true,
+            onChanged: _onChanged,
+            enableSuggestions: false,
+            autocorrect: false,
+            textInputAction: TextInputAction.search,
+            decoration: const InputDecoration(
+              hintText: 'Rechercher…',
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              filled: false,
+            ),
           ),
         ),
       ),

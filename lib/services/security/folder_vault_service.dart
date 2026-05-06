@@ -57,7 +57,10 @@ import 'dart:math';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../core/constants.dart';
+import '../../core/exceptions.dart';
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/folders_repository.dart';
@@ -66,27 +69,24 @@ import 'keystore_bridge.dart';
 
 /// Erreur levée quand une passphrase saisie est incorrecte (le wrap
 /// AES-GCM échoue au tag GCM ou le verifier HMAC ne matche pas).
-class WrongPassphraseException implements Exception {
-  const WrongPassphraseException();
-  @override
-  String toString() => 'WrongPassphraseException: passphrase incorrecte';
+class WrongPassphraseException extends NotesTechException {
+  const WrongPassphraseException() : super('Passphrase incorrecte.');
 }
 
 /// Erreur levée quand on tente d'opérer sur un coffre qui n'a pas été
 /// déverrouillé (ou a été auto-locké entre temps).
-class VaultLockedException implements Exception {
-  const VaultLockedException(this.folderId);
+class VaultLockedException extends NotesTechException {
+  const VaultLockedException(this.folderId)
+      : super('Coffre verrouillé.');
   final String folderId;
-  @override
-  String toString() => 'VaultLockedException: dossier $folderId verrouillé';
 }
 
 /// Erreur de validation (passphrase trop courte, dossier déjà coffre…).
-class VaultValidationException implements Exception {
-  const VaultValidationException(this.message);
-  final String message;
-  @override
-  String toString() => 'VaultValidationException: $message';
+/// Hérite de [ValidationException] pour que les call-sites attrapant
+/// `ValidationException` (note_editor_screen) couvrent aussi les erreurs
+/// vault — single source of truth.
+class VaultValidationException extends ValidationException {
+  const VaultValidationException(super.message);
 }
 
 /// Erreur levée quand un coffre PIN a été auto-détruit après trop de
@@ -94,22 +94,18 @@ class VaultValidationException implements Exception {
 /// a été supprimée, les notes verrouillées ont été effacées, et le
 /// dossier a été démoté en dossier ordinaire — les données sont perdues
 /// définitivement.
-class VaultPinWipedException implements Exception {
-  const VaultPinWipedException(this.folderId);
+class VaultPinWipedException extends NotesTechException {
+  const VaultPinWipedException(this.folderId)
+      : super('Coffre auto-détruit après trop de tentatives ratées.');
   final String folderId;
-  @override
-  String toString() =>
-      'VaultPinWipedException: coffre $folderId auto-détruit (5 tentatives ratées)';
 }
 
 /// Erreur levée quand un PIN saisi est incorrect. Inclut le nombre de
 /// tentatives restantes pour permettre à l'UI d'avertir l'utilisateur.
-class WrongPinException implements Exception {
-  const WrongPinException({required this.attemptsRemaining});
+class WrongPinException extends NotesTechException {
+  const WrongPinException({required this.attemptsRemaining})
+      : super('PIN incorrect.');
   final int attemptsRemaining;
-  @override
-  String toString() =>
-      'WrongPinException: PIN incorrect ($attemptsRemaining tentatives restantes)';
 }
 
 /// Session active d'un coffre déverrouillé. La `folder_kek` est gardée en
@@ -362,7 +358,13 @@ class FolderVaultService extends ChangeNotifier {
     }
 
     final pinKek = await _deriveKekArgon2idLight(pin: pin, salt: salt);
+    // `folderKek` est nullable car peut ne pas être assignée si
+    // `_aesGcmDecrypt` lève. Le `finally` wipe systématiquement si
+    // assignée mais non encore transférée à la session — évite la
+    // fenêtre où une exception inattendue dans `_verifierFor` ou
+    // `_folders.update` laisserait la clé en RAM.
     Uint8List? folderKek;
+    var transferredToSession = false;
     try {
       try {
         folderKek = await _aesGcmDecrypt(
@@ -377,7 +379,6 @@ class FolderVaultService extends ChangeNotifier {
 
       final actualVerifier = await _verifierFor(folderKek);
       if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
-        _wipe(folderKek);
         await _onPinFailure(working);
       }
 
@@ -389,13 +390,20 @@ class FolderVaultService extends ChangeNotifier {
         folderKek: folderKek,
         openedAt: DateTime.now(),
       );
+      transferredToSession = true; // ownership transférée — ne pas wipe ici
       _scheduleAutoLockSweep();
       notifyListeners();
     } finally {
       _wipe(pinKek);
-      // Wipe innerWrapped (contenait `folder_kek` chiffrée par pin_kek —
-      // pas une clé en clair, mais hygiène).
+      // innerWrapped contenait folder_kek chiffrée par pin_kek (pas une
+      // clé en clair, mais hygiène défense en profondeur).
       _wipe(innerWrapped);
+      // Wipe folderKek si elle a été dérivée mais pas transférée à
+      // une session active (cas exception entre _aesGcmDecrypt et
+      // l'assignation à `_unlocked`).
+      if (!transferredToSession && folderKek != null) {
+        _wipe(folderKek);
+      }
     }
   }
 
@@ -413,17 +421,29 @@ class FolderVaultService extends ChangeNotifier {
   }
 
   /// Auto-destruction d'un coffre PIN après trop de tentatives :
+  ///   0. Pose un flag prefs `vault_wipe_pending_<id>` (anti-reprise).
   ///   1. Supprime la clé Keystore (alias = `vault_pin_<id>`).
   ///   2. Supprime de la DB **toutes les notes locked** du dossier
   ///      (elles sont chiffrées avec une `folder_kek` à jamais
   ///      irrécupérable — autant ne pas garder de garbage).
   ///   3. Démote le dossier en dossier ordinaire (clearVault → null
   ///      sur tous les champs `vault_*`, `vault_attempts` revient à 0).
+  ///   4. Retire le flag prefs.
+  ///
+  /// **Atomicité** : si l'app est tuée entre les steps 1-3, le flag
+  /// reste posé. Au démarrage suivant, [resumePendingWipes] reprend
+  /// les wipes interrompus → on évite les notes orphelines chiffrées
+  /// éternellement avec une clé Keystore déjà supprimée.
   ///
   /// Le dossier reste, vide. L'utilisateur voit clairement que les
   /// données ont disparu — c'est le contrat (5 fails = perte définitive,
   /// équivalent factory reset Android).
   Future<void> _autoWipePinVault(Folder folder) async {
+    final prefs = await SharedPreferences.getInstance();
+    final flagKey =
+        '${AppConstants.prefKeyVaultWipePendingPrefix}${folder.id}';
+    await prefs.setBool(flagKey, true);
+
     // 1. Keystore : delete idempotent.
     try {
       await _keystore.deleteKey(_keystoreAlias(folder.id));
@@ -452,6 +472,37 @@ class FolderVaultService extends ChangeNotifier {
 
     // Ferme la session si ouverte (ne devrait pas l'être à ce stade).
     lock(folder.id);
+
+    // 4. Retire le flag — wipe terminé proprement.
+    await prefs.remove(flagKey);
+  }
+
+  /// Reprise au démarrage : pour chaque coffre dont le flag de wipe
+  /// pending est encore posé en prefs, relance `_autoWipePinVault`
+  /// (idempotent). À appeler une fois par session, depuis [main.dart]
+  /// après l'initialisation des repositories.
+  Future<void> resumePendingWipes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final keys = prefs.getKeys();
+    const prefix = AppConstants.prefKeyVaultWipePendingPrefix;
+    for (final key in keys) {
+      if (!key.startsWith(prefix)) continue;
+      final folderId = key.substring(prefix.length);
+      try {
+        final folder = await _folders.get(folderId);
+        if (folder == null) {
+          // Folder déjà supprimé — rien à wiper, juste retirer le flag.
+          await prefs.remove(key);
+          continue;
+        }
+        await _autoWipePinVault(folder);
+      } catch (_) {
+        // Best-effort : on retire quand même le flag pour ne pas
+        // boucler indéfiniment au prochain démarrage si la reprise
+        // échoue de manière permanente (ex. DB corrompue).
+        await prefs.remove(key);
+      }
+    }
   }
 
   /// Suppression propre d'un coffre PIN (par l'utilisateur, pas par
@@ -509,18 +560,26 @@ class FolderVaultService extends ChangeNotifier {
     }
     _wipe(kekFromPass);
 
-    final actualVerifier = await _verifierFor(folderKek);
-    if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
-      _wipe(folderKek);
-      throw const WrongPassphraseException();
+    // Pattern identique au mode PIN : try/finally global pour garantir
+    // que `folderKek` est wipée si une exception survient dans
+    // `_verifierFor` (OOM dans l'isolate, dispose anticipée du
+    // SecretKey…) avant le transfert à la session.
+    var transferredToSession = false;
+    try {
+      final actualVerifier = await _verifierFor(folderKek);
+      if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
+        throw const WrongPassphraseException();
+      }
+      _unlocked[folder.id] = _Session(
+        folderKek: folderKek,
+        openedAt: DateTime.now(),
+      );
+      transferredToSession = true; // ownership transférée
+      _scheduleAutoLockSweep();
+      notifyListeners();
+    } finally {
+      if (!transferredToSession) _wipe(folderKek);
     }
-
-    _unlocked[folder.id] = _Session(
-      folderKek: folderKek,
-      openedAt: DateTime.now(),
-    );
-    _scheduleAutoLockSweep();
-    notifyListeners();
   }
 
   /// Verrouille manuellement un coffre. Idempotent.

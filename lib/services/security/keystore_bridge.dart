@@ -90,6 +90,17 @@ class KeystoreBridge {
   Future<void> deleteKey(String alias) async {
     await _channel.invokeMethod<void>('deleteKey', {'alias': alias});
   }
+
+  /// Supprime **toutes** les clés Keystore dont l'alias commence par
+  /// [prefix]. Utilisé par le mode panique pour wiper d'un coup toutes
+  /// les `vault_pin_*` sans dépendre de la DB. Retourne le nombre de
+  /// clés effectivement supprimées (0 si aucune ne matchait).
+  Future<int> deleteKeysWithPrefix(String prefix) async {
+    final n = await _channel.invokeMethod<int>('deleteKeysWithPrefix', {
+      'prefix': prefix,
+    });
+    return n ?? 0;
+  }
 }
 
 class KeystoreException implements Exception {

@@ -77,6 +77,24 @@ class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallH
                     if (ks.containsAlias(alias)) ks.deleteEntry(alias)
                     result.success(null)
                 }
+                "deleteKeysWithPrefix" -> {
+                    val prefix = call.argument<String>("prefix")
+                        ?: return result.error("BAD_ARG", "prefix missing", null)
+                    // Itère TOUS les alias du Keystore et supprime ceux qui
+                    // matchent le préfixe. Utilisé par le mode panique pour
+                    // wiper d'un coup toutes les clés `vault_pin_*` sans
+                    // dépendre d'une DB encore lisible.
+                    val toDelete = mutableListOf<String>()
+                    val aliases = ks.aliases()
+                    while (aliases.hasMoreElements()) {
+                        val a = aliases.nextElement()
+                        if (a.startsWith(prefix)) toDelete.add(a)
+                    }
+                    for (a in toDelete) {
+                        try { ks.deleteEntry(a) } catch (_: Exception) {/* best-effort */}
+                    }
+                    result.success(toDelete.size)
+                }
                 "hasKey" -> {
                     val alias = call.argument<String>("alias")
                         ?: return result.error("BAD_ARG", "alias missing", null)

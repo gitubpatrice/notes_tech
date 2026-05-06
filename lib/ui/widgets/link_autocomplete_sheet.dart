@@ -107,16 +107,20 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: _ctrl,
-                autofocus: true,
-                enableSuggestions: false,
-                autocorrect: false,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _onSubmit(query),
-                decoration: const InputDecoration(
-                  hintText: 'Titre de note…',
-                  prefixIcon: Icon(Icons.link),
+              Semantics(
+                label: 'Titre de la note à lier',
+                textField: true,
+                child: TextField(
+                  controller: _ctrl,
+                  autofocus: true,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _onSubmit(query),
+                  decoration: const InputDecoration(
+                    hintText: 'Titre de note…',
+                    prefixIcon: Icon(Icons.link),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

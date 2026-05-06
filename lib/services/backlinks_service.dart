@@ -64,11 +64,21 @@ class BacklinksService {
   Timer? _bulkDebounceTimer;
   bool _disposed = false;
 
-  /// Démarre l'écoute des changements de notes et lance une passe
+  /// Démarre l'écoute des changements de notes et planifie une passe
   /// complète initiale (réconciliation au boot).
+  ///
+  /// La passe `_reindexAll()` itère sur TOUTES les notes — coûteux à
+  /// boot avec ≥500 notes sur S9/POCO C75 (~30-60 ms par note). On la
+  /// **diffère de 2 secondes** pour laisser le 1er frame se peindre,
+  /// les FutureBuilders du HomeScreen résoudre, et l'utilisateur
+  /// commencer à interagir avant que cette tâche d'arrière-plan ne
+  /// commence à yielder.
   Future<void> start() async {
     _notesSub = _notes.changes.listen(_onNoteChange);
-    unawaited(_reindexAll());
+    Timer(const Duration(seconds: 2), () {
+      if (_disposed) return;
+      unawaited(_reindexAll());
+    });
   }
 
   Future<void> dispose() async {

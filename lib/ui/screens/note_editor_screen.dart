@@ -29,7 +29,6 @@ import '../../utils/debouncer.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
 import '../widgets/move_to_folder_sheet.dart';
-import '../widgets/vault_passphrase_sheets.dart';
 import '../widgets/vault_pin_sheets.dart';
 import '../widgets/voice_record_button.dart';
 
@@ -178,6 +177,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       setState(() {
         _note = resolved;
         _loading = false;
+      });
+    } on VaultPinWipedException {
+      // Coffre auto-détruit après 5 PINs ratés : information cruciale,
+      // l'utilisateur doit comprendre pourquoi son contenu a disparu.
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error =
+            'Coffre auto-détruit après trop de tentatives ratées. Les notes du dossier sont définitivement perdues.';
+      });
+    } on VaultLockedException {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Coffre re-verrouillé. Rouvrez la note pour réessayer.';
       });
     } catch (_) {
       if (!mounted) return;
@@ -370,7 +384,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // passphrase AVANT de toucher au contenu — sinon on aurait flush
     // une note en clair dans une DB cassée vis-à-vis du coffre.
     if (targetFolder.isVault && !_vault.isUnlocked(targetId)) {
-      final ok = await showUnlockVaultSheet(
+      final ok = await showUnlockVaultAdaptive(
         context: context,
         folder: targetFolder,
       );
@@ -532,21 +546,28 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       appBar: AppBar(
         title: ValueListenableBuilder<bool>(
           valueListenable: _savingNotifier,
-          builder: (_, saving, _) => Row(
-            children: [
-              if (saving)
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                Icon(Icons.cloud_done_outlined,
-                    size: 16, color: theme.iconTheme.color),
-              const SizedBox(width: 8),
-              Text(saving ? 'Enregistrement…' : 'Enregistré',
-                  style: theme.textTheme.bodySmall),
-            ],
+          builder: (_, saving, _) => Semantics(
+            // liveRegion : TalkBack annonce le changement d'état
+            // (Enregistrement… → Enregistré) sans que l'utilisateur
+            // doive explorer l'AppBar — confort journalistes/seniors.
+            liveRegion: true,
+            label: saving ? 'Enregistrement en cours' : 'Note enregistrée',
+            child: Row(
+              children: [
+                if (saving)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(Icons.cloud_done_outlined,
+                      size: 16, color: theme.iconTheme.color),
+                const SizedBox(width: 8),
+                Text(saving ? 'Enregistrement…' : 'Enregistré',
+                    style: theme.textTheme.bodySmall),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -620,45 +641,53 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
-              TextField(
-                controller: _titleCtrl,
-                onChanged: (_) => _scheduleSave(),
-                textInputAction: TextInputAction.next,
-                enableSuggestions: false,
-                autocorrect: false,
-                style: theme.textTheme.titleLarge,
-                decoration: const InputDecoration(
-                  hintText: 'Titre',
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  filled: false,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
-                ),
-                inputFormatters: [
-                  LengthLimitingTextInputFormatter(
-                      AppConstants.noteTitleMaxLength),
-                ],
-              ),
-              Divider(color: theme.dividerColor, height: 1),
-              Expanded(
+              Semantics(
+                label: 'Titre de la note',
+                textField: true,
                 child: TextField(
-                  controller: _contentCtrl,
+                  controller: _titleCtrl,
                   onChanged: (_) => _scheduleSave(),
+                  textInputAction: TextInputAction.next,
                   enableSuggestions: false,
                   autocorrect: false,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
-                  style: theme.textTheme.bodyLarge,
+                  style: theme.textTheme.titleLarge,
                   decoration: const InputDecoration(
-                    hintText: 'Écrivez en Markdown… ([[Titre]] pour lier)',
+                    hintText: 'Titre',
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     filled: false,
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                  inputFormatters: [
+                    LengthLimitingTextInputFormatter(
+                        AppConstants.noteTitleMaxLength),
+                  ],
+                ),
+              ),
+              Divider(color: theme.dividerColor, height: 1),
+              Expanded(
+                child: Semantics(
+                  label: 'Contenu de la note en Markdown',
+                  textField: true,
+                  child: TextField(
+                    controller: _contentCtrl,
+                    onChanged: (_) => _scheduleSave(),
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    keyboardType: TextInputType.multiline,
+                    style: theme.textTheme.bodyLarge,
+                    decoration: const InputDecoration(
+                      hintText: 'Écrivez en Markdown… ([[Titre]] pour lier)',
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      filled: false,
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
               ),

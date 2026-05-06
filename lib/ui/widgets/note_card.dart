@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/a11y.dart';
 import '../../data/models/note.dart';
 
 class NoteCard extends StatelessWidget {
@@ -89,7 +90,7 @@ class NoteCard extends StatelessWidget {
                       ),
                     ),
                     if (note.favorite && !locked)
-                      const Icon(Icons.star, size: 16, color: Colors.amber),
+                      Icon(Icons.star, size: 16, color: cs.favoriteIcon),
                   ],
                 ),
                 if (!locked && excerpt.isNotEmpty) ...[

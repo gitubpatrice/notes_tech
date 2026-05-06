@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '0.9.0';
+  static const String appVersion = '0.9.1';
   // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
   // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
   // automatiquement par `shared_preferences` au moment de la persistance).
@@ -92,6 +92,12 @@ class AppConstants {
   /// Préfixe des alias Keystore pour les coffres PIN. Concaténé avec
   /// `folder_id` pour unicité par coffre.
   static const String vaultPinKeystoreAliasPrefix = 'vault_pin_';
+
+  /// Préfixe des clés SharedPreferences signalant un auto-wipe en cours
+  /// pour un coffre PIN. Concaténé avec `folder_id`. Permet la reprise
+  /// après crash : si le flag existe au démarrage suivant, le wipe avait
+  /// été interrompu → relancé pour finir proprement.
+  static const String prefKeyVaultWipePendingPrefix = 'vault_wipe_pending_';
 
   /// Clé SharedPreferences pour le timeout d'auto-lock (en minutes).
   /// Valeurs spéciales : `0` = jamais, `-1` = au pause de l'app uniquement.

@@ -83,7 +83,8 @@ class VaultService {
 
   /// Détruit la KEK persistée. Action irréversible — toutes les données
   /// chiffrées avec cette clé deviennent inaccessibles.
-  /// Utilisé par le mode panique (à venir v0.6) ou un reset utilisateur.
+  /// Utilisé par le mode panique (cf. `PanicStep.kekDestroy` dans
+  /// `panic_service.dart`) ou un reset utilisateur.
   Future<void> destroyKek() async {
     await _storage.delete(key: _kekStorageKey);
   }

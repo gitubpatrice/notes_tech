@@ -277,7 +277,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.warning_amber_outlined,
-                        color: cs.error, size: 20),
+                        color: cs.onErrorContainer, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -570,27 +570,43 @@ class _NumericKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget btn(String label, VoidCallback? onPressed, {Widget? icon}) {
+    Widget btn(
+      String label,
+      VoidCallback? onPressed, {
+      Widget? icon,
+      String? semanticsLabel,
+    }) {
       return Expanded(
         child: Padding(
           padding: const EdgeInsets.all(6),
           child: AspectRatio(
             aspectRatio: 1.6,
-            child: OutlinedButton(
-              onPressed: disabled ? null : onPressed,
-              style: OutlinedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: icon ??
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
+            child: Semantics(
+              // Label explicite pour TalkBack : sans ça, les boutons
+              // backspace / valider sont annoncés "bouton" sans plus.
+              label: semanticsLabel ?? label,
+              button: true,
+              enabled: !disabled,
+              child: ExcludeSemantics(
+                // L'icône à l'intérieur ne doit pas être lue en plus du
+                // label parent — sinon double annonce ("Effacer, image").
+                child: OutlinedButton(
+                  onPressed: disabled ? null : onPressed,
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
+                  child: icon ??
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                ),
+              ),
             ),
           ),
         ),
@@ -607,10 +623,13 @@ class _NumericKeypad extends StatelessWidget {
         row([for (final d in ['4', '5', '6']) btn(d, () => onDigit(d))]),
         row([for (final d in ['7', '8', '9']) btn(d, () => onDigit(d))]),
         row([
-          btn('', onBackspace, icon: const Icon(Icons.backspace_outlined)),
+          btn('', onBackspace,
+              icon: const Icon(Icons.backspace_outlined),
+              semanticsLabel: 'Effacer le dernier chiffre'),
           btn('0', () => onDigit('0')),
           btn('', onValidate,
-              icon: const Icon(Icons.check_circle_outline, size: 28)),
+              icon: const Icon(Icons.check_circle_outline, size: 28),
+              semanticsLabel: 'Valider le code'),
         ]),
       ],
     );

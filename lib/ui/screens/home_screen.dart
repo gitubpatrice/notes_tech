@@ -280,26 +280,32 @@ class _HomeScreenState extends State<HomeScreen> {
             const IndexingBanner(),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: _onSearchChanged,
-                textInputAction: TextInputAction.search,
-                enableSuggestions: false,
-                autocorrect: false,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  // Hint constant : la recherche couvre toujours TOUTES les
-                  // notes, indépendamment du filtre dossier (cf. _reload).
-                  hintText: 'Rechercher dans toutes les notes',
-                  suffixIcon: _searchCtrl.text.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            _searchCtrl.clear();
-                            _onSearchChanged('');
-                          },
-                        ),
+              child: Semantics(
+                label: 'Champ de recherche dans toutes les notes',
+                textField: true,
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: _onSearchChanged,
+                  textInputAction: TextInputAction.search,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search),
+                    // Hint constant : la recherche couvre toujours TOUTES
+                    // les notes, indépendamment du filtre dossier
+                    // (cf. _reload).
+                    hintText: 'Rechercher dans toutes les notes',
+                    suffixIcon: _searchCtrl.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Effacer la recherche',
+                            icon: const Icon(Icons.close),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              _onSearchChanged('');
+                            },
+                          ),
+                  ),
                 ),
               ),
             ),

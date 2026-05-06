@@ -154,6 +154,10 @@ Future<void> main() async {
     notes: notesRepo,
     autoLockAfter: Duration(minutes: settings.vaultAutoLockMinutes),
   );
+  // v0.9 — reprend les auto-wipes de coffres PIN interrompus par un
+  // crash ou un kill app entre les steps internes (delete Keystore →
+  // delete locked notes → demote folder). Idempotent, fire-and-forget.
+  unawaited(folderVault.resumePendingWipes());
 
   // PanicService instancié ICI car son hook `beforeDbWipe` capture
   // coordinator / indexing / backlinks pour les disposer avant le

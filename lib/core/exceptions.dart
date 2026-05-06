@@ -3,7 +3,11 @@
 /// Permet à l'UI de discriminer les erreurs sans matcher sur des messages.
 library;
 
-sealed class NotesTechException implements Exception {
+// Pas `sealed` : la hiérarchie est ouverte aux modules services
+// (security/folder_vault_service expose ses propres
+// `VaultValidationException`, `WrongPassphraseException`, etc. qui
+// héritent du tronc commun).
+class NotesTechException implements Exception {
   const NotesTechException(this.message, {this.cause});
   final String message;
   final Object? cause;

@@ -422,16 +422,20 @@ class _AiChatScreenState extends State<AiChatScreen> {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _inputCtrl,
-                  textInputAction: TextInputAction.send,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  minLines: 1,
-                  maxLines: 4,
-                  onSubmitted: (_) => _send(),
-                  decoration: const InputDecoration(
-                    hintText: 'Pose une question…',
+                child: Semantics(
+                  label: 'Question à poser à l\'assistant',
+                  textField: true,
+                  child: TextField(
+                    controller: _inputCtrl,
+                    textInputAction: TextInputAction.send,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    minLines: 1,
+                    maxLines: 4,
+                    onSubmitted: (_) => _send(),
+                    decoration: const InputDecoration(
+                      hintText: 'Pose une question…',
+                    ),
                   ),
                 ),
               ),
@@ -448,6 +452,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
                   builder: (_, canSend, _) => IconButton.filled(
                     onPressed: canSend ? _send : null,
                     icon: const Icon(Icons.send),
+                    tooltip: 'Envoyer la question',
                   ),
                 ),
             ],

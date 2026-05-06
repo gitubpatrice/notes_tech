@@ -21,6 +21,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../services/security/folder_vault_service.dart';
@@ -134,7 +135,8 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.warning_amber_outlined, color: cs.error, size: 20),
+                  Icon(Icons.warning_amber_outlined,
+                      color: cs.onErrorContainer, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -187,7 +189,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
                 helperStyle: TextStyle(
                   color: _pass2.text.isEmpty
                       ? null
-                      : (_matchOk ? Colors.green : cs.error),
+                      : (_matchOk ? cs.successIcon : cs.error),
                 ),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(

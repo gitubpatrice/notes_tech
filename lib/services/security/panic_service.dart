@@ -43,10 +43,14 @@
 /// la capture du dialog de confirmation et de l'écran de fin dans le
 /// snapshot Recents Android (résidu jusqu'au reboot sinon).
 ///
-/// **Évolution v0.8 — vaults multiples par dossier** : `VaultService`
-/// gérera des KEK secondaires liées aux dossiers chiffrés par
-/// passphrase. La panique devra appeler `vault.destroyAllKeks()` (à
-/// implémenter v0.8) pour rester exhaustive.
+/// **Coffres par dossier (v0.8/v0.9)** : couvert par deux mécanismes
+/// distincts. (a) Mode passphrase : la `folder_kek` n'existe qu'en RAM
+/// pendant les sessions actives ; le wipe DB efface `vault_kek_wrapped`,
+/// donc impossible à dériver à nouveau. (b) Mode PIN : le step
+/// [PanicStep.pinKeysWipe] supprime explicitement toutes les clés
+/// AndroidKeystore `vault_pin_*` AVANT la destruction de la KEK
+/// SQLCipher, empêchant un attaquant qui aurait pré-extrait la DB de
+/// rebrute-forcer les coffres PIN avec les clés Keystore résiduelles.
 ///
 /// Tous les steps sont best-effort : si un échec survient, on continue
 /// les autres. La garantie minimale = KEK détruite = DB illisible.
@@ -57,10 +61,12 @@ import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/constants.dart';
 import '../../data/db/database.dart';
 import '../ai/gemma_service.dart';
 import '../secure_window_service.dart';
 import '../voice/voice_service.dart';
+import 'keystore_bridge.dart';
 import 'vault_service.dart';
 
 /// Bilan d'une exécution de panique. Sert au logging interne (jamais
@@ -87,6 +93,7 @@ class PanicReport {
 enum PanicStep {
   forceSecureWindow,
   voiceCancel,
+  pinKeysWipe,
   kekDestroy,
   pauseBackgroundWork,
   dbWipe,
@@ -107,13 +114,15 @@ class PanicService {
     required SecureWindowService secureWindow,
     required SharedPreferences prefs,
     Future<void> Function()? beforeDbWipe,
+    KeystoreBridge? keystore,
   })  : _voice = voice,
         _gemma = gemma,
         _vault = vault,
         _db = database,
         _secureWindow = secureWindow,
         _prefs = prefs,
-        _beforeDbWipe = beforeDbWipe;
+        _beforeDbWipe = beforeDbWipe,
+        _keystore = keystore ?? KeystoreBridge();
 
   final VoiceService _voice;
   final GemmaService _gemma;
@@ -121,6 +130,7 @@ class PanicService {
   final AppDatabase _db;
   final SecureWindowService _secureWindow;
   final SharedPreferences _prefs;
+  final KeystoreBridge _keystore;
 
   /// Hook injecté par `main.dart` pour disposer les background workers
   /// (`EmbedderCoordinator`, `IndexingService`, `BacklinksService`)
@@ -167,6 +177,22 @@ class PanicService {
     //    natif avant que voiceWipe ne touche au .bin Whisper.
     await _runStep(report, PanicStep.voiceCancel, () async {
       await _voice.cancelRecording();
+    });
+
+    // 1.5 (v0.9). Wipe TOUTES les clés Keystore `vault_pin_*` AVANT la
+    //     destruction de la KEK. Empêche un attaquant qui aurait pré-
+    //     extrait un backup de la DB de restaurer le device et bruteforcer
+    //     les coffres PIN encore référencés par leur clé Keystore (le
+    //     scellage hardware-bound est leur seule barrière contre l'attaque
+    //     hors-device — sans la clé Keystore, le blob `vault_pin_blob`
+    //     devient cryptographiquement illisible).
+    //     Ne dépend pas de la DB → exécutable même si SQLCipher est déjà
+    //     fermé. Best-effort : un échec ici ne bloque pas la suite (la
+    //     KEK détruite + DB wipée restent la garantie minimale).
+    await _runStep(report, PanicStep.pinKeysWipe, () async {
+      await _keystore.deleteKeysWithPrefix(
+        AppConstants.vaultPinKeystoreAliasPrefix,
+      );
     });
 
     // 2. **POINT DE NON-RETOUR** — KEK détruite. La DB chiffrée AES-256
