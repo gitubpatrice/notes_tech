@@ -10,12 +10,14 @@ import '../../core/constants.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../services/security/folder_vault_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/folders_drawer.dart';
 import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
+import '../widgets/vault_passphrase_sheets.dart';
 import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
 import 'search_screen.dart';
@@ -163,13 +165,49 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openNew() async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final vault = context.read<FolderVaultService>();
     // Note créée dans le dossier actif. Si l'utilisateur est sur « Toutes
     // les notes », on retombe sur l'inbox (dossier par défaut, indélébile)
     // et on signale explicitement où est partie la note pour ne pas
     // qu'elle disparaisse du champ de vision après le retour de l'éditeur.
     final isAllScope = _currentFolderId == null;
     final targetFolderId = _currentFolderId ?? kInboxFolderId;
+
+    // Si le dossier cible est un coffre, exiger la session unlock avant
+    // de matérialiser la note — sinon on créerait une note "vide en
+    // clair" dans le coffre, incohérente avec l'invariant « toujours
+    // chiffrée au repos pour les dossiers coffre ».
+    final targetFolder = await _folders.get(targetFolderId);
+    if (!mounted) return;
+    if (targetFolder != null && targetFolder.isVault) {
+      if (!vault.isUnlocked(targetFolderId)) {
+        final ok = await showUnlockVaultSheet(
+          context: context,
+          folder: targetFolder,
+        );
+        if (ok != true || !mounted) return;
+      }
+    }
+
     final created = await _notes.create(folderId: targetFolderId);
+    // Coffre déverrouillé : on chiffre immédiatement la note neuve
+    // (titre/contenu vides, mais l'IV+verifier sont posés). L'éditeur
+    // détectera `isLocked` et passera en mode déchiffrement éphémère.
+    if (targetFolder != null && targetFolder.isVault) {
+      try {
+        final encrypted = await vault.encryptNote(created);
+        await _notes.save(encrypted);
+      } catch (e) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Création coffre impossible : $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
     if (!mounted) return;
     await navigator.push(
       MaterialPageRoute<void>(

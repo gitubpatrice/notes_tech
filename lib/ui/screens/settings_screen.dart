@@ -17,6 +17,7 @@ import '../../data/repositories/notes_repository.dart';
 import '../../services/embedder_coordinator.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/secure_window_service.dart';
+import '../../services/security/folder_vault_service.dart';
 import '../../services/security/panic_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/voice/voice_service.dart';
@@ -93,6 +94,7 @@ class SettingsScreen extends StatelessWidget {
             value: settings.acceptUnknownGemmaHash,
             onChanged: settings.setAcceptUnknownGemmaHash,
           ),
+          const _VaultAutoLockTile(),
           _Section(label: 'Dictée vocale', theme: theme),
           const _VoiceSection(),
           _Section(label: 'Exporter mes données', theme: theme),
@@ -562,6 +564,71 @@ class _PanicProgressDialog extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Tuile « Verrouillage auto des coffres » dans la section Sécurité.
+/// Permet à l'utilisateur de choisir un délai d'inactivité après lequel
+/// les coffres déverrouillés se reverrouillent automatiquement.
+class _VaultAutoLockTile extends StatelessWidget {
+  const _VaultAutoLockTile();
+
+  static const _options = [
+    (label: 'Jamais', minutes: 0),
+    (label: '5 minutes', minutes: 5),
+    (label: '15 minutes', minutes: 15),
+    (label: '30 minutes', minutes: 30),
+    (label: '60 minutes', minutes: 60),
+  ];
+
+  Future<void> _showPicker(
+    BuildContext context,
+    SettingsService settings,
+    FolderVaultService vault,
+  ) async {
+    final current = settings.vaultAutoLockMinutes;
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Verrouillage automatique'),
+        children: _options
+            .map(
+              (o) => ListTile(
+                leading: Icon(
+                  current == o.minutes
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                ),
+                title: Text(o.label),
+                onTap: () => Navigator.of(ctx).pop(o.minutes),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selected == null) return;
+    await settings.setVaultAutoLockMinutes(selected);
+    // Propage au service pour replanifier le timer en cours.
+    vault.setAutoLockAfter(Duration(minutes: selected));
+  }
+
+  String _labelFor(int minutes) =>
+      _options.firstWhere((o) => o.minutes == minutes).label;
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsService>();
+    final vault = context.read<FolderVaultService>();
+    return ListTile(
+      leading: const Icon(Icons.lock_clock_outlined),
+      title: const Text('Verrouillage automatique des coffres'),
+      subtitle: Text(
+        'Après ${_labelFor(settings.vaultAutoLockMinutes).toLowerCase()} '
+        'd\'inactivité.',
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _showPicker(context, settings, vault),
     );
   }
 }

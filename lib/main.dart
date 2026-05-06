@@ -39,6 +39,7 @@ import 'services/embedding/local_embedder.dart';
 import 'services/indexing_service.dart';
 import 'services/ml/ml_memory_guard.dart';
 import 'services/secure_window_service.dart';
+import 'services/security/folder_vault_service.dart';
 import 'services/security/panic_service.dart';
 import 'services/security/vault_service.dart';
 import 'services/semantic_search_service.dart';
@@ -144,6 +145,16 @@ Future<void> main() async {
   unawaited(indexing.start());
   unawaited(backlinks.start());
 
+  // FolderVaultService (v0.8) — orchestrateur des coffres par dossier.
+  // Lit le timeout d'auto-lock depuis Settings au démarrage ; le widget
+  // _VaultAutoLockTile appelle setAutoLockAfter quand l'utilisateur
+  // change la valeur.
+  final folderVault = FolderVaultService(
+    folders: foldersRepo,
+    notes: notesRepo,
+    autoLockAfter: Duration(minutes: settings.vaultAutoLockMinutes),
+  );
+
   // PanicService instancié ICI car son hook `beforeDbWipe` capture
   // coordinator / indexing / backlinks pour les disposer avant le
   // wipe DB (cf. doc panic_service.dart).
@@ -204,6 +215,7 @@ Future<void> main() async {
           dispose: (_, c) => c.dispose(),
         ),
         ChangeNotifierProvider<VoiceService>.value(value: voice),
+        ChangeNotifierProvider<FolderVaultService>.value(value: folderVault),
         Provider<MlMemoryGuard>.value(value: mlGuard),
         Provider<PanicService>.value(value: panic),
         // Variante nullable pour les call sites optionnels (`context.read<

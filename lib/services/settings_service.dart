@@ -88,4 +88,20 @@ class SettingsService extends ChangeNotifier {
     await _prefs.setBool(AppConstants.prefKeyAcceptUnknownGemmaHash, value);
     notifyListeners();
   }
+
+  /// Délai d'auto-verrouillage des coffres déverrouillés en minutes.
+  /// `0` = jamais (le coffre reste déverrouillé jusqu'à fermeture
+  /// manuelle ou pause de l'app). Défaut : 15 min (cf.
+  /// `AppConstants.vaultDefaultAutoLock`).
+  int get vaultAutoLockMinutes =>
+      _prefs.getInt(AppConstants.prefKeyVaultAutoLockMinutes) ??
+      AppConstants.vaultDefaultAutoLock.inMinutes;
+
+  Future<void> setVaultAutoLockMinutes(int minutes) async {
+    await _prefs.setInt(
+      AppConstants.prefKeyVaultAutoLockMinutes,
+      minutes,
+    );
+    notifyListeners();
+  }
 }

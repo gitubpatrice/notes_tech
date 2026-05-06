@@ -330,18 +330,56 @@ class FolderVaultService extends ChangeNotifier {
     );
   }
 
+  /// Déchiffre toutes les notes verrouillées du dossier coffre
+  /// déverrouillé et les persiste **en clair** (`encryptedContent`
+  /// effacé). Utilisé avant la suppression d'un coffre via
+  /// "Déplacer vers Boîte de réception", pour éviter la perte
+  /// silencieuse des données (sinon les notes locked atterriraient
+  /// dans inbox sans la KEK qui les déchiffrait).
+  ///
+  /// Le coffre doit être déverrouillé. Lève [VaultLockedException]
+  /// sinon. Best-effort par note avec bilan retourné.
+  Future<({int decrypted, int failed})> decryptAllNotesInFolder(
+    String folderId,
+  ) async {
+    _requireSession(folderId);
+    final notes = await _notes.listByFolder(folderId, includeArchived: true);
+    var ok = 0;
+    var failed = 0;
+    for (final note in notes) {
+      if (!note.isLocked) continue;
+      try {
+        final decrypted = await decryptNote(note);
+        await _notes.save(decrypted);
+        ok++;
+      } catch (_) {
+        failed++;
+      }
+    }
+    return (decrypted: ok, failed: failed);
+  }
+
   /// Re-chiffre toutes les notes vivantes (hors corbeille) du dossier
   /// coffre déverrouillé. Utilisé lors de la conversion d'un dossier
   /// existant en coffre.
   ///
-  /// Best-effort par note : si une note échoue, on continue (mais
-  /// l'erreur est tracée dans le retour).
+  /// Retourne `(encrypted, failed)`. **`failed > 0` = état incohérent
+  /// du dossier** (certaines notes encore en clair) — le caller DOIT
+  /// le signaler à l'utilisateur, sinon il pense tout son dossier
+  /// protégé alors qu'une partie reste en clair.
   ///
-  /// Retourne le nombre de notes effectivement chiffrées.
-  Future<int> encryptAllNotesInFolder(String folderId) async {
+  /// Pourquoi pas un rollback transactionnel global ? Parce que ça
+  /// nécessiterait d'inclure les events d'embedding et de backlinks
+  /// dans la même transaction SQL, ce qui n'est pas le design des
+  /// repositories. À la place, on remonte le bilan honnête et le
+  /// caller décide.
+  Future<({int encrypted, int failed})> encryptAllNotesInFolder(
+    String folderId,
+  ) async {
     _requireSession(folderId);
     final notes = await _notes.listByFolder(folderId, includeArchived: true);
     var ok = 0;
+    var failed = 0;
     for (final note in notes) {
       if (note.isLocked) continue;
       try {
@@ -349,11 +387,10 @@ class FolderVaultService extends ChangeNotifier {
         await _notes.save(encrypted);
         ok++;
       } catch (_) {
-        // Best-effort. Une exception cause l'arrêt du re-chiffrement
-        // pour cette note précise, pas pour les suivantes.
+        failed++;
       }
     }
-    return ok;
+    return (encrypted: ok, failed: failed);
   }
 
   // ── Auto-lock sweep ────────────────────────────────────────────────
@@ -402,16 +439,24 @@ class FolderVaultService extends ChangeNotifier {
     required String passphrase,
     required Uint8List salt,
   }) async {
-    final algo = Argon2id(
-      memory: AppConstants.vaultArgon2MemoryKb,
-      iterations: AppConstants.vaultArgon2Iterations,
-      parallelism: AppConstants.vaultArgon2Parallelism,
-      hashLength: AppConstants.vaultArgon2HashBytes,
+    // Le package `cryptography` 2.7 exécute Argon2id en pur Dart sur le
+    // thread courant (pas d'isolate interne). Avec t=3 / m=64 MB, c'est
+    // ~600-900 ms sur S24 FE, mais 3-5 s sur S9 et 5-9 s sur POCO C75.
+    // Sans `compute()`, le main thread gèle pendant la dérivation et
+    // le `CircularProgressIndicator` du sheet `unlock` reste figé.
+    // → On déporte dans un isolate via `compute()`. UI reste fluide,
+    // l'utilisateur voit le spinner tourner.
+    return compute<_Argon2Job, Uint8List>(
+      _argon2WorkerEntry,
+      _Argon2Job(
+        passphrase: passphrase,
+        salt: salt,
+        memoryKb: AppConstants.vaultArgon2MemoryKb,
+        iterations: AppConstants.vaultArgon2Iterations,
+        parallelism: AppConstants.vaultArgon2Parallelism,
+        hashLength: AppConstants.vaultArgon2HashBytes,
+      ),
     );
-    final secret = SecretKey(utf8Bytes(passphrase));
-    final derived = await algo.deriveKey(secretKey: secret, nonce: salt);
-    final bytes = await derived.extractBytes();
-    return Uint8List.fromList(bytes);
   }
 
   Future<Uint8List> _aesGcmEncrypt({
@@ -512,3 +557,39 @@ String utf8Decode(Uint8List bytes) {
 }
 
 const _utf8 = Utf8Codec();
+
+// ─── Worker isolate pour Argon2id ─────────────────────────────────────
+
+/// Argument transmis à l'isolate. Tous les champs sont passifs et
+/// sérialisables (String, Uint8List, int).
+class _Argon2Job {
+  const _Argon2Job({
+    required this.passphrase,
+    required this.salt,
+    required this.memoryKb,
+    required this.iterations,
+    required this.parallelism,
+    required this.hashLength,
+  });
+  final String passphrase;
+  final Uint8List salt;
+  final int memoryKb;
+  final int iterations;
+  final int parallelism;
+  final int hashLength;
+}
+
+/// Entrée top-level de l'isolate (requis par `compute`). Re-instancie
+/// `Argon2id` dans l'isolate, dérive la KEK, retourne les bytes.
+Future<Uint8List> _argon2WorkerEntry(_Argon2Job job) async {
+  final algo = Argon2id(
+    memory: job.memoryKb,
+    iterations: job.iterations,
+    parallelism: job.parallelism,
+    hashLength: job.hashLength,
+  );
+  final secret = SecretKey(utf8Bytes(job.passphrase));
+  final derived = await algo.deriveKey(secretKey: secret, nonce: job.salt);
+  final bytes = await derived.extractBytes();
+  return Uint8List.fromList(bytes);
+}

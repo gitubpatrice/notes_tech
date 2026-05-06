@@ -34,14 +34,18 @@ class NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final excerpt = note.excerpt;
+    final locked = note.isLocked;
     return RepaintBoundary(
       child: Material(
         color: theme.cardTheme.color,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.dividerColor),
+          side: BorderSide(
+            color: locked ? cs.error.withValues(alpha: 0.4) : theme.dividerColor,
+          ),
         ),
         child: InkWell(
           onTap: onTap,
@@ -53,24 +57,42 @@ class NoteCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    if (note.pinned)
+                    // Cadenas rouge en tête pour les notes verrouillées —
+                    // signal visuel fort, cohérent avec le badge dossier
+                    // coffre dans le drawer.
+                    if (locked)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Icon(Icons.lock_outline,
+                            size: 14, color: cs.error),
+                      ),
+                    if (note.pinned && !locked)
                       const Padding(
                         padding: EdgeInsets.only(right: 6),
                         child: Icon(Icons.push_pin, size: 14),
                       ),
                     Expanded(
                       child: Text(
-                        note.title.isEmpty ? 'Sans titre' : note.title,
-                        style: theme.textTheme.titleMedium,
+                        // Titre masqué pour les notes verrouillées : on
+                        // montre juste « Note verrouillée » à la place
+                        // du vrai titre. Le user a explicitement validé
+                        // ce comportement (max confidentialité).
+                        locked
+                            ? 'Note verrouillée'
+                            : (note.title.isEmpty ? 'Sans titre' : note.title),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontStyle: locked ? FontStyle.italic : null,
+                          color: locked ? cs.onSurfaceVariant : null,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (note.favorite)
+                    if (note.favorite && !locked)
                       const Icon(Icons.star, size: 16, color: Colors.amber),
                   ],
                 ),
-                if (excerpt.isNotEmpty) ...[
+                if (!locked && excerpt.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     excerpt,

@@ -22,7 +22,9 @@ import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../services/security/folder_vault_service.dart';
 import 'folder_dialogs.dart';
+import 'vault_passphrase_sheets.dart';
 
 /// Identifiant fictif utilisé par le drawer pour signaler « Toutes les
 /// notes ». Ré-export pour les call-sites (HomeScreen).
@@ -102,6 +104,8 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
 
   Future<void> _deleteFolder(Folder folder) async {
     if (folder.id == kInboxFolderId) return; // garde-fou redondant
+    final messenger = ScaffoldMessenger.of(context);
+    final vault = context.read<FolderVaultService>();
     final outcome = await confirmDeleteFolder(
       context: context,
       folderName: folder.name,
@@ -109,6 +113,46 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     if (outcome == null || !mounted) return;
 
     if (outcome == FolderDeletionChoice.moveToInbox) {
+      // Cas coffre : les notes sont chiffrées avec la folder_kek du
+      // coffre source. Une fois déplacées vers l'inbox (sans coffre),
+      // elles deviendraient illisibles à jamais. On les déchiffre AVANT
+      // le move ; passphrase requise si le coffre est verrouillé.
+      if (folder.isVault) {
+        if (!vault.isUnlocked(folder.id)) {
+          final ok = await showUnlockVaultSheet(
+            context: context,
+            folder: folder,
+          );
+          if (ok != true || !mounted) return;
+        }
+        try {
+          final res = await vault.decryptAllNotesInFolder(folder.id);
+          if (!mounted) return;
+          if (res.failed > 0) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Suppression annulée : ${res.failed} note(s) n\'ont pas pu '
+                  'être déchiffrées. Récupérez-les d\'abord manuellement.',
+                ),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 8),
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          if (!mounted) return;
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Suppression annulée : $e'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+      }
       // Pré-déplacement BATCH (UPDATE atomique unique) — couvre TOUTES
       // les notes du dossier, y compris archivées et en corbeille
       // (sinon le ON DELETE CASCADE qui suit les effacerait
@@ -116,6 +160,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       await moveAllNotesToInbox(_notes, fromFolderId: folder.id);
     }
     if (!mounted) return;
+    // Verrouille la session avant suppression — libère la folder_kek en
+    // RAM et évite qu'un futur dossier réutilisant l'id (improbable vu
+    // l'UUID v4) hérite d'une session fantôme.
+    if (folder.isVault) vault.lock(folder.id);
     await _repo.delete(folder.id);
     // Si l'utilisateur regardait ce dossier, on retombe sur "Toutes".
     if (widget.currentFolderId == folder.id) {
@@ -200,7 +248,16 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                         ),
                         ...userFolders.map(
                           (f) => _DrawerTile(
-                            icon: Icons.folder_outlined,
+                            // Cadenas rouge si dossier coffre, sinon
+                            // dossier classique. Signal visuel fort,
+                            // cohérent avec le badge cadenas sur les
+                            // NoteCard verrouillées.
+                            icon: f.isVault
+                                ? Icons.lock_outline
+                                : Icons.folder_outlined,
+                            iconTint: f.isVault
+                                ? Theme.of(context).colorScheme.error
+                                : null,
                             title: f.name,
                             selected: widget.currentFolderId == f.id,
                             onTap: () => _select(f.id),
@@ -232,6 +289,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   }
 
   Future<void> _showFolderMenu(Folder folder) async {
+    final cs = Theme.of(context).colorScheme;
     final action = await showModalBottomSheet<_FolderAction>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -243,6 +301,35 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               title: const Text('Renommer'),
               onTap: () => Navigator.of(ctx).pop(_FolderAction.rename),
             ),
+            // Vault : convertir un dossier ordinaire en coffre, ou
+            // verrouiller maintenant un coffre déverrouillé. Caché si
+            // déjà coffre + verrouillé (rien à faire).
+            if (!folder.isVault)
+              ListTile(
+                leading: Icon(Icons.lock_outline, color: cs.error),
+                title: Text(
+                  'Convertir en coffre fort',
+                  style: TextStyle(color: cs.error),
+                ),
+                subtitle: const Text(
+                  'Chiffrement avec passphrase distincte. Notes existantes '
+                  'ré-encryptées en bloc.',
+                ),
+                onTap: () =>
+                    Navigator.of(ctx).pop(_FolderAction.convertToVault),
+              )
+            else if (context
+                .read<FolderVaultService>()
+                .isUnlocked(folder.id))
+              ListTile(
+                leading: Icon(Icons.lock_outline, color: cs.error),
+                title: const Text('Verrouiller maintenant'),
+                subtitle: const Text(
+                  'Ferme la session immédiatement (sans attendre l\'auto-lock).',
+                ),
+                onTap: () =>
+                    Navigator.of(ctx).pop(_FolderAction.lockNow),
+              ),
             ListTile(
               leading: Icon(
                 Icons.delete_outline,
@@ -261,10 +348,88 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     );
     if (action == _FolderAction.rename) await _renameFolder(folder);
     if (action == _FolderAction.delete) await _deleteFolder(folder);
+    if (action == _FolderAction.convertToVault) await _convertToVault(folder);
+    if (action == _FolderAction.lockNow) {
+      if (!mounted) return;
+      context.read<FolderVaultService>().lock(folder.id);
+    }
+  }
+
+  /// Conversion d'un dossier ordinaire en coffre :
+  /// 1. Sheet création passphrase (avec confirmation 2x).
+  /// 2. `vault.createVault` génère salt + folder_kek + verifier, persiste
+  ///    les colonnes vault sur le folder, ouvre la session.
+  /// 3. `vault.encryptAllNotesInFolder` re-encrypte toutes les notes
+  ///    existantes du dossier — opération potentiellement longue.
+  ///    On l'enveloppe dans un dialog de progression bloquant.
+  Future<void> _convertToVault(Folder folder) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final vault = context.read<FolderVaultService>();
+    final passphrase = await showCreateVaultSheet(
+      context: context,
+      folderName: folder.name,
+    );
+    if (passphrase == null || !mounted) return;
+
+    final navigator = Navigator.of(context);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const _VaultConvertProgressDialog(),
+      ),
+    );
+    try {
+      final updated =
+          await vault.createVault(folder: folder, passphrase: passphrase);
+      // Re-encrypte toutes les notes existantes du dossier — la session
+      // est active suite au createVault, donc encryptAllNotesInFolder
+      // peut accéder à la folder_kek.
+      final result = await vault.encryptAllNotesInFolder(updated.id);
+      if (!mounted) return;
+      navigator.pop(); // ferme le dialog progress
+      // Affichage HONNÊTE du résultat : si failed > 0, on alerte
+      // l'utilisateur en rouge plutôt que de masquer l'incohérence.
+      if (result.failed > 0) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Coffre créé, mais ${result.failed} note(s) sur '
+              '${result.encrypted + result.failed} N\'ONT PAS pu être '
+              'chiffrées et restent en clair. Vérifiez chaque note '
+              'individuellement.',
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              result.encrypted == 0
+                  ? 'Dossier converti en coffre fort ✓'
+                  : 'Coffre créé. ${result.encrypted} note(s) chiffrée(s) ✓',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      navigator.pop(); // ferme le dialog progress
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Conversion impossible : $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }
 
-enum _FolderAction { rename, delete }
+enum _FolderAction { rename, delete, convertToVault, lockNow }
 
 class _DrawerTile extends StatelessWidget {
   const _DrawerTile({
@@ -273,6 +438,7 @@ class _DrawerTile extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.onLongPress,
+    this.iconTint,
   });
 
   final IconData icon;
@@ -281,11 +447,17 @@ class _DrawerTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
+  /// Couleur explicite pour l'icône — précède la couleur "selected" du
+  /// dossier coffre (cadenas rouge même quand le dossier n'est pas
+  /// l'actif courant).
+  final Color? iconTint;
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final color = iconTint ?? (selected ? cs.primary : null);
     return ListTile(
-      leading: Icon(icon, color: selected ? cs.primary : null),
+      leading: Icon(icon, color: color),
       title: Text(
         title,
         maxLines: 1,
@@ -299,6 +471,39 @@ class _DrawerTile extends StatelessWidget {
       selectedTileColor: cs.primaryContainer.withValues(alpha: 0.4),
       onTap: onTap,
       onLongPress: onLongPress,
+    );
+  }
+}
+
+/// Dialog modal pendant la conversion d'un dossier en coffre. PopScope
+/// bloque le retour : interrompre le re-chiffrement laisserait certaines
+/// notes chiffrées et d'autres en clair (incohérent).
+class _VaultConvertProgressDialog extends StatelessWidget {
+  const _VaultConvertProgressDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Conversion en coffre…',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 6),
+            Text(
+              'Dérivation Argon2id (~1-2 s) puis chiffrement de chaque note.',
+              style: TextStyle(fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

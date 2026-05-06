@@ -24,10 +24,12 @@ import '../../data/repositories/notes_repository.dart';
 import '../../services/backlinks_service.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/note_actions.dart';
+import '../../services/security/folder_vault_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
 import '../widgets/move_to_folder_sheet.dart';
+import '../widgets/vault_passphrase_sheets.dart';
 import '../widgets/voice_record_button.dart';
 
 class NoteEditorScreen extends StatefulWidget {
@@ -40,6 +42,7 @@ class NoteEditorScreen extends StatefulWidget {
 
 class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late final NotesRepository _repo;
+  late final FolderVaultService _vault;
   StreamSubscription<void>? _changesSub;
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
@@ -52,10 +55,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   String? _error;
   Future<void>? _pendingSave;
 
+  /// `true` si la note vient d'un dossier coffre. `_note` ci-dessus est
+  /// l'éphémère déchiffrée (content rempli, encryptedContent null) — on
+  /// retient cette information pour que `_doSave` ré-encrypte avant
+  /// persistance, gardant le modèle « toujours chiffré au repos ».
+  bool _wasLocked = false;
+
   @override
   void initState() {
     super.initState();
     _repo = context.read<NotesRepository>();
+    _vault = context.read<FolderVaultService>();
     _load();
     // Si la note est supprimée/mise à la corbeille depuis un autre écran,
     // on désactive l'édition pour éviter de "ressusciter" la note via
@@ -80,12 +90,35 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final title = _titleCtrl.text;
       final content = _contentCtrl.text;
       if (title != n.title || content != n.content) {
-        unawaited(_repo
-            .save(n.copyWith(title: title, content: content))
-            .catchError((Object e) {
-          if (kDebugMode) debugPrint('flush save (dispose) : $e');
-          return n;
-        }));
+        if (_wasLocked) {
+          // Note coffre : ré-encrypter AVANT save. Si la session a
+          // expiré, on ABANDONNE la modif plutôt que d'écrire le
+          // contenu en clair dans la DB (invariant : jamais clair au
+          // repos pour une note de coffre). L'utilisateur a quitté
+          // l'écran, pas d'UI pour le signaler — perte acceptée.
+          if (_vault.isUnlocked(n.folderId)) {
+            final draft = n.copyWith(title: title, content: content);
+            unawaited(() async {
+              try {
+                final encrypted = await _vault.encryptNote(draft);
+                await _repo.save(encrypted);
+              } catch (e) {
+                if (kDebugMode) {
+                  debugPrint('flush save (dispose, vault) : $e');
+                }
+              }
+            }());
+          } else if (kDebugMode) {
+            debugPrint('flush save (dispose) skipped: vault locked');
+          }
+        } else {
+          unawaited(_repo
+              .save(n.copyWith(title: title, content: content))
+              .catchError((Object e) {
+            if (kDebugMode) debugPrint('flush save (dispose) : $e');
+            return n;
+          }));
+        }
       }
     }
     _titleCtrl.dispose();
@@ -105,10 +138,44 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         });
         return;
       }
-      _titleCtrl.text = note.title;
-      _contentCtrl.text = note.content;
+
+      // Note dans un coffre verrouillé : tente le déverrouillage via sheet.
+      // Si l'utilisateur annule ou échoue, on ferme l'éditeur (back to home).
+      Note resolved = note;
+      if (note.isLocked) {
+        final vault = context.read<FolderVaultService>();
+        if (!vault.isUnlocked(note.folderId)) {
+          final folder = await context
+              .read<FoldersRepository>()
+              .get(note.folderId);
+          if (folder == null || !mounted) {
+            setState(() {
+              _loading = false;
+              _error = 'Dossier coffre introuvable';
+            });
+            return;
+          }
+          final ok = await showUnlockVaultSheet(
+            context: context,
+            folder: folder,
+          );
+          if (!mounted) return;
+          if (ok != true) {
+            // Annulation → retour au HomeScreen sans afficher la note.
+            Navigator.of(context).pop();
+            return;
+          }
+        }
+        // Vault déverrouillé : déchiffrement éphémère en RAM.
+        resolved = await vault.decryptNote(note);
+        _wasLocked = true;
+      }
+
+      _titleCtrl.text = resolved.title;
+      _contentCtrl.text = resolved.content;
+      if (!mounted) return;
       setState(() {
-        _note = note;
+        _note = resolved;
         _loading = false;
       });
     } catch (_) {
@@ -147,10 +214,36 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Future<void> _doSave(Note current, String title, String content) async {
     try {
-      final saved =
-          await _repo.save(current.copyWith(title: title, content: content));
+      // Note du coffre : ré-encrypte le contenu AVANT persistance pour
+      // garder l'invariant « toujours chiffré au repos ». Si l'auto-lock
+      // a fermé la session entre-temps, `vault.encryptNote` lève
+      // `VaultLockedException` — on intercepte et on alerte l'utilisateur
+      // sans écrire le contenu en clair dans la DB.
+      Note toSave = current.copyWith(title: title, content: content);
+      if (_wasLocked) {
+        final vault = context.read<FolderVaultService>();
+        if (!vault.isUnlocked(toSave.folderId)) {
+          if (!mounted) return;
+          _savingNotifier.value = false;
+          _showError(
+            'Coffre re-verrouillé pendant l\'édition. '
+            'Ré-ouvrez la note pour reprendre.',
+          );
+          return;
+        }
+        toSave = await vault.encryptNote(toSave);
+        // Marque l'activité côté vault pour décaler l'auto-lock.
+        vault.touchActivity(toSave.folderId);
+      }
+      final saved = await _repo.save(toSave);
       if (!mounted) return;
-      _note = saved;
+      // Pour l'éditeur, on conserve la version EN CLAIR en mémoire
+      // (titre + content) pour permettre la suite de l'édition. Le
+      // « saved » qu'on reçoit est la version chiffrée pour le coffre,
+      // mais l'éditeur a besoin de l'état déchiffré en RAM.
+      _note = _wasLocked
+          ? saved.copyWith(content: content, clearEncrypted: true)
+          : saved;
       _savingNotifier.value = false;
     } on ValidationException catch (e) {
       if (!mounted) return;
@@ -262,28 +355,76 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final foldersRepo = context.read<FoldersRepository>();
     final targetId = await showMoveToFolderSheet(
       context: context,
       currentFolderId: n.folderId,
     );
     if (targetId == null || targetId == n.folderId || !mounted) return;
-    // Flush avant la mutation pour s'assurer que les modifications de
-    // titre/contenu en attente sont persistées AVANT le changement de
-    // folder (sinon `save(note.copyWith(folderId))` partirait avec
-    // l'ancienne version du titre/contenu).
+
+    final targetFolder = await foldersRepo.get(targetId);
+    if (targetFolder == null || !mounted) return;
+
+    // Si la destination est un coffre verrouillé, on demande la
+    // passphrase AVANT de toucher au contenu — sinon on aurait flush
+    // une note en clair dans une DB cassée vis-à-vis du coffre.
+    if (targetFolder.isVault && !_vault.isUnlocked(targetId)) {
+      final ok = await showUnlockVaultSheet(
+        context: context,
+        folder: targetFolder,
+      );
+      if (ok != true || !mounted) return;
+    }
+
+    // Flush avant la mutation pour ne pas perdre les éditions en cours.
     _autosave.cancel();
     await _saveNow();
-    final fresh = await _repo.get(n.id);
-    if (fresh == null || !mounted) return;
-    final moved = await _repo.save(fresh.copyWith(folderId: targetId));
     if (!mounted) return;
-    setState(() => _note = moved);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Note déplacée'),
-        behavior: SnackBarBehavior.floating,
-      ),
+    final current = _note;
+    if (current == null) return;
+
+    // On reconstruit la version cible à partir du contenu EN CLAIR
+    // détenu en RAM (titre/contenu via les controllers) et on purge
+    // toujours `encryptedContent` source — soit on ré-encrypte avec
+    // la KEK cible (vault → vault, ou clair → vault), soit on persiste
+    // en clair (vault → clair).
+    final plainTitle = _titleCtrl.text;
+    final plainContent = _contentCtrl.text;
+    Note candidate = current.copyWith(
+      folderId: targetId,
+      title: plainTitle,
+      content: plainContent,
+      clearEncrypted: true,
     );
+
+    try {
+      if (targetFolder.isVault) {
+        candidate = await _vault.encryptNote(candidate);
+        _vault.touchActivity(targetId);
+      }
+      final saved = await _repo.save(candidate);
+      if (!mounted) return;
+      setState(() {
+        _wasLocked = targetFolder.isVault;
+        _note = _wasLocked
+            ? saved.copyWith(content: plainContent, clearEncrypted: true)
+            : saved;
+      });
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Note déplacée'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Déplacement impossible : $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   // ---------------------------------------------------------------------
