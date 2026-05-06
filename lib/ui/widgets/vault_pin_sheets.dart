@@ -7,8 +7,18 @@
 /// Le design crypto vit dans `FolderVaultService.{createPinVault,
 /// unlockWithPin}` — les sheets ne font que collecter les chiffres et
 /// déléguer.
+///
+/// **Performance** (v0.9.2) : le pavé numérique est isolé du parent via
+/// `ValueListenableBuilder` sur les états `_entry`/`_busy`/`_error`.
+/// Conséquence : taper un chiffre rebuild **uniquement** les dots + le
+/// texte d'erreur, **pas les 12 boutons du clavier**. Sans ça, un tap
+/// déclenchait un rebuild de 12 `OutlinedButton` avec resolution thème +
+/// états Material → jank visible sur S9/POCO C75 (et même S24 FE en
+/// debug). Les boutons utilisent maintenant `Material + InkWell` direct
+/// (plus léger qu'`OutlinedButton`).
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -38,17 +48,7 @@ Future<VaultMode?> showVaultModeChooserSheet({
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: cs.outlineVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              const _SheetHandle(),
               Row(
                 children: [
                   Icon(Icons.lock_outline, color: cs.error),
@@ -182,48 +182,54 @@ class _CreatePinSheet extends StatefulWidget {
 enum _CreateStep { first, confirm }
 
 class _CreatePinSheetState extends State<_CreatePinSheet> {
-  _CreateStep _step = _CreateStep.first;
+  // ValueNotifiers : le pavé numérique ne dépend que de `_busyN` (toujours
+  // false dans CreatePin, mais structure identique à Unlock pour
+  // cohérence) — l'ajout d'un chiffre ne le rebuild PAS.
+  final _entryN = ValueNotifier<String>('');
+  final _errorN = ValueNotifier<String?>(null);
+  final _stepN = ValueNotifier<_CreateStep>(_CreateStep.first);
   String _firstPin = '';
-  String _entry = '';
-  String? _error;
+
+  @override
+  void dispose() {
+    _entryN.dispose();
+    _errorN.dispose();
+    _stepN.dispose();
+    super.dispose();
+  }
 
   void _onDigit(String d) {
-    if (_entry.length >= AppConstants.vaultPinMaxLength) return;
-    setState(() {
-      _entry = '$_entry$d';
-      _error = null;
-    });
+    if (_entryN.value.length >= AppConstants.vaultPinMaxLength) return;
+    _entryN.value = '${_entryN.value}$d';
+    _errorN.value = null;
   }
 
   void _onBackspace() {
-    if (_entry.isEmpty) return;
-    setState(() {
-      _entry = _entry.substring(0, _entry.length - 1);
-      _error = null;
-    });
+    if (_entryN.value.isEmpty) return;
+    _entryN.value =
+        _entryN.value.substring(0, _entryN.value.length - 1);
+    _errorN.value = null;
   }
 
   void _onValidate() {
-    if (_entry.length < AppConstants.vaultPinMinLength) {
-      setState(() => _error =
-          'Minimum ${AppConstants.vaultPinMinLength} chiffres.');
+    final entry = _entryN.value;
+    if (entry.length < AppConstants.vaultPinMinLength) {
+      _errorN.value =
+          'Minimum ${AppConstants.vaultPinMinLength} chiffres.';
       return;
     }
-    if (_step == _CreateStep.first) {
-      setState(() {
-        _firstPin = _entry;
-        _entry = '';
-        _step = _CreateStep.confirm;
-      });
+    if (_stepN.value == _CreateStep.first) {
+      _firstPin = entry;
+      _entryN.value = '';
+      _errorN.value = null;
+      _stepN.value = _CreateStep.confirm;
       return;
     }
-    if (_entry != _firstPin) {
-      setState(() {
-        _entry = '';
-        _error = 'Les deux PIN ne correspondent pas. Recommencez.';
-        _step = _CreateStep.first;
-        _firstPin = '';
-      });
+    if (entry != _firstPin) {
+      _entryN.value = '';
+      _errorN.value = 'Les deux PIN ne correspondent pas. Recommencez.';
+      _firstPin = '';
+      _stepN.value = _CreateStep.first;
       return;
     }
     Navigator.of(context).pop(_firstPin);
@@ -232,9 +238,6 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final title = _step == _CreateStep.first
-        ? 'Choisir un code PIN pour « ${widget.folderName} »'
-        : 'Confirmer le code';
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -242,76 +245,94 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+            const _SheetHandle(),
+            ValueListenableBuilder<_CreateStep>(
+              valueListenable: _stepN,
+              builder: (_, step, _) => Row(
+                children: [
+                  Icon(Icons.dialpad_outlined, color: cs.error),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      step == _CreateStep.first
+                          ? 'Choisir un code PIN pour « ${widget.folderName} »'
+                          : 'Confirmer le code',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Row(
-              children: [
-                Icon(Icons.dialpad_outlined, color: cs.error),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 12),
-            if (_step == _CreateStep.first)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cs.errorContainer.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.warning_amber_outlined,
-                        color: cs.onErrorContainer, size: 20),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'PIN oublié = données perdues. 5 tentatives '
-                        'ratées détruisent définitivement le coffre.',
-                        style: TextStyle(
-                          color: cs.onErrorContainer,
-                          height: 1.4,
-                          fontSize: 13,
+            ValueListenableBuilder<_CreateStep>(
+              valueListenable: _stepN,
+              builder: (_, step, _) {
+                if (step != _CreateStep.first) return const SizedBox.shrink();
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cs.errorContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber_outlined,
+                          color: cs.onErrorContainer, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'PIN oublié = données perdues. 5 tentatives '
+                          'ratées détruisent définitivement le coffre.',
+                          style: TextStyle(
+                            color: cs.onErrorContainer,
+                            height: 1.4,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 18),
-            _DotsIndicator(
-              filled: _entry.length,
-              max: AppConstants.vaultPinMaxLength,
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.error, fontSize: 13),
+            // Dots : reconstruits SEULS sur change de _entry — léger.
+            ValueListenableBuilder<String>(
+              valueListenable: _entryN,
+              builder: (_, entry, _) => _DotsIndicator(
+                filled: entry.length,
+                max: AppConstants.vaultPinMaxLength,
               ),
-            ],
-            const SizedBox(height: 12),
-            _NumericKeypad(
-              onDigit: _onDigit,
-              onBackspace: _onBackspace,
-              onValidate: _onValidate,
             ),
+            ValueListenableBuilder<String?>(
+              valueListenable: _errorN,
+              builder: (_, error, _) {
+                if (error == null) return const SizedBox(height: 12);
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text(
+                    error,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: cs.error, fontSize: 13),
+                  ),
+                );
+              },
+            ),
+            // Pavé numérique : NE rebuild jamais sur saisie d'un chiffre
+            // (ni le step ni le _busy ne change pendant la création).
+            // Performance : 12 tap sur le pavé n'allouent plus aucun
+            // OutlinedButton, juste un repaint local des dots.
+            const SizedBox(height: 4),
+            RepaintBoundary(
+              child: _NumericKeypad(
+                onDigit: _onDigit,
+                onBackspace: _onBackspace,
+                onValidate: _onValidate,
+                disabledListenable: _kAlwaysFalse,
+              ),
+            ),
+            const SizedBox(height: 4),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Annuler'),
@@ -359,67 +380,74 @@ class _UnlockPinSheet extends StatefulWidget {
 }
 
 class _UnlockPinSheetState extends State<_UnlockPinSheet> {
-  String _entry = '';
-  bool _busy = false;
-  String? _error;
-  bool _wiped = false;
+  // ValueNotifiers : pavé isolé des changements d'entry.
+  // `_busyN` est consommé à la fois par le pavé (disable) ET par le
+  // bouton Annuler/Fermer + le spinner.
+  final _entryN = ValueNotifier<String>('');
+  final _errorN = ValueNotifier<String?>(null);
+  final _busyN = ValueNotifier<bool>(false);
+  final _wipedN = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _entryN.dispose();
+    _errorN.dispose();
+    _busyN.dispose();
+    _wipedN.dispose();
+    super.dispose();
+  }
 
   void _onDigit(String d) {
-    if (_busy || _wiped) return;
-    if (_entry.length >= AppConstants.vaultPinMaxLength) return;
-    setState(() {
-      _entry = '$_entry$d';
-      _error = null;
-    });
+    if (_busyN.value || _wipedN.value) return;
+    if (_entryN.value.length >= AppConstants.vaultPinMaxLength) return;
+    _entryN.value = '${_entryN.value}$d';
+    _errorN.value = null;
   }
 
   void _onBackspace() {
-    if (_busy || _wiped || _entry.isEmpty) return;
-    setState(() {
-      _entry = _entry.substring(0, _entry.length - 1);
-      _error = null;
-    });
+    if (_busyN.value || _wipedN.value) return;
+    if (_entryN.value.isEmpty) return;
+    _entryN.value =
+        _entryN.value.substring(0, _entryN.value.length - 1);
+    _errorN.value = null;
   }
 
   Future<void> _onValidate() async {
-    if (_busy || _wiped) return;
-    if (_entry.length < AppConstants.vaultPinMinLength) {
-      setState(() => _error =
-          'Minimum ${AppConstants.vaultPinMinLength} chiffres.');
+    if (_busyN.value || _wipedN.value) return;
+    final entry = _entryN.value;
+    if (entry.length < AppConstants.vaultPinMinLength) {
+      _errorN.value =
+          'Minimum ${AppConstants.vaultPinMinLength} chiffres.';
       return;
     }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
+    // Feedback visuel IMMÉDIAT : flip _busyN avant tout `await` pour
+    // que le spinner s'affiche au prochain frame, sans attendre le
+    // round-trip Keystore + Argon2id.
+    _busyN.value = true;
+    _errorN.value = null;
     final vault = context.read<FolderVaultService>();
     try {
-      await vault.unlockWithPin(folder: widget.folder, pin: _entry);
+      await vault.unlockWithPin(folder: widget.folder, pin: entry);
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on WrongPinException catch (e) {
       if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _entry = '';
-        _error = 'PIN incorrect. ${e.attemptsRemaining} '
-            'tentative${e.attemptsRemaining > 1 ? 's' : ''} restante'
-            '${e.attemptsRemaining > 1 ? 's' : ''}.';
-      });
+      _busyN.value = false;
+      _entryN.value = '';
+      final s = e.attemptsRemaining > 1 ? 's' : '';
+      _errorN.value =
+          'PIN incorrect. ${e.attemptsRemaining} tentative$s restante$s.';
     } on VaultPinWipedException {
       if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _wiped = true;
-        _error = 'Trop de tentatives ratées. Le coffre a été détruit. '
-            'Les données du dossier sont définitivement perdues.';
-      });
+      _busyN.value = false;
+      _wipedN.value = true;
+      _errorN.value =
+          'Trop de tentatives ratées. Le coffre a été détruit. '
+          'Les données du dossier sont définitivement perdues.';
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _error = 'Erreur de déverrouillage : $e';
-      });
+      _busyN.value = false;
+      _errorN.value = 'Erreur de déverrouillage : $e';
     }
   }
 
@@ -433,17 +461,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            const _SheetHandle(),
             Row(
               children: [
                 Icon(Icons.dialpad_outlined, color: cs.error),
@@ -457,42 +475,74 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
               ],
             ),
             const SizedBox(height: 18),
-            _DotsIndicator(
-              filled: _entry.length,
-              max: AppConstants.vaultPinMaxLength,
+            ValueListenableBuilder<String>(
+              valueListenable: _entryN,
+              builder: (_, entry, _) => _DotsIndicator(
+                filled: entry.length,
+                max: AppConstants.vaultPinMaxLength,
+              ),
             ),
-            if (_busy) ...[
-              const SizedBox(height: 12),
-              const Center(
-                child: SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+            // Spinner busy : feedback visuel immédiat dès _busyN=true,
+            // sans attendre le retour Argon2id+Keystore.
+            ValueListenableBuilder<bool>(
+              valueListenable: _busyN,
+              builder: (_, busy, _) {
+                if (!busy) return const SizedBox(height: 12);
+                return const Padding(
+                  padding: EdgeInsets.only(top: 12, bottom: 4),
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                );
+              },
+            ),
+            ValueListenableBuilder<String?>(
+              valueListenable: _errorN,
+              builder: (_, error, _) {
+                if (error == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text(
+                    error,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: cs.error, fontSize: 13),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            // Pavé : rebuild SEULEMENT quand `_busyN` ou `_wipedN`
+            // changent (jamais à la saisie d'un chiffre).
+            ValueListenableBuilder<bool>(
+              valueListenable: _wipedN,
+              builder: (_, wiped, _) {
+                if (wiped) return const SizedBox.shrink();
+                return RepaintBoundary(
+                  child: _NumericKeypad(
+                    onDigit: _onDigit,
+                    onBackspace: _onBackspace,
+                    onValidate: _onValidate,
+                    disabledListenable: _busyN,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 4),
+            ValueListenableBuilder<bool>(
+              valueListenable: _busyN,
+              builder: (_, busy, _) => ValueListenableBuilder<bool>(
+                valueListenable: _wipedN,
+                builder: (_, wiped, _) => TextButton(
+                  onPressed: busy
+                      ? null
+                      : () => Navigator.of(context).pop(false),
+                  child: Text(wiped ? 'Fermer' : 'Annuler'),
                 ),
               ),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: cs.error, fontSize: 13),
-              ),
-            ],
-            const SizedBox(height: 12),
-            if (!_wiped)
-              _NumericKeypad(
-                onDigit: _onDigit,
-                onBackspace: _onBackspace,
-                onValidate: _onValidate,
-                disabled: _busy,
-              ),
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => Navigator.of(context).pop(_wiped ? false : false),
-              child: Text(_wiped ? 'Fermer' : 'Annuler'),
             ),
             const SizedBox(height: 4),
           ],
@@ -522,6 +572,31 @@ Future<bool?> showUnlockVaultAdaptive({
 }
 
 // ─── Composants partagés ─────────────────────────────────────────────
+
+/// Poignée Material 3 en haut des bottom sheets — extrait pour éviter
+/// la duplication entre les 4-5 sheets de l'app.
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 36,
+        height: 4,
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+/// `Listenable` constant retournant toujours `false` — utilisé par
+/// `_NumericKeypad` quand le pavé n'a pas de notion de "busy"
+/// (création PIN par exemple, validation synchrone).
+final ValueNotifier<bool> _kAlwaysFalse = ValueNotifier<bool>(false);
 
 /// Suite de cercles vides/remplis indiquant la progression de saisie.
 class _DotsIndicator extends StatelessWidget {
@@ -555,89 +630,126 @@ class _DotsIndicator extends StatelessWidget {
 }
 
 /// Pavé numérique 0-9 + backspace + valider, façon écran de verrouillage.
+///
+/// **Performance** : utilise `Material + InkWell` au lieu de
+/// `OutlinedButton` (moins d'overhead thème/states/animation) et
+/// consomme `disabledListenable` via `ValueListenableBuilder` interne
+/// pour ne pas dépendre du rebuild parent.
 class _NumericKeypad extends StatelessWidget {
   const _NumericKeypad({
     required this.onDigit,
     required this.onBackspace,
     required this.onValidate,
-    this.disabled = false,
+    required this.disabledListenable,
   });
 
   final void Function(String digit) onDigit;
   final VoidCallback onBackspace;
   final VoidCallback onValidate;
-  final bool disabled;
+  final ValueListenable<bool> disabledListenable;
 
   @override
   Widget build(BuildContext context) {
-    Widget btn(
-      String label,
-      VoidCallback? onPressed, {
-      Widget? icon,
-      String? semanticsLabel,
-    }) {
-      return Expanded(
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: AspectRatio(
-            aspectRatio: 1.6,
-            child: Semantics(
-              // Label explicite pour TalkBack : sans ça, les boutons
-              // backspace / valider sont annoncés "bouton" sans plus.
-              label: semanticsLabel ?? label,
-              button: true,
-              enabled: !disabled,
-              child: ExcludeSemantics(
-                // L'icône à l'intérieur ne doit pas être lue en plus du
-                // label parent — sinon double annonce ("Effacer, image").
-                child: OutlinedButton(
-                  onPressed: disabled ? null : onPressed,
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+    return ValueListenableBuilder<bool>(
+      valueListenable: disabledListenable,
+      builder: (_, disabled, _) {
+        Widget btn(
+          String label,
+          VoidCallback? onPressed, {
+          IconData? icon,
+          String? semanticsLabel,
+        }) {
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: AspectRatio(
+                aspectRatio: 1.6,
+                child: Semantics(
+                  label: semanticsLabel ?? label,
+                  button: true,
+                  enabled: !disabled,
+                  child: ExcludeSemantics(
+                    child: _KeypadButton(
+                      onTap: disabled ? null : onPressed,
+                      icon: icon,
+                      label: icon == null ? label : null,
                     ),
                   ),
-                  child: icon ??
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
                 ),
               ),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    Widget row(List<Widget> children) =>
-        Row(crossAxisAlignment: CrossAxisAlignment.center, children: children);
+        Widget row(List<Widget> children) =>
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: children);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        row([for (final d in ['1', '2', '3']) btn(d, () => onDigit(d))]),
-        row([for (final d in ['4', '5', '6']) btn(d, () => onDigit(d))]),
-        row([for (final d in ['7', '8', '9']) btn(d, () => onDigit(d))]),
-        row([
-          btn('', onBackspace,
-              icon: const Icon(Icons.backspace_outlined),
-              semanticsLabel: 'Effacer le dernier chiffre'),
-          btn('0', () => onDigit('0')),
-          btn('', onValidate,
-              icon: const Icon(Icons.check_circle_outline, size: 28),
-              semanticsLabel: 'Valider le code'),
-        ]),
-      ],
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            row([for (final d in ['1', '2', '3']) btn(d, () => onDigit(d))]),
+            row([for (final d in ['4', '5', '6']) btn(d, () => onDigit(d))]),
+            row([for (final d in ['7', '8', '9']) btn(d, () => onDigit(d))]),
+            row([
+              btn('', onBackspace,
+                  icon: Icons.backspace_outlined,
+                  semanticsLabel: 'Effacer le dernier chiffre'),
+              btn('0', () => onDigit('0')),
+              btn('', onValidate,
+                  icon: Icons.check_circle_outline,
+                  semanticsLabel: 'Valider le code'),
+            ]),
+          ],
+        );
+      },
     );
   }
 }
 
-/// Empêche tout autre input que numérique pour cohérence (au cas où on
-/// branche un clavier matériel — sécurité défense en profondeur).
+/// Bouton individuel du pavé — `Material` + `InkWell` au lieu de
+/// `OutlinedButton` pour réduire l'overhead (moins de wrappers, pas de
+/// `ButtonStyleButton` qui résout le thème pour chaque état Material).
+class _KeypadButton extends StatelessWidget {
+  const _KeypadButton({required this.onTap, this.icon, this.label});
+  final VoidCallback? onTap;
+  final IconData? icon;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final enabled = onTap != null;
+    final fg = enabled ? cs.onSurface : cs.onSurface.withValues(alpha: 0.38);
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: cs.outline.withValues(alpha: 0.5)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Center(
+          child: icon != null
+              ? Icon(icon, size: 26, color: fg)
+              : Text(
+                  label ?? '',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    color: fg,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Sécurité défense en profondeur : empêche le copier-coller depuis
+/// l'extérieur dans le champ passphrase (rares apps clavier qui
+/// envoient des textes prédictifs). Pas appliqué globalement —
+/// optionnel si quelqu'un l'active plus tard.
 @visibleForTesting
 class DigitsOnlyInputFormatter extends TextInputFormatter {
   const DigitsOnlyInputFormatter();

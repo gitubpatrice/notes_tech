@@ -135,9 +135,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _refreshFolderNamesCache() async {
     final folders = await _folders.listAll();
     if (!mounted) return;
-    setState(() {
-      _folderNamesById = {for (final f in folders) f.id: f.name};
-    });
+    final next = {for (final f in folders) f.id: f.name};
+    // Skip rebuild si la map est identique au précédent snapshot —
+    // évite des setState gratuits sur chaque event `folders.changes`
+    // (réordonnancement par updated_at sans renommage notamment).
+    if (_folderNamesById.length == next.length &&
+        next.entries.every((e) => _folderNamesById[e.key] == e.value)) {
+      return;
+    }
+    setState(() => _folderNamesById = next);
   }
 
   Future<void> _refreshCurrentFolderName() async {

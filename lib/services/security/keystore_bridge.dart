@@ -46,6 +46,13 @@ class KeystoreBridge {
 
   /// Chiffre `plaintext` avec la clé Keystore liée à `alias`. Le nonce
   /// (12 octets) est généré côté natif à chaque appel.
+  ///
+  /// Les `Uint8List` retournés sont **systématiquement copiés** via
+  /// `Uint8List.fromList` : sur certaines versions de Flutter / Android,
+  /// les buffers du codec MethodChannel sont des vues unmodifiables
+  /// (backed par `_ByteBuffer`), ce qui fait planter tout `fillRange()`
+  /// ultérieur (utilisé par `_wipe()`) avec
+  /// `Unsupported operation: Cannot modify an unmodifiable list`.
   Future<KeystoreWrapResult> wrap(String alias, Uint8List plaintext) async {
     final res = await _channel.invokeMapMethod<String, Object?>('wrap', {
       'alias': alias,
@@ -59,12 +66,19 @@ class KeystoreBridge {
     if (ct is! Uint8List || nonce is! Uint8List) {
       throw const KeystoreException('wrap returned malformed result');
     }
-    return KeystoreWrapResult(ciphertext: ct, nonce: nonce);
+    return KeystoreWrapResult(
+      ciphertext: Uint8List.fromList(ct),
+      nonce: Uint8List.fromList(nonce),
+    );
   }
 
   /// Déchiffre. Lève [KeystoreException] si la clé n'existe plus
   /// (auto-wipe précédent), ou si l'authentification GCM échoue
   /// (tampering / mauvais alias).
+  ///
+  /// Le retour est copié en `Uint8List.fromList` pour permettre les
+  /// `_wipe()` ultérieurs (cf. note dans [wrap] sur l'unmodifiability
+  /// des buffers MethodChannel).
   Future<Uint8List> unwrap(
     String alias,
     Uint8List ciphertext,
@@ -79,7 +93,7 @@ class KeystoreBridge {
       if (res == null) {
         throw const KeystoreException('unwrap returned null');
       }
-      return res;
+      return Uint8List.fromList(res);
     } on PlatformException catch (e) {
       throw KeystoreException(e.message ?? 'unwrap failed');
     }
