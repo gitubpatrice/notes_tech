@@ -41,6 +41,12 @@ dependencies:
   # NB : flutter_secure_storage / cryptography / local_auth seront ajoutés
   # quand le vault Argon2id+AES-GCM sera implémenté (v0.5).
 
+  # v0.6 — Speech-to-Text on-device (Whisper) via package partagé sibling.
+  # Pas de permission INTERNET ajoutée : l'utilisateur importe le modèle
+  # .bin manuellement (cf. VoiceSetupScreen), même pattern que Gemma.
+  files_tech_voice:
+    path: ../files_tech_voice
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

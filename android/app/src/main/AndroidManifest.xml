@@ -19,6 +19,14 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
 
+    <!--
+      v0.6 — Speech-to-Text Whisper on-device. Permission demandée à
+      l'utilisateur lors du premier appui sur le bouton micro de l'éditeur.
+      Aucune capture sans interaction explicite. Audio jamais persisté
+      (cf. SttSession dans files_tech_voice).
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
         android:label="Notes Tech"
         android:name="${applicationName}"

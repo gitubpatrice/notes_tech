@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' show Database;
 
 import 'app.dart';
@@ -40,6 +41,7 @@ import 'services/secure_window_service.dart';
 import 'services/security/vault_service.dart';
 import 'services/semantic_search_service.dart';
 import 'services/settings_service.dart';
+import 'services/voice/voice_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -95,6 +97,14 @@ Future<void> main() async {
   // pour réindexer en arrière-plan (debounced).
   final backlinks = BacklinksService(notes: notesRepo, links: linksRepo);
 
+  // Service voix (v0.6) — partage la même instance SharedPreferences que
+  // le reste de l'app pour cohérence et pour réduire le coût d'init.
+  // Le bootstrap retrouve un éventuel modèle déjà installé et purge les
+  // WAV temp orphelins d'un crash précédent.
+  final voicePrefs = await SharedPreferences.getInstance();
+  final voice = VoiceService(prefs: voicePrefs);
+  unawaited(voice.bootstrap());
+
   // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
   // Démarré AVANT `indexing.start()` pour qu'un toggle MiniLM=ON déjà
   // persisté soit honoré dès la première passe d'indexation, sans
@@ -148,6 +158,7 @@ Future<void> main() async {
           create: (_) => coordinator,
           dispose: (_, c) => c.dispose(),
         ),
+        ChangeNotifierProvider<VoiceService>.value(value: voice),
       ],
       child: const NotesTechApp(),
     ),

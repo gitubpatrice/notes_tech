@@ -22,6 +22,7 @@ import '../../services/note_actions.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
+import '../widgets/voice_record_button.dart';
 
 class NoteEditorScreen extends StatefulWidget {
   const NoteEditorScreen({super.key, required this.noteId});
@@ -221,6 +222,24 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _scheduleSave();
   }
 
+  /// Insère un texte transcrit par la voix au curseur. Ajoute un espace
+  /// devant si le caractère précédent n'est pas déjà un séparateur, pour
+  /// éviter de coller la dictée à un mot précédent. Schedule un save pour
+  /// que le texte soit auto-persisté.
+  void _insertTranscribedText(String text) {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+    final ctrl = _contentCtrl;
+    final value = ctrl.text;
+    final sel = ctrl.selection;
+    final start = sel.start >= 0 ? sel.start : value.length;
+    final needsLeadingSpace = start > 0 &&
+        !RegExp(r'[\s\n]$').hasMatch(value.substring(0, start));
+    final toInsert = (needsLeadingSpace ? ' ' : '') + clean;
+    _insertAtCursor(toInsert);
+    _scheduleSave();
+  }
+
   void _insertAtCursor(String text) {
     final ctrl = _contentCtrl;
     final sel = ctrl.selection;
@@ -314,6 +333,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             icon: const Icon(Icons.link),
             onPressed: _insertLink,
           ),
+          VoiceRecordButton(onInsert: _insertTranscribedText),
           PopupMenuButton<String>(
             onSelected: (v) {
               switch (v) {
