@@ -250,6 +250,12 @@ class VoiceService extends ChangeNotifier {
         _state == VoiceServiceState.transcribing) {
       return; // idempotent
     }
+    // Reset systématique de l'erreur précédente : sinon une dictée OK après
+    // un échec laisserait `_lastError` non nul → le state machine pourrait
+    // rester en `error` selon les transitions ultérieures.
+    if (_lastError != null) {
+      _lastError = null;
+    }
     try {
       if (!_stt.isInitialized) {
         // Coordination RAM : libère Gemma si chargé (sur 4 Go RAM, charger
@@ -313,9 +319,17 @@ class VoiceService extends ChangeNotifier {
     final model = _activeModel;
     if (model == null) return;
     await _stt.dispose();
+    // Libère le verrou côté MlMemoryGuard : sans ça, le guard pense que
+    // voix détient encore la RAM et un futur requestGemma déclencherait
+    // un evictVoice inutile (no-op mais pollution sémantique).
+    _mlGuard?.releaseVoice();
     await SttModelDownloader.instance.uninstall(model);
     await _prefs.remove(_kActiveModelIdKey);
+    // Cache d'intégrité périmé puisque le fichier a disparu — on évite
+    // qu'un stale entry survive jusqu'au prochain bootstrap.
+    await _prefs.remove(_kVerifiedCacheKey);
     _activeModel = null;
+    _lastError = null;
     _setState(VoiceServiceState.needsModel);
   }
 
@@ -338,10 +352,13 @@ class VoiceService extends ChangeNotifier {
   /// soient toujours lisibles au moment de la suppression.
   Future<void> wipeAll() async {
     await _stt.dispose();
+    _mlGuard?.releaseVoice();
     await SttModelDownloader.instance.uninstallAll();
     await SttModelDownloader.instance.purgeTempCaptures();
     await _prefs.remove(_kActiveModelIdKey);
+    await _prefs.remove(_kVerifiedCacheKey);
     _activeModel = null;
+    _lastError = null;
     _setState(VoiceServiceState.needsModel);
   }
 

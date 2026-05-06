@@ -29,6 +29,7 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
   Timer? _ticker;
   Duration _elapsed = Duration.zero;
   String? _permissionError;
+  bool _permissionPermanent = false;
 
   @override
   void initState() {
@@ -56,7 +57,10 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
       await voice.startRecording();
     } on SttPermissionDenied catch (e) {
       if (!mounted) return;
-      setState(() => _permissionError = e.message);
+      setState(() {
+        _permissionError = e.message;
+        _permissionPermanent = e.permanently;
+      });
     } catch (_) {
       // L'erreur est déjà reflétée dans voice.lastError + state==error.
     }
@@ -125,6 +129,7 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
     if (_permissionError != null) {
       return _PermissionErrorBody(
         message: _permissionError!,
+        permanentlyDenied: _permissionPermanent,
         onClose: () => Navigator.of(context).pop(),
       );
     }
@@ -319,17 +324,14 @@ class _ErrorBody extends StatelessWidget {
 }
 
 class _PermissionErrorBody extends StatelessWidget {
-  const _PermissionErrorBody({required this.message, required this.onClose});
+  const _PermissionErrorBody({
+    required this.message,
+    required this.permanentlyDenied,
+    required this.onClose,
+  });
   final String message;
+  final bool permanentlyDenied;
   final VoidCallback onClose;
-
-  /// Heuristique simple : si le message d'erreur mentionne « définitivement »,
-  /// `_ensureMicPermission` a détecté `permanentlyDenied` — on propose le
-  /// raccourci vers les paramètres système. Sinon, le simple "Fermer"
-  /// suffit (l'utilisateur retentera, le système re-prompt).
-  bool get _showsAppSettings =>
-      message.toLowerCase().contains('définitiv') ||
-      message.toLowerCase().contains('permanently');
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +340,7 @@ class _PermissionErrorBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 8),
-        const Icon(Icons.mic_off, size: 40),
+        const Icon(Icons.mic_off_outlined, size: 40),
         const SizedBox(height: 12),
         const Text(
           'Permission micro refusée',
@@ -352,7 +354,7 @@ class _PermissionErrorBody extends StatelessWidget {
           style: const TextStyle(height: 1.4),
         ),
         const SizedBox(height: 20),
-        if (_showsAppSettings) ...[
+        if (permanentlyDenied) ...[
           FilledButton.icon(
             onPressed: () async {
               await context.read<VoiceService>().openSystemAppSettings();

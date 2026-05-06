@@ -40,28 +40,43 @@ class MlMemoryGuard {
 
   _Holder _holder = _Holder.none;
 
+  /// Mutex sériel : empêche un `requestVoice()` et un `requestGemma()`
+  /// concurrents de lire `_holder` au même moment puis d'écrire des
+  /// décisions contradictoires (ex. les deux pensent qu'aucun n'évince
+  /// l'autre → 2 moteurs ML en RAM → OOM sur 4 Go). Toutes les
+  /// transitions passent par cette chaîne.
+  Future<void> _chain = Future<void>.value();
+
   /// Le service voix appelle ceci AVANT `WhisperGgmlStt.initialize()`.
   /// Si Gemma détient le verrou, on l'évince (libération RAM) puis on
   /// transfère le verrou à voix.
-  Future<void> requestVoice() async {
-    if (_holder == _Holder.voice) return;
-    if (_holder == _Holder.gemma) {
-      await _evictGemma();
-    }
-    _holder = _Holder.voice;
-  }
+  Future<void> requestVoice() => _serialize(() async {
+        if (_holder == _Holder.voice) return;
+        if (_holder == _Holder.gemma) {
+          await _evictGemma();
+        }
+        _holder = _Holder.voice;
+      });
 
   /// Le service Gemma appelle ceci AVANT `gemma.warmUp()`. Si voix détient
   /// le verrou, on l'évince. Si voix est en plein recording, on évincera
   /// quand même le moteur Whisper — la session de capture continue (le
   /// moteur n'est nécessaire qu'au moment de la transcription, qui se
   /// rechargera lazy).
-  Future<void> requestGemma() async {
-    if (_holder == _Holder.gemma) return;
-    if (_holder == _Holder.voice) {
-      await _evictVoice();
-    }
-    _holder = _Holder.gemma;
+  Future<void> requestGemma() => _serialize(() async {
+        if (_holder == _Holder.gemma) return;
+        if (_holder == _Holder.voice) {
+          await _evictVoice();
+        }
+        _holder = _Holder.gemma;
+      });
+
+  Future<void> _serialize(Future<void> Function() body) {
+    final next = _chain.then((_) => body());
+    // Catch sur la chaîne pour qu'une éviction qui throw ne bloque pas les
+    // appels suivants. L'erreur est propagée au caller via `next`.
+    _chain = next.catchError((_) {});
+    return next;
   }
 
   /// Libère le verrou côté voix. À appeler quand `VoiceService` dispose ou
