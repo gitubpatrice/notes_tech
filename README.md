@@ -22,7 +22,7 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 ---
 
-## ✨ Fonctionnalités v0.5.0
+## ✨ Fonctionnalités v0.6.0
 
 ### Édition
 - Notes Markdown — création / édition / auto-save debounced
@@ -48,6 +48,18 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 - Réindexation **ciblée** : seule la note modifiée est retraitée (O(1) par save)
 - Liens fantômes auto-résolus à la création / au renommage de la note cible
 
+### Dictée vocale (v0.6)
+- **Whisper on-device** — transcription Speech-to-Text 100 % locale via le module sibling `files_tech_voice`
+- Modèles supportés : Whisper Base q5_1 (57 Mo, recommandé) ou Tiny q5_1 (32 Mo, plus rapide)
+- Import du modèle via SAF (l'utilisateur télécharge le `.bin` sur PC depuis HuggingFace `ggerganov/whisper.cpp`, transfère, importe — aucun téléchargement par l'app)
+- Vérification SHA-256 systématique au DL et avant chaque chargement natif (anti-MITM, anti-substitution)
+- Cache de vérification (size + mtime + TTL 30 j) pour éviter le rehash 57 Mo à chaque cold start
+- Capture micro WAV PCM 16 kHz mono → transcription → texte inséré au curseur
+- Audio jamais persisté (tmp dir + delete après transcribe, dans tous les chemins de sortie)
+- Permission `RECORD_AUDIO` runtime, bouton « Ouvrir paramètres » si refus permanent
+- **MlMemoryGuard** : sur 4 Go RAM, coordination Gemma ↔ Whisper (un seul moteur ML chargé à la fois) — mutex sériel anti-OOM
+- Section dédiée dans Réglages : modèle actif, changer, désinstaller (avec confirmation + libération RAM)
+
 ---
 
 ## 🛣 Roadmap
@@ -60,9 +72,12 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 | **v0.4** | Backlinks `[[Titre]]` + auto-complétion + panneau mentions | ✅ |
 | **v0.4.1** | Audit complet appliqué : réindex ciblé, anti-injection RAG, init order, SAF only, lints stricts | ✅ |
 | **v0.5** | DB chiffrée SQLCipher (KEK Keystore) + migration auto + FLAG_SECURE + SHA-256 Gemma + nouvelle icône | ✅ |
-| **v0.6** | Versioning des notes + mode panique (wipe vault) + journal praticien + export PDF séance | ⏳ |
-| **v1.0** | Capture multimodale (Voice / PDF / OCR) + vault par dossier | ⏳ |
-| **v1.1** | Import Obsidian / Notesnook / Apple Notes | ⏳ |
+| **v0.5.1** | Polish sécurité + icône adaptive corrigée | ✅ |
+| **v0.6** | Dictée vocale Whisper on-device (`files_tech_voice`) + MlMemoryGuard Gemma↔Whisper + Settings UI | ✅ |
+| **v0.7** | OCR ML Kit + import PDF Tech via `files_tech_core` | ⏳ |
+| **v0.8** | Vault par dossier (Argon2id passphrase + AES-GCM) — confidentialité graduée | ⏳ |
+| **v1.0** | Capture multimodale fusion + audit OWASP MASVS + tag majeur | ⏳ |
+| **v1.1** | Import Obsidian / Notesnook / Apple Notes + journal praticien (séances) | ⏳ |
 
 ---
 
