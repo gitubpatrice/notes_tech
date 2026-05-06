@@ -38,11 +38,22 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
   Future<void> _pickAndImport() async {
     if (_busy) return;
 
-    // Le picker file_picker (déjà utilisé par Notes Tech pour Gemma)
-    // accepte n'importe quel fichier. On filtre côté UX (.bin attendu)
-    // mais la garantie d'intégrité reste le SHA-256.
+    // Filtre `.bin` via FileType.custom — n'affiche que les fichiers
+    // d'extension `.bin` dans le picker SAF Android. Si le filtre échoue
+    // sur l'appareil (extensions non-standard mal gérées par certains
+    // OEM), l'utilisateur peut quand même naviguer manuellement et
+    // sélectionner un fichier — la garantie d'intégrité finale reste
+    // la vérification SHA-256 à l'import.
+    //
+    // `initialDirectory: /storage/emulated/0/Download` ouvre directement
+    // le dossier Téléchargements, là où le navigateur a sauvé le .bin
+    // (cohérent avec le bouton "Télécharger sur ce téléphone").
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
+      type: FileType.custom,
+      allowedExtensions: const ['bin'],
+      allowMultiple: false,
+      initialDirectory: '/storage/emulated/0/Download',
+      dialogTitle: 'Sélectionnez le fichier ${_selectedModel.id}.bin',
       withData: false, // on travaille en streaming, pas tout en RAM
     );
     if (!mounted || result == null || result.files.isEmpty) return;
