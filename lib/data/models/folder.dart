@@ -3,6 +3,31 @@ library;
 
 import 'package:flutter/foundation.dart';
 
+/// Mode de protection d'un coffre.
+///
+/// - [VaultMode.passphrase] (v0.8) : Argon2id RFC 9106 (m=64MB, t=3) sur la
+///   passphrase utilisateur (8+ caractères) → wrap_kek → wrap de la
+///   `folder_kek`. Robuste seul, mais dérivation 1-2 s sur S9.
+/// - [VaultMode.pin] (v0.9) : PIN 4-6 chiffres + Argon2id allégé (t=2,
+///   m=32MB) + scellage AndroidKeystore (device-bound). Le device est
+///   exigé pour toute tentative ; la faible entropie du PIN est
+///   compensée par le rate-limit applicatif (auto-wipe à 5 fails).
+enum VaultMode {
+  passphrase,
+  pin;
+
+  static VaultMode? fromDb(String? raw) => switch (raw) {
+        'passphrase' => VaultMode.passphrase,
+        'pin' => VaultMode.pin,
+        _ => null,
+      };
+
+  String get dbValue => switch (this) {
+        VaultMode.passphrase => 'passphrase',
+        VaultMode.pin => 'pin',
+      };
+}
+
 @immutable
 class Folder {
   const Folder({
@@ -17,6 +42,10 @@ class Folder {
     this.vaultKekWrapped,
     this.vaultIv,
     this.vaultVerifier,
+    this.vaultMode,
+    this.vaultPinBlob,
+    this.vaultPinIv,
+    this.vaultAttempts = 0,
   });
 
   final String id;
@@ -31,26 +60,48 @@ class Folder {
   ///
   /// Quand `vaultSalt != null`, le dossier est marqué « coffre » :
   /// - [vaultSalt] : 16 octets CSPRNG, sel Argon2id pour dériver la KEK
-  ///   à partir de la passphrase utilisateur.
+  ///   à partir de la passphrase OU du PIN utilisateur.
   /// - [vaultKekWrapped] : la `folder_kek` 32 octets (AES-256), elle-même
   ///   chiffrée AES-256-GCM avec la KEK dérivée Argon2id (AAD = id).
+  ///   **Mode passphrase uniquement** — null en mode PIN (le wrap PIN
+  ///   est dans [vaultPinBlob]).
   /// - [vaultIv] : nonce 12 octets du wrap GCM ci-dessus.
   /// - [vaultVerifier] : HMAC-SHA-256 d'une constante avec la `folder_kek`
-  ///   pour valider rapidement une passphrase saisie sans déchiffrer
-  ///   toutes les notes (échec → mauvaise passphrase, abort proprement).
+  ///   pour valider rapidement une passphrase/PIN saisi sans déchiffrer
+  ///   toutes les notes (échec → mauvais secret, abort proprement).
   ///
-  /// Tous-NULL = dossier ordinaire. Les 4 champs vont ensemble (soit
-  /// tous renseignés, soit tous null — invariants garantis par
-  /// `FolderVaultService`).
+  /// Tous-NULL = dossier ordinaire (et [vaultMode] est lui aussi null).
   final Uint8List? vaultSalt;
   final Uint8List? vaultKekWrapped;
   final Uint8List? vaultIv;
   final Uint8List? vaultVerifier;
 
+  /// v0.9 — mode du coffre. `null` = dossier ordinaire.
+  final VaultMode? vaultMode;
+
+  /// v0.9 — wrap **mode PIN** : la `folder_kek` est doublement scellée :
+  ///   1. AES-GCM avec la KEK dérivée Argon2id du PIN (AAD = id) →
+  ///      blob intermédiaire ;
+  ///   2. wrap final via AndroidKeystore (alias = `vault_pin_<id>`,
+  ///      AES-GCM 256, IV généré côté Keystore) → `vaultPinBlob`.
+  /// La couche 2 rend le bruteforce hors-device impossible (clé Keystore
+  /// non-extractible). La couche 1 ajoute le secret PIN au facteur device.
+  final Uint8List? vaultPinBlob;
+  final Uint8List? vaultPinIv;
+
+  /// v0.9 — compteur de tentatives PIN ratées. Reset à 0 sur succès,
+  /// déclenche l'auto-wipe à `vaultPinMaxAttempts` (= 5). Toujours 0
+  /// pour un coffre passphrase.
+  final int vaultAttempts;
+
   /// `true` si le dossier est marqué comme coffre. La présence de
   /// [vaultSalt] est la source de vérité (les autres champs sont
   /// dépendants par invariant).
   bool get isVault => vaultSalt != null;
+
+  /// `true` si le coffre est en mode PIN (par opposition à passphrase).
+  /// Faux pour un dossier ordinaire (non-coffre).
+  bool get isPinVault => vaultMode == VaultMode.pin;
 
   Folder copyWith({
     String? name,
@@ -62,9 +113,14 @@ class Folder {
     Uint8List? vaultKekWrapped,
     Uint8List? vaultIv,
     Uint8List? vaultVerifier,
+    VaultMode? vaultMode,
+    Uint8List? vaultPinBlob,
+    Uint8List? vaultPinIv,
+    int? vaultAttempts,
     // Sentinels pour effacer un champ (passer à null) — utile lors de la
-    // conversion coffre → dossier ordinaire.
+    // conversion coffre → dossier ordinaire, ou conversion PIN → passphrase.
     bool clearVault = false,
+    bool clearPinFields = false,
   }) {
     return Folder(
       id: id,
@@ -80,6 +136,14 @@ class Folder {
       vaultIv: clearVault ? null : (vaultIv ?? this.vaultIv),
       vaultVerifier:
           clearVault ? null : (vaultVerifier ?? this.vaultVerifier),
+      vaultMode: clearVault ? null : (vaultMode ?? this.vaultMode),
+      vaultPinBlob: (clearVault || clearPinFields)
+          ? null
+          : (vaultPinBlob ?? this.vaultPinBlob),
+      vaultPinIv: (clearVault || clearPinFields)
+          ? null
+          : (vaultPinIv ?? this.vaultPinIv),
+      vaultAttempts: clearVault ? 0 : (vaultAttempts ?? this.vaultAttempts),
     );
   }
 
@@ -95,6 +159,10 @@ class Folder {
         'vault_kek_wrapped': vaultKekWrapped,
         'vault_iv': vaultIv,
         'vault_verifier': vaultVerifier,
+        'vault_mode': vaultMode?.dbValue,
+        'vault_pin_blob': vaultPinBlob,
+        'vault_pin_iv': vaultPinIv,
+        'vault_attempts': vaultAttempts,
       };
 
   factory Folder.fromRow(Map<String, Object?> row) => Folder(
@@ -111,6 +179,10 @@ class Folder {
         vaultKekWrapped: _asBytes(row['vault_kek_wrapped']),
         vaultIv: _asBytes(row['vault_iv']),
         vaultVerifier: _asBytes(row['vault_verifier']),
+        vaultMode: VaultMode.fromDb(row['vault_mode'] as String?),
+        vaultPinBlob: _asBytes(row['vault_pin_blob']),
+        vaultPinIv: _asBytes(row['vault_pin_iv']),
+        vaultAttempts: (row['vault_attempts'] as int?) ?? 0,
       );
 
   /// Coerce un BLOB SQLite en `Uint8List`. SQLite peut renvoyer

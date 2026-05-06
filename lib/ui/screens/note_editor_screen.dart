@@ -30,6 +30,7 @@ import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
 import '../widgets/move_to_folder_sheet.dart';
 import '../widgets/vault_passphrase_sheets.dart';
+import '../widgets/vault_pin_sheets.dart';
 import '../widgets/voice_record_button.dart';
 
 class NoteEditorScreen extends StatefulWidget {
@@ -155,7 +156,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             });
             return;
           }
-          final ok = await showUnlockVaultSheet(
+          final ok = await showUnlockVaultAdaptive(
             context: context,
             folder: folder,
           );

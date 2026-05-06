@@ -50,6 +50,8 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        // v0.9 — pont AndroidKeyStore pour les coffres en mode PIN.
+        registerKeystoreBridge(applicationContext, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     private fun applySecureFlag(enabled: Boolean) {

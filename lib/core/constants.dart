@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '0.8.0';
+  static const String appVersion = '0.9.0';
   // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
   // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
   // automatiquement par `shared_preferences` au moment de la persistance).
@@ -18,7 +18,11 @@ class AppConstants {
   // vault_kek_wrapped, vault_iv, vault_verifier) et `encrypted_content`
   // BLOB nullable sur `notes` pour les notes verrouillées (contenu
   // chiffré AES-256-GCM avec folder_kek dérivée Argon2id).
-  static const int dbVersion = 4;
+  // v5 (2026-05-06) : mode PIN par coffre. Colonnes `vault_mode` (TEXT
+  // 'passphrase'|'pin'|NULL), `vault_pin_blob`+`vault_pin_iv` (wrap
+  // Keystore-bound de la folder_kek pour mode PIN), `vault_attempts`
+  // (compteur tentatives PIN, auto-wipe à 5).
+  static const int dbVersion = 5;
 
   /// Identifiant du dossier "Boîte de réception" — racine indélébile de
   /// l'arborescence, créée au premier démarrage. Les notes orphelines
@@ -56,6 +60,38 @@ class AppConstants {
 
   /// Taille des sels CSPRNG persistés par coffre.
   static const int vaultSaltBytes = 16;
+
+  // ─── v0.9 — Mode PIN par coffre ──────────────────────────────────────
+
+  /// Longueur MIN d'un PIN coffre. 4 chiffres = 10 000 combinaisons,
+  /// largement insuffisant en bruteforce nu — c'est le device-binding
+  /// Keystore qui donne la sécurité réelle (impossible à attaquer
+  /// hors-device) + l'auto-wipe à [vaultPinMaxAttempts] tentatives.
+  static const int vaultPinMinLength = 4;
+
+  /// Longueur MAX d'un PIN coffre. 6 chiffres = format usuel des
+  /// écrans de verrouillage Android — au-delà l'utilisateur préférera
+  /// passer en passphrase complète.
+  static const int vaultPinMaxLength = 6;
+
+  /// Tentatives PIN avant **auto-wipe** définitif du coffre (suppression
+  /// des colonnes `vault_pin_blob`/`vault_pin_iv` + clé Keystore).
+  /// Aligné sur le comportement écran de verrouillage Android : 5 fails
+  /// → factory reset équivalent (ici : coffre irrécupérable). Les notes
+  /// chiffrées restent en DB mais deviennent illisibles à jamais.
+  static const int vaultPinMaxAttempts = 5;
+
+  /// Paramètres Argon2id **allégés** pour le mode PIN. Ne servent que
+  /// de seconde couche : la première ligne de défense est le scellage
+  /// Keystore (device-bound). Pas la peine d'imposer 1 s par essai au
+  /// déverrouillage légitime — c'est le rate-limit applicatif qui
+  /// protège du bruteforce on-device.
+  static const int vaultPinArgon2Iterations = 2;
+  static const int vaultPinArgon2MemoryKb = 32 * 1024; // 32 Mo
+
+  /// Préfixe des alias Keystore pour les coffres PIN. Concaténé avec
+  /// `folder_id` pour unicité par coffre.
+  static const String vaultPinKeystoreAliasPrefix = 'vault_pin_';
 
   /// Clé SharedPreferences pour le timeout d'auto-lock (en minutes).
   /// Valeurs spéciales : `0` = jamais, `-1` = au pause de l'app uniquement.

@@ -17,7 +17,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/folders_drawer.dart';
 import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
-import '../widgets/vault_passphrase_sheets.dart';
+import '../widgets/vault_pin_sheets.dart';
 import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
 import 'search_screen.dart';
@@ -181,7 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     if (targetFolder != null && targetFolder.isVault) {
       if (!vault.isUnlocked(targetFolderId)) {
-        final ok = await showUnlockVaultSheet(
+        final ok = await showUnlockVaultAdaptive(
           context: context,
           folder: targetFolder,
         );

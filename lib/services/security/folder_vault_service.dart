@@ -62,6 +62,7 @@ import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import 'keystore_bridge.dart';
 
 /// Erreur levée quand une passphrase saisie est incorrecte (le wrap
 /// AES-GCM échoue au tag GCM ou le verifier HMAC ne matche pas).
@@ -88,6 +89,29 @@ class VaultValidationException implements Exception {
   String toString() => 'VaultValidationException: $message';
 }
 
+/// Erreur levée quand un coffre PIN a été auto-détruit après trop de
+/// tentatives ratées (`vaultPinMaxAttempts`). À ce stade la clé Keystore
+/// a été supprimée, les notes verrouillées ont été effacées, et le
+/// dossier a été démoté en dossier ordinaire — les données sont perdues
+/// définitivement.
+class VaultPinWipedException implements Exception {
+  const VaultPinWipedException(this.folderId);
+  final String folderId;
+  @override
+  String toString() =>
+      'VaultPinWipedException: coffre $folderId auto-détruit (5 tentatives ratées)';
+}
+
+/// Erreur levée quand un PIN saisi est incorrect. Inclut le nombre de
+/// tentatives restantes pour permettre à l'UI d'avertir l'utilisateur.
+class WrongPinException implements Exception {
+  const WrongPinException({required this.attemptsRemaining});
+  final int attemptsRemaining;
+  @override
+  String toString() =>
+      'WrongPinException: PIN incorrect ($attemptsRemaining tentatives restantes)';
+}
+
 /// Session active d'un coffre déverrouillé. La `folder_kek` est gardée en
 /// RAM pour la durée de la session ; l'auto-lock zeroize les bytes.
 class _Session {
@@ -107,12 +131,15 @@ class FolderVaultService extends ChangeNotifier {
     required FoldersRepository folders,
     required NotesRepository notes,
     Duration autoLockAfter = AppConstants.vaultDefaultAutoLock,
+    KeystoreBridge? keystore,
   })  : _folders = folders,
         _notes = notes,
-        _autoLockAfter = autoLockAfter;
+        _autoLockAfter = autoLockAfter,
+        _keystore = keystore ?? KeystoreBridge();
 
   final FoldersRepository _folders;
   final NotesRepository _notes;
+  final KeystoreBridge _keystore;
   Duration _autoLockAfter;
 
   /// Sessions actives, indexées par `folder.id`. Une entrée présente
@@ -201,6 +228,244 @@ class FolderVaultService extends ChangeNotifier {
       _wipe(kekFromPass);
     }
   }
+
+  /// Convertit un dossier ordinaire en coffre **mode PIN** (v0.9).
+  ///
+  /// Triple-couche cryptographique pour compenser la faible entropie
+  /// d'un PIN 4-6 chiffres :
+  ///
+  ///   1. **Argon2id allégé** (t=2, m=32MB) sur PIN+salt → `pin_kek` 256b.
+  ///   2. **AES-GCM** : `folder_kek` (32 octets CSPRNG) wrappée par
+  ///      `pin_kek`, AAD = folder_id → blob intermédiaire.
+  ///   3. **Keystore** : blob intermédiaire scellé par une clé AES-256-GCM
+  ///      résidente dans AndroidKeyStore (alias = `vault_pin_<id>`,
+  ///      StrongBox si dispo, fallback TEE). Cette clé n'est **jamais
+  ///      extractible** → bruteforce hors-device impossible.
+  ///
+  /// Le rate-limit applicatif (auto-wipe à 5 fails) couvre le bruteforce
+  /// on-device. Combinaison : un attaquant doit avoir le device, ne peut
+  /// tester que via l'API (pas d'extraction), et n'a que 5 chances.
+  ///
+  /// Le `vault_kek_wrapped` est laissé NULL en mode PIN (le wrap réside
+  /// dans `vault_pin_blob`). Le verifier HMAC reste calculé pareil.
+  Future<Folder> createPinVault({
+    required Folder folder,
+    required String pin,
+  }) async {
+    if (folder.isVault) {
+      throw const VaultValidationException('Dossier déjà un coffre.');
+    }
+    _validatePin(pin);
+
+    final salt = _randomBytes(AppConstants.vaultSaltBytes);
+    final folderKek = _randomBytes(32);
+    final iv = _randomBytes(12);
+
+    final pinKek = await _deriveKekArgon2idLight(pin: pin, salt: salt);
+    try {
+      // Couche 2 : wrap interne AES-GCM avec la KEK dérivée du PIN.
+      final innerWrapped = await _aesGcmEncrypt(
+        key: pinKek,
+        iv: iv,
+        plaintext: folderKek,
+        aad: utf8Bytes(folder.id),
+      );
+
+      // Couche 3 : scellage Keystore. Crée la clé (idempotent — si
+      // l'alias existait pour une raison improbable, on supprime + recrée
+      // pour partir propre).
+      final alias = _keystoreAlias(folder.id);
+      await _keystore.deleteKey(alias);
+      await _keystore.createKey(alias);
+      final sealed = await _keystore.wrap(alias, innerWrapped);
+
+      final verifier = await _verifierFor(folderKek);
+
+      final updated = folder.copyWith(
+        vaultSalt: salt,
+        vaultIv: iv,
+        vaultVerifier: verifier,
+        vaultMode: VaultMode.pin,
+        vaultPinBlob: sealed.ciphertext,
+        vaultPinIv: sealed.nonce,
+        vaultAttempts: 0,
+        updatedAt: DateTime.now(),
+      );
+      await _folders.update(updated);
+
+      _unlocked[updated.id] = _Session(
+        folderKek: folderKek,
+        openedAt: DateTime.now(),
+      );
+      _scheduleAutoLockSweep();
+      notifyListeners();
+      return updated;
+    } finally {
+      _wipe(pinKek);
+    }
+  }
+
+  /// Déverrouille un coffre **mode PIN** avec rate-limit + auto-wipe.
+  ///
+  /// Comportement en cas d'erreur :
+  /// - PIN incorrect → incrémente `vault_attempts` en DB, lève
+  ///   [WrongPinException] avec le nombre de tentatives restantes.
+  /// - À la N-ième tentative ratée (N = `vaultPinMaxAttempts`),
+  ///   déclenche [_autoWipePinVault] et lève [VaultPinWipedException].
+  /// - Sur succès, remet `vault_attempts` à 0.
+  ///
+  /// L'incrémentation est persistée AVANT la tentative pour résister à
+  /// un attaquant qui kill l'app entre l'échec et l'incrément (sinon il
+  /// pourrait bruteforcer infiniment).
+  Future<void> unlockWithPin({
+    required Folder folder,
+    required String pin,
+  }) async {
+    if (!folder.isVault || !folder.isPinVault) {
+      throw const VaultValidationException(
+        'Le dossier n\'est pas un coffre PIN.',
+      );
+    }
+    if (folder.vaultAttempts >= AppConstants.vaultPinMaxAttempts) {
+      // Garde-fou : un coffre déjà au max ne devrait pas exister
+      // (auto-wipe précédent l'aurait démoli) mais on couvre le cas
+      // d'une DB restaurée d'un backup où l'auto-wipe a été interrompu.
+      await _autoWipePinVault(folder);
+      throw VaultPinWipedException(folder.id);
+    }
+    _validatePin(pin);
+
+    // Incrément persisté AVANT tentative — anti-kill-loop.
+    final attemptsBefore = folder.vaultAttempts + 1;
+    var working = folder.copyWith(vaultAttempts: attemptsBefore);
+    await _folders.update(working);
+
+    final salt = folder.vaultSalt!;
+    final iv = folder.vaultIv!;
+    final pinBlob = folder.vaultPinBlob!;
+    final pinIv = folder.vaultPinIv!;
+    final expectedVerifier = folder.vaultVerifier!;
+
+    // Couche 3 → 2 : déscelle Keystore puis dérive pin_kek pour unwrap.
+    Uint8List innerWrapped;
+    try {
+      innerWrapped = await _keystore.unwrap(
+        _keystoreAlias(folder.id),
+        pinBlob,
+        pinIv,
+      );
+    } on KeystoreException {
+      // Clé Keystore disparue (factory reset partiel, désinstallation
+      // incomplète, app data effacée mais pas la DB). Coffre irréparable.
+      await _autoWipePinVault(folder);
+      throw VaultPinWipedException(folder.id);
+    }
+
+    final pinKek = await _deriveKekArgon2idLight(pin: pin, salt: salt);
+    Uint8List? folderKek;
+    try {
+      try {
+        folderKek = await _aesGcmDecrypt(
+          key: pinKek,
+          iv: iv,
+          wrapped: innerWrapped,
+          aad: utf8Bytes(folder.id),
+        );
+      } on SecretBoxAuthenticationError {
+        await _onPinFailure(working);
+      }
+
+      final actualVerifier = await _verifierFor(folderKek);
+      if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
+        _wipe(folderKek);
+        await _onPinFailure(working);
+      }
+
+      // Succès : reset compteur + ouvre session.
+      working = working.copyWith(vaultAttempts: 0);
+      await _folders.update(working);
+
+      _unlocked[folder.id] = _Session(
+        folderKek: folderKek,
+        openedAt: DateTime.now(),
+      );
+      _scheduleAutoLockSweep();
+      notifyListeners();
+    } finally {
+      _wipe(pinKek);
+      // Wipe innerWrapped (contenait `folder_kek` chiffrée par pin_kek —
+      // pas une clé en clair, mais hygiène).
+      _wipe(innerWrapped);
+    }
+  }
+
+  /// Déclenché à chaque échec de PIN. Si on a atteint le max → auto-wipe
+  /// + [VaultPinWipedException] ; sinon → [WrongPinException] avec le
+  /// nombre de tentatives restantes.
+  Future<Never> _onPinFailure(Folder afterIncrement) async {
+    final remaining =
+        AppConstants.vaultPinMaxAttempts - afterIncrement.vaultAttempts;
+    if (remaining <= 0) {
+      await _autoWipePinVault(afterIncrement);
+      throw VaultPinWipedException(afterIncrement.id);
+    }
+    throw WrongPinException(attemptsRemaining: remaining);
+  }
+
+  /// Auto-destruction d'un coffre PIN après trop de tentatives :
+  ///   1. Supprime la clé Keystore (alias = `vault_pin_<id>`).
+  ///   2. Supprime de la DB **toutes les notes locked** du dossier
+  ///      (elles sont chiffrées avec une `folder_kek` à jamais
+  ///      irrécupérable — autant ne pas garder de garbage).
+  ///   3. Démote le dossier en dossier ordinaire (clearVault → null
+  ///      sur tous les champs `vault_*`, `vault_attempts` revient à 0).
+  ///
+  /// Le dossier reste, vide. L'utilisateur voit clairement que les
+  /// données ont disparu — c'est le contrat (5 fails = perte définitive,
+  /// équivalent factory reset Android).
+  Future<void> _autoWipePinVault(Folder folder) async {
+    // 1. Keystore : delete idempotent.
+    try {
+      await _keystore.deleteKey(_keystoreAlias(folder.id));
+    } catch (_) {
+      // Best-effort : si Keystore refuse, la clé devient orpheline mais
+      // sans le blob côté DB elle est inutile à un attaquant.
+    }
+
+    // 2. Notes verrouillées : suppression directe (purge sans corbeille
+    // — la corbeille les conserverait sans pouvoir les déchiffrer).
+    final notes = await _notes.listByFolder(folder.id, includeArchived: true);
+    for (final n in notes) {
+      if (n.isLocked) {
+        try {
+          await _notes.deletePermanently(n.id);
+        } catch (_) {/* best-effort */}
+      }
+    }
+
+    // 3. Démote le dossier.
+    final cleared = folder.copyWith(
+      clearVault: true,
+      updatedAt: DateTime.now(),
+    );
+    await _folders.update(cleared);
+
+    // Ferme la session si ouverte (ne devrait pas l'être à ce stade).
+    lock(folder.id);
+  }
+
+  /// Suppression propre d'un coffre PIN (par l'utilisateur, pas par
+  /// auto-wipe) : appelée quand le dossier est supprimé via le drawer.
+  /// L'orchestration des notes est faite par le caller (decrypt avant
+  /// move ou delete) — ici on nettoie juste la clé Keystore.
+  Future<void> deletePinKey(String folderId) async {
+    try {
+      await _keystore.deleteKey(_keystoreAlias(folderId));
+    } catch (_) {/* best-effort */}
+  }
+
+  String _keystoreAlias(String folderId) =>
+      '${AppConstants.vaultPinKeystoreAliasPrefix}$folderId';
 
   // ── Déverrouillage / verrouillage ──────────────────────────────────
 
@@ -428,6 +693,27 @@ class FolderVaultService extends ChangeNotifier {
     }
   }
 
+  /// Validation d'un PIN coffre v0.9 : longueur dans la fenêtre 4-6, et
+  /// **uniquement des chiffres** (un PIN avec lettres serait acceptable
+  /// crypto mais l'UX numérique est volontaire — sinon autant utiliser
+  /// le mode passphrase).
+  void _validatePin(String pin) {
+    if (pin.length < AppConstants.vaultPinMinLength ||
+        pin.length > AppConstants.vaultPinMaxLength) {
+      throw const VaultValidationException(
+        'PIN invalide : ${AppConstants.vaultPinMinLength} à '
+        '${AppConstants.vaultPinMaxLength} chiffres.',
+      );
+    }
+    if (!_pinDigitsOnly.hasMatch(pin)) {
+      throw const VaultValidationException(
+        'PIN invalide : chiffres uniquement.',
+      );
+    }
+  }
+
+  static final RegExp _pinDigitsOnly = RegExp(r'^\d+$');
+
   _Session _requireSession(String folderId) {
     final s = _unlocked[folderId];
     if (s == null) throw VaultLockedException(folderId);
@@ -453,6 +739,28 @@ class FolderVaultService extends ChangeNotifier {
         salt: salt,
         memoryKb: AppConstants.vaultArgon2MemoryKb,
         iterations: AppConstants.vaultArgon2Iterations,
+        parallelism: AppConstants.vaultArgon2Parallelism,
+        hashLength: AppConstants.vaultArgon2HashBytes,
+      ),
+    );
+  }
+
+  /// Variante allégée pour le mode PIN (v0.9) : t=2, m=32MB. La sécurité
+  /// réelle vient du scellage Keystore (device-bound) ; Argon2id ici n'est
+  /// qu'un coût supplémentaire pour ralentir un attaquant on-device qui
+  /// passerait outre le rate-limit applicatif. Inutile d'imposer 1-2 s
+  /// par tap "Déverrouiller" légitime.
+  Future<Uint8List> _deriveKekArgon2idLight({
+    required String pin,
+    required Uint8List salt,
+  }) async {
+    return compute<_Argon2Job, Uint8List>(
+      _argon2WorkerEntry,
+      _Argon2Job(
+        passphrase: pin,
+        salt: salt,
+        memoryKb: AppConstants.vaultPinArgon2MemoryKb,
+        iterations: AppConstants.vaultPinArgon2Iterations,
         parallelism: AppConstants.vaultArgon2Parallelism,
         hashLength: AppConstants.vaultArgon2HashBytes,
       ),

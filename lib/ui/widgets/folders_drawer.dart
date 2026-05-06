@@ -25,6 +25,7 @@ import '../../data/repositories/notes_repository.dart';
 import '../../services/security/folder_vault_service.dart';
 import 'folder_dialogs.dart';
 import 'vault_passphrase_sheets.dart';
+import 'vault_pin_sheets.dart';
 
 /// Identifiant fictif utilisé par le drawer pour signaler « Toutes les
 /// notes ». Ré-export pour les call-sites (HomeScreen).
@@ -119,7 +120,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // le move ; passphrase requise si le coffre est verrouillé.
       if (folder.isVault) {
         if (!vault.isUnlocked(folder.id)) {
-          final ok = await showUnlockVaultSheet(
+          final ok = await showUnlockVaultAdaptive(
             context: context,
             folder: folder,
           );
@@ -164,6 +165,11 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     // RAM et évite qu'un futur dossier réutilisant l'id (improbable vu
     // l'UUID v4) hérite d'une session fantôme.
     if (folder.isVault) vault.lock(folder.id);
+    // Coffre PIN : supprime aussi la clé Keystore (alias = vault_pin_<id>)
+    // pour ne pas laisser d'orphelin dans le TEE/StrongBox.
+    if (folder.isPinVault) {
+      await vault.deletePinKey(folder.id);
+    }
     await _repo.delete(folder.id);
     // Si l'utilisateur regardait ce dossier, on retombe sur "Toutes".
     if (widget.currentFolderId == folder.id) {
@@ -365,11 +371,28 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   Future<void> _convertToVault(Folder folder) async {
     final messenger = ScaffoldMessenger.of(context);
     final vault = context.read<FolderVaultService>();
-    final passphrase = await showCreateVaultSheet(
+
+    // v0.9 — choix mode passphrase vs PIN. L'user décide selon usage :
+    // passphrase pour secret pro, PIN pour notes perso.
+    final mode = await showVaultModeChooserSheet(
       context: context,
       folderName: folder.name,
     );
-    if (passphrase == null || !mounted) return;
+    if (mode == null || !mounted) return;
+
+    final String? secret;
+    if (mode == VaultMode.passphrase) {
+      secret = await showCreateVaultSheet(
+        context: context,
+        folderName: folder.name,
+      );
+    } else {
+      secret = await showCreatePinSheet(
+        context: context,
+        folderName: folder.name,
+      );
+    }
+    if (secret == null || !mounted) return;
 
     final navigator = Navigator.of(context);
     unawaited(
@@ -380,8 +403,9 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       ),
     );
     try {
-      final updated =
-          await vault.createVault(folder: folder, passphrase: passphrase);
+      final updated = mode == VaultMode.passphrase
+          ? await vault.createVault(folder: folder, passphrase: secret)
+          : await vault.createPinVault(folder: folder, pin: secret);
       // Re-encrypte toutes les notes existantes du dossier — la session
       // est active suite au createVault, donc encryptAllNotesInFolder
       // peut accéder à la folder_kek.
