@@ -16,6 +16,17 @@ class AppConstants {
   static const String dbFileName = 'notes_tech.db';
   static const int dbVersion = 3;
 
+  /// Identifiant du dossier "Boîte de réception" — racine indélébile de
+  /// l'arborescence, créée au premier démarrage. Les notes orphelines
+  /// (dossier supprimé) y sont automatiquement réassignées.
+  /// Source unique de vérité pour éviter les littéraux 'inbox' dispersés.
+  static const String inboxFolderId = 'inbox';
+
+  /// Sentinel utilisé par les widgets de filtrage pour signaler "aucun
+  /// filtre dossier" (= toutes les notes). Distinct d'un id de dossier
+  /// réel, ne doit jamais atteindre la couche DB.
+  static const String allFoldersSentinel = '__all_folders__';
+
   /// SHA-256 du modèle Gemma 3 1B int4 officiel (gemma3-1b-it-int4.task,
   /// 554 661 243 octets, publié sur Kaggle/HuggingFace).
   /// Vérifié à l'import pour garantir l'intégrité du modèle.

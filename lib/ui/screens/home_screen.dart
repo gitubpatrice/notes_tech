@@ -8,10 +8,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../data/models/note.dart';
+import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/folders_drawer.dart';
 import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
 import 'ai_chat_screen.dart';
@@ -28,19 +30,35 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final NotesRepository _notes;
+  late final FoldersRepository _folders;
   late final SettingsService _settings;
   late final Debouncer _searchDebouncer;
   late final StreamSubscription<void> _changesSub;
+  late final StreamSubscription<void> _foldersSub;
   final _searchCtrl = TextEditingController();
 
   Future<List<Note>>? _future;
   String _query = '';
   NoteSortMode _activeSort = NoteSortMode.updatedDesc;
 
+  /// `null` = filtre « Toutes les notes ». Sinon ID du dossier actif.
+  String? _currentFolderId;
+
+  /// Cache du nom du dossier actif pour l'AppBar (évite un FutureBuilder
+  /// dans le titre). Mis à jour par [_refreshCurrentFolderName].
+  String? _currentFolderName;
+
+  /// Cache id→name de TOUS les dossiers, utilisé pour afficher la puce
+  /// "dossier" sur chaque NoteCard en mode "Toutes les notes". Rechargé
+  /// à chaque event de `FoldersRepository.changes`. Vide en mode filtré
+  /// (le dossier est déjà connu via le titre AppBar — surcharge inutile).
+  Map<String, String> _folderNamesById = const {};
+
   @override
   void initState() {
     super.initState();
     _notes = context.read<NotesRepository>();
+    _folders = context.read<FoldersRepository>();
     _settings = context.read<SettingsService>();
     _activeSort = _settings.sortMode;
     _settings.addListener(_onSettingsChanged);
@@ -48,6 +66,12 @@ class _HomeScreenState extends State<HomeScreen> {
     _changesSub = _notes.changes.listen((_) {
       if (mounted) _reload();
     });
+    _foldersSub = _folders.changes.listen((_) {
+      if (!mounted) return;
+      _refreshCurrentFolderName();
+      _refreshFolderNamesCache();
+    });
+    _refreshFolderNamesCache();
     _reload();
     // Purge corbeille en arrière-plan, fire-and-forget.
     unawaited(_notes.purgeOldTrash());
@@ -57,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _settings.removeListener(_onSettingsChanged);
     _changesSub.cancel();
+    _foldersSub.cancel();
     _searchDebouncer.dispose();
     _searchCtrl.dispose();
     super.dispose();
@@ -72,9 +97,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _reload() {
     setState(() {
-      _future = _query.isEmpty
-          ? _notes.listByFolder('inbox', sort: _activeSort)
-          : _notes.search(_query);
+      // Recherche globale : ignore le filtre dossier (l'utilisateur cherche
+      // dans toutes ses notes, peu importe leur classement).
+      if (_query.isNotEmpty) {
+        _future = _notes.search(_query);
+        return;
+      }
+      // Pas de filtre dossier → toutes les notes vivantes.
+      // Filtre dossier actif → notes du dossier seulement.
+      _future = _currentFolderId == null
+          ? _notes.listAllAlive()
+          : _notes.listByFolder(_currentFolderId!, sort: _activeSort);
     });
   }
 
@@ -86,13 +119,73 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _onFolderSelected(String? folderId) async {
+    if (folderId == _currentFolderId) return;
+    setState(() => _currentFolderId = folderId);
+    _reload();
+    await _refreshCurrentFolderName();
+  }
+
+  /// Recharge le cache id→name pour pouvoir étiqueter les NoteCard avec
+  /// leur dossier en mode "Toutes les notes". Appelé au démarrage et à
+  /// chaque mutation de FoldersRepository (création, renommage,
+  /// suppression). Coût négligeable (≤ 50 dossiers réalistes).
+  Future<void> _refreshFolderNamesCache() async {
+    final folders = await _folders.listAll();
+    if (!mounted) return;
+    setState(() {
+      _folderNamesById = {for (final f in folders) f.id: f.name};
+    });
+  }
+
+  Future<void> _refreshCurrentFolderName() async {
+    if (_currentFolderId == null) {
+      if (_currentFolderName == null) return;
+      setState(() => _currentFolderName = null);
+      return;
+    }
+    final folder = await _folders.get(_currentFolderId!);
+    if (!mounted) return;
+    if (folder == null) {
+      // Dossier supprimé hors de la session courante : retombe sur "Toutes".
+      setState(() {
+        _currentFolderId = null;
+        _currentFolderName = null;
+      });
+      _reload();
+      return;
+    }
+    if (folder.name != _currentFolderName) {
+      setState(() => _currentFolderName = folder.name);
+    }
+  }
+
   Future<void> _openNew() async {
     final navigator = Navigator.of(context);
-    final created = await _notes.create(folderId: 'inbox');
+    final messenger = ScaffoldMessenger.of(context);
+    // Note créée dans le dossier actif. Si l'utilisateur est sur « Toutes
+    // les notes », on retombe sur l'inbox (dossier par défaut, indélébile)
+    // et on signale explicitement où est partie la note pour ne pas
+    // qu'elle disparaisse du champ de vision après le retour de l'éditeur.
+    final isAllScope = _currentFolderId == null;
+    final targetFolderId = _currentFolderId ?? kInboxFolderId;
+    final created = await _notes.create(folderId: targetFolderId);
     if (!mounted) return;
     await navigator.push(
-      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: created.id)),
+      MaterialPageRoute<void>(
+        builder: (_) => NoteEditorScreen(noteId: created.id),
+      ),
     );
+    if (!mounted) return;
+    if (isAllScope) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Note créée dans Boîte de réception'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _open(Note note) async {
@@ -105,8 +198,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      drawer: FoldersDrawer(
+        currentFolderId: _currentFolderId,
+        onSelect: _onFolderSelected,
+      ),
       appBar: AppBar(
-        title: const Text(AppConstants.appName),
+        // Titre dynamique : nom du dossier actif si filtré, sinon nom de
+        // l'app. Plus efficace qu'un FutureBuilder dans le titre — le
+        // nom est mis en cache via `_refreshCurrentFolderName`.
+        title: Text(_currentFolderName ?? AppConstants.appName),
         actions: [
           IconButton(
             tooltip: 'Demander à mes notes',
@@ -150,6 +250,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 autocorrect: false,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.search),
+                  // Hint constant : la recherche couvre toujours TOUTES les
+                  // notes, indépendamment du filtre dossier (cf. _reload).
                   hintText: 'Rechercher dans toutes les notes',
                   suffixIcon: _searchCtrl.text.isEmpty
                       ? null
@@ -184,25 +286,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                   final notes = snap.data ?? const [];
                   if (notes.isEmpty) {
+                    final inFolder = _currentFolderId != null;
                     return EmptyState(
                       icon: _query.isEmpty
                           ? Icons.note_alt_outlined
                           : Icons.search_off,
                       title: _query.isEmpty
-                          ? 'Aucune note pour le moment'
+                          ? (inFolder
+                              ? 'Aucune note dans ce dossier'
+                              : 'Aucune note pour le moment')
                           : 'Aucun résultat',
                       subtitle: _query.isEmpty
                           ? 'Touchez « Nouvelle note » pour démarrer.'
                           : 'Essayez d\'autres mots-clés.',
                     );
                   }
+                  // En mode "Toutes les notes" (et en recherche globale),
+                  // on affiche le badge dossier sur chaque card pour que
+                  // l'utilisateur sache où chaque note range. En mode
+                  // filtré, le badge est superflu (toutes les notes sont
+                  // dans le dossier déjà visible dans l'AppBar).
+                  final showFolderBadge =
+                      _currentFolderId == null || _query.isNotEmpty;
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
                     itemCount: notes.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final n = notes[i];
-                      return NoteCard(note: n, onTap: () => _open(n));
+                      return NoteCard(
+                        note: n,
+                        onTap: () => _open(n),
+                        folderName: showFolderBadge
+                            ? _folderNamesById[n.folderId]
+                            : null,
+                      );
                     },
                   );
                 },

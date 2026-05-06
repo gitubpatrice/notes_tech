@@ -15,11 +15,19 @@ class NoteCard extends StatelessWidget {
     required this.note,
     required this.onTap,
     this.onLongPress,
+    this.folderName,
   });
 
   final Note note;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+
+  /// Nom du dossier de la note, à afficher en discrète puce dans la zone
+  /// méta. Optionnel : l'appelant le passe quand il affiche une liste
+  /// non scopée (mode "Toutes les notes") pour que l'utilisateur sache
+  /// d'où vient chaque note. En mode filtré (un seul dossier visible),
+  /// passer `null` pour ne pas surcharger l'UI.
+  final String? folderName;
 
   static final DateFormat _df = DateFormat('dd MMM yyyy · HH:mm', 'fr_FR');
 
@@ -76,6 +84,10 @@ class NoteCard extends StatelessWidget {
                   children: [
                     Text(_df.format(note.updatedAt),
                         style: theme.textTheme.labelMedium),
+                    if (folderName != null) ...[
+                      const SizedBox(width: 8),
+                      _FolderChip(label: folderName!),
+                    ],
                     if (note.tags.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Expanded(
@@ -93,6 +105,45 @@ class NoteCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Petite puce affichant le nom d'un dossier dans la zone meta. Reste
+/// discrète : background sub-surface + texte petit. Conçue pour ne pas
+/// rivaliser visuellement avec le titre ou les tags.
+class _FolderChip extends StatelessWidget {
+  const _FolderChip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.folder_outlined, size: 12, color: cs.onSurfaceVariant),
+          const SizedBox(width: 4),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 120),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

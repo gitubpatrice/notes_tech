@@ -178,6 +178,26 @@ class NotesRepository {
     ));
   }
 
+  /// Réassigne en une seule transaction toutes les notes du dossier
+  /// [fromFolderId] vers [toFolderId] — y compris notes archivées et en
+  /// corbeille. Préserve la rétention 30 jours en évitant le
+  /// `ON DELETE CASCADE` qui suivrait la suppression du dossier source.
+  ///
+  /// Émet un seul `NoteChangeEvent.bulk` (déclenche réindexation MiniLM
+  /// + reload UI sans surcharger le coordinateur d'embeddings avec N
+  /// events successifs).
+  Future<int> reassignFolder({
+    required String fromFolderId,
+    required String toFolderId,
+  }) async {
+    final n = await _dao.reassignFolder(
+      fromFolderId: fromFolderId,
+      toFolderId: toFolderId,
+    );
+    if (n > 0) _emit(NoteChangeEvent.bulk);
+    return n;
+  }
+
   /// Purge automatique de la corbeille au-delà de la rétention.
   Future<int> purgeOldTrash() async {
     final cutoff = DateTime.now().subtract(

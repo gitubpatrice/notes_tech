@@ -22,6 +22,7 @@ import '../../services/note_actions.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
+import '../widgets/move_to_folder_sheet.dart';
 import '../widgets/voice_record_button.dart';
 
 class NoteEditorScreen extends StatefulWidget {
@@ -195,6 +196,37 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
+  /// Ouvre le bottom sheet de sélection de dossier. Si un autre dossier
+  /// est choisi, persiste la note avec son nouveau `folderId` et flush
+  /// l'auto-save courant pour ne pas écraser la modification.
+  Future<void> _moveToFolder() async {
+    final n = _note;
+    if (n == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final targetId = await showMoveToFolderSheet(
+      context: context,
+      currentFolderId: n.folderId,
+    );
+    if (targetId == null || targetId == n.folderId || !mounted) return;
+    // Flush avant la mutation pour s'assurer que les modifications de
+    // titre/contenu en attente sont persistées AVANT le changement de
+    // folder (sinon `save(note.copyWith(folderId))` partirait avec
+    // l'ancienne version du titre/contenu).
+    _autosave.cancel();
+    await _saveNow();
+    final fresh = await _repo.get(n.id);
+    if (fresh == null || !mounted) return;
+    final moved = await _repo.save(fresh.copyWith(folderId: targetId));
+    if (!mounted) return;
+    setState(() => _note = moved);
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Note déplacée'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   // ---------------------------------------------------------------------
   // Backlinks `[[Titre]]`
   // ---------------------------------------------------------------------
@@ -214,7 +246,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     String title = result.title;
     if (result.isCreate) {
       // Crée la note dans la même boîte que celle en cours.
-      final folderId = _note?.folderId ?? 'inbox';
+      final folderId = _note?.folderId ?? AppConstants.inboxFolderId;
       final created = await _repo.create(folderId: folderId, title: title);
       title = created.title;
     }
@@ -268,7 +300,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// Lien fantôme tapé : on propose de créer la note cible avec ce titre,
   /// puis de l'ouvrir directement.
   Future<void> _createFromDangling(NoteLink link) async {
-    final folderId = _note?.folderId ?? 'inbox';
+    final folderId = _note?.folderId ?? AppConstants.inboxFolderId;
     final created = await _repo.create(
       folderId: folderId,
       title: link.targetTitle,
@@ -337,6 +369,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           PopupMenuButton<String>(
             onSelected: (v) {
               switch (v) {
+                case 'move':
+                  _moveToFolder();
                 case 'copy':
                   _copyMarkdown();
                 case 'trash':
@@ -344,6 +378,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               }
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'move',
+                child: ListTile(
+                  leading: Icon(Icons.drive_file_move_outline),
+                  title: Text('Déplacer vers…'),
+                ),
+              ),
               PopupMenuItem(
                 value: 'copy',
                 child: ListTile(

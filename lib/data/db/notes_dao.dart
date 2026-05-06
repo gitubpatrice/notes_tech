@@ -181,6 +181,39 @@ class NotesDao {
     }
   }
 
+  /// Réassigne en une seule transaction TOUTES les notes du dossier
+  /// [fromFolderId] vers [toFolderId], **y compris** les notes en
+  /// corbeille (`trashed_at IS NOT NULL`) et archivées.
+  ///
+  /// C'est la garantie nécessaire avant `FoldersRepository.delete(id)` :
+  /// le `ON DELETE CASCADE` SQL effacerait sinon définitivement les notes
+  /// en corbeille, bypassant la rétention 30 jours.
+  ///
+  /// Met à jour `updated_at` en bloc pour que la liste reflète l'opération.
+  /// Retourne le nombre de notes effectivement déplacées.
+  Future<int> reassignFolder({
+    required String fromFolderId,
+    required String toFolderId,
+  }) async {
+    if (fromFolderId == toFolderId) return 0;
+    try {
+      return await _db.update(
+        'notes',
+        {
+          'folder_id': toFolderId,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'folder_id = ?',
+        whereArgs: [fromFolderId],
+      );
+    } catch (e) {
+      throw DatabaseException(
+        'reassignFolder($fromFolderId → $toFolderId) échoué',
+        cause: e,
+      );
+    }
+  }
+
   Future<int> purgeTrashOlderThan(DateTime cutoff) async {
     try {
       return await _db.delete(
