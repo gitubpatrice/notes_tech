@@ -1,12 +1,20 @@
-/// Réglages utilisateur : thème, tri par défaut.
+/// Réglages utilisateur : thème, tri par défaut, export, voix.
 library;
+
+import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
+import '../../data/repositories/folders_repository.dart';
+import '../../data/repositories/notes_repository.dart';
 import '../../services/embedder_coordinator.dart';
+import '../../services/export/note_export_service.dart';
 import '../../services/secure_window_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/voice/voice_service.dart';
@@ -83,6 +91,8 @@ class SettingsScreen extends StatelessWidget {
           ),
           _Section(label: 'Dictée vocale', theme: theme),
           const _VoiceSection(),
+          _Section(label: 'Exporter mes données', theme: theme),
+          const _ExportSection(),
           _Section(label: 'À propos', theme: theme),
           ListTile(
             leading: const Icon(Icons.info_outline),
@@ -311,5 +321,123 @@ class _VoiceSection extends StatelessWidget {
   static String _formatSize(int bytes) {
     final mb = (bytes / (1024 * 1024)).round();
     return '$mb Mo';
+  }
+}
+
+/// Section "Exporter mes données" : portabilité Markdown.
+///
+/// Trois actions :
+/// - Export d'une note unique : se fait depuis l'éditeur (menu "..."),
+///   pas ici. Cette section n'expose que les actions globales.
+/// - Export de TOUTES les notes vivantes (hors corbeille) en ZIP avec
+///   arborescence par dossier + frontmatter YAML compatible Obsidian.
+///
+/// Garanties :
+/// - Aucun envoi réseau : le fichier est écrit dans le tmp privé app
+///   puis transmis au sheet de partage Android (Intent OS).
+/// - Pas d'accès aux notes en corbeille (rétention 30 j respectée — si
+///   l'utilisateur veut les exporter, il restaure d'abord).
+/// - Le fichier ZIP est chiffré uniquement par le système Android (zone
+///   tmp privée). Une fois partagé, c'est l'app cible (Drive, mail) qui
+///   gère sa sécurité — c'est un trade-off explicite de l'export.
+class _ExportSection extends StatefulWidget {
+  const _ExportSection();
+
+  @override
+  State<_ExportSection> createState() => _ExportSectionState();
+}
+
+class _ExportSectionState extends State<_ExportSection> {
+  bool _busy = false;
+
+  Future<void> _exportAllAsZip() async {
+    if (_busy) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final notesRepo = context.read<NotesRepository>();
+    final foldersRepo = context.read<FoldersRepository>();
+    setState(() => _busy = true);
+    try {
+      // 1. Récupère toutes les notes vivantes (hors corbeille — rétention
+      //    préservée) + index id→Folder pour résoudre les noms.
+      final notes = await notesRepo.listAllAlive();
+      final folders = await foldersRepo.listAll();
+      final foldersById = <String, Folder>{
+        for (final f in folders) f.id: f,
+      };
+
+      if (notes.isEmpty) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Aucune note à exporter.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      // 2. Encode le ZIP **dans un isolate** : ZipEncoder est CPU-bound
+      //    pur, le faire sur le thread UI provoque un jank de plusieurs
+      //    centaines de ms à plusieurs secondes (S9, POCO C75) avec un
+      //    spinner qui ne tourne pas. Le `compute()` libère le main, le
+      //    CircularProgressIndicator du `_busy` reste fluide.
+      final zipBytes = await NoteExportService.exportAsZipInIsolate(
+        notes: notes,
+        foldersById: foldersById,
+      );
+      final tmpDir = await getTemporaryDirectory();
+      final ts = DateTime.now()
+          .toIso8601String()
+          .replaceAll(':', '-')
+          .split('.')
+          .first;
+      final file = File('${tmpDir.path}/notes-tech-export-$ts.zip');
+      await file.writeAsBytes(zipBytes, flush: true);
+
+      // 3. Transmet à Android via Intent (Drive, mail, USB...).
+      if (!mounted) return;
+      try {
+        await Share.shareXFiles(
+          [XFile(file.path, mimeType: 'application/zip')],
+          subject: 'Export Notes Tech (${notes.length} notes)',
+        );
+      } finally {
+        // Cleanup best-effort : le ZIP peut peser plusieurs Mo. On évite
+        // l'accumulation entre deux purges automatiques d'Android.
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {/* best-effort */}
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Export impossible : $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.archive_outlined),
+      title: const Text('Exporter toutes mes notes (.zip)'),
+      subtitle: const Text(
+        'Markdown + frontmatter YAML compatible Obsidian. '
+        'Arborescence par dossier. Notes en corbeille exclues.',
+      ),
+      trailing: _busy
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.share_outlined),
+      onTap: _busy ? null : _exportAllAsZip,
+    );
   }
 }

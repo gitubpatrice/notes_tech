@@ -6,18 +6,23 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/constants.dart';
 import '../../core/exceptions.dart';
 import '../../data/models/note.dart';
 import '../../data/models/note_link.dart';
+import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../services/backlinks_service.dart';
+import '../../services/export/note_export_service.dart';
 import '../../services/note_actions.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/backlinks_panel.dart';
@@ -196,6 +201,60 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     );
   }
 
+  /// Exporte la note courante en fichier Markdown (`.md`) avec frontmatter
+  /// YAML, puis ouvre le sheet de partage Android (Drive, mail, USB, etc.).
+  /// Le fichier est écrit dans `getTemporaryDirectory()` — Android le purge
+  /// automatiquement, on n'a pas à le supprimer nous-mêmes.
+  Future<void> _exportMarkdown() async {
+    final n = _note;
+    if (n == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    // Flush avant export pour ne pas exporter une version stale du contenu.
+    _autosave.cancel();
+    await _saveNow();
+    final fresh = await _repo.get(n.id);
+    if (fresh == null || !mounted) return;
+    final folder = await context.read<FoldersRepository>().get(fresh.folderId);
+    if (!mounted) return;
+    try {
+      const exporter = NoteExportService();
+      final bytes = exporter.exportNoteAsBytes(fresh, folder: folder);
+      final fileName = exporter.safeFileName(
+        fresh.title,
+        fallbackId: fresh.id,
+      );
+      final tmpDir = await getTemporaryDirectory();
+      final file = File('${tmpDir.path}/$fileName');
+      await file.writeAsBytes(bytes, flush: true);
+      if (!mounted) return;
+      try {
+        // share_plus 10.x : `Share.shareXFiles` (l'API SharePlus.instance
+        // existe à partir de v11). Quand on bump le package, basculer.
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          subject: 'Note Notes Tech',
+          text: 'Note exportée depuis Notes Tech',
+        );
+      } finally {
+        // Cleanup best-effort du tmp : Android purge cache/tmp à
+        // intervalles, mais on évite l'accumulation entre deux purges.
+        // Le sheet de partage a déjà reçu le contenu (Intent EXTRA_STREAM
+        // copie ou tient une URI ouverte) avant qu'on supprime ici.
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {/* best-effort */}
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Export impossible : $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   /// Ouvre le bottom sheet de sélection de dossier. Si un autre dossier
   /// est choisi, persiste la note avec son nouveau `folderId` et flush
   /// l'auto-save courant pour ne pas écraser la modification.
@@ -371,6 +430,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               switch (v) {
                 case 'move':
                   _moveToFolder();
+                case 'export':
+                  _exportMarkdown();
                 case 'copy':
                   _copyMarkdown();
                 case 'trash':
@@ -383,6 +444,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 child: ListTile(
                   leading: Icon(Icons.drive_file_move_outline),
                   title: Text('Déplacer vers…'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'export',
+                child: ListTile(
+                  leading: Icon(Icons.file_download_outlined),
+                  title: Text('Exporter en Markdown'),
                 ),
               ),
               PopupMenuItem(

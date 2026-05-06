@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
 import '../../services/embedding/embedding_provider.dart';
 import '../../services/indexing_service.dart';
+import 'mentions_legales_screen.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -19,7 +20,11 @@ class AboutScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('À propos')),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        // `AlwaysScrollableScrollPhysics` : feedback de défilement
+        // garanti même si le contenu fait pile la hauteur de l'écran.
+        // Évite le bug perçu « on ne peut pas scroller » signalé sur S24.
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
         children: [
           _AppHeader(theme: theme),
           const SizedBox(height: 28),
@@ -178,8 +183,26 @@ class AboutScreen extends StatelessWidget {
 
           const SizedBox(height: 28),
           const _SectionTitle('Mentions légales'),
-          const SizedBox(height: 4),
-          _DataInfoBlock(theme: theme),
+          // Page dédiée au lieu d'un long bloc inline : la liste des
+          // mentions est volumineuse (éditeur, hébergement, données,
+          // permissions, droits, licence) et alourdissait l'AboutScreen
+          // au point que les utilisateurs sur petits écrans ne voyaient
+          // pas les sections du bas.
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.gavel_outlined),
+            title: const Text('Voir les mentions légales complètes'),
+            subtitle: const Text(
+              'Éditeur, données collectées, permissions, droits, licence',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const MentionsLegalesScreen(),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -385,60 +408,3 @@ class _LinkTile extends StatelessWidget {
   }
 }
 
-class _DataInfoBlock extends StatelessWidget {
-  const _DataInfoBlock({required this.theme});
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final smallStyle = theme.textTheme.bodySmall?.copyWith(height: 1.5);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Données collectées : aucune. Notes Tech ne possède aucun '
-          'serveur. L\'app n\'a pas la permission Android d\'accéder à '
-          'Internet (déclaration `tools:node="remove"` dans le manifeste). '
-          'Aucune télémétrie, aucun crash reporter tiers, aucune '
-          'identification publicitaire.',
-          style: smallStyle,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Données stockées localement : titres et contenus de vos notes, '
-          'paramètres, modèles IA importés. Tout est dans la zone privée '
-          'de l\'application (`/data/data/com.filestech.notes_tech`), '
-          'inaccessible aux autres applications. La base de notes est '
-          'chiffrée AES-256 (SQLCipher) avec une clé scellée par l\'Android '
-          'Keystore — la désinstallation efface tout.',
-          style: smallStyle,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Modèles ML : vous les téléchargez vous-même depuis les sources '
-          'officielles (Google Kaggle pour Gemma, HuggingFace pour Whisper). '
-          'L\'app vérifie leur empreinte cryptographique SHA-256 avant '
-          'chargement. Aucun modèle n\'est envoyé à l\'éditeur.',
-          style: smallStyle,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Permissions Android demandées : RECORD_AUDIO uniquement, '
-          'requise au moment où vous tapez le bouton micro pour la '
-          'première fois. Aucune autre permission. Aucune permission '
-          'INTERNET, ACCESS_NETWORK_STATE, FOREGROUND_SERVICE, '
-          'POST_NOTIFICATIONS.',
-          style: smallStyle,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Vos droits : vous gardez la pleine maîtrise de vos données. '
-          'Pour tout retirer : désinstallez l\'application. La clé Keystore '
-          'est détruite, les notes deviennent illisibles, plus rien ne '
-          'subsiste.',
-          style: smallStyle,
-        ),
-      ],
-    );
-  }
-}

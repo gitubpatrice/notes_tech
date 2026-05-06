@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI (RAG + Q&A + backlinks, 100% offline)."
 publish_to: 'none'
-version: 0.6.1+13
+version: 0.7.0+14
 
 environment:
   sdk: ^3.11.5
@@ -52,6 +52,15 @@ dependencies:
   # dans `/Downloads/`, l'app n'a JAMAIS la permission INTERNET. Notes
   # Tech ne fait que demander à l'OS d'ouvrir un lien.
   url_launcher: ^6.3.0
+
+  # v0.7 — Export Markdown (sortie de secours, portabilité des notes).
+  # `share_plus` ouvre le sheet de partage Android pour transmettre le
+  # fichier (.md ou .zip) à n'importe quelle app : Drive, mail, USB, etc.
+  # `archive` produit un ZIP pure-Dart (pas de natif), arborescence
+  # par dossier conservée. Pas de permission Internet : c'est l'OS qui
+  # gère le transfert via Intent.
+  share_plus: ^10.0.0
+  archive: ^4.0.0
 
 dev_dependencies:
   flutter_test:
