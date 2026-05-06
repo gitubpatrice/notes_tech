@@ -47,6 +47,12 @@ dependencies:
   files_tech_voice:
     path: ../files_tech_voice
 
+  # Lancer une URL HuggingFace dans le navigateur système (option B du
+  # flow voix v0.6) : c'est Chrome/Firefox/Brave qui télécharge le .bin
+  # dans `/Downloads/`, l'app n'a JAMAIS la permission INTERNET. Notes
+  # Tech ne fait que demander à l'OS d'ouvrir un lien.
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

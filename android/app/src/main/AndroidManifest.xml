@@ -75,5 +75,17 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+        <!--
+          v0.6 voice — déléguer le DL du modèle Whisper au navigateur
+          système. Android 11+ exige cette déclaration <queries> pour
+          que l'app puisse "voir" un browser et lui passer un Intent VIEW.
+          On ne fait QUE déléguer — la permission INTERNET reste retirée,
+          c'est le navigateur qui télécharge.
+        -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
     </queries>
 </manifest>

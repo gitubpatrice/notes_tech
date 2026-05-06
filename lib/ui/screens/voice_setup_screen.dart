@@ -3,6 +3,7 @@ import 'package:files_tech_voice/files_tech_voice.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/voice/voice_service.dart';
 
@@ -129,6 +130,34 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
     _showSnack('Lien copié.');
   }
 
+  /// Délègue le téléchargement au navigateur système (Chrome / Brave / etc.).
+  /// Notes Tech reste sans permission INTERNET — c'est l'OS qui ouvre le
+  /// browser via un Intent, et c'est le browser qui télécharge le `.bin`
+  /// dans `/Downloads/` du téléphone. L'utilisateur revient ensuite ici
+  /// pour l'importer.
+  Future<void> _openInBrowser() async {
+    final uri = Uri.parse(_selectedModel.url);
+    try {
+      final ok = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!mounted) return;
+      if (!ok) {
+        await _showError(
+          'Aucun navigateur n\'a pu ouvrir le lien. '
+          'Copiez l\'URL et collez-la dans votre navigateur préféré.',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      await _showError(
+        'Impossible d\'ouvrir le navigateur : $e\n\n'
+        'Copiez l\'URL et collez-la manuellement.',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,23 +187,38 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
             const SizedBox(height: 16),
             _StepTile(
               number: '2',
-              title: 'Télécharger le fichier .bin sur votre ordinateur',
-              text: 'Source officielle (signée par l\'auteur de whisper.cpp) :',
+              title: 'Télécharger le fichier .bin',
+              text: 'Le navigateur de votre téléphone s\'occupe du '
+                  'téléchargement — Notes Tech n\'a pas la permission '
+                  'd\'accéder à Internet. Source officielle (signée par '
+                  'l\'auteur de whisper.cpp) :',
               extra: _UrlRow(
                 url: _selectedModel.url,
                 onCopy: () => _copyUrl(_selectedModel.url),
               ),
             ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 42),
+              child: FilledButton.tonalIcon(
+                onPressed: _busy ? null : _openInBrowser,
+                icon: const Icon(Icons.download_outlined),
+                label: const Text('Télécharger sur ce téléphone'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
             const _StepTile(
               number: '3',
-              title: 'Transférer le fichier sur ce téléphone',
+              title: 'Importer le fichier dans Notes Tech',
               text:
-                  'Câble USB, Google Drive, WhatsApp à vous-même… '
-                  'L\'essentiel est que le fichier .bin soit accessible '
-                  'depuis ce téléphone.',
+                  'Une fois le téléchargement terminé (notification du '
+                  'navigateur), revenez ici et appuyez sur le bouton '
+                  'ci-dessous pour sélectionner le fichier.',
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _busy ? null : _pickAndImport,
               icon: const Icon(Icons.file_upload_outlined),
