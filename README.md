@@ -22,7 +22,7 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 
 ---
 
-## ✨ Fonctionnalités v0.6.0
+## ✨ Fonctionnalités v0.7.1
 
 ### Édition
 - Notes Markdown — création / édition / auto-save debounced
@@ -59,6 +59,36 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 - Permission `RECORD_AUDIO` runtime, bouton « Ouvrir paramètres » si refus permanent
 - **MlMemoryGuard** : sur 4 Go RAM, coordination Gemma ↔ Whisper (un seul moteur ML chargé à la fois) — mutex sériel anti-OOM
 - Section dédiée dans Réglages : modèle actif, changer, désinstaller (avec confirmation + libération RAM)
+- **Téléchargement via navigateur système** (v0.6.1) : tap "Télécharger sur ce téléphone" ouvre Chrome/Brave sur HuggingFace ; aucune permission INTERNET pour l'app
+
+### Dossiers thématiques (v0.7)
+- Drawer latéral avec **Boîte de réception** (indélébile) + dossiers utilisateur
+- Filtre **« Toutes les notes »** virtuel + AppBar dynamique avec nom du dossier actif
+- **Création / renommage / suppression** : suppression non-vide propose le déplacement vers Boîte de réception (pas de perte) ou suppression définitive (avec wording explicite « irréversible »)
+- Action **« Déplacer vers… »** dans le menu de l'éditeur (bottom sheet avec dossier courant souligné)
+- Badge dossier sur chaque NoteCard en mode « Toutes » pour savoir d'où range chaque note
+- Bug critique évité : `reassignFolder` UPDATE atomique préserve les notes en corbeille (avant : `ON DELETE CASCADE` les effaçait)
+
+### Export Markdown (v0.7)
+- **Export d'une note** : action menu éditeur → fichier `.md` avec frontmatter YAML (`title`, `folder`, `tags`, `created`, `updated`, `pinned`, `favorite`)
+- **Export ZIP de toutes les notes** : Réglages → Exporter mes données → arborescence par dossier + README d'export
+- Format **compatible Obsidian, Logseq, Bear, Foam, Dendron**
+- Nom de fichier sécurisé contre path traversal (`.`, `..`) et Unicode bidi/RTL (anti-spoofing visuel)
+- Encodage ZIP en isolate (`compute()`) — anti-jank UI sur S9 / POCO C75
+- Cleanup tmp dans `try/finally` (notes + ZIP) après le sheet de partage
+
+### Mode panique (v0.7.1)
+- Réglages → Mode panique → Tout effacer maintenant
+- Confirmation par mot tapé (`EFFACER`, case-insensitive)
+- Séquence d'effacement **ordre déterministe** :
+  1. `FLAG_SECURE` forcé ON (anti-snapshot Recents)
+  2. Capture micro coupée
+  3. **Destruction de la KEK Keystore** — point de non-retour, DB instantanément illisible
+  4. Pause des background workers (coordinator / indexing / backlinks)
+  5. Wipe DB SQLCipher (écrase header 16 Mo + delete + sidecars)
+  6. Effacement Whisper + Gemma + préférences + tmp
+- Best-effort : un step qui throw n'interrompt pas les suivants
+- Audit 4-agents validé (architecture, sécurité, performance, cohérence)
 
 ---
 
@@ -74,9 +104,10 @@ Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
 | **v0.5** | DB chiffrée SQLCipher (KEK Keystore) + migration auto + FLAG_SECURE + SHA-256 Gemma + nouvelle icône | ✅ |
 | **v0.5.1** | Polish sécurité + icône adaptive corrigée | ✅ |
 | **v0.6** | Dictée vocale Whisper on-device (`files_tech_voice`) + MlMemoryGuard Gemma↔Whisper + Settings UI | ✅ |
-| **v0.7** | OCR ML Kit + import PDF Tech via `files_tech_core` | ⏳ |
-| **v0.8** | Vault par dossier (Argon2id passphrase + AES-GCM) — confidentialité graduée | ⏳ |
-| **v1.0** | Capture multimodale fusion + audit OWASP MASVS + tag majeur | ⏳ |
+| **v0.7.0** | Dossiers thématiques (UI complète) + export Markdown (.md / .zip frontmatter YAML) + page Mentions légales dédiée | ✅ |
+| **v0.7.1** | Mode panique (KEK destroy + DB wipe + modèles + prefs + tmp) + audit 4-agents 8 fixes + health_check.sh étendu + docs légaux complets | ✅ |
+| **v0.8** | Vault par dossier (Argon2id passphrase + AES-GCM) — confidentialité graduée pour journalistes / praticiens | ⏳ |
+| **v1.0** | Capture multimodale (OCR ML Kit + import PDF Tech via `files_tech_core` étendu) + audit OWASP MASVS + tag majeur | ⏳ |
 | **v1.1** | Import Obsidian / Notesnook / Apple Notes + journal praticien (séances) | ⏳ |
 
 ---
