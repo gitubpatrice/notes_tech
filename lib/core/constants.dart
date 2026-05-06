@@ -14,7 +14,11 @@ class AppConstants {
 
   // Base de données
   static const String dbFileName = 'notes_tech.db';
-  static const int dbVersion = 3;
+  // v4 (2026-05-06) : ajout colonnes vault sur `folders` (vault_salt,
+  // vault_kek_wrapped, vault_iv, vault_verifier) et `encrypted_content`
+  // BLOB nullable sur `notes` pour les notes verrouillées (contenu
+  // chiffré AES-256-GCM avec folder_kek dérivée Argon2id).
+  static const int dbVersion = 4;
 
   /// Identifiant du dossier "Boîte de réception" — racine indélébile de
   /// l'arborescence, créée au premier démarrage. Les notes orphelines
@@ -26,6 +30,36 @@ class AppConstants {
   /// filtre dossier" (= toutes les notes). Distinct d'un id de dossier
   /// réel, ne doit jamais atteindre la couche DB.
   static const String allFoldersSentinel = '__all_folders__';
+
+  // ─── v0.8 — Vault par dossier ────────────────────────────────────────
+
+  /// Longueur minimale d'une passphrase de coffre. 8 caractères = seuil
+  /// pragmatique : suffit à arrêter une recherche par-dessus l'épaule
+  /// + force-bruteforce hors-ligne devient irréaliste vu le coût Argon2id
+  /// (m=64MB, t=3) — environ 0.5 s par essai sur un GPU haut de gamme.
+  /// L'utilisateur reste libre d'aller plus long.
+  static const int vaultPassphraseMinLength = 8;
+
+  /// Auto-verrouillage par défaut d'un coffre déverrouillé : 15 minutes
+  /// d'inactivité. Configurable dans Réglages → Sécurité.
+  static const Duration vaultDefaultAutoLock = Duration(minutes: 15);
+
+  /// Paramètres Argon2id RFC 9106 — calibrés pour un compromis sécurité
+  /// vs UX sur S9 (Snapdragon 845, 2018) : ~1-2 s par dérivation, soit
+  /// la latence acceptable au tap "Déverrouiller". Sur S24 FE c'est
+  /// instant. Plus haut = meilleure résistance bruteforce, moins
+  /// confortable.
+  static const int vaultArgon2Iterations = 3;
+  static const int vaultArgon2MemoryKb = 64 * 1024; // 64 Mo
+  static const int vaultArgon2Parallelism = 1;
+  static const int vaultArgon2HashBytes = 32;
+
+  /// Taille des sels CSPRNG persistés par coffre.
+  static const int vaultSaltBytes = 16;
+
+  /// Clé SharedPreferences pour le timeout d'auto-lock (en minutes).
+  /// Valeurs spéciales : `0` = jamais, `-1` = au pause de l'app uniquement.
+  static const String prefKeyVaultAutoLockMinutes = 'vault_auto_lock_minutes';
 
   /// SHA-256 du modèle Gemma 3 1B int4 officiel (gemma3-1b-it-int4.task,
   /// 554 661 243 octets, publié sur Kaggle/HuggingFace).

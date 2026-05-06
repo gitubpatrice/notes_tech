@@ -17,6 +17,7 @@ class Note {
     this.favorite = false,
     this.archived = false,
     this.trashedAt,
+    this.encryptedContent,
   });
 
   final String id;
@@ -31,7 +32,30 @@ class Note {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// v0.8 — coffre-fort.
+  ///
+  /// Quand `encryptedContent != null`, la note est verrouillée :
+  /// - [content] est vide (ou un placeholder), pas le vrai contenu.
+  /// - [encryptedContent] contient `nonce(12) || ciphertext || tag(16)`
+  ///   produit par AES-256-GCM avec la `folder_kek` du dossier coffre,
+  ///   AAD = id de la note (renommer une note ou la déplacer hors du
+  ///   coffre invalide donc la déchiffrement).
+  /// - L'index FTS5 sur `content` est vide → la note n'apparaît pas
+  ///   en recherche plein-texte tant qu'elle est verrouillée (feature,
+  ///   pas un bug).
+  /// - Les embeddings sémantiques sont vides pour les mêmes raisons.
+  ///
+  /// Le déverrouillage en RAM produit un `Note` éphémère avec `content`
+  /// rempli, jamais persisté en clair.
+  final Uint8List? encryptedContent;
+
   bool get isTrashed => trashedAt != null;
+
+  /// `true` si la note est verrouillée (contenu chiffré non déverrouillé).
+  /// L'UI affiche alors un titre masqué et un placeholder à la place
+  /// du contenu réel.
+  bool get isLocked => encryptedContent != null;
+
   int get characterCount => content.length;
   int get wordCount {
     if (content.isEmpty) return 0;
@@ -49,6 +73,8 @@ class Note {
     DateTime? trashedAt,
     bool clearTrashedAt = false,
     DateTime? updatedAt,
+    Uint8List? encryptedContent,
+    bool clearEncrypted = false,
   }) {
     return Note(
       id: id,
@@ -62,6 +88,8 @@ class Note {
       trashedAt: clearTrashedAt ? null : (trashedAt ?? this.trashedAt),
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      encryptedContent:
+          clearEncrypted ? null : (encryptedContent ?? this.encryptedContent),
     );
   }
 
@@ -77,6 +105,7 @@ class Note {
         'trashed_at': trashedAt?.millisecondsSinceEpoch,
         'created_at': createdAt.millisecondsSinceEpoch,
         'updated_at': updatedAt.millisecondsSinceEpoch,
+        'encrypted_content': encryptedContent,
       };
 
   factory Note.fromRow(Map<String, Object?> row) {
@@ -100,11 +129,23 @@ class Note {
           (row['created_at'] as int?) ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
           (row['updated_at'] as int?) ?? 0),
+      encryptedContent: _asBytes(row['encrypted_content']),
     );
   }
 
+  /// Coerce un BLOB SQLite en `Uint8List`. SQLite peut renvoyer
+  /// `List<int>` ou `Uint8List` selon le driver — on normalise.
+  static Uint8List? _asBytes(Object? raw) {
+    if (raw == null) return null;
+    if (raw is Uint8List) return raw;
+    if (raw is List<int>) return Uint8List.fromList(raw);
+    return null;
+  }
+
   /// Extrait Markdown nettoyé pour les listes. Calculé une seule fois par instance.
-  late final String excerpt = _computeExcerpt(content);
+  /// Pour une note verrouillée, retourne une chaîne vide — le UI affichera
+  /// un placeholder « Note verrouillée ».
+  late final String excerpt = isLocked ? '' : _computeExcerpt(content);
 
   static final RegExp _reHeader = RegExp(r'^#{1,6}\s+', multiLine: true);
   static final RegExp _reCode = RegExp(r'`{1,3}[^`]*`{1,3}');

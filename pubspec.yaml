@@ -47,6 +47,13 @@ dependencies:
   files_tech_voice:
     path: ../files_tech_voice
 
+  # v0.8 — Vault par dossier (Argon2id passphrase + AES-256-GCM par note).
+  # Le package `cryptography` (Dart pur, pas de natif additionnel)
+  # fournit Argon2id RFC 9106 et AesGcm via `package:cryptography/dart.dart`.
+  # On garde la constante `crypto: ^3.0.5` pour le SHA-256 streaming
+  # (vérification modèles ML, hash export) — usages distincts.
+  cryptography: ^2.7.0
+
   # Lancer une URL HuggingFace dans le navigateur système (option B du
   # flow voix v0.6) : c'est Chrome/Firefox/Brave qui télécharge le .bin
   # dans `/Downloads/`, l'app n'a JAMAIS la permission INTERNET. Notes
