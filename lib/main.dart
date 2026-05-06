@@ -37,6 +37,7 @@ import 'services/embedder_coordinator.dart';
 import 'services/embedding/embedding_provider.dart';
 import 'services/embedding/local_embedder.dart';
 import 'services/indexing_service.dart';
+import 'services/ml/ml_memory_guard.dart';
 import 'services/secure_window_service.dart';
 import 'services/security/vault_service.dart';
 import 'services/semantic_search_service.dart';
@@ -102,7 +103,17 @@ Future<void> main() async {
   // Le bootstrap retrouve un éventuel modèle déjà installé et purge les
   // WAV temp orphelins d'un crash précédent.
   final voicePrefs = await SharedPreferences.getInstance();
-  final voice = VoiceService(prefs: voicePrefs);
+  // Coordination RAM Gemma ↔ Whisper sur téléphones 4 Go (POCO C75, S9).
+  // Forward references via closures pour éviter les dépendances circulaires
+  // entre VoiceService et GemmaService.
+  late final VoiceService voice;
+  final mlGuard = MlMemoryGuard(
+    evictGemma: () async {
+      if (gemma.isReady) await gemma.dispose();
+    },
+    evictVoice: () async => voice.unloadEngine(),
+  );
+  voice = VoiceService(prefs: voicePrefs, mlGuard: mlGuard);
   unawaited(voice.bootstrap());
 
   // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
@@ -159,6 +170,12 @@ Future<void> main() async {
           dispose: (_, c) => c.dispose(),
         ),
         ChangeNotifierProvider<VoiceService>.value(value: voice),
+        Provider<MlMemoryGuard>.value(value: mlGuard),
+        // Variante nullable pour les call sites optionnels (`context.read<
+        // MlMemoryGuard?>()?.requestGemma()` dans ai_chat_screen) — Provider
+        // résout le type non-nullable mais le call site accepte un null
+        // graceful si la valeur n'est pas dispo (test).
+        Provider<MlMemoryGuard?>.value(value: mlGuard),
       ],
       child: const NotesTechApp(),
     ),

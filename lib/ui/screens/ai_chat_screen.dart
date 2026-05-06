@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/note.dart';
 import '../../services/ai/gemma_service.dart';
 import '../../services/ai/rag_service.dart';
+import '../../services/ml/ml_memory_guard.dart';
 import '../../services/semantic_search_service.dart';
 import '../../services/settings_service.dart';
 import '../widgets/empty_state.dart';
@@ -113,6 +114,10 @@ class _AiChatScreenState extends State<AiChatScreen> {
       _phaseError = null;
     });
     try {
+      // Coordination RAM : libère Whisper si chargé (sur 4 Go RAM, charger
+      // les deux moteurs ML simultanément peut OOM). MlMemoryGuard est
+      // optionnel (Provider injecté dans main.dart) ; absent => no-op.
+      await context.read<MlMemoryGuard?>()?.requestGemma();
       await _gemma.warmUp();
       if (mounted) setState(() => _phase = _Phase.ready);
     } catch (e) {

@@ -6,6 +6,8 @@ import 'package:files_tech_voice/files_tech_voice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../ml/ml_memory_guard.dart';
+
 /// État unifié du service voix, exposé à l'UI via `Provider`.
 ///
 /// Contrairement à `SttSessionState` qui ne couvre que la phase
@@ -50,9 +52,11 @@ enum VoiceServiceState {
 class VoiceService extends ChangeNotifier {
   VoiceService({
     required SharedPreferences prefs,
+    MlMemoryGuard? mlGuard,
     SpeechToText? stt,
     SttSession? session,
   })  : _prefs = prefs,
+        _mlGuard = mlGuard,
         _stt = stt ?? WhisperGgmlStt.instance,
         _session = session ?? SttSession(stt: stt ?? WhisperGgmlStt.instance);
 
@@ -70,6 +74,7 @@ class VoiceService extends ChangeNotifier {
   static const Duration _verifiedCacheTtl = Duration(days: 30);
 
   final SharedPreferences _prefs;
+  final MlMemoryGuard? _mlGuard;
   final SpeechToText _stt;
   final SttSession _session;
 
@@ -247,6 +252,10 @@ class VoiceService extends ChangeNotifier {
     }
     try {
       if (!_stt.isInitialized) {
+        // Coordination RAM : libère Gemma si chargé (sur 4 Go RAM, charger
+        // les deux moteurs ML simultanément peut OOM). Sans guard configuré,
+        // on charge directement.
+        await _mlGuard?.requestVoice();
         await _stt.initialize(model);
       }
       await _session.start();
@@ -281,6 +290,15 @@ class VoiceService extends ChangeNotifier {
   /// Annule la capture en cours. Pas de transcription, WAV supprimé.
   Future<void> cancelRecording() async {
     await _session.cancel();
+  }
+
+  /// Décharge le moteur Whisper sans toucher au fichier modèle. À appeler
+  /// par [MlMemoryGuard] quand un autre moteur ML (Gemma) demande la RAM.
+  /// Le modèle reste sur disque et sera rechargé lazy à la prochaine
+  /// transcription. Idempotent.
+  Future<void> unloadEngine() async {
+    await _stt.dispose();
+    _mlGuard?.releaseVoice();
   }
 
   /// Ouvre la fiche de l'application dans les paramètres système Android,

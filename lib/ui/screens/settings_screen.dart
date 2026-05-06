@@ -9,7 +9,9 @@ import '../../data/models/note.dart';
 import '../../services/embedder_coordinator.dart';
 import '../../services/secure_window_service.dart';
 import '../../services/settings_service.dart';
+import '../../services/voice/voice_service.dart';
 import 'about_screen.dart';
+import 'voice_setup_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -79,6 +81,8 @@ class SettingsScreen extends StatelessWidget {
             value: settings.acceptUnknownGemmaHash,
             onChanged: settings.setAcceptUnknownGemmaHash,
           ),
+          _Section(label: 'Dictée vocale', theme: theme),
+          const _VoiceSection(),
           _Section(label: 'À propos', theme: theme),
           ListTile(
             leading: const Icon(Icons.info_outline),
@@ -182,5 +186,130 @@ class _Section extends StatelessWidget {
             fontWeight: FontWeight.w600,
           )),
     );
+  }
+}
+
+/// Section "Dictée vocale" : présence du modèle Whisper, changer/désinstaller.
+///
+/// Trois états visuels :
+/// - **Pas de modèle** : un seul ListTile "Activer la dictée vocale" qui
+///   pousse [VoiceSetupScreen].
+/// - **Modèle installé** : ListTile descriptif (nom + taille) + ListTile
+///   "Changer de modèle" + ListTile "Désinstaller le modèle".
+/// - **Erreur transitoire** : pas affichée ici (overlay capture s'en occupe).
+///
+/// Le widget écoute [VoiceService] via `Consumer` pour rebuild automatique
+/// après import / désinstallation / changement de modèle.
+class _VoiceSection extends StatelessWidget {
+  const _VoiceSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<VoiceService>(
+      builder: (context, voice, _) {
+        final model = voice.activeModel;
+        if (model == null) {
+          return ListTile(
+            leading: const Icon(Icons.mic_none_outlined),
+            title: const Text('Activer la dictée vocale'),
+            subtitle: const Text(
+              'Importez un modèle Whisper pour dicter vos notes hors-ligne.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => _openSetup(context),
+          );
+        }
+        return Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.mic_outlined),
+              title: const Text('Modèle actif'),
+              subtitle: Text(
+                '${model.displayName}\n'
+                '${_formatSize(model.sizeBytes)}',
+              ),
+              isThreeLine: true,
+            ),
+            ListTile(
+              leading: const Icon(Icons.swap_horiz_outlined),
+              title: const Text('Changer de modèle'),
+              subtitle: const Text(
+                'Remplace le modèle actuel par un autre fichier .bin.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _openSetup(context),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                'Désinstaller le modèle',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+              subtitle: Text(
+                'Libère ${_formatSize(model.sizeBytes)}. La dictée vocale '
+                'sera désactivée jusqu\'à un nouvel import.',
+              ),
+              onTap: () => _confirmUninstall(context, voice, model.displayName),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openSetup(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const VoiceSetupScreen()),
+    );
+  }
+
+  Future<void> _confirmUninstall(
+    BuildContext context,
+    VoiceService voice,
+    String displayName,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.delete_outline),
+        title: const Text('Désinstaller le modèle ?'),
+        content: Text(
+          'Le fichier "$displayName" sera supprimé du téléphone. '
+          'Vous pourrez le réimporter plus tard si besoin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Annuler'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Désinstaller'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await voice.uninstallActiveModel();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Modèle désinstallé.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Affiche une taille en Mo arrondie à l'entier le plus proche. Cohérent
+  /// avec l'affichage utilisé dans `voice_setup_screen.dart` (catalogue
+  /// mentionne "57 Mo", pas "57.3 Mo").
+  static String _formatSize(int bytes) {
+    final mb = (bytes / (1024 * 1024)).round();
+    return '$mb Mo';
   }
 }
