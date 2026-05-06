@@ -268,6 +268,16 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                             selected: widget.currentFolderId == f.id,
                             onTap: () => _select(f.id),
                             onLongPress: () => _showFolderMenu(f),
+                            // 3 points explicite : sans ce bouton, les
+                            // utilisateurs ne savent pas qu'ils peuvent
+                            // renommer / verrouiller / convertir en
+                            // coffre / supprimer (le long-press n'est
+                            // pas découvrable).
+                            trailing: IconButton(
+                              tooltip: 'Options du dossier',
+                              icon: const Icon(Icons.more_vert),
+                              onPressed: () => _showFolderMenu(f),
+                            ),
                           ),
                         ),
                       ],
@@ -463,6 +473,7 @@ class _DrawerTile extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.iconTint,
+    this.trailing,
   });
 
   final IconData icon;
@@ -475,6 +486,10 @@ class _DrawerTile extends StatelessWidget {
   /// dossier coffre (cadenas rouge même quand le dossier n'est pas
   /// l'actif courant).
   final Color? iconTint;
+
+  /// Widget optionnel à droite (typiquement l'IconButton des 3 points
+  /// pour les dossiers utilisateur).
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -495,6 +510,7 @@ class _DrawerTile extends StatelessWidget {
       selectedTileColor: cs.primaryContainer.withValues(alpha: 0.4),
       onTap: onTap,
       onLongPress: onLongPress,
+      trailing: trailing,
     );
   }
 }

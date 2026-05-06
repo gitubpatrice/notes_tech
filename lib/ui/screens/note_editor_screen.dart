@@ -193,8 +193,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         _loading = false;
         _error = 'Coffre re-verrouillé. Rouvrez la note pour réessayer.';
       });
-    } catch (_) {
+    } catch (e, st) {
       if (!mounted) return;
+      // En production : message générique.
+      // En debug : type + stack pour diagnostic terrain rapide.
+      if (kDebugMode) {
+        debugPrint('NoteEditor _load — ${e.runtimeType}: $e\n$st');
+      }
       setState(() {
         _loading = false;
         _error = 'Une erreur est survenue lors du chargement.';
@@ -203,6 +208,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _scheduleSave() => _autosave.run(_saveNow);
+
+  /// Annule l'auto-save en attente puis force un save immédiat. Pattern
+  /// utilisé avant toute opération qui doit voir l'état persisté à jour
+  /// (move-to-folder, export, copie Markdown, "Terminé", suivi d'un
+  /// backlink…). Centralisé pour éviter le `_autosave.cancel()` +
+  /// `await _saveNow()` dupliqué 5 fois dans cet écran.
+  Future<void> _flushSave() async {
+    _autosave.cancel();
+    await _saveNow();
+  }
 
   /// Idempotent : si une sauvegarde est déjà en vol, on attend la fin
   /// avant d'en lancer une autre. Évite tout double UPDATE concurrent.
@@ -289,11 +304,31 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (mounted) setState(() => _note = updated);
   }
 
+  /// Bouton « Terminé » : flush l'auto-save courant + pop l'écran.
+  /// L'auto-save garantit déjà la persistance, mais ce bouton donne un
+  /// signal explicite de fin d'édition aux utilisateurs qui cherchent
+  /// un équivalent au "Save" classique.
+  ///
+  /// Cas spécial coffre re-verrouillé : si la note vient d'un coffre
+  /// auto-locké pendant l'édition, `_doSave` abandonne l'écriture
+  /// (jamais de clair au repos) et affiche un SnackBar. On ne pop PAS
+  /// dans ce cas — l'utilisateur doit voir l'avertissement, sinon il
+  /// croit avoir sauvegardé alors que ses modifs sont perdues.
+  Future<void> _doneEditing() async {
+    await _flushSave();
+    if (!mounted) return;
+    if (_wasLocked && !_vault.isUnlocked(_note?.folderId ?? '')) {
+      // Save abandonnée — laisse l'éditeur ouvert pour que l'user lise
+      // le SnackBar « Coffre re-verrouillé » et décide quoi faire.
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
   Future<void> _moveToTrash() async {
     final n = _note;
     if (n == null) return;
-    _autosave.cancel();
-    await _saveNow();
+    await _flushSave();
     await _repo.moveToTrash(n);
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -318,8 +353,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (n == null) return;
     final messenger = ScaffoldMessenger.of(context);
     // Flush avant export pour ne pas exporter une version stale du contenu.
-    _autosave.cancel();
-    await _saveNow();
+    await _flushSave();
     final fresh = await _repo.get(n.id);
     if (fresh == null || !mounted) return;
     final folder = await context.read<FoldersRepository>().get(fresh.folderId);
@@ -392,8 +426,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     }
 
     // Flush avant la mutation pour ne pas perdre les éditions en cours.
-    _autosave.cancel();
-    await _saveNow();
+    await _flushSave();
     if (!mounted) return;
     final current = _note;
     if (current == null) return;
@@ -504,8 +537,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Future<void> _openLinkedNote(String noteId) async {
     if (noteId == widget.noteId) return; // self-link, no-op
     // Flush avant de naviguer pour ne pas perdre les modifs.
-    _autosave.cancel();
-    await _saveNow();
+    await _flushSave();
     if (!mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: noteId)),
@@ -588,6 +620,22 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             onPressed: _insertLink,
           ),
           VoiceRecordButton(onInsert: _insertTranscribedText),
+          // Bouton « Terminé » explicite — l'auto-save garantit déjà la
+          // persistance, mais sans bouton visible, l'utilisateur ne sait
+          // pas qu'il peut quitter sans risque (cf. retour user 2026-05-06).
+          // Force un flush + pop pour les gens qui veulent un signal
+          // explicite de fin d'édition.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: FilledButton.tonalIcon(
+              onPressed: _doneEditing,
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Terminé'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+          ),
           PopupMenuButton<String>(
             onSelected: (v) {
               switch (v) {

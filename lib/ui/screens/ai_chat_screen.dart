@@ -22,6 +22,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y.dart';
 import '../../data/models/note.dart';
 import '../../services/ai/gemma_service.dart';
 import '../../services/ai/rag_service.dart';
@@ -261,7 +262,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
       if (_scrollCtrl.hasClients) {
         _scrollCtrl.animateTo(
           _scrollCtrl.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
+          duration: accessibleDuration(
+              context, const Duration(milliseconds: 200)),
           curve: Curves.easeOut,
         );
       }

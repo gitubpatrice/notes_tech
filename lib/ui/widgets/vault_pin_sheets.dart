@@ -26,6 +26,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../services/security/folder_vault_service.dart';
+import 'sheet_handle.dart';
 import 'vault_passphrase_sheets.dart';
 
 // ─── Choix du mode (passphrase vs PIN) ───────────────────────────────
@@ -48,7 +49,7 @@ Future<VaultMode?> showVaultModeChooserSheet({
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SheetHandle(),
+              const SheetHandle(),
               Row(
                 children: [
                   Icon(Icons.lock_outline, color: cs.error),
@@ -245,7 +246,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _SheetHandle(),
+            const SheetHandle(),
             ValueListenableBuilder<_CreateStep>(
               valueListenable: _stepN,
               builder: (_, step, _) => Row(
@@ -461,7 +462,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _SheetHandle(),
+            const SheetHandle(),
             Row(
               children: [
                 Icon(Icons.dialpad_outlined, color: cs.error),
@@ -573,30 +574,24 @@ Future<bool?> showUnlockVaultAdaptive({
 
 // ─── Composants partagés ─────────────────────────────────────────────
 
-/// Poignée Material 3 en haut des bottom sheets — extrait pour éviter
-/// la duplication entre les 4-5 sheets de l'app.
-class _SheetHandle extends StatelessWidget {
-  const _SheetHandle();
+/// `ValueListenable<bool>` immutable retournant toujours `false`,
+/// utilisé par `_NumericKeypad` quand le pavé n'a pas de notion de
+/// "busy" (création PIN, validation synchrone).
+///
+/// Implémentation custom plutôt qu'un `ValueNotifier` global :
+/// (a) pas besoin de `dispose()` (pas de listeners actifs),
+/// (b) garantit qu'aucun code ne peut muter la valeur par accident.
+class _AlwaysFalseListenable extends ValueListenable<bool> {
+  const _AlwaysFalseListenable();
   @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        width: 36,
-        height: 4,
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.outlineVariant,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
-    );
-  }
+  bool get value => false;
+  @override
+  void addListener(VoidCallback listener) {/* no-op : valeur fixe */}
+  @override
+  void removeListener(VoidCallback listener) {/* no-op */}
 }
 
-/// `Listenable` constant retournant toujours `false` — utilisé par
-/// `_NumericKeypad` quand le pavé n'a pas de notion de "busy"
-/// (création PIN par exemple, validation synchrone).
-final ValueNotifier<bool> _kAlwaysFalse = ValueNotifier<bool>(false);
+const _AlwaysFalseListenable _kAlwaysFalse = _AlwaysFalseListenable();
 
 /// Suite de cercles vides/remplis indiquant la progression de saisie.
 class _DotsIndicator extends StatelessWidget {
@@ -746,10 +741,10 @@ class _KeypadButton extends StatelessWidget {
   }
 }
 
-/// Sécurité défense en profondeur : empêche le copier-coller depuis
-/// l'extérieur dans le champ passphrase (rares apps clavier qui
-/// envoient des textes prédictifs). Pas appliqué globalement —
-/// optionnel si quelqu'un l'active plus tard.
+/// Filtre saisie chiffres uniquement — réservé pour un futur clavier
+/// matériel branché (le pavé virtuel filtre déjà via `_onDigit`). Gardé
+/// ici @visibleForTesting pour ne pas être tree-shaken si jamais
+/// référencé par un test custom.
 @visibleForTesting
 class DigitsOnlyInputFormatter extends TextInputFormatter {
   const DigitsOnlyInputFormatter();

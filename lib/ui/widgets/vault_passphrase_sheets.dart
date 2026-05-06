@@ -18,13 +18,13 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../services/security/folder_vault_service.dart';
+import 'sheet_handle.dart';
 
 // ─── Création ─────────────────────────────────────────────────────────
 
@@ -101,18 +101,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Petite poignée Material 3
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            const SheetHandle(),
             Row(
               children: [
                 Icon(Icons.lock_outline, color: cs.error),
@@ -315,17 +304,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
+            const SheetHandle(),
             Row(
               children: [
                 Icon(Icons.lock_outline, color: cs.error),
@@ -406,19 +385,3 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
   }
 }
 
-// ─── Helpers d'inputs ─────────────────────────────────────────────────
-
-/// Sécurité défense en profondeur : empêche le copier-coller depuis
-/// l'extérieur dans le champ passphrase (rares apps clavier qui
-/// envoient des textes prédictifs). Pas appliqué globalement —
-/// optionnel si quelqu'un l'active plus tard.
-class NoSuggestionFormatter extends TextInputFormatter {
-  const NoSuggestionFormatter();
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return newValue;
-  }
-}

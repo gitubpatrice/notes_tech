@@ -8,6 +8,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/a11y.dart';
 import '../../services/indexing_service.dart';
 
 class IndexingBanner extends StatelessWidget {
@@ -23,7 +24,8 @@ class IndexingBanner extends StatelessWidget {
         final p = snap.data;
         final visible = p != null && !p.finished;
         return AnimatedSize(
-          duration: const Duration(milliseconds: 200),
+          duration: accessibleDuration(
+            context, const Duration(milliseconds: 200)),
           curve: Curves.easeOut,
           alignment: Alignment.topCenter,
           child: visible

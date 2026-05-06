@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — private notes with on-device AI (RAG + Q&A + backlinks, 100% offline)."
 publish_to: 'none'
-version: 0.9.2+19
+version: 0.9.3+20
 
 environment:
   sdk: ^3.11.5
@@ -38,8 +38,6 @@ dependencies:
   # côté Android (clé maître scellée par AndroidKeystore, hardware-backed).
   flutter_secure_storage: ^9.2.2
 
-  # NB : flutter_secure_storage / cryptography / local_auth seront ajoutés
-  # quand le vault Argon2id+AES-GCM sera implémenté (v0.5).
 
   # v0.6 — Speech-to-Text on-device (Whisper) via package partagé sibling.
   # Pas de permission INTERNET ajoutée : l'utilisateur importe le modèle
