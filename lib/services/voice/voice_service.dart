@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:files_tech_voice/files_tech_voice.dart';
 import 'package:flutter/foundation.dart';
@@ -55,6 +57,17 @@ class VoiceService extends ChangeNotifier {
         _session = session ?? SttSession(stt: stt ?? WhisperGgmlStt.instance);
 
   static const String _kActiveModelIdKey = 'voice.activeModelId';
+  // Clé du cache de vérification d'intégrité, sérialisé en JSON :
+  // `{ "modelId": "...", "size": N, "mtimeMs": N, "verifiedAtMs": N }`.
+  // Évite de recalculer le SHA-256 sur 57 Mo à chaque cold start
+  // (~1.5 s sur S9 / POCO C75). La sécurité reste assurée par la
+  // re-vérification stricte dans `WhisperGgmlStt._doInitialize` juste
+  // avant le chargement natif.
+  static const String _kVerifiedCacheKey = 'voice.verifiedCache.v1';
+  // 30 jours : suffisamment long pour ne pas pénaliser l'usage normal,
+  // assez court pour rattraper une corruption silencieuse au pire dans
+  // le mois.
+  static const Duration _verifiedCacheTtl = Duration(days: 30);
 
   final SharedPreferences _prefs;
   final SpeechToText _stt;
@@ -88,8 +101,15 @@ class VoiceService extends ChangeNotifier {
   bool get isEngineLoaded => _stt.isInitialized;
 
   /// Bootstrap au démarrage de l'app : retrouve le modèle actif persisté,
-  /// vérifie son intégrité (SHA-256 still valide), met à jour `state`.
+  /// vérifie sa présence (cache si possible), met à jour `state`.
   /// Appelé depuis `main.dart` avant `runApp`.
+  ///
+  /// **Optimisation cold start** : la vérification SHA-256 stricte (~1.5 s
+  /// sur S9 pour 57 Mo) est mise en cache (size + mtime + timestamp).
+  /// Si rien n'a bougé et que la dernière vérif date de moins de 30 jours,
+  /// on bypass le rehash. La sécurité n'est PAS affaiblie : avant tout
+  /// chargement natif, [WhisperGgmlStt._doInitialize] re-vérifie strictement
+  /// (latence masquée par le loader d'overlay).
   Future<void> bootstrap() async {
     // Premier filet : nettoie d'éventuels WAV temp orphelins (crash en
     // pleine transcription côté précédente exécution).
@@ -104,17 +124,87 @@ class VoiceService extends ChangeNotifier {
     if (model == null) {
       // Catalogue a évolué — on oublie ce modèle.
       await _prefs.remove(_kActiveModelIdKey);
+      await _prefs.remove(_kVerifiedCacheKey);
       _setState(VoiceServiceState.needsModel);
       return;
     }
-    final installed = await SttModelDownloader.instance.isInstalled(model);
-    if (!installed) {
+    final present = await _isPresentAndPlausible(model);
+    if (!present) {
+      await _prefs.remove(_kVerifiedCacheKey);
       _setState(VoiceServiceState.needsModel);
       return;
     }
     _activeModel = model;
     _setState(VoiceServiceState.ready);
     _attachSessionStream();
+  }
+
+  /// Vérifie que le modèle est présent ET cohérent, en évitant de relire
+  /// 57 Mo si possible.
+  ///
+  /// Utilise un cache persisté `(size, mtime, verifiedAt)`. Si la signature
+  /// fichier (size, mtime) est identique au cache et que la vérification
+  /// est récente (< 30 jours), on accepte sans rehash.
+  /// Sinon, on délègue à `SttModelDownloader.isInstalled()` qui rehache.
+  Future<bool> _isPresentAndPlausible(SttModel model) async {
+    final file = await SttModelDownloader.instance.fileFor(model);
+    final stat = await file.stat();
+    if (stat.type != FileSystemEntityType.file) return false;
+    final cached = _readVerifiedCache();
+    if (cached != null &&
+        cached.modelId == model.id &&
+        cached.sizeBytes == stat.size &&
+        cached.mtimeMs == stat.modified.millisecondsSinceEpoch &&
+        DateTime.now()
+                .difference(DateTime.fromMillisecondsSinceEpoch(
+                  cached.verifiedAtMs,
+                ))
+                .compareTo(_verifiedCacheTtl) <
+            0) {
+      return true;
+    }
+    // Fallback : rehash strict (chemin sûr, jamais skippé pour un cache
+    // périmé ou invalide).
+    final ok = await SttModelDownloader.instance.isInstalled(model);
+    if (ok) {
+      await _writeVerifiedCache(
+        _VerifiedCacheEntry(
+          modelId: model.id,
+          sizeBytes: stat.size,
+          mtimeMs: stat.modified.millisecondsSinceEpoch,
+          verifiedAtMs: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+    }
+    return ok;
+  }
+
+  _VerifiedCacheEntry? _readVerifiedCache() {
+    final raw = _prefs.getString(_kVerifiedCacheKey);
+    if (raw == null) return null;
+    try {
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return _VerifiedCacheEntry(
+        modelId: json['modelId'] as String,
+        sizeBytes: (json['size'] as num).toInt(),
+        mtimeMs: (json['mtimeMs'] as num).toInt(),
+        verifiedAtMs: (json['verifiedAtMs'] as num).toInt(),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _writeVerifiedCache(_VerifiedCacheEntry e) async {
+    await _prefs.setString(
+      _kVerifiedCacheKey,
+      jsonEncode({
+        'modelId': e.modelId,
+        'size': e.sizeBytes,
+        'mtimeMs': e.mtimeMs,
+        'verifiedAtMs': e.verifiedAtMs,
+      }),
+    );
   }
 
   /// Importe un fichier modèle local (sélectionné via SAF) pour [model].
@@ -193,6 +283,12 @@ class VoiceService extends ChangeNotifier {
     await _session.cancel();
   }
 
+  /// Ouvre la fiche de l'application dans les paramètres système Android,
+  /// pour qu'un utilisateur ayant refusé "définitivement" la permission
+  /// micro puisse la réactiver. Géré par le module sibling pour ne pas
+  /// faire fuiter `permission_handler` dans le code Notes Tech.
+  Future<bool> openSystemAppSettings() => SttSession.openAppSettings();
+
   /// Désinstalle le modèle actif (mode "changer de modèle" dans Settings).
   /// Repasse en [VoiceServiceState.needsModel].
   Future<void> uninstallActiveModel() async {
@@ -207,6 +303,21 @@ class VoiceService extends ChangeNotifier {
 
   /// Mode panique : supprime tous les modèles installés ET les WAV temp.
   /// L'app peut continuer à tourner sans voix (fallback gracieux).
+  ///
+  /// **À câbler** quand le flow panique global de Notes Tech sera
+  /// implémenté (cf. roadmap v0.6 dans `vault_service.dart`). Séquence
+  /// recommandée à suivre dans l'orchestrateur panique :
+  ///
+  /// 1. `voice.cancelRecording()` — coupe la capture en cours, supprime le
+  ///    WAV temp.
+  /// 2. `voice.wipeAll()` — efface tous les modèles `.bin` + cache de
+  ///    vérification + pref `voice.activeModelId`.
+  /// 3. `vault.destroyKek()` — détruit la clé maître (notes deviennent
+  ///    illisibles à jamais).
+  /// 4. Wipe DB SQLCipher, embeddings, modèle Gemma.
+  ///
+  /// L'ordre est important : voir 1 avant 3 pour que les fichiers temp
+  /// soient toujours lisibles au moment de la suppression.
   Future<void> wipeAll() async {
     await _stt.dispose();
     await SttModelDownloader.instance.uninstallAll();
@@ -262,4 +373,20 @@ class VoiceService extends ChangeNotifier {
     _state = s;
     notifyListeners();
   }
+}
+
+/// Snapshot d'une vérification d'intégrité réussie. Comparé à la signature
+/// disque (size + mtime) au cold start suivant — si tout colle et qu'on
+/// est dans la TTL, on saute le rehash long.
+class _VerifiedCacheEntry {
+  const _VerifiedCacheEntry({
+    required this.modelId,
+    required this.sizeBytes,
+    required this.mtimeMs,
+    required this.verifiedAtMs,
+  });
+  final String modelId;
+  final int sizeBytes;
+  final int mtimeMs;
+  final int verifiedAtMs;
 }

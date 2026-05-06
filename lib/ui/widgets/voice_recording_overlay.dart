@@ -85,13 +85,21 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final voice = context.watch<VoiceService>();
+    // En `transcribing`, on bloque totalement le back : la transcription
+    // native tourne déjà, on attend qu'elle finisse pour ne pas perdre
+    // silencieusement le résultat. En `recording`, on annule + pop.
+    final canPop = voice.state != VoiceServiceState.recording &&
+        voice.state != VoiceServiceState.transcribing;
     return PopScope(
-      canPop: false,
+      canPop: canPop,
       onPopInvokedWithResult: (didPop, _) async {
-        // Permet de bloquer le back hardware en cours de capture, mais
-        // libère proprement si l'utilisateur insiste (cancel + pop).
         if (didPop) return;
-        await _cancel();
+        if (voice.state == VoiceServiceState.recording) {
+          await _cancel();
+        }
+        // En `transcribing` on ne fait rien : le pop est déjà bloqué et
+        // le widget se rebuildera dès que l'état change vers `idle`.
       },
       child: SafeArea(
         top: false,
@@ -315,6 +323,14 @@ class _PermissionErrorBody extends StatelessWidget {
   final String message;
   final VoidCallback onClose;
 
+  /// Heuristique simple : si le message d'erreur mentionne « définitivement »,
+  /// `_ensureMicPermission` a détecté `permanentlyDenied` — on propose le
+  /// raccourci vers les paramètres système. Sinon, le simple "Fermer"
+  /// suffit (l'utilisateur retentera, le système re-prompt).
+  bool get _showsAppSettings =>
+      message.toLowerCase().contains('définitiv') ||
+      message.toLowerCase().contains('permanently');
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -336,13 +352,35 @@ class _PermissionErrorBody extends StatelessWidget {
           style: const TextStyle(height: 1.4),
         ),
         const SizedBox(height: 20),
-        FilledButton(
-          onPressed: onClose,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+        if (_showsAppSettings) ...[
+          FilledButton.icon(
+            onPressed: () async {
+              await context.read<VoiceService>().openSystemAppSettings();
+              onClose();
+            },
+            icon: const Icon(Icons.settings_outlined),
+            label: const Text('Ouvrir les paramètres'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
           ),
-          child: const Text('Fermer'),
-        ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: onClose,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: const Text('Fermer'),
+          ),
+        ] else ...[
+          FilledButton(
+            onPressed: onClose,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: const Text('Fermer'),
+          ),
+        ],
       ],
     );
   }
