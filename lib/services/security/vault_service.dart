@@ -24,9 +24,9 @@
 library;
 
 import 'dart:async';
-import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:files_tech_core/files_tech_core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class VaultService {
@@ -97,20 +97,12 @@ class VaultService {
 
   /// Remplit `bytes` de zéros. À appeler dès que la KEK n'est plus
   /// nécessaire en mémoire (ex. après ouverture de la DB).
-  static void wipe(Uint8List bytes) {
-    bytes.fillRange(0, bytes.length, 0);
-  }
+  /// Forwarder vers `SecretBytes.wipe` pour cohérence Files Tech.
+  static void wipe(Uint8List bytes) => SecretBytes.wipe(bytes);
 
   // ---------------------------------------------------------------------
 
-  static Uint8List _generateKek() {
-    final rng = Random.secure();
-    final out = Uint8List(_kekLengthBytes);
-    for (var i = 0; i < out.length; i++) {
-      out[i] = rng.nextInt(256);
-    }
-    return out;
-  }
+  static Uint8List _generateKek() => SecretBytes.randomBytes(_kekLengthBytes);
 
   static String _encodeHex(Uint8List bytes) {
     final buf = StringBuffer();

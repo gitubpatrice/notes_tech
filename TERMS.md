@@ -1,6 +1,6 @@
 # Conditions générales d'utilisation — Notes Tech
 
-**Version** : v0.9.4 — 2026-05-07
+**Version** : v0.9.8 — 2026-05-07
 **Éditeur** : Files Tech / Patrice Haltaya
 **Contact** : contact@files-tech.com
 
