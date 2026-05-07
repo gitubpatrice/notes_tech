@@ -56,12 +56,15 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Si key.properties absent, on laisse signingConfig à null :
+            // assembleDebug compile (ne touche pas ce buildType), assembleRelease
+            // échouera proprement plus tard ("no signing config"). Le throw au
+            // config-time cassait `flutter build apk --debug` en CI car Gradle
+            // évalue tous les buildTypes même quand on en assemble qu'un seul.
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
-                throw GradleException(
-                    "key.properties absent — refus de signer release avec la clé debug"
-                )
+                null
             }
         }
     }
