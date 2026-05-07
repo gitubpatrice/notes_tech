@@ -17,18 +17,18 @@ jobs:
 
     steps:
       - name: Checkout app
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: notes_tech
 
       - name: Checkout files_tech_voice (path dependency)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gitubpatrice/files_tech_voice
           path: files_tech_voice
 
       - name: Checkout files_tech_core (path dependency)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gitubpatrice/files_tech_core
           path: files_tech_core
