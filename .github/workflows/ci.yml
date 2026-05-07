@@ -57,7 +57,7 @@ jobs:
 
       - name: Run tests
         working-directory: notes_tech
-        run: flutter test || echo "No tests yet"
+        run: flutter test
 
       # Build debug APK pour valider que la compilation passe end-to-end
       # (pas besoin de keystore release en CI).

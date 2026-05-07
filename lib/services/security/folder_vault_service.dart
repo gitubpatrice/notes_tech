@@ -377,7 +377,13 @@ class FolderVaultService extends ChangeNotifier {
         await _onPinFailure(working);
       }
 
-      final actualVerifier = await _verifierFor(folderKek);
+      // Hardening invariant : `_onPinFailure` est `Future<Never>` →
+      // si on atteint cette ligne, `folderKek` est forcément assignée.
+      // L'assertion explicite blinde le flux face à un futur refactor
+      // qui changerait la signature de `_onPinFailure`.
+      final kek = folderKek;
+
+      final actualVerifier = await _verifierFor(kek);
       if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
         await _onPinFailure(working);
       }
@@ -387,7 +393,7 @@ class FolderVaultService extends ChangeNotifier {
       await _folders.update(working);
 
       _unlocked[folder.id] = _Session(
-        folderKek: folderKek,
+        folderKek: kek,
         openedAt: DateTime.now(),
       );
       transferredToSession = true; // ownership transférée — ne pas wipe ici
