@@ -24,6 +24,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
+import 'package:files_tech_core/files_tech_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:path/path.dart' as p;
@@ -173,7 +174,7 @@ class GemmaService {
     }
 
     final actualHex = digestSink.value.toString().toLowerCase();
-    if (!_constantTimeEquals(actualHex, _expectedSha256) &&
+    if (!SecretBytes.constantTimeEqHex(actualHex, _expectedSha256) &&
         !acceptUnknownHash) {
       if (tmp.existsSync()) tmp.deleteSync();
       throw GemmaHashMismatchException(
@@ -336,20 +337,11 @@ class GemmaService {
     await _serialize<void>(_resetChat);
   }
 
-  /// Compare deux chaînes hex en temps constant : XOR octet par octet
-  /// jusqu'à la fin systématique, sans court-circuit. Garde-fou contre
-  /// une attaque par timing si l'attaquant pouvait observer la latence
-  /// d'import (peu probable en local, mais coût nul).
-  static bool _constantTimeEquals(String a, String b) {
-    if (a.length != b.length) return false;
-    var diff = 0;
-    for (var i = 0; i < a.length; i++) {
-      diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
-    }
-    return diff == 0;
-  }
-
   /// Substring qui ne coupe pas une surrogate pair UTF-16.
+  @visibleForTesting
+  static String safeSubstring(String s, int max) =>
+      _safeSubstring(s, max);
+
   static String _safeSubstring(String s, int max) {
     if (s.length <= max) return s;
     var end = max;

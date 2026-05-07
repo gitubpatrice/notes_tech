@@ -74,13 +74,28 @@ class VaultService {
     _inflight = completer.future;
     try {
       final existing = await _storage.read(key: _kekStorageKey);
-      if (existing != null && existing.length == _kekLengthBytes * 2) {
-        completer.complete(_decodeHex(existing));
+      if (existing != null) {
+        // Une KEK existe déjà : on DOIT la lire ou échouer franchement.
+        // Surtout pas la réécrire silencieusement — ce serait équivalent
+        // à un wipe des données utilisateur.
+        if (existing.length != _kekLengthBytes * 2) {
+          throw const FormatException('KEK persistée : longueur invalide.');
+        }
+        // Defense-in-depth (P2-3) : valide regex AVANT decode pour ne pas
+        // laisser une FormatException remonter avec un fragment hex fautif.
+        if (!_hexPattern.hasMatch(existing)) {
+          throw const FormatException('KEK persistée : encodage corrompu.');
+        }
+        try {
+          completer.complete(SecretBytes.fromHex(existing));
+        } catch (_) {
+          throw const FormatException('KEK persistée : encodage corrompu.');
+        }
       } else {
         final fresh = _generateKek();
         await _storage.write(
           key: _kekStorageKey,
-          value: _encodeHex(fresh),
+          value: SecretBytes.toHex(fresh),
         );
         completer.complete(fresh);
       }
@@ -115,30 +130,9 @@ class VaultService {
 
   static Uint8List _generateKek() => SecretBytes.randomBytes(_kekLengthBytes);
 
-  static String _encodeHex(Uint8List bytes) {
-    final buf = StringBuffer();
-    for (final b in bytes) {
-      buf.write(b.toRadixString(16).padLeft(2, '0'));
-    }
-    return buf.toString();
-  }
-
-  /// Décodage hex sans fuite : `int.parse` rejette tout caractère
-  /// hors `[0-9a-fA-F]` mais pourrait inclure le fragment fautif dans
-  /// son `FormatException.toString()`. On rethrow une exception générique
-  /// pour ne pas faire fuiter d'octets de la KEK persistée.
-  static Uint8List _decodeHex(String hex) {
-    if (hex.length.isOdd) {
-      throw const FormatException('KEK persistée : longueur invalide.');
-    }
-    final out = Uint8List(hex.length ~/ 2);
-    try {
-      for (var i = 0; i < out.length; i++) {
-        out[i] = int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16);
-      }
-    } catch (_) {
-      throw const FormatException('KEK persistée : encodage corrompu.');
-    }
-    return out;
-  }
+  /// Validation hex stricte avant `SecretBytes.fromHex` : defense-in-depth
+  /// pour qu'une éventuelle KEK corrompue (ex. caractère non-hex injecté)
+  /// soit rejetée avant le decode plutôt qu'en levant une `FormatException`
+  /// avec fragment fautif visible dans la stack.
+  static final RegExp _hexPattern = RegExp(r'^[0-9a-fA-F]+$');
 }

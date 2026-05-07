@@ -177,9 +177,21 @@ Future<void> main() async {
       // Toutes les méthodes retournent Future<void>, on les attend en
       // séquence : on veut que les services soient EFFECTIVEMENT
       // arrêtés avant que `db.wipe()` ne ferme la base.
-      await coordinator.dispose();
-      await indexing.dispose();
-      await backlinks.dispose();
+      //
+      // P3-2 : timeout par dispose pour ne JAMAIS bloquer la séquence
+      // panique. 2 s c'est large pour un dispose normal (ms) ; au-delà,
+      // on assume qu'un service est bloqué et on continue le wipe — le
+      // mode panique doit aller au bout coûte que coûte.
+      const timeout = Duration(seconds: 2);
+      await coordinator
+          .dispose()
+          .timeout(timeout, onTimeout: () {});
+      await indexing
+          .dispose()
+          .timeout(timeout, onTimeout: () {});
+      await backlinks
+          .dispose()
+          .timeout(timeout, onTimeout: () {});
     },
   );
 
