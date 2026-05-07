@@ -18,13 +18,19 @@ jobs:
         with:
           path: notes_tech
 
-      # Le pubspec référence files_tech_voice via `path: ../files_tech_voice`.
-      # On le checkout en sibling pour que `flutter pub get` résolve la dep.
+      # Le pubspec référence files_tech_voice + files_tech_core via path:.
+      # On les checkout en sibling pour que `flutter pub get` résolve les deps.
       - name: Checkout files_tech_voice (path dependency)
         uses: actions/checkout@v6
         with:
           repository: gitubpatrice/files_tech_voice
           path: files_tech_voice
+
+      - name: Checkout files_tech_core (path dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: gitubpatrice/files_tech_core
+          path: files_tech_core
 
       - name: Setup Java 17
         uses: actions/setup-java@v5

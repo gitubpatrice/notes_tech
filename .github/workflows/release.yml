@@ -27,6 +27,12 @@ jobs:
           repository: gitubpatrice/files_tech_voice
           path: files_tech_voice
 
+      - name: Checkout files_tech_core (path dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: gitubpatrice/files_tech_core
+          path: files_tech_core
+
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
