@@ -1,0 +1,35 @@
+name: Security Scan
+
+# Scan de vulnérabilités (CVE) dans les dépendances pub.
+# Utilise les workflows réutilisables officiels de Google qui gèrent
+# correctement le SARIF + l'upload vers Security tab.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  scan-scheduled:
+    if: github.event_name != 'pull_request'
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.2.3"
+    with:
+      scan-args: |-
+        --recursive
+        ./
+
+  scan-pr:
+    if: github.event_name == 'pull_request'
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.2.3"
+    with:
+      scan-args: |-
+        --recursive
+        ./
