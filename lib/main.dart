@@ -169,6 +169,7 @@ Future<void> main() async {
     database: AppDatabase.instance,
     secureWindow: secureWindow,
     prefs: voicePrefs,
+    lockAllFolders: () async => folderVault.lockAll(),
     beforeDbWipe: () async {
       // Ordre : coordinator d'abord (libère les listeners de settings),
       // puis indexing (annule le throttle pending), puis backlinks

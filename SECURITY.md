@@ -92,3 +92,13 @@ Each release is checked via :
 
 **Code source** : https://github.com/gitubpatrice/notes_tech
 **Licence** : Apache License 2.0
+
+## Décisions de design
+
+- **Wipe DB header** : plafonné à 16 Mo (la KEK destroy précédente garantit
+  le secret ; l'écrasement complet n'apporte rien sur eMMC moderne avec
+  wear-leveling).
+- **`setUserAuthenticationRequired(false)`** sur la clé Keystore PIN : le
+  PIN applicatif est l'unique facteur d'authentification ; le doubler avec
+  biométrie l'exposerait à la contrainte (clé dérivée biométrique survit
+  au reboot).

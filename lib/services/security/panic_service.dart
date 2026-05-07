@@ -93,6 +93,7 @@ class PanicReport {
 enum PanicStep {
   forceSecureWindow,
   voiceCancel,
+  foldersLockAll,
   pinKeysWipe,
   kekDestroy,
   pauseBackgroundWork,
@@ -114,6 +115,7 @@ class PanicService {
     required SecureWindowService secureWindow,
     required SharedPreferences prefs,
     Future<void> Function()? beforeDbWipe,
+    Future<void> Function()? lockAllFolders,
     KeystoreBridge? keystore,
   })  : _voice = voice,
         _gemma = gemma,
@@ -122,6 +124,7 @@ class PanicService {
         _secureWindow = secureWindow,
         _prefs = prefs,
         _beforeDbWipe = beforeDbWipe,
+        _lockAllFolders = lockAllFolders,
         _keystore = keystore ?? KeystoreBridge();
 
   final VoiceService _voice;
@@ -138,6 +141,15 @@ class PanicService {
   /// `notesRepo.changes` peut tomber sur une DB déjà fermée et lever
   /// une exception cosmétique.
   final Future<void> Function()? _beforeDbWipe;
+
+  /// Hook injecté par `main.dart` pour verrouiller tous les coffres par
+  /// dossier (zeroize les `folder_kek` en RAM dans le map des sessions
+  /// déverrouillées de `FolderVaultService`) AVANT le wipe Keystore et la
+  /// destruction de la KEK SQLCipher. Sans ça, si l'utilisateur déclenche
+  /// le mode panique alors qu'un coffre est déverrouillé en foreground,
+  /// la `folder_kek` reste en RAM jusqu'au lifecycle paused — fenêtre
+  /// d'extraction RAM théorique pendant la séquence panique.
+  final Future<void> Function()? _lockAllFolders;
 
   /// Une seule panique à la fois — un double-tap rapide ne déclenche pas
   /// deux exécutions concurrentes (qui pourraient toutes deux tenter de
@@ -178,6 +190,18 @@ class PanicService {
     await _runStep(report, PanicStep.voiceCancel, () async {
       await _voice.cancelRecording();
     });
+
+    // 1.4 (v0.9.4). Verrouille TOUS les coffres par dossier déverrouillés
+    //     en foreground : zeroize les `folder_kek` en RAM AVANT le wipe
+    //     Keystore et la destruction de la KEK. Sans ça, une panique
+    //     déclenchée pendant qu'un coffre est ouvert laisse la folder_kek
+    //     en RAM jusqu'au lifecycle paused — fenêtre RAM exploitable
+    //     pendant la séquence panique. Best-effort : si le hook lève, on
+    //     continue (la KEK détruite reste la garantie minimale).
+    final lockFolders = _lockAllFolders;
+    if (lockFolders != null) {
+      await _runStep(report, PanicStep.foldersLockAll, lockFolders);
+    }
 
     // 1.5 (v0.9). Wipe TOUTES les clés Keystore `vault_pin_*` AVANT la
     //     destruction de la KEK. Empêche un attaquant qui aurait pré-
