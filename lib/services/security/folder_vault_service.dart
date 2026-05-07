@@ -52,9 +52,9 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:cryptography/cryptography.dart';
+import 'package:files_tech_core/files_tech_core.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -878,30 +878,15 @@ class FolderVaultService extends ChangeNotifier {
     return Uint8List.fromList(mac.bytes);
   }
 
-  Uint8List _randomBytes(int length) {
-    // `cryptography` fournit un secure random via `SecretKeyData.random()`,
-    // mais c'est lourd pour générer juste N bytes. On utilise le pattern
-    // déjà éprouvé dans `VaultService` (Random.secure).
-    final rng = Random.secure();
-    final out = Uint8List(length);
-    for (var i = 0; i < length; i++) {
-      out[i] = rng.nextInt(256);
-    }
-    return out;
-  }
+  // v0.9.7 — `_randomBytes`, `_wipe`, `_constantTimeEq` ont migré vers
+  // `SecretBytes` dans `files_tech_core`. Shims locaux pour limiter le diff
+  // sur les callsites historiques.
+  Uint8List _randomBytes(int length) => SecretBytes.randomBytes(length);
 
-  void _wipe(Uint8List bytes) {
-    bytes.fillRange(0, bytes.length, 0);
-  }
+  void _wipe(Uint8List bytes) => SecretBytes.wipe(bytes);
 
-  bool _constantTimeEq(Uint8List a, Uint8List b) {
-    if (a.length != b.length) return false;
-    var diff = 0;
-    for (var i = 0; i < a.length; i++) {
-      diff |= a[i] ^ b[i];
-    }
-    return diff == 0;
-  }
+  bool _constantTimeEq(Uint8List a, Uint8List b) =>
+      SecretBytes.constantTimeEq(a, b);
 
   @override
   void dispose() {

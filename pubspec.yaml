@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, IA on-device (Gemma + Whisper) et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
-version: 0.9.6+23
+version: 0.9.7+24
 
 environment:
   sdk: ^3.11.5
@@ -44,6 +44,11 @@ dependencies:
   # .bin manuellement (cf. VoiceSetupScreen), même pattern que Gemma.
   files_tech_voice:
     path: ../files_tech_voice
+
+  # v0.9.7 — Helpers crypto partagés (SecretBytes : randomBytes, wipe,
+  # constantTimeEq) factorisés depuis pass_tech / read_files_tech.
+  files_tech_core:
+    path: ../files_tech_core
 
   # v0.8 — Vault par dossier (Argon2id passphrase + AES-256-GCM par note).
   # Le package `cryptography` (Dart pur, pas de natif additionnel)
