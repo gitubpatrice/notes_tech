@@ -43,12 +43,23 @@ class VaultService {
 
   Future<Uint8List>? _inflight;
 
+  // flutter_secure_storage v10+ : EncryptedSharedPreferences (Jetpack Crypto)
+  // est déprécié côté lib (sera retiré en v11). Le backend par défaut en 10.x
+  // utilise ses propres ciphers (RSA_ECB_OAEPwithSHA_256andMGF1Padding pour
+  // wrap key + AES_GCM_NoPadding pour contenu) avec une clé maître scellée
+  // par AndroidKeystore. La migration depuis 9.x est AUTOMATIQUE via
+  // `migrateOnAlgorithmChange: true` (défaut) : la lib lit la KEK existante
+  // (chiffrée par ESP), puis ré-écrit avec les nouveaux ciphers.
+  //
+  // CRITIQUE : `resetOnError: false` — en 10.x le défaut est `true` ce qui
+  // EFFACERAIT silencieusement la KEK en cas d'erreur transitoire de
+  // déchiffrement (ex. crash Keystore au boot froid). Si la KEK disparaît,
+  // SQLCipher refuse d'ouvrir la base et TOUTES LES NOTES UTILISATEUR
+  // deviennent illisibles à jamais. On force donc le comportement
+  // « préserver à tout prix » et on laisse l'erreur remonter — l'app
+  // affichera un écran d'erreur plutôt que de wiper les données.
   static FlutterSecureStorage _defaultStorage() => const FlutterSecureStorage(
         aOptions: AndroidOptions(
-          encryptedSharedPreferences: true,
-          // `keyCipherAlgorithm` et `storageCipherAlgorithm` laissent
-          // les défauts les plus récents (RSA_ECB_PKCS1Padding pour le
-          // wrap key, AES_256_GCM_NoPadding pour le contenu).
           resetOnError: false,
         ),
       );

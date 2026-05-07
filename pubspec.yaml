@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, IA on-device (Gemma + Whisper) et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
-version: 0.9.9+26
+version: 0.9.10+27
 
 environment:
   sdk: ^3.11.5
@@ -34,9 +34,17 @@ dependencies:
   intl: ^0.20.0
   crypto: ^3.0.5
 
-  # Sécurité v0.5 — KEK 32 octets stockée dans EncryptedSharedPreferences
-  # côté Android (clé maître scellée par AndroidKeystore, hardware-backed).
-  flutter_secure_storage: ^9.2.2
+  # Sécurité v0.5 — KEK 32 octets stockée via flutter_secure_storage,
+  # clé maître scellée par AndroidKeystore (hardware-backed sur S24+).
+  # v0.9.10 : migration 9.x → 10.x. Le backend 9.x (EncryptedSharedPreferences /
+  # Jetpack Crypto) est déprécié et non maintenu. La 10.x utilise ses propres
+  # ciphers (RSA-OAEP wrap + AES-256-GCM contenu) avec migration AUTOMATIQUE
+  # depuis 9.x via `migrateOnAlgorithmChange: true` (défaut).
+  # ⚠️ NE PAS bumper vers 11.x sans tester explicitement la persistance de
+  # la KEK SQLCipher : v11 retirera complètement le backend ESP, donc tout
+  # device qui n'aurait pas migré depuis 9.x perdrait sa KEK → notes illisibles.
+  # Avant v11 : ajouter un test E2E ou forcer un boot intermédiaire en 10.x.
+  flutter_secure_storage: ^10.0.0
 
 
   # v0.6 — Speech-to-Text on-device (Whisper) via package partagé sibling.
