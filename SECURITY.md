@@ -39,24 +39,73 @@ disclosure timeline will be agreed upon if the issue is confirmed.
 ## Threat model
 
 Notes Tech is designed for individuals and professionals who want
-**local-only** notes with strong cryptographic guarantees :
+**local-only** notes with strong cryptographic guarantees. Three
+adversary classes are considered :
 
-- **Confidentiality at rest** : AES-256-GCM via SQLCipher, key sealed
-  by Android Keystore (hardware-backed on modern devices).
-- **No network exposure** : the `INTERNET` permission is removed from
-  the manifest. Data exfiltration through standard channels is
-  technically impossible without re-installing a modified APK.
-- **Panic mode** : a confirmed delete-everything action that destroys
-  the master key and overwrites the database header. Designed to be
-  fast and irrecoverable under coercion.
+### 1. Loss / theft (lost or stolen unlocked device)
+- **Confidentiality at rest** : SQLCipher (AES-256) for the database,
+  AES-256-GCM for per-folder vault notes. KEK sealed by Android
+  Keystore (hardware-backed on modern devices).
+- Per-folder vault adds a second factor (passphrase or PIN) on top of
+  the device lockscreen.
 
-We accept the following limits :
-- Forensic recovery from physical memory dumps of an unlocked,
-  rooted device is partially possible (Dart heap GC eventually
-  recycles strings).
+### 2. Coercion (search, "give me your phone", border check)
+- **Panic mode** : a confirmed delete-everything action that runs a
+  deterministic ordered sequence (see below). Designed to be fast and
+  irrecoverable under coercion.
+- **PIN auto-wipe** : 5 failed PIN attempts on a vault wipes that
+  vault's keys atomically (with crash-resume via prefs flag).
+- **`setUserAuthenticationRequired(false)`** on PIN Keystore keys : the
+  PIN is the sole factor — adding biometric would expose the user to
+  forced fingerprint unlock (a biometric-derived key survives reboot).
+
+### 3. Sandbox malware on the same device
+- No `INTERNET` permission means a compromised dependency cannot
+  exfiltrate notes via the standard network path. Data exfiltration
+  through standard channels is technically impossible without
+  re-installing a modified APK.
+- No `FOREGROUND_SERVICE`, no `POST_NOTIFICATIONS`, no
+  `RECEIVE_BOOT_COMPLETED` — minimal attack surface.
+- `FLAG_SECURE` blocks Recents previews and screen recording.
+- `allowBackup=false` + `dataExtractionRules` block Smart Switch /
+  Android Backup exfiltration.
+
+### Crypto building blocks
+- **Argon2id RFC 9106** for passphrase derivation : `m=64 MiB, t=3,
+  p=1, 32-byte output` (vault default). PIN mode uses lighter
+  parameters `m=32 MiB, t=2` because the device-bound Keystore wrap is
+  the primary defense and on-device rate-limiting prevents brute force.
+- **AES-256-GCM** for note content with **AAD = `note_id`** (prevents
+  ciphertext substitution between notes).
+- **KEK wrap with AAD = `folder_id`** (prevents wrap reuse across
+  folders).
+- **HMAC verifier in constant time** to detect bad passphrase / PIN
+  without trial-decrypting every note.
+- SQLCipher 4 (AES-256-CBC + HMAC-SHA512), key sealed via
+  `flutter_secure_storage` → `EncryptedSharedPreferences` → Keystore.
+
+### Panic mode — ordered multi-step
+The panic sequence is deterministic and best-effort (a step that
+throws does not abort the next ones) :
+
+1. `FLAG_SECURE` forced ON, microphone capture stopped
+2. **`foldersLockAll`** — lock every open vault, wipe folderKek from RAM
+3. **`pinKeysWipe`** — `deleteKeysWithPrefix("vault_pin_")` (Kotlin)
+4. **`kekDestroy`** — destroy the master Keystore key (DB instantly
+   unreadable)
+5. Background workers paused (coordinator / indexing / backlinks)
+6. **`dbWipe`** — overwrite SQLCipher header (16 MiB cap) + delete
+   `.db`, `.db-wal`, `.db-shm`
+7. Whisper / Gemma model files deleted, all prefs cleared, tmp purged
+
+### Accepted limits
+- Forensic recovery from a physical memory dump of an unlocked, rooted
+  device is partially possible (Dart heap GC eventually recycles
+  strings, but a snapshot during use can leak plaintext).
 - A determined nation-state attacker with custom kernel exploits is
   out of scope.
-- Display privacy (FLAG_SECURE) is opt-in via Settings.
+- Display privacy (`FLAG_SECURE`) is on by default but opt-out is
+  possible in Settings.
 
 ## Responsible disclosure
 
@@ -95,10 +144,25 @@ Each release is checked via :
 
 ## Décisions de design
 
-- **Wipe DB header** : plafonné à 16 Mo (la KEK destroy précédente garantit
-  le secret ; l'écrasement complet n'apporte rien sur eMMC moderne avec
-  wear-leveling).
-- **`setUserAuthenticationRequired(false)`** sur la clé Keystore PIN : le
-  PIN applicatif est l'unique facteur d'authentification ; le doubler avec
-  biométrie l'exposerait à la contrainte (clé dérivée biométrique survit
-  au reboot).
+- **Wipe DB header plafonné à 16 Mo** : la `kekDestroy` précédente
+  garantit déjà le secret cryptographique (la base entière devient
+  illisible sans la clé Keystore détruite). Écraser le fichier complet
+  n'apporte rien sur eMMC / UFS moderne avec wear-leveling : les
+  blocs physiques ne correspondent plus aux blocs logiques. 16 Mo
+  suffisent pour neutraliser le header SQLCipher et un préfixe
+  raisonnable. Bénéfice marginal vs latence du panic mode → 16 Mo.
+- **`setUserAuthenticationRequired(false)` sur les clés Keystore PIN**
+  (ajouté en v0.9.4) : le PIN applicatif est l'unique facteur
+  d'authentification du coffre. Le doubler par une exigence biométrique
+  exposerait l'utilisateur à la contrainte physique (un attaquant peut
+  forcer un doigt sur le capteur, et une clé dérivée biométrique
+  survit au reboot). Le PIN seul, combiné au scellage Keystore
+  device-bound et à l'auto-wipe à 5 essais, offre un meilleur compromis
+  pour le modèle de menace « contrainte ».
+- **AAD = `folder_id` / `note_id`** : empêche un attaquant local
+  d'extraire un blob chiffré et de le rejouer dans le contexte d'un
+  autre dossier ou d'une autre note (aucune confusion possible entre
+  contextes cryptographiques distincts).
+- **Reindex backlinks différé 2 s** (v0.9.3) : évite le coût quadratique
+  sur saisie active, tout en garantissant la cohérence de l'index avant
+  toute fermeture / lock du coffre.

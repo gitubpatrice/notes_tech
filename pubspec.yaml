@@ -1,5 +1,5 @@
 name: notes_tech
-description: "Notes Tech — private notes with on-device AI (RAG + Q&A + backlinks, 100% offline)."
+description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, IA on-device (Gemma + Whisper) et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
 version: 0.9.5+22
 

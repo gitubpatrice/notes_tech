@@ -1,6 +1,6 @@
 # Politique de confidentialité — Notes Tech
 
-**Version** : v0.7.0 — 2026-05-06
+**Version** : v0.9.4 — 2026-05-07
 **Éditeur** : Files Tech / Patrice Haltaya
 **Contact** : contact@files-tech.com
 
@@ -41,14 +41,21 @@ la base devient cryptographiquement illisible.
 
 ## 3. Modèles d'intelligence artificielle
 
-Vous les téléchargez vous-même depuis les sources officielles :
+Toutes les inférences (Q&A Gemma, dictée Whisper, embeddings
+sémantiques) tournent **100 % localement sur votre téléphone**. Aucun
+texte, aucun audio, aucun embedding ne quitte l'appareil.
+
+Vous téléchargez vous-même les gros modèles depuis les sources
+officielles :
 
 - **Gemma 3 1B int4** — Google Kaggle (licence Gemma)
-- **Whisper** — HuggingFace ggerganov/whisper.cpp (MIT)
+- **Whisper Base / Tiny** — HuggingFace ggerganov/whisper.cpp (MIT)
+- **MiniLM-L6-v2 quantifié** — bundlé dans l'APK (~22 Mo, MIT)
 
 Notes Tech vérifie l'empreinte cryptographique SHA-256 de chaque
 modèle avant chargement. Aucun modèle n'est envoyé à l'éditeur ni à un
-service tiers.
+service tiers — d'ailleurs l'app n'a pas la permission Internet pour
+le faire.
 
 ## 4. Permissions Android
 
@@ -67,13 +74,16 @@ globale.
 
 Notes Tech intègre un **mode panique** (Réglages → Mode panique →
 Tout effacer maintenant). Une fois confirmé par la saisie du mot
-`EFFACER`, ce mode :
+`EFFACER`, ce mode exécute une séquence ordonnée et best-effort :
 
-1. Détruit la clé maître Keystore (DB instantanément illisible)
-2. Écrase et supprime le fichier de base de données
-3. Désinstalle les modèles IA
-4. Vide toutes les préférences
-5. Purge les fichiers temporaires
+1. `FLAG_SECURE` forcé ON, capture micro coupée
+2. **`foldersLockAll`** — verrouille tous les coffres ouverts
+3. **`pinKeysWipe`** — supprime toutes les clés Keystore PIN des coffres
+4. **`kekDestroy`** — détruit la clé maître Keystore (DB instantanément
+   illisible)
+5. **`dbWipe`** — écrase le header SQLCipher (16 Mo) puis supprime la DB
+   et ses sidecars
+6. Désinstalle les modèles IA, vide les préférences, purge les `tmp`
 
 Aucune sauvegarde, aucune récupération possible. Action irréversible
 prévue pour les utilisateurs en situation de fouille / contrainte

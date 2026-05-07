@@ -1,6 +1,6 @@
 # Conditions générales d'utilisation — Notes Tech
 
-**Version** : v0.7.0 — 2026-05-06
+**Version** : v0.9.4 — 2026-05-07
 **Éditeur** : Files Tech / Patrice Haltaya
 **Contact** : contact@files-tech.com
 
@@ -49,8 +49,9 @@ Notes Tech ne redistribue aucun de ces modèles.
 
 ## 6. Limitations techniques
 
-- **APK ~290 Mo** : plusieurs runtimes ML embarqués. Ce n'est pas une
-  app légère.
+- **APK ~327 Mo** : plusieurs runtimes ML embarqués (SQLCipher,
+  ONNX Runtime, MediaPipe, Whisper.cpp, MiniLM bundlé). Ce n'est pas
+  une app légère.
 - **Modèles séparés** : à télécharger soi-même (~700 Mo cumulés pour
   Gemma + Whisper). Compromis pour rester offline.
 - **Pas de synchronisation entre appareils** : volontaire (offline-
