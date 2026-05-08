@@ -409,11 +409,14 @@ class _DigestSink implements Sink<Digest> {
 /// soit il s'agit d'une variante non listée. L'utilisateur peut
 /// activer le toggle `acceptUnknownHash` dans les réglages avancés
 /// pour passer outre en connaissance de cause.
-class GemmaHashMismatchException implements Exception {
+class GemmaHashMismatchException extends NotesTechException {
   const GemmaHashMismatchException({
     required this.expected,
     required this.actual,
-  });
+  }) : super(
+          'Empreinte SHA-256 inattendue.',
+          code: NotesErrorCode.gemmaHashMismatch,
+        );
   final String expected;
   final String actual;
   @override

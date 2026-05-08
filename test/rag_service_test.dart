@@ -89,7 +89,7 @@ void main() {
       final ctx = await rag.build('combien');
       final prompt = rag.composePrompt(ctx);
       expect(prompt, contains('<note id="1" title="Test">'));
-      expect(prompt, contains('Question : combien'));
+      expect(prompt, contains('Question: combien'));
     });
   });
 }

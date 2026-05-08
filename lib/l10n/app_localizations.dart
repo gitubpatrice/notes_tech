@@ -2503,6 +2503,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio never persisted, local transcription via whisper.cpp, model SHA-256 verified before each load.'**
   String get voiceSetupSecurityFooterBody;
+
+  /// **'Folder name is required.'**
+  String get errorFolderNameRequired;
+
+  /// **'“Inbox” folder cannot be deleted.'**
+  String get errorInboxNotDeletable;
+
+  /// **'Title too long (max 200 characters).'**
+  String get errorNoteTitleTooLong;
+
+  /// **'This folder is already a vault.'**
+  String get errorVaultAlreadyEnabled;
+
+  /// **'Passphrase too short (minimum 8 characters).'**
+  String get errorVaultPassphraseTooShort;
+
+  /// **'Wrong passphrase.'**
+  String get errorVaultPassphraseWrong;
+
+  /// **'Invalid PIN: 4 to 6 digits.'**
+  String get errorVaultPinTooShort;
+
+  /// **'Invalid PIN: digits only.'**
+  String get errorVaultPinNotDigits;
+
+  /// **'Wrong PIN.'**
+  String get errorVaultPinWrong;
+
+  /// **'Vault self-destructed after too many failed attempts.'**
+  String get errorVaultPinWiped;
+
+  /// **'This folder is not a PIN vault.'**
+  String get errorVaultNotPinVault;
+
+  /// **'This folder is not a vault.'**
+  String get errorVaultNotAVault;
+
+  /// **'Encrypted content invalid (too short).'**
+  String get errorVaultEncryptedContentInvalid;
+
+  /// **'Encrypted wrap invalid (truncated GCM tag).'**
+  String get errorVaultWrapInvalid;
+
+  /// **'Gemma model not installed.'**
+  String get errorGemmaModelNotInstalled;
+
+  /// **'Source file not found.'**
+  String get errorGemmaFileNotFound;
+
+  /// **'File too small — not a valid Gemma model.'**
+  String get errorGemmaFileTooSmall;
+
+  /// **'File too large — exceeds the allowed limit.'**
+  String get errorGemmaFileTooLarge;
+
+  /// **'Failed to initialize the Gemma model.'**
+  String get errorGemmaInitFailed;
+
+  /// **'Model not loaded. Warm-up required before use.'**
+  String get errorGemmaNotLoaded;
+
+  /// **'A generation is already in progress.'**
+  String get errorGemmaBusy;
+
+  /// **'Unexpected SHA-256 fingerprint. File does not match the official model.'**
+  String get errorGemmaHashMismatch;
 }
 
 class _AppLocalizationsDelegate

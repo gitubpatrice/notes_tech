@@ -481,13 +481,22 @@ class _ExportSectionState extends State<_ExportSection> {
       try {
         await Share.shareXFiles(
           [XFile(file.path, mimeType: 'application/zip')],
-          subject: t.exportShareSubject(notes.length),
+          subject: t.exportShareSubject(result.exportedCount),
         );
         if (!mounted) return;
+        final message = result.skippedVaultedCount == 0
+            ? t.settingsExportDone(result.exportedCount)
+            : t.settingsExportDonePartial(
+                result.exportedCount,
+                result.skippedVaultedCount,
+              );
         messenger.showSnackBar(
           SnackBar(
-            content: Text(t.settingsExportDone(notes.length)),
+            content: Text(message),
             behavior: SnackBarBehavior.floating,
+            duration: result.skippedVaultedCount == 0
+                ? const Duration(seconds: 4)
+                : const Duration(seconds: 6),
           ),
         );
       } finally {
