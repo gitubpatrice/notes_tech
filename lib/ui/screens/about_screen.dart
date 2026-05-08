@@ -10,6 +10,7 @@ import '../../core/constants.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/embedding/embedding_provider.dart';
 import '../../services/indexing_service.dart';
+import '../../utils/snackbar_ext.dart';
 import 'mentions_legales_screen.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -339,12 +340,7 @@ class _LinkTile extends StatelessWidget {
     // On capture `messenger` AVANT l'await pour ne pas dépendre du
     // BuildContext après la frontière asynchrone.
     await Clipboard.setData(ClipboardData(text: url));
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(copiedMsg),
-
-      ),
-    );
+    messenger.showFloatingSnack(copiedMsg);
   }
 
   @override

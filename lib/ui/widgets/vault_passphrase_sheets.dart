@@ -49,7 +49,7 @@ Future<String?> showCreateVaultSheet({
       // Padding réactif au clavier (`viewInsets.bottom` quand IME ouvert).
       return Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
         ),
         child: _CreateVaultSheet(folderName: folderName),
       );
@@ -196,7 +196,7 @@ Future<bool?> showUnlockVaultSheet({
     builder: (ctx) {
       return Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
         ),
         child: _UnlockVaultSheet(folder: folder),
       );

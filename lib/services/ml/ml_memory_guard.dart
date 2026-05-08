@@ -1,3 +1,5 @@
+import 'dart:async';
+
 /// Coordinateur RAM pour les moteurs ML on-device.
 ///
 /// Notes Tech embarque deux modèles ML lourds :
@@ -47,29 +49,53 @@ class MlMemoryGuard {
   /// transitions passent par cette chaîne.
   Future<void> _chain = Future<void>.value();
 
+  /// Timeout dur sur chaque éviction. Si le dispose natif (JNI MediaPipe
+  /// ou whisper.cpp) hang sur OOM extrême ou état corrompu, on ne bloque
+  /// pas l'UI indéfiniment : on assume que la RAM se libérera via le GC
+  /// natif éventuel et on force le transfert de verrou.
+  static const Duration _evictTimeout = Duration(seconds: 5);
+
   /// Le service voix appelle ceci AVANT `WhisperGgmlStt.initialize()`.
   /// Si Gemma détient le verrou, on l'évince (libération RAM) puis on
-  /// transfère le verrou à voix.
+  /// transfère le verrou à voix. Timeout dur sur l'éviction.
   Future<void> requestVoice() => _serialize(() async {
         if (_holder == _Holder.voice) return;
         if (_holder == _Holder.gemma) {
-          await _evictGemma();
+          await _evictWithTimeout(_evictGemma);
         }
         _holder = _Holder.voice;
       });
 
   /// Le service Gemma appelle ceci AVANT `gemma.warmUp()`. Si voix détient
   /// le verrou, on l'évince. Si voix est en plein recording, on évincera
-  /// quand même le moteur Whisper — la session de capture continue (le
-  /// moteur n'est nécessaire qu'au moment de la transcription, qui se
-  /// rechargera lazy).
+  /// quand même le moteur Whisper. Timeout dur sur l'éviction.
   Future<void> requestGemma() => _serialize(() async {
         if (_holder == _Holder.gemma) return;
         if (_holder == _Holder.voice) {
-          await _evictVoice();
+          await _evictWithTimeout(_evictVoice);
         }
         _holder = _Holder.gemma;
       });
+
+  /// Wrappe `evict()` avec un timeout dur de [_evictTimeout]. Si l'éviction
+  /// hang (JNI bloqué, OOM extrême), on continue après le timeout :
+  /// l'utilisateur ne perd pas l'UI sur un moteur ML cassé. Le `_holder`
+  /// sera réécrit par le caller, donc le moteur potentiellement encore
+  /// présent en RAM sera évincé naturellement au prochain cold start.
+  static Future<void> _evictWithTimeout(
+    Future<void> Function() evict,
+  ) async {
+    try {
+      await evict().timeout(_evictTimeout);
+    } on TimeoutException {
+      // Best-effort : on log en debug uniquement, pas de telemetry.
+      // L'objectif est de NE PAS bloquer l'UI si le natif hang.
+    } catch (_) {
+      // Best-effort : si evict throw, on continue (le caller décide
+      // d'attribuer le verrou quand même — sinon dead-lock total si
+      // l'eviction est foireuse).
+    }
+  }
 
   Future<void> _serialize(Future<void> Function() body) {
     final next = _chain.then((_) => body());

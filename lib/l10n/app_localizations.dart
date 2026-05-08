@@ -2186,6 +2186,30 @@ abstract class AppLocalizations {
   /// **'Save in progress, please retry.'**
   String get errorNotePending;
 
+  /// No description provided for @errorVoiceNoModelInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'No transcription model installed.'**
+  String get errorVoiceNoModelInstalled;
+
+  /// No description provided for @errorVoiceStartCaptureFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to start microphone capture.'**
+  String get errorVoiceStartCaptureFailed;
+
+  /// No description provided for @errorVoiceTranscribeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription failed.'**
+  String get errorVoiceTranscribeFailed;
+
+  /// No description provided for @errorVoiceMicCaptureError.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone capture error.'**
+  String get errorVoiceMicCaptureError;
+
   /// No description provided for @homeVaultCreateError.
   ///
   /// In en, this message translates to:

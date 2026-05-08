@@ -412,6 +412,11 @@
   "errorVaultLocked": "Coffre verrouillé.",
   "errorNotePending": "Sauvegarde en cours, réessayez.",
 
+  "errorVoiceNoModelInstalled": "Aucun modèle de transcription installé.",
+  "errorVoiceStartCaptureFailed": "Erreur au démarrage de la capture micro.",
+  "errorVoiceTranscribeFailed": "Erreur pendant la transcription.",
+  "errorVoiceMicCaptureError": "Erreur de capture micro.",
+
   "homeVaultCreateError": "Création du coffre échouée : {message}",
   "@homeVaultCreateError": { "placeholders": { "message": { "type": "String" } } },
   "homeNoteCreatedInInbox": "Note créée dans la Boîte de réception",

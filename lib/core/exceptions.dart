@@ -54,6 +54,11 @@ enum NotesErrorCode {
   gemmaNotLoaded,
   gemmaBusy,
   gemmaHashMismatch,
+  // Voice (Whisper)
+  voiceNoModelInstalled,
+  voiceStartCaptureFailed,
+  voiceTranscribeFailed,
+  voiceMicCaptureError,
 }
 
 // Pas `sealed` : la hiérarchie est ouverte aux modules services

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/voice/voice_service.dart';
+import '../../utils/error_localize.dart';
 
 /// Bottom sheet modal qui pilote une capture micro de bout en bout.
 ///
@@ -151,8 +152,14 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
       case VoiceServiceState.transcribing:
         return const _TranscribingBody();
       case VoiceServiceState.error:
+        // v1.0 : préfère le code typé localisable au string FR brut.
+        // Fallback : `lastError` (FR rétrocompat) puis `commonError`.
+        final code = voice.lastErrorCode;
+        final msg = code != null
+            ? code.localize(t)
+            : (voice.lastError ?? t.commonError);
         return _ErrorBody(
-          message: voice.lastError ?? t.commonError,
+          message: msg,
           onClose: () => Navigator.of(context).pop(),
         );
       case VoiceServiceState.ready:

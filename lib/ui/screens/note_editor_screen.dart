@@ -29,6 +29,7 @@ import '../../services/note_actions.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../utils/debouncer.dart';
 import '../../utils/error_localize.dart';
+import '../../utils/snackbar_ext.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
 import '../widgets/move_to_folder_sheet.dart';
@@ -304,7 +305,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    context.showFloatingSnack(msg);
   }
 
   Future<void> _togglePin() async {
@@ -357,9 +358,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final t = AppLocalizations.of(context);
     await const NoteActions().copyMarkdown(n);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t.noteEditorCopiedToClipboard)),
-    );
+    context.showFloatingSnack(t.noteEditorCopiedToClipboard);
   }
 
   /// Exporte la note courante en fichier Markdown (`.md`) avec frontmatter
@@ -407,12 +406,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(t.noteEditorExportFailed(e.toString())),
-
-        ),
-      );
+      messenger.showFloatingSnack(t.noteEditorExportFailed(e.toString()));
     }
   }
 
@@ -478,20 +472,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ? saved.copyWith(content: plainContent, clearEncrypted: true)
             : saved;
       });
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(t.noteEditorMoved),
-
-        ),
-      );
+      messenger.showFloatingSnack(t.noteEditorMoved);
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(t.noteEditorMoveFailed(e.toString())),
-
-        ),
-      );
+      messenger.showFloatingSnack(t.noteEditorMoveFailed(e.toString()));
     }
   }
 

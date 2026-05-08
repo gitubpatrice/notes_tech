@@ -1195,6 +1195,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get errorNotePending => 'Save in progress, please retry.';
 
   @override
+  String get errorVoiceNoModelInstalled => 'No transcription model installed.';
+
+  @override
+  String get errorVoiceStartCaptureFailed =>
+      'Failed to start microphone capture.';
+
+  @override
+  String get errorVoiceTranscribeFailed => 'Transcription failed.';
+
+  @override
+  String get errorVoiceMicCaptureError => 'Microphone capture error.';
+
+  @override
   String homeVaultCreateError(String message) {
     return 'Vault creation failed: $message';
   }

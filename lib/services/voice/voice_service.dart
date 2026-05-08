@@ -6,6 +6,7 @@ import 'package:files_tech_voice/files_tech_voice.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/exceptions.dart';
 import '../ml/ml_memory_guard.dart';
 
 /// État unifié du service voix, exposé à l'UI via `Provider`.
@@ -82,6 +83,9 @@ class VoiceService extends ChangeNotifier {
 
   VoiceServiceState _state = VoiceServiceState.needsModel;
   String? _lastError;
+  /// v1.0 : code d'erreur typé (localisable côté UI via `error_localize.dart`).
+  /// Préfère ce getter à [lastError] (string brut FR rétro-compat).
+  NotesErrorCode? _lastErrorCode;
   SttModel? _activeModel;
   Duration _lastRecordedFor = Duration.zero;
 
@@ -93,9 +97,15 @@ class VoiceService extends ChangeNotifier {
   /// aucun n'a encore été importé.
   SttModel? get activeModel => _activeModel;
 
-  /// Dernière erreur affichable. `null` quand pas d'erreur ou après une
-  /// nouvelle tentative réussie.
+  /// Dernière erreur affichable (string brut FR, rétro-compat).
+  /// L'UI v1.0 doit préférer [lastErrorCode] qui est localisable.
+  /// `null` quand pas d'erreur ou après une nouvelle tentative réussie.
   String? get lastError => _lastError;
+
+  /// v1.0 : code d'erreur typé pour localisation côté UI. Préférer ce
+  /// getter à [lastError] dans les nouveaux écrans (cf.
+  /// `voice_recording_overlay` qui consomme via `code.localize(t)`).
+  NotesErrorCode? get lastErrorCode => _lastErrorCode;
 
   /// Durée du dernier enregistrement transcrit. Utile pour télémétrie
   /// locale uniquement (jamais envoyée nulle part).
@@ -243,7 +253,10 @@ class VoiceService extends ChangeNotifier {
   Future<void> startRecording() async {
     final model = _activeModel;
     if (model == null) {
-      _fail('Aucun modèle de transcription installé.');
+      _fail(
+        'Aucun modèle de transcription installé.',
+        code: NotesErrorCode.voiceNoModelInstalled,
+      );
       return;
     }
     if (_state == VoiceServiceState.recording ||
@@ -253,8 +266,9 @@ class VoiceService extends ChangeNotifier {
     // Reset systématique de l'erreur précédente : sinon une dictée OK après
     // un échec laisserait `_lastError` non nul → le state machine pourrait
     // rester en `error` selon les transitions ultérieures.
-    if (_lastError != null) {
+    if (_lastError != null || _lastErrorCode != null) {
       _lastError = null;
+      _lastErrorCode = null;
     }
     try {
       if (!_stt.isInitialized) {
@@ -267,10 +281,13 @@ class VoiceService extends ChangeNotifier {
       await _session.start();
       // L'état effectif sera émis par le stream session → VoiceService.
     } on SttException catch (e) {
-      _fail(e.message);
+      _fail(e.message, code: NotesErrorCode.voiceStartCaptureFailed);
       rethrow;
     } catch (e) {
-      _fail('Erreur démarrage capture : $e');
+      _fail(
+        'Erreur démarrage capture : $e',
+        code: NotesErrorCode.voiceStartCaptureFailed,
+      );
       rethrow;
     }
   }
@@ -283,12 +300,16 @@ class VoiceService extends ChangeNotifier {
       final result = await _session.stopAndTranscribe(language: language);
       _lastRecordedFor = start;
       _lastError = null;
+      _lastErrorCode = null;
       return result;
     } on SttException catch (e) {
-      _fail(e.message);
+      _fail(e.message, code: NotesErrorCode.voiceTranscribeFailed);
       rethrow;
     } catch (e) {
-      _fail('Erreur transcription : $e');
+      _fail(
+        'Erreur transcription : $e',
+        code: NotesErrorCode.voiceTranscribeFailed,
+      );
       rethrow;
     }
   }
@@ -394,12 +415,17 @@ class VoiceService extends ChangeNotifier {
       case SttSessionState.error:
         // L'erreur a déjà été stockée par le throw, on s'aligne.
         _lastError ??= 'Erreur capture micro.';
+        _lastErrorCode ??= NotesErrorCode.voiceMicCaptureError;
         _setState(VoiceServiceState.error);
     }
   }
 
-  void _fail(String message) {
+  /// Marque l'erreur courante. [message] est le texte FR brut (rétro-compat
+  /// `lastError` pour l'ancienne UI). [code] est le code typé v1.0 que
+  /// l'UI doit préférer (localisable via `NotesErrorCode.localize(t)`).
+  void _fail(String message, {required NotesErrorCode code}) {
     _lastError = message;
+    _lastErrorCode = code;
     _setState(VoiceServiceState.error);
   }
 

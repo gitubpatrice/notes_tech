@@ -1203,6 +1203,20 @@ class AppLocalizationsFr extends AppLocalizations {
   String get errorNotePending => 'Sauvegarde en cours, réessayez.';
 
   @override
+  String get errorVoiceNoModelInstalled =>
+      'Aucun modèle de transcription installé.';
+
+  @override
+  String get errorVoiceStartCaptureFailed =>
+      'Erreur au démarrage de la capture micro.';
+
+  @override
+  String get errorVoiceTranscribeFailed => 'Erreur pendant la transcription.';
+
+  @override
+  String get errorVoiceMicCaptureError => 'Erreur de capture micro.';
+
+  @override
   String homeVaultCreateError(String message) {
     return 'Création du coffre échouée : $message';
   }

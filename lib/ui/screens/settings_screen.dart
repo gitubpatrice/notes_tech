@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
+import '../../utils/snackbar_ext.dart';
 import '../widgets/blocking_progress_dialog.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
@@ -407,12 +408,7 @@ class _VoiceSection extends StatelessWidget {
     if (confirmed != true) return;
     await voice.uninstallActiveModel();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(t.voiceSetupRemove),
-
-      ),
-    );
+    if (context.mounted) context.showFloatingSnack(t.voiceSetupRemove);
   }
 
   static String _formatSize(int bytes) {
@@ -449,12 +445,7 @@ class _ExportSectionState extends State<_ExportSection> {
 
       if (notes.isEmpty) {
         if (!mounted) return;
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(t.homeNoNotes),
-
-          ),
-        );
+        messenger.showFloatingSnack(t.homeNoNotes);
         return;
       }
 
@@ -491,14 +482,11 @@ class _ExportSectionState extends State<_ExportSection> {
                 result.exportedCount,
                 result.skippedVaultedCount,
               );
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(message),
-
-            duration: result.skippedVaultedCount == 0
-                ? const Duration(seconds: 4)
-                : const Duration(seconds: 6),
-          ),
+        messenger.showFloatingSnack(
+          message,
+          duration: result.skippedVaultedCount == 0
+              ? const Duration(seconds: 4)
+              : const Duration(seconds: 6),
         );
       } finally {
         try {
@@ -507,12 +495,7 @@ class _ExportSectionState extends State<_ExportSection> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(t.settingsExportError(e.toString())),
-
-        ),
-      );
+      messenger.showFloatingSnack(t.settingsExportError(e.toString()));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

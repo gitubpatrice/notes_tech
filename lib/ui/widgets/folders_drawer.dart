@@ -24,6 +24,7 @@ import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
+import '../../utils/snackbar_ext.dart';
 import 'blocking_progress_dialog.dart';
 import 'folder_dialogs.dart';
 import 'vault_passphrase_sheets.dart';
@@ -135,23 +136,17 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           final res = await vault.decryptAllNotesInFolder(folder.id);
           if (!mounted) return;
           if (res.failed > 0) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(t.folderDeleteDecryptFailed(res.failed)),
-                backgroundColor: Theme.of(context).colorScheme.error,
-
-                duration: const Duration(seconds: 8),
-              ),
+            messenger.showFloatingSnack(
+              t.folderDeleteDecryptFailed(res.failed),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              duration: const Duration(seconds: 8),
             );
             return;
           }
         } catch (e) {
           if (!mounted) return;
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(t.folderDeleteCancelledError(e.toString())),
-
-            ),
+          messenger.showFloatingSnack(
+            t.folderDeleteCancelledError(e.toString()),
           );
           return;
         }
@@ -441,40 +436,25 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // Affichage HONNÊTE du résultat : si failed > 0, on alerte
       // l'utilisateur en rouge plutôt que de masquer l'incohérence.
       if (result.failed > 0) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              t.vaultConvertPartialFail(
-                result.failed,
-                result.encrypted + result.failed,
-              ),
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-
-            duration: const Duration(seconds: 8),
+        messenger.showFloatingSnack(
+          t.vaultConvertPartialFail(
+            result.failed,
+            result.encrypted + result.failed,
           ),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 8),
         );
       } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              result.encrypted == 0
-                  ? t.vaultConvertSuccess
-                  : t.vaultConvertSuccessWithCount(result.encrypted),
-            ),
-
-          ),
+        messenger.showFloatingSnack(
+          result.encrypted == 0
+              ? t.vaultConvertSuccess
+              : t.vaultConvertSuccessWithCount(result.encrypted),
         );
       }
     } catch (e) {
       if (!mounted) return;
       navigator.pop(); // ferme le dialog progress
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(t.vaultConvertImpossible(e.toString())),
-
-        ),
-      );
+      messenger.showFloatingSnack(t.vaultConvertImpossible(e.toString()));
     }
   }
 }

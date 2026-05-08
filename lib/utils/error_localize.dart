@@ -65,6 +65,14 @@ extension NotesErrorLocalize on NotesErrorCode {
         return t.errorGemmaBusy;
       case NotesErrorCode.gemmaHashMismatch:
         return t.errorGemmaHashMismatch;
+      case NotesErrorCode.voiceNoModelInstalled:
+        return t.errorVoiceNoModelInstalled;
+      case NotesErrorCode.voiceStartCaptureFailed:
+        return t.errorVoiceStartCaptureFailed;
+      case NotesErrorCode.voiceTranscribeFailed:
+        return t.errorVoiceTranscribeFailed;
+      case NotesErrorCode.voiceMicCaptureError:
+        return t.errorVoiceMicCaptureError;
     }
   }
 }

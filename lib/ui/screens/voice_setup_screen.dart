@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/voice/voice_service.dart';
+import '../../utils/snackbar_ext.dart';
 
 /// Écran d'onboarding de la transcription vocale.
 ///
@@ -100,9 +101,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
 
   void _showSnack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    context.showFloatingSnack(msg);
   }
 
   Future<void> _showError(String msg) async {

@@ -18,6 +18,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/folders_drawer.dart';
 import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
+import '../../utils/snackbar_ext.dart';
 import '../widgets/vault_pin_sheets.dart';
 import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
@@ -207,12 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await _notes.save(encrypted);
       } catch (e) {
         if (!mounted) return;
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(t.homeVaultCreateError(e.toString())),
-
-          ),
-        );
+        messenger.showFloatingSnack(t.homeVaultCreateError(e.toString()));
         return;
       }
     }
@@ -224,12 +220,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
     if (!mounted) return;
     if (isAllScope) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(t.homeNoteCreatedInInbox),
-
-          duration: const Duration(seconds: 2),
-        ),
+      messenger.showFloatingSnack(
+        t.homeNoteCreatedInInbox,
+        duration: const Duration(seconds: 2),
       );
     }
   }

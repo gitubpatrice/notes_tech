@@ -167,7 +167,7 @@ Future<String?> showCreatePinSheet({
     enableDrag: false,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
       ),
       child: _CreatePinSheet(folderName: folderName),
     ),
@@ -346,7 +346,7 @@ Future<bool?> showUnlockPinSheet({
     isDismissible: true,
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
       ),
       child: _UnlockPinSheet(folder: folder),
     ),

@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '1.0.0';
+  static const String appVersion = '1.0.1';
   // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
   // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
   // automatiquement par `shared_preferences` au moment de la persistance).

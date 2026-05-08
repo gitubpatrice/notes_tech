@@ -412,6 +412,11 @@
   "errorVaultLocked": "Vault locked.",
   "errorNotePending": "Save in progress, please retry.",
 
+  "errorVoiceNoModelInstalled": "No transcription model installed.",
+  "errorVoiceStartCaptureFailed": "Failed to start microphone capture.",
+  "errorVoiceTranscribeFailed": "Transcription failed.",
+  "errorVoiceMicCaptureError": "Microphone capture error.",
+
   "homeVaultCreateError": "Vault creation failed: {message}",
   "@homeVaultCreateError": { "placeholders": { "message": { "type": "String" } } },
   "homeNoteCreatedInInbox": "Note created in Inbox",
