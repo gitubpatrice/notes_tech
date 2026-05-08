@@ -167,7 +167,7 @@ Ce dépôt **n'a pas de pipeline de release CI automatique**. Deux options :
 1. **Build local** (recommandé pour audit) — voir section suivante.
 2. **APK release manuelle** : récupérer le dernier `.apk` publié sur
    [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases)
-   (v0.9.4), vérifier la signature, side-loader.
+   (v0.9.13), vérifier la signature, side-loader.
 
 Pas de Play Store : distribution side-load uniquement (cohérent avec la
 promesse de confidentialité — aucun compte requis pour installer).
