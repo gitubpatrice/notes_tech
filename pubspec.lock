@@ -175,7 +175,7 @@ packages:
       path: "../files_tech_core"
       relative: true
     source: path
-    version: "0.3.0"
+    version: "0.3.1"
   files_tech_voice:
     dependency: "direct main"
     description:
