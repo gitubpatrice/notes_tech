@@ -2,6 +2,7 @@ import 'package:files_tech_voice/files_tech_voice.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/voice/voice_service.dart';
 import '../screens/voice_setup_screen.dart';
 import 'voice_recording_overlay.dart';
@@ -22,11 +23,13 @@ class VoiceRecordButton extends StatelessWidget {
   const VoiceRecordButton({
     super.key,
     required this.onInsert,
-    this.tooltip = 'Dicter une note',
+    this.tooltip,
   });
 
   final OnTranscriptionInsert onInsert;
-  final String tooltip;
+
+  /// Tooltip personnalisé. Si `null`, utilise `t.noteEditorTooltipDictate`.
+  final String? tooltip;
 
   Future<void> _handlePress(BuildContext context) async {
     final voice = context.read<VoiceService>();
@@ -56,6 +59,8 @@ class VoiceRecordButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final effectiveTooltip = tooltip ?? t.noteEditorTooltipDictate;
     return Consumer<VoiceService>(
       builder: (context, voice, _) {
         // L'icône change selon l'état pour donner un feedback visuel
@@ -74,7 +79,7 @@ class VoiceRecordButton extends StatelessWidget {
             icon = Icons.mic_none_outlined;
         }
         return IconButton(
-          tooltip: tooltip,
+          tooltip: effectiveTooltip,
           icon: Icon(icon),
           onPressed: () => _handlePress(context),
         );

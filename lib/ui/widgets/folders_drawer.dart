@@ -22,6 +22,7 @@ import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
 import 'folder_dialogs.dart';
 import 'vault_passphrase_sheets.dart';
@@ -81,10 +82,11 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       widget.currentFolderId == kAllNotesSentinel;
 
   Future<void> _createFolder() async {
+    final t = AppLocalizations.of(context);
     final name = await showFolderNameDialog(
       context: context,
-      title: 'Nouveau dossier',
-      hint: 'Nom du dossier (ex. Reiki, Géobiologie…)',
+      title: t.folderCreateTitle,
+      hint: t.folderCreateField,
     );
     if (name == null || !mounted) return;
     final folder = await _repo.create(name: name);
@@ -93,10 +95,11 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   }
 
   Future<void> _renameFolder(Folder folder) async {
+    final t = AppLocalizations.of(context);
     final name = await showFolderNameDialog(
       context: context,
-      title: 'Renommer',
-      hint: 'Nouveau nom',
+      title: t.folderRenameTitle,
+      hint: t.folderRenameField,
       initial: folder.name,
     );
     if (name == null || name == folder.name) return;
@@ -105,6 +108,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
 
   Future<void> _deleteFolder(Folder folder) async {
     if (folder.id == kInboxFolderId) return; // garde-fou redondant
+    final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final vault = context.read<FolderVaultService>();
     final outcome = await confirmDeleteFolder(
@@ -132,10 +136,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           if (res.failed > 0) {
             messenger.showSnackBar(
               SnackBar(
-                content: Text(
-                  'Suppression annulée : ${res.failed} note(s) n\'ont pas pu '
-                  'être déchiffrées. Récupérez-les d\'abord manuellement.',
-                ),
+                content: Text(t.folderDeleteDecryptFailed(res.failed)),
                 backgroundColor: Theme.of(context).colorScheme.error,
                 behavior: SnackBarBehavior.floating,
                 duration: const Duration(seconds: 8),
@@ -147,7 +148,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           if (!mounted) return;
           messenger.showSnackBar(
             SnackBar(
-              content: Text('Suppression annulée : $e'),
+              content: Text(t.folderDeleteCancelledError(e.toString())),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -185,6 +186,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppLocalizations.of(context);
     return Drawer(
       child: SafeArea(
         child: Column(
@@ -193,14 +195,19 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.folder_copy_outlined,
-                    color: theme.colorScheme.primary,
+                  ExcludeSemantics(
+                    child: Icon(
+                      Icons.folder_copy_outlined,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    'Mes dossiers',
-                    style: theme.textTheme.titleMedium,
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      t.homeFolders,
+                      style: theme.textTheme.titleMedium,
+                    ),
                   ),
                 ],
               ),
@@ -217,7 +224,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                     (f) => f.id == kInboxFolderId,
                     orElse: () => Folder(
                       id: kInboxFolderId,
-                      name: 'Boîte de réception',
+                      name: t.homeFolderInbox,
                       createdAt: DateTime.fromMillisecondsSinceEpoch(0),
                       updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
                     ),
@@ -229,7 +236,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                     children: [
                       _DrawerTile(
                         icon: Icons.notes_outlined,
-                        title: 'Toutes les notes',
+                        title: t.homeAllNotes,
                         selected: _isAllSelected(),
                         onTap: () => _select(null),
                       ),
@@ -241,14 +248,17 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                         onLongPress: () => _renameFolder(inbox),
                       ),
                       if (userFolders.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(20, 16, 20, 6),
-                          child: Text(
-                            'DOSSIERS',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1.1,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+                          child: Semantics(
+                            header: true,
+                            child: Text(
+                              t.drawerHeaderFolders,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.1,
+                              ),
                             ),
                           ),
                         ),
@@ -274,7 +284,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                             // coffre / supprimer (le long-press n'est
                             // pas découvrable).
                             trailing: IconButton(
-                              tooltip: 'Options du dossier',
+                              tooltip: t.drawerFolderOptions,
                               icon: const Icon(Icons.more_vert),
                               onPressed: () => _showFolderMenu(f),
                             ),
@@ -293,8 +303,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                 width: double.infinity,
                 child: FilledButton.tonalIcon(
                   onPressed: _createFolder,
-                  icon: const Icon(Icons.create_new_folder_outlined),
-                  label: const Text('Nouveau dossier'),
+                  icon: const ExcludeSemantics(
+                    child: Icon(Icons.create_new_folder_outlined),
+                  ),
+                  label: Text(t.drawerNewFolder),
                 ),
               ),
             ),
@@ -306,6 +318,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
 
   Future<void> _showFolderMenu(Folder folder) async {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     final action = await showModalBottomSheet<_FolderAction>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -314,7 +327,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           children: [
             ListTile(
               leading: const Icon(Icons.drive_file_rename_outline),
-              title: const Text('Renommer'),
+              title: Text(t.commonRename),
               onTap: () => Navigator.of(ctx).pop(_FolderAction.rename),
             ),
             // Vault : convertir un dossier ordinaire en coffre, ou
@@ -324,13 +337,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               ListTile(
                 leading: Icon(Icons.lock_outline, color: cs.error),
                 title: Text(
-                  'Convertir en coffre fort',
+                  t.drawerConvertToVault,
                   style: TextStyle(color: cs.error),
                 ),
-                subtitle: const Text(
-                  'Chiffrement avec passphrase distincte. Notes existantes '
-                  'ré-encryptées en bloc.',
-                ),
+                subtitle: Text(t.drawerConvertToVaultSubtitle),
                 onTap: () =>
                     Navigator.of(ctx).pop(_FolderAction.convertToVault),
               )
@@ -339,10 +349,8 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                 .isUnlocked(folder.id))
               ListTile(
                 leading: Icon(Icons.lock_outline, color: cs.error),
-                title: const Text('Verrouiller maintenant'),
-                subtitle: const Text(
-                  'Ferme la session immédiatement (sans attendre l\'auto-lock).',
-                ),
+                title: Text(t.drawerLockNow),
+                subtitle: Text(t.drawerLockNowSubtitle),
                 onTap: () =>
                     Navigator.of(ctx).pop(_FolderAction.lockNow),
               ),
@@ -352,7 +360,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                 color: Theme.of(ctx).colorScheme.error,
               ),
               title: Text(
-                'Supprimer',
+                t.commonDelete,
                 style: TextStyle(color: Theme.of(ctx).colorScheme.error),
               ),
               onTap: () => Navigator.of(ctx).pop(_FolderAction.delete),
@@ -379,6 +387,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   ///    existantes du dossier — opération potentiellement longue.
   ///    On l'enveloppe dans un dialog de progression bloquant.
   Future<void> _convertToVault(Folder folder) async {
+    final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final vault = context.read<FolderVaultService>();
 
@@ -428,10 +437,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
-              'Coffre créé, mais ${result.failed} note(s) sur '
-              '${result.encrypted + result.failed} N\'ONT PAS pu être '
-              'chiffrées et restent en clair. Vérifiez chaque note '
-              'individuellement.',
+              t.vaultConvertPartialFail(
+                result.failed,
+                result.encrypted + result.failed,
+              ),
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
@@ -443,8 +452,8 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           SnackBar(
             content: Text(
               result.encrypted == 0
-                  ? 'Dossier converti en coffre fort ✓'
-                  : 'Coffre créé. ${result.encrypted} note(s) chiffrée(s) ✓',
+                  ? t.vaultConvertSuccess
+                  : t.vaultConvertSuccessWithCount(result.encrypted),
             ),
             behavior: SnackBarBehavior.floating,
           ),
@@ -455,7 +464,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       navigator.pop(); // ferme le dialog progress
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Conversion impossible : $e'),
+          content: Text(t.vaultConvertImpossible(e.toString())),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -523,25 +532,29 @@ class _VaultConvertProgressDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const PopScope(
+    final t = AppLocalizations.of(context);
+    return PopScope(
       canPop: false,
       child: AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              'Conversion en coffre…',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'Dérivation Argon2id (~1-2 s) puis chiffrement de chaque note.',
-              style: TextStyle(fontSize: 12),
-              textAlign: TextAlign.center,
-            ),
-          ],
+        content: Semantics(
+          liveRegion: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                t.folderConvertProgressTitle,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                t.folderConvertProgressBody,
+                style: const TextStyle(fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

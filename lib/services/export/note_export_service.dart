@@ -29,6 +29,36 @@ import 'package:flutter/foundation.dart' show compute;
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
+import '../security/folder_vault_service.dart';
+
+/// Constante non-localisée utilisée comme nom de dossier ZIP pour la
+/// boîte de réception. Choix « technique » lowercase pour éviter de
+/// transporter une localisation FR/EN dans le service pur ; la couche UI
+/// localise quand elle affiche, le ZIP reste portable et déterministe.
+const String _kInboxFolderDirName = 'inbox';
+
+/// Résultat d'un export ZIP global. Sert à la couche UI pour informer
+/// honnêtement l'utilisateur du nombre de notes skippées (coffres
+/// verrouillés non déverrouillés au moment de l'export).
+class ExportResult {
+  const ExportResult({
+    required this.zipBytes,
+    required this.exportedCount,
+    required this.skippedVaultedCount,
+  });
+
+  /// Bytes du ZIP prêts à écrire / partager.
+  final Uint8List zipBytes;
+
+  /// Nombre de notes effectivement incluses dans le ZIP.
+  final int exportedCount;
+
+  /// Nombre de notes ignorées car appartenant à un coffre verrouillé
+  /// au moment de l'export. Pour ne pas exporter du blob AES-GCM
+  /// illisible (UX dégradée), elles sont omises et ce compteur sert à
+  /// avertir l'utilisateur via SnackBar / dialog.
+  final int skippedVaultedCount;
+}
 
 class NoteExportService {
   const NoteExportService();
@@ -52,12 +82,22 @@ class NoteExportService {
 
   /// Construit le contenu Markdown complet d'une note (frontmatter + corps).
   /// Le [folder] est optionnel : si fourni, son nom est inclus dans le
-  /// frontmatter. Sinon, on écrit `folder: "Boîte de réception"` quand
-  /// l'id matche [AppConstants.inboxFolderId].
-  String renderNoteAsMarkdown(Note note, {Folder? folder}) {
+  /// frontmatter. Sinon, on écrit l'id `inbox` quand l'id matche
+  /// [AppConstants.inboxFolderId] — la couche UI localise à l'affichage.
+  ///
+  /// [inboxFallbackName] permet de surcharger le label inbox (la couche
+  /// UI peut passer `t.homeFolderInbox` pour un frontmatter localisé).
+  /// [vaultMention] est ajouté en commentaire YAML quand la note vient
+  /// d'un coffre déverrouillé (cf. `ExportResult` / `exportAllAsZip`).
+  String renderNoteAsMarkdown(
+    Note note, {
+    Folder? folder,
+    String? inboxFallbackName,
+    String? vaultMention,
+  }) {
     final folderLabel = folder?.name ??
         (note.folderId == AppConstants.inboxFolderId
-            ? 'Boîte de réception'
+            ? (inboxFallbackName ?? _kInboxFolderDirName)
             : note.folderId);
 
     final buf = StringBuffer()
@@ -79,6 +119,11 @@ class NoteExportService {
       ..writeln('updated: ${note.updatedAt.toIso8601String()}');
     if (note.pinned) buf.writeln('pinned: true');
     if (note.favorite) buf.writeln('favorite: true');
+    if (vaultMention != null && vaultMention.isNotEmpty) {
+      // Commentaire YAML — non-clé pour ne pas polluer les imports
+      // Obsidian/Logseq, mais visible à l'œil humain qui dézippe.
+      buf.writeln('# ${vaultMention.replaceAll('\n', ' ')}');
+    }
     buf
       ..writeln('---')
       ..writeln()
@@ -105,8 +150,16 @@ class NoteExportService {
   /// - **Troncature** à 80 caractères (marge sous la limite 255 octets).
   /// - **Noms réservés Windows** (CON, PRN, COM1-9, LPT1-9...).
   ///
-  /// Fallback sur [fallbackId] si vide après nettoyage.
-  String safeFileName(String title, {required String fallbackId}) {
+  /// Fallback sur [fallbackId] si vide après nettoyage. Si
+  /// [unlockedVaultSuffix] vaut `true`, le suffixe ` [déverrouillé]` est
+  /// ajouté avant l'extension pour signaler visuellement à l'utilisateur
+  /// qui dézippe que la note venait d'un coffre déverrouillé au moment
+  /// de l'export.
+  String safeFileName(
+    String title, {
+    required String fallbackId,
+    bool unlockedVaultSuffix = false,
+  }) {
     var clean = title.trim();
     // 1. Retire caractères réservés + contrôle ASCII (et DEL = 0x7f).
     clean = clean.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1f\x7f]'), '');
@@ -130,13 +183,26 @@ class NoteExportService {
     if (clean.isEmpty || reserved.contains(clean.toUpperCase())) {
       clean = 'note-${fallbackId.replaceAll('-', '').substring(0, 8)}';
     }
+    if (unlockedVaultSuffix) {
+      clean = '$clean [unlocked]';
+    }
     return '$clean.md';
   }
 
   /// Sérialise une note en bytes UTF-8 prêts à écrire sur disque.
-  Uint8List exportNoteAsBytes(Note note, {Folder? folder}) {
+  Uint8List exportNoteAsBytes(
+    Note note, {
+    Folder? folder,
+    String? inboxFallbackName,
+    String? vaultMention,
+  }) {
     return Uint8List.fromList(
-      utf8.encode(renderNoteAsMarkdown(note, folder: folder)),
+      utf8.encode(renderNoteAsMarkdown(
+        note,
+        folder: folder,
+        inboxFallbackName: inboxFallbackName,
+        vaultMention: vaultMention,
+      )),
     );
   }
 
@@ -149,6 +215,9 @@ class NoteExportService {
   Uint8List exportAsZip({
     required List<Note> notes,
     required Map<String, Folder> foldersById,
+    Set<String> vaultedDecryptedFolderIds = const <String>{},
+    String? inboxFallbackName,
+    String Function(String folderName)? vaultMentionBuilder,
   }) {
     final archive = Archive();
     final now = DateTime.now();
@@ -157,9 +226,23 @@ class NoteExportService {
     for (final note in notes) {
       final folder = foldersById[note.folderId];
       final folderName = _safeFolderDirName(folder, note.folderId);
-      final baseName = safeFileName(note.title, fallbackId: note.id);
+      final fromUnlockedVault =
+          vaultedDecryptedFolderIds.contains(note.folderId);
+      final baseName = safeFileName(
+        note.title,
+        fallbackId: note.id,
+        unlockedVaultSuffix: fromUnlockedVault,
+      );
       final unique = _disambiguate(usedNames, '$folderName/$baseName');
-      final bytes = exportNoteAsBytes(note, folder: folder);
+      final mention = fromUnlockedVault && vaultMentionBuilder != null
+          ? vaultMentionBuilder(folder?.name ?? folderName)
+          : null;
+      final bytes = exportNoteAsBytes(
+        note,
+        folder: folder,
+        inboxFallbackName: inboxFallbackName,
+        vaultMention: mention,
+      );
       archive.addFile(ArchiveFile(unique, bytes.length, bytes));
     }
 
@@ -184,10 +267,88 @@ class NoteExportService {
   static Future<Uint8List> exportAsZipInIsolate({
     required List<Note> notes,
     required Map<String, Folder> foldersById,
+    Set<String> vaultedDecryptedFolderIds = const <String>{},
+    String? inboxFallbackName,
+    String? vaultMentionTemplate,
   }) {
     return compute<_ZipJob, Uint8List>(
       _zipWorker,
-      _ZipJob(notes: notes, foldersById: foldersById),
+      _ZipJob(
+        notes: notes,
+        foldersById: foldersById,
+        vaultedDecryptedFolderIds: vaultedDecryptedFolderIds,
+        inboxFallbackName: inboxFallbackName,
+        vaultMentionTemplate: vaultMentionTemplate,
+      ),
+    );
+  }
+
+  /// Orchestre un export ZIP **complet** des notes en gérant proprement
+  /// les coffres :
+  ///
+  /// - Notes coffrées (`note.encryptedContent != null`) :
+  ///   - Si le dossier parent est **actuellement déverrouillé**, la note
+  ///     est déchiffrée via [vault] (le user a saisi sa passphrase
+  ///     pendant la session, il a déjà accès au contenu) et incluse en
+  ///     Markdown clair. Le nom de fichier porte le suffixe
+  ///     ` [unlocked].md` et le frontmatter contient un commentaire
+  ///     `# Note du coffre : <folder>`.
+  ///   - Sinon, la note est **ignorée** (un blob AES-GCM base64 dans un
+  ///     `.md` serait illisible — UX dégradée). Le compteur
+  ///     `skippedVaultedCount` permet à la couche UI de prévenir
+  ///     l'utilisateur.
+  /// - Notes non coffrées : exportées normalement.
+  ///
+  /// Le déchiffrement nécessite l'accès au `_Session` en RAM du vault
+  /// service → ne peut **pas** s'exécuter dans un isolate. La phase
+  /// décrypt est faite ici (main thread) ; le ZIP encoding est ensuite
+  /// délégué à [exportAsZipInIsolate].
+  Future<ExportResult> exportAllAsZip({
+    required List<Note> notes,
+    required Map<String, Folder> foldersById,
+    required FolderVaultService vault,
+    String? inboxFallbackName,
+    String? vaultMentionTemplate,
+  }) async {
+    final unlocked = vault.unlockedFolderIds;
+    final exportable = <Note>[];
+    final decryptedFolderIds = <String>{};
+    var skipped = 0;
+
+    for (final note in notes) {
+      if (note.encryptedContent == null) {
+        exportable.add(note);
+        continue;
+      }
+      // Note coffrée : on tente de la déchiffrer si le coffre est ouvert.
+      if (unlocked.contains(note.folderId)) {
+        try {
+          final clear = await vault.decryptNote(note);
+          exportable.add(clear);
+          decryptedFolderIds.add(note.folderId);
+        } catch (_) {
+          // Best-effort : si le déchiffrement échoue (coffre lock entre
+          // temps, blob corrompu), on traite comme skip — pas d'export
+          // de blob illisible.
+          skipped++;
+        }
+      } else {
+        skipped++;
+      }
+    }
+
+    final zipBytes = await exportAsZipInIsolate(
+      notes: exportable,
+      foldersById: foldersById,
+      vaultedDecryptedFolderIds: decryptedFolderIds,
+      inboxFallbackName: inboxFallbackName,
+      vaultMentionTemplate: vaultMentionTemplate,
+    );
+
+    return ExportResult(
+      zipBytes: zipBytes,
+      exportedCount: exportable.length,
+      skippedVaultedCount: skipped,
     );
   }
 
@@ -218,9 +379,12 @@ class NoteExportService {
   }
 
   String _safeFolderDirName(Folder? folder, String folderId) {
+    // Nom de dossier ZIP non localisé : « inbox » est technique et
+    // déterministe, ce qui évite que deux exports (FR / EN) produisent
+    // des arborescences différentes. La couche UI traduit à l'affichage.
     final raw = folder?.name ??
         (folderId == AppConstants.inboxFolderId
-            ? 'Boîte de réception'
+            ? _kInboxFolderDirName
             : folderId);
     var clean = raw.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1f\x7f]'), '');
     // Mêmes filtres que `safeFileName` : bidi/RTL + path traversal `..`.
@@ -277,17 +441,35 @@ class NoteExportService {
 /// purement passives (Note, Folder = data classes immuables) → transit
 /// SendPort sûr.
 class _ZipJob {
-  const _ZipJob({required this.notes, required this.foldersById});
+  const _ZipJob({
+    required this.notes,
+    required this.foldersById,
+    this.vaultedDecryptedFolderIds = const <String>{},
+    this.inboxFallbackName,
+    this.vaultMentionTemplate,
+  });
   final List<Note> notes;
   final Map<String, Folder> foldersById;
+  final Set<String> vaultedDecryptedFolderIds;
+  final String? inboxFallbackName;
+
+  /// Template ARB-style avec `{folder}` à substituer (ex. FR
+  /// "Note du coffre : {folder}"). Sérialisable cross-isolate
+  /// contrairement à un `String Function(String)` qui ne l'est pas.
+  final String? vaultMentionTemplate;
 }
 
 /// Top-level wrapper requis par `compute` : ré-instancie le service
 /// dans l'isolate (stateless, pas de coût) et délègue à la version
 /// synchrone qui a fait ses preuves.
 Uint8List _zipWorker(_ZipJob job) {
+  final tpl = job.vaultMentionTemplate;
   return const NoteExportService().exportAsZip(
     notes: job.notes,
     foldersById: job.foldersById,
+    vaultedDecryptedFolderIds: job.vaultedDecryptedFolderIds,
+    inboxFallbackName: job.inboxFallbackName,
+    vaultMentionBuilder:
+        tpl == null ? null : (folderName) => tpl.replaceAll('{folder}', folderName),
   );
 }

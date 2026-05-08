@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/a11y.dart';
 import '../../data/models/note.dart';
+import '../../l10n/app_localizations.dart';
 
 class NoteCard extends StatelessWidget {
   const NoteCard({
@@ -36,6 +37,7 @@ class NoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final t = AppLocalizations.of(context);
     final excerpt = note.excerpt;
     final locked = note.isLocked;
     return RepaintBoundary(
@@ -53,78 +55,86 @@ class NoteCard extends StatelessWidget {
           onLongPress: onLongPress,
           child: Padding(
             padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Cadenas rouge en tête pour les notes verrouillées —
-                    // signal visuel fort, cohérent avec le badge dossier
-                    // coffre dans le drawer.
-                    if (locked)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(Icons.lock_outline,
-                            size: 14, color: cs.error),
-                      ),
-                    if (note.pinned && !locked)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 6),
-                        child: Icon(Icons.push_pin, size: 14),
-                      ),
-                    Expanded(
-                      child: Text(
-                        // Titre masqué pour les notes verrouillées : on
-                        // montre juste « Note verrouillée » à la place
-                        // du vrai titre. Le user a explicitement validé
-                        // ce comportement (max confidentialité).
-                        locked
-                            ? 'Note verrouillée'
-                            : (note.title.isEmpty ? 'Sans titre' : note.title),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontStyle: locked ? FontStyle.italic : null,
-                          color: locked ? cs.onSurfaceVariant : null,
+            child: MergeSemantics(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      // Cadenas rouge en tête pour les notes verrouillées —
+                      // signal visuel fort, cohérent avec le badge dossier
+                      // coffre dans le drawer.
+                      if (locked)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ExcludeSemantics(
+                            child: Icon(Icons.lock_outline,
+                                size: 14, color: cs.error),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (note.favorite && !locked)
-                      Icon(Icons.star, size: 16, color: cs.favoriteIcon),
-                  ],
-                ),
-                if (!locked && excerpt.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    excerpt,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(_df.format(note.updatedAt),
-                        style: theme.textTheme.labelMedium),
-                    if (folderName != null) ...[
-                      const SizedBox(width: 8),
-                      _FolderChip(label: folderName!),
-                    ],
-                    if (note.tags.isNotEmpty) ...[
-                      const SizedBox(width: 8),
+                      if (note.pinned && !locked)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 6),
+                          child: ExcludeSemantics(
+                            child: Icon(Icons.push_pin, size: 14),
+                          ),
+                        ),
                       Expanded(
                         child: Text(
-                          note.tags.map((t) => '#$t').join(' '),
-                          style: theme.textTheme.labelMedium,
+                          // Titre masqué pour les notes verrouillées : on
+                          // montre juste « Note verrouillée » à la place
+                          // du vrai titre. Le user a explicitement validé
+                          // ce comportement (max confidentialité).
+                          locked
+                              ? t.noteCardLocked
+                              : (note.title.isEmpty ? t.noteUntitled : note.title),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontStyle: locked ? FontStyle.italic : null,
+                            color: locked ? cs.onSurfaceVariant : null,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      if (note.favorite && !locked)
+                        ExcludeSemantics(
+                          child: Icon(Icons.star, size: 16, color: cs.favoriteIcon),
+                        ),
                     ],
+                  ),
+                  if (!locked && excerpt.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      excerpt,
+                      style: theme.textTheme.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Text(_df.format(note.updatedAt),
+                          style: theme.textTheme.labelMedium),
+                      if (folderName != null) ...[
+                        const SizedBox(width: 8),
+                        _FolderChip(label: folderName!),
+                      ],
+                      if (note.tags.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            note.tags.map((tag) => '#$tag').join(' '),
+                            style: theme.textTheme.labelMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,9 +1,10 @@
 /// Dialogue de confirmation avant déclenchement du mode panique.
 ///
 /// Garde-fou critique : l'utilisateur doit **taper littéralement** le
-/// mot `EFFACER` pour activer le bouton de validation. Sans ça, un tap
-/// par erreur dans Settings entraînerait une perte définitive de toutes
-/// les notes — risque inacceptable.
+/// mot-clé localisé (« EFFACER » en FR, « WIPE » en EN) pour activer le
+/// bouton de validation. Sans ça, un tap par erreur dans Settings
+/// entraînerait une perte définitive de toutes les notes — risque
+/// inacceptable.
 ///
 /// Pourquoi taper plutôt qu'un hold-to-confirm ? Parce que c'est :
 /// - **Plus défensif** sous contrainte physique : un attaquant qui veut
@@ -15,7 +16,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-const String _kPanicPhrase = 'EFFACER';
+import '../../l10n/app_localizations.dart';
 
 /// Affiche le dialogue. Retourne `true` si l'utilisateur a tapé la
 /// phrase exacte ET validé. `false` ou `null` sinon — dans les deux cas
@@ -38,18 +39,30 @@ class _PanicDialog extends StatefulWidget {
 class _PanicDialogState extends State<_PanicDialog> {
   final _controller = TextEditingController();
   bool _canConfirm = false;
+  String _keyword = '';
 
   @override
   void initState() {
     super.initState();
-    _controller.addListener(() {
-      // Comparaison case-insensitive : `textCapitalization.characters`
-      // ne s'applique pas aux claviers physiques ni à certains IME
-      // tiers, et l'utilisateur sous stress peut taper "effacer" sans
-      // forcer la majuscule. Le geste reste délibéré (mot exact tapé).
-      final ok = _controller.text.trim().toUpperCase() == _kPanicPhrase;
-      if (ok != _canConfirm) setState(() => _canConfirm = ok);
-    });
+    _controller.addListener(_onChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Le keyword dépend de la locale : on le récupère ici (context prêt).
+    _keyword = AppLocalizations.of(context).panicConfirmKeyword;
+    _onChanged();
+  }
+
+  void _onChanged() {
+    // Comparaison case-insensitive : `textCapitalization.characters`
+    // ne s'applique pas aux claviers physiques ni à certains IME
+    // tiers, et l'utilisateur sous stress peut taper le mot sans
+    // forcer la majuscule. Le geste reste délibéré (mot exact tapé).
+    final ok =
+        _controller.text.trim().toUpperCase() == _keyword.toUpperCase();
+    if (ok != _canConfirm) setState(() => _canConfirm = ok);
   }
 
   @override
@@ -61,40 +74,48 @@ class _PanicDialogState extends State<_PanicDialog> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return AlertDialog(
-      icon: Icon(Icons.warning_amber_outlined, color: cs.error, size: 40),
-      title: const Text('Mode panique'),
+      icon: ExcludeSemantics(
+        child: Icon(
+          Icons.warning_amber_outlined,
+          color: cs.error,
+          size: 40,
+        ),
+      ),
+      title: Text(t.panicConfirmTitle),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Vous êtes sur le point de DÉTRUIRE de manière irréversible :',
+            t.panicConfirmDestroyIntro,
             style: TextStyle(color: cs.onSurface, height: 1.5),
           ),
           const SizedBox(height: 12),
-          const _Item('Toutes vos notes (chiffrement détruit + fichier écrasé)'),
-          const _Item('Tous les modèles IA installés (Gemma, Whisper)'),
-          const _Item('Toutes les préférences et l\'historique'),
+          _Item(t.panicConfirmItem1),
+          _Item(t.panicConfirmItem2),
+          _Item(t.panicConfirmItem3),
           const SizedBox(height: 16),
           Text(
-            'Cette action ne peut PAS être annulée. Aucune sauvegarde, '
-            'aucune corbeille, aucune récupération forensique possible.',
+            t.panicConfirmIrreversible,
             style: TextStyle(color: cs.error, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Pour confirmer, tapez exactement : $_kPanicPhrase',
-            style: TextStyle(fontSize: 13),
+          Text(
+            t.panicConfirmTypePrompt(_keyword),
+            // Audit a11y P1 : helper >=14sp pour rester lisible.
+            style: const TextStyle(fontSize: 14),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _controller,
             autofocus: true,
             textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: _kPanicPhrase,
+            decoration: InputDecoration(
+              border: const OutlineInputBorder(),
+              labelText: t.panicConfirmFieldLabel,
+              hintText: _keyword,
             ),
           ),
         ],
@@ -102,7 +123,7 @@ class _PanicDialogState extends State<_PanicDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Annuler'),
+          child: Text(t.commonCancel),
         ),
         FilledButton.icon(
           onPressed: _canConfirm
@@ -112,7 +133,7 @@ class _PanicDialogState extends State<_PanicDialog> {
             backgroundColor: _canConfirm ? cs.error : null,
           ),
           icon: const Icon(Icons.local_fire_department_outlined),
-          label: const Text('Tout effacer'),
+          label: Text(t.panicConfirmYes),
         ),
       ],
     );
@@ -130,9 +151,11 @@ class _Item extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 4, right: 8),
-            child: Icon(Icons.fiber_manual_record, size: 8),
+          const ExcludeSemantics(
+            child: Padding(
+              padding: EdgeInsets.only(top: 4, right: 8),
+              child: Icon(Icons.fiber_manual_record, size: 8),
+            ),
           ),
           Expanded(child: Text(label, style: const TextStyle(height: 1.4))),
         ],

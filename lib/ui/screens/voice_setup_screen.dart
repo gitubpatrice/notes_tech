@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/voice/voice_service.dart';
 
 /// Écran d'onboarding de la transcription vocale.
@@ -15,13 +16,6 @@ import '../../services/voice/voice_service.dart';
 /// son téléphone (USB / Drive / WhatsApp), et l'importe via le sélecteur
 /// de fichiers système. Notes Tech vérifie le SHA-256 et stocke le
 /// fichier dans sa zone privée.
-///
-/// L'écran présente :
-/// 1. Un en-tête expliquant l'engagement offline.
-/// 2. La liste des modèles supportés (avec lien copiable vers HuggingFace).
-/// 3. Un guide pas-à-pas (3 étapes claires).
-/// 4. Un bouton "Choisir un fichier .bin" qui ouvre le file picker.
-/// 5. Une barre de progression pendant l'import + vérification.
 class VoiceSetupScreen extends StatefulWidget {
   const VoiceSetupScreen({super.key});
 
@@ -37,6 +31,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
 
   Future<void> _pickAndImport() async {
     if (_busy) return;
+    final t = AppLocalizations.of(context);
 
     // Filtre `.bin` via FileType.custom — n'affiche que les fichiers
     // d'extension `.bin` dans le picker SAF Android. Si le filtre échoue
@@ -44,29 +39,25 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
     // OEM), l'utilisateur peut quand même naviguer manuellement et
     // sélectionner un fichier — la garantie d'intégrité finale reste
     // la vérification SHA-256 à l'import.
-    //
-    // `initialDirectory: /storage/emulated/0/Download` ouvre directement
-    // le dossier Téléchargements, là où le navigateur a sauvé le .bin
-    // (cohérent avec le bouton "Télécharger sur ce téléphone").
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['bin'],
       allowMultiple: false,
       initialDirectory: '/storage/emulated/0/Download',
-      dialogTitle: 'Sélectionnez le fichier ${_selectedModel.id}.bin',
+      dialogTitle: t.voiceSetupPickerDialogTitle(_selectedModel.id),
       withData: false, // on travaille en streaming, pas tout en RAM
     );
     if (!mounted || result == null || result.files.isEmpty) return;
     final path = result.files.single.path;
     if (path == null) {
-      _showSnack('Chemin du fichier indisponible. Réessayez.');
+      _showSnack(t.voiceSetupPathUnavailable);
       return;
     }
 
     setState(() {
       _busy = true;
       _progress = 0;
-      _phaseLabel = 'Vérification…';
+      _phaseLabel = t.voiceSetupVerifying;
     });
 
     try {
@@ -75,31 +66,27 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
             model: _selectedModel,
             onProgress: (p) {
               if (!mounted) return;
+              final t2 = AppLocalizations.of(context);
               setState(() {
                 _progress = p.fraction;
                 _phaseLabel = p.phase == 'copying'
-                    ? 'Copie sécurisée…'
-                    : 'Vérification SHA-256…';
+                    ? t2.voiceSetupCopying
+                    : t2.voiceSetupVerifying;
               });
             },
           );
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showSnack('Transcription vocale activée ✓');
+      _showSnack(t.voiceSetupInstallOk(_selectedModel.displayName));
     } on SttModelChecksumMismatch catch (e) {
       if (!mounted) return;
-      await _showError(
-        'Le fichier ne correspond pas au modèle attendu.\n\n'
-        '${e.message}\n\n'
-        'Vérifiez la source officielle : '
-        'huggingface.co/ggerganov/whisper.cpp',
-      );
+      await _showError(t.voiceSetupChecksumMismatchBody(e.message));
     } on SttException catch (e) {
       if (!mounted) return;
-      await _showError(e.message);
+      await _showError(t.voiceSetupInstallFail(e.message));
     } catch (e) {
       if (!mounted) return;
-      await _showError('Erreur inattendue : $e');
+      await _showError(t.voiceSetupInstallFail('$e'));
     } finally {
       if (mounted) {
         setState(() {
@@ -120,16 +107,17 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
 
   Future<void> _showError(String msg) async {
     if (!mounted) return;
+    final t = AppLocalizations.of(context);
     return showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.error_outline),
-        title: const Text('Import impossible'),
+        title: Text(t.voiceSetupImportErrorTitle),
         content: Text(msg),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Compris'),
+            child: Text(t.commonOk),
           ),
         ],
       ),
@@ -138,16 +126,15 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
 
   Future<void> _copyUrl(String url) async {
     await Clipboard.setData(ClipboardData(text: url));
-    _showSnack('Lien copié.');
+    if (!mounted) return;
+    final t = AppLocalizations.of(context);
+    _showSnack(t.voiceSetupLinkCopied);
   }
 
   /// Délègue le téléchargement au navigateur système (Chrome / Brave / etc.).
-  /// Notes Tech reste sans permission INTERNET — c'est l'OS qui ouvre le
-  /// browser via un Intent, et c'est le browser qui télécharge le `.bin`
-  /// dans `/Downloads/` du téléphone. L'utilisateur revient ensuite ici
-  /// pour l'importer.
   Future<void> _openInBrowser() async {
     final uri = Uri.parse(_selectedModel.url);
+    final t = AppLocalizations.of(context);
     try {
       final ok = await launchUrl(
         uri,
@@ -155,41 +142,41 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
       );
       if (!mounted) return;
       if (!ok) {
-        await _showError(
-          'Aucun navigateur n\'a pu ouvrir le lien. '
-          'Copiez l\'URL et collez-la dans votre navigateur préféré.',
-        );
+        await _showError(t.voiceSetupBrowserOpenFailed);
       }
     } catch (e) {
       if (!mounted) return;
-      await _showError(
-        'Impossible d\'ouvrir le navigateur : $e\n\n'
-        'Copiez l\'URL et collez-la manuellement.',
-      );
+      await _showError(t.voiceSetupBrowserOpenError(e.toString()));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Activer la voix')),
+      appBar: AppBar(
+        title: Text(t.voiceSetupAppBarTitle),
+      ),
       body: AbsorbPointer(
         absorbing: _busy,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
           children: [
-            _OfflineEngagementBanner(),
+            const _OfflineEngagementBanner(),
             const SizedBox(height: 24),
-            const Text(
-              'Comment activer la transcription vocale',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            Semantics(
+              header: true,
+              child: Text(
+                t.voiceSetupHowToTitle,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w600),
+              ),
             ),
             const SizedBox(height: 12),
-            const _StepTile(
+            _StepTile(
               number: '1',
-              title: 'Choisir un modèle',
-              text: 'Whisper Base (57 Mo) est recommandé. '
-                  'Whisper Tiny (32 Mo) est plus rapide mais moins précis.',
+              title: t.voiceSetupStep1Title,
+              text: t.voiceSetupStep1Text,
             ),
             _ModelChoice(
               selected: _selectedModel,
@@ -198,11 +185,8 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
             const SizedBox(height: 16),
             _StepTile(
               number: '2',
-              title: 'Télécharger le fichier .bin',
-              text: 'Le navigateur de votre téléphone s\'occupe du '
-                  'téléchargement — Notes Tech n\'a pas la permission '
-                  'd\'accéder à Internet. Source officielle (signée par '
-                  'l\'auteur de whisper.cpp) :',
+              title: t.voiceSetupStep2Title,
+              text: t.voiceSetupStep2Text,
               extra: _UrlRow(
                 url: _selectedModel.url,
                 onCopy: () => _copyUrl(_selectedModel.url),
@@ -214,27 +198,24 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
               child: FilledButton.tonalIcon(
                 onPressed: _busy ? null : _openInBrowser,
                 icon: const Icon(Icons.download_outlined),
-                label: const Text('Télécharger sur ce téléphone'),
+                label: Text(t.voiceSetupDownload),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            const _StepTile(
+            _StepTile(
               number: '3',
-              title: 'Importer le fichier dans Notes Tech',
-              text:
-                  'Une fois le téléchargement terminé (notification du '
-                  'navigateur), revenez ici et appuyez sur le bouton '
-                  'ci-dessous pour sélectionner le fichier.',
+              title: t.voiceSetupStep3Title,
+              text: t.voiceSetupStep3Text,
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
               onPressed: _busy ? null : _pickAndImport,
               icon: const Icon(Icons.file_upload_outlined),
               label: Text(
-                _busy ? 'Import en cours…' : 'Sélectionner le fichier .bin',
+                _busy ? t.voiceSetupImportInProgress : t.voiceSetupSelectFile,
               ),
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
@@ -258,9 +239,12 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
 // ---------------------------------------------------------------------------
 
 class _OfflineEngagementBanner extends StatelessWidget {
+  const _OfflineEngagementBanner();
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -274,10 +258,7 @@ class _OfflineEngagementBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Notes Tech ne se connecte jamais à Internet. '
-              'Vous téléchargez le modèle Whisper vous-même, '
-              'l\'app le vérifie cryptographiquement (SHA-256) '
-              'et le stocke dans sa zone privée.',
+              t.voiceSetupOfflineBanner,
               style: TextStyle(
                 color: cs.onPrimaryContainer,
                 height: 1.4,
@@ -332,9 +313,12 @@ class _StepTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(text, style: const TextStyle(height: 1.45)),
@@ -391,6 +375,7 @@ class _UrlRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -410,10 +395,13 @@ class _UrlRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Copier le lien',
-            icon: const Icon(Icons.copy_outlined, size: 20),
-            onPressed: onCopy,
+          Tooltip(
+            message: t.voiceSetupCopyLinkTooltip,
+            child: IconButton(
+              tooltip: t.voiceSetupCopyLinkTooltip,
+              icon: const Icon(Icons.copy_outlined, size: 20),
+              onPressed: onCopy,
+            ),
           ),
         ],
       ),
@@ -459,6 +447,7 @@ class _SecurityFooter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Text.rich(
       TextSpan(
         style: TextStyle(
@@ -466,20 +455,12 @@ class _SecurityFooter extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurfaceVariant,
           height: 1.5,
         ),
-        children: const [
+        children: [
           TextSpan(
-            text: '🔒 Garanties.  ',
-            style: TextStyle(fontWeight: FontWeight.w600),
+            text: '🔒 ${t.voiceSetupSecurityFooterLabel}.  ',
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-          TextSpan(
-            text:
-                'Le fichier modèle est vérifié par empreinte cryptographique '
-                '(SHA-256) avant d\'être accepté — un fichier altéré est '
-                'détecté et rejeté. L\'audio capté pour la transcription '
-                'reste dans la mémoire du téléphone, n\'est jamais envoyé '
-                'sur Internet et est effacé immédiatement après la '
-                'reconnaissance.',
-          ),
+          TextSpan(text: t.voiceSetupSecurityFooterBody),
         ],
       ),
     );

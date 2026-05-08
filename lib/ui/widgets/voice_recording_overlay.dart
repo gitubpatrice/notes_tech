@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:files_tech_voice/files_tech_voice.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:provider/provider.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../services/voice/voice_service.dart';
 
 /// Bottom sheet modal qui pilote une capture micro de bout en bout.
@@ -69,9 +71,14 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
   Future<void> _stop() async {
     final voice = context.read<VoiceService>();
     final navigator = Navigator.of(context);
+    final t = AppLocalizations.of(context);
     try {
       final result = await voice.stopAndTranscribe(language: 'fr');
       if (!mounted) return;
+      // Annonce TalkBack que la transcription est terminée et insérée.
+      unawaited(
+        SemanticsService.announce(t.voiceTranscribed, TextDirection.ltr),
+      );
       navigator.pop(result);
     } catch (_) {
       // Même remarque : l'UI affichera l'état error via le Consumer.
@@ -126,6 +133,7 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
   }
 
   Widget _bodyFor(VoiceService voice) {
+    final t = AppLocalizations.of(context);
     if (_permissionError != null) {
       return _PermissionErrorBody(
         message: _permissionError!,
@@ -144,7 +152,7 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
         return const _TranscribingBody();
       case VoiceServiceState.error:
         return _ErrorBody(
-          message: voice.lastError ?? 'Erreur inconnue.',
+          message: voice.lastError ?? t.commonError,
           onClose: () => Navigator.of(context).pop(),
         );
       case VoiceServiceState.ready:
@@ -164,16 +172,20 @@ class _StartingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    final t = AppLocalizations.of(context);
+    return SizedBox(
       height: 140,
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Initialisation du micro…'),
-          ],
+        child: Semantics(
+          liveRegion: true,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(t.voiceMicInitializing),
+            ],
+          ),
         ),
       ),
     );
@@ -200,37 +212,50 @@ class _RecordingBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const SizedBox(height: 8),
         // Pastille rouge clignotante (animation discrète).
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.4, end: 1.0),
-          duration: const Duration(seconds: 1),
-          builder: (context, value, _) => Opacity(
-            opacity: value,
-            child: Icon(
-              Icons.fiber_manual_record,
-              color: cs.error,
-              size: 18,
+        ExcludeSemantics(
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.4, end: 1.0),
+            duration: const Duration(seconds: 1),
+            builder: (context, value, _) => Opacity(
+              opacity: value,
+              child: Icon(
+                Icons.fiber_manual_record,
+                color: cs.error,
+                size: 18,
+              ),
             ),
           ),
         ),
         const SizedBox(height: 8),
-        Text(
-          _format(elapsed),
-          style: TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w300,
-            fontFeatures: const [FontFeature.tabularFigures()],
-            color: cs.onSurface,
+        Semantics(
+          liveRegion: true,
+          header: true,
+          child: Text(
+            _format(elapsed),
+            style: TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.w300,
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: cs.onSurface,
+            ),
           ),
         ),
         const SizedBox(height: 6),
         Text(
-          'Enregistrement en cours…',
+          t.voiceRecordingTitle,
           style: TextStyle(color: cs.onSurfaceVariant),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          t.voiceRecordingHint,
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 24),
         Row(
@@ -241,15 +266,15 @@ class _RecordingBody extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
-                child: const Text('Annuler'),
+                child: Text(t.commonCancel),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton.icon(
                 onPressed: onStop,
-                icon: const Icon(Icons.stop),
-                label: const Text('Arrêter'),
+                icon: const ExcludeSemantics(child: Icon(Icons.stop)),
+                label: Text(t.voiceRecordingStop),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                 ),
@@ -267,24 +292,28 @@ class _TranscribingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    final t = AppLocalizations.of(context);
+    return SizedBox(
       height: 160,
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 20),
-            Text(
-              'Transcription en cours…',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            SizedBox(height: 6),
-            Text(
-              'Quelques secondes selon la durée enregistrée.',
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
+        child: Semantics(
+          liveRegion: true,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 20),
+              Text(
+                t.voiceTranscribing,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                t.voiceTranscribingHint,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -298,27 +327,31 @@ class _ErrorBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        const Icon(Icons.error_outline, size: 40),
-        const SizedBox(height: 12),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(height: 1.4),
-        ),
-        const SizedBox(height: 20),
-        FilledButton(
-          onPressed: onClose,
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(48),
+    final t = AppLocalizations.of(context);
+    return Semantics(
+      liveRegion: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          const ExcludeSemantics(child: Icon(Icons.error_outline, size: 40)),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(height: 1.4),
           ),
-          child: const Text('Fermer'),
-        ),
-      ],
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: onClose,
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: Text(t.commonClose),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -335,55 +368,66 @@ class _PermissionErrorBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const SizedBox(height: 8),
-        const Icon(Icons.mic_off_outlined, size: 40),
-        const SizedBox(height: 12),
-        const Text(
-          'Permission micro refusée',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(height: 1.4),
-        ),
-        const SizedBox(height: 20),
-        if (permanentlyDenied) ...[
-          FilledButton.icon(
-            onPressed: () async {
-              await context.read<VoiceService>().openSystemAppSettings();
-              onClose();
-            },
-            icon: const Icon(Icons.settings_outlined),
-            label: const Text('Ouvrir les paramètres'),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+    final t = AppLocalizations.of(context);
+    return Semantics(
+      liveRegion: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 8),
+          const ExcludeSemantics(
+            child: Icon(Icons.mic_off_outlined, size: 40),
+          ),
+          const SizedBox(height: 12),
+          Semantics(
+            header: true,
+            child: Text(
+              t.voicePermissionDenied,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
             ),
           ),
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: onClose,
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
-            child: const Text('Fermer'),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(height: 1.4),
           ),
-        ] else ...[
-          FilledButton(
-            onPressed: onClose,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+          const SizedBox(height: 20),
+          if (permanentlyDenied) ...[
+            FilledButton.icon(
+              onPressed: () async {
+                await context.read<VoiceService>().openSystemAppSettings();
+                onClose();
+              },
+              icon: const ExcludeSemantics(
+                child: Icon(Icons.settings_outlined),
+              ),
+              label: Text(t.voiceOpenSystemSettings),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
             ),
-            child: const Text('Fermer'),
-          ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: onClose,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(t.commonClose),
+            ),
+          ] else ...[
+            FilledButton(
+              onPressed: onClose,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: Text(t.commonClose),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

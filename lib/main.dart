@@ -59,10 +59,14 @@ Future<void> main() async {
   AppDatabase.instance.useVault(vault);
 
   // Bootstraps en parallèle (~50-100 ms cumulés).
-  final dateInit = initializeDateFormatting('fr_FR');
+  // v1.0 : init FR + EN — la locale active est résolue côté UI via
+  // `AppLocalizations` (suit la locale système ou le choix utilisateur).
+  final dateInitFr = initializeDateFormatting('fr_FR');
+  final dateInitEn = initializeDateFormatting('en_US');
   final settingsInit = SettingsService.create();
   final dbInit = AppDatabase.instance.db;
-  await dateInit;
+  await dateInitFr;
+  await dateInitEn;
   final settings = await settingsInit;
   final Database db = await dbInit;
 

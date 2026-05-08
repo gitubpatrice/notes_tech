@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Demande à l'utilisateur un nom de dossier (création ou renommage).
 ///
@@ -33,36 +34,39 @@ Future<String?> showFolderNameDialog({
   try {
     return await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          maxLength: 64,
-          decoration: InputDecoration(hintText: hint),
-          onSubmitted: (_) {
-            if (canSubmit.value) {
-              Navigator.of(ctx).pop(controller.text.trim());
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Annuler'),
+      builder: (ctx) {
+        final t = AppLocalizations.of(ctx);
+        return AlertDialog(
+          title: Semantics(header: true, child: Text(title)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            maxLength: 64,
+            decoration: InputDecoration(labelText: hint, hintText: hint),
+            onSubmitted: (_) {
+              if (canSubmit.value) {
+                Navigator.of(ctx).pop(controller.text.trim());
+              }
+            },
           ),
-          ValueListenableBuilder<bool>(
-            valueListenable: canSubmit,
-            builder: (_, ok, _) => FilledButton(
-              onPressed: ok
-                  ? () => Navigator.of(ctx).pop(controller.text.trim())
-                  : null,
-              child: const Text('Valider'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(t.commonCancel),
             ),
-          ),
-        ],
-      ),
+            ValueListenableBuilder<bool>(
+              valueListenable: canSubmit,
+              builder: (_, ok, _) => FilledButton(
+                onPressed: ok
+                    ? () => Navigator.of(ctx).pop(controller.text.trim())
+                    : null,
+                child: Text(t.commonValidate),
+              ),
+            ),
+          ],
+        );
+      },
     );
   } finally {
     controller.dispose();
@@ -108,35 +112,36 @@ Future<FolderDeletionChoice?> confirmDeleteFolder({
     context: context,
     builder: (ctx) {
       final cs = Theme.of(ctx).colorScheme;
+      final t = AppLocalizations.of(ctx);
       return AlertDialog(
-        icon: const Icon(Icons.delete_outline),
-        title: Text('Supprimer "$folderName" ?'),
-        content: const Text(
-          'Choisissez ce qu\'il advient des notes contenues dans ce dossier.\n\n'
-          '• Déplacer vers Boîte de réception : aucune note n\'est perdue.\n'
-          '• Supprimer définitivement : dossier ET notes effacés sans '
-          'corbeille — opération irréversible.',
+        icon: const ExcludeSemantics(child: Icon(Icons.delete_outline)),
+        title: Semantics(
+          header: true,
+          child: Text(t.folderDeleteTitle),
         ),
+        content: Text(t.folderDeleteChoiceBody(folderName)),
         actionsOverflowDirection: VerticalDirection.down,
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Annuler'),
+            child: Text(t.commonCancel),
           ),
           TextButton.icon(
             onPressed: () =>
                 Navigator.of(ctx).pop(FolderDeletionChoice.cascadeDelete),
-            icon: Icon(Icons.warning_amber_outlined, color: cs.error),
+            icon: ExcludeSemantics(
+              child: Icon(Icons.warning_amber_outlined, color: cs.error),
+            ),
             label: Text(
-              'Supprimer définitivement',
+              t.folderDeletePermanent,
               style: TextStyle(color: cs.error),
             ),
           ),
           FilledButton.icon(
             onPressed: () =>
                 Navigator.of(ctx).pop(FolderDeletionChoice.moveToInbox),
-            icon: const Icon(Icons.inbox_outlined),
-            label: const Text('Déplacer vers Boîte de réception'),
+            icon: const ExcludeSemantics(child: Icon(Icons.inbox_outlined)),
+            label: Text(t.folderDeleteMoveToInbox),
           ),
         ],
       );

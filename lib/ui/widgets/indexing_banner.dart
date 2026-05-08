@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/indexing_service.dart';
 
 class IndexingBanner extends StatelessWidget {
@@ -44,42 +45,49 @@ class _BannerBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isMiniLm = progress.modelId.startsWith('minilm');
-    final label = isMiniLm
-        ? 'Indexation sémantique'
-        : 'Indexation';
+    final t = AppLocalizations.of(context);
+    final label = t.indexingBannerTitle;
+    final progressLabel = t.indexingBannerProgress(progress.done, progress.total);
     return Material(
       color: theme.colorScheme.primary.withValues(alpha: 0.08),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$label · ${progress.done}/${progress.total}',
-                    style: theme.textTheme.labelMedium,
-                  ),
-                  const SizedBox(height: 4),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: LinearProgressIndicator(
-                      value: progress.ratio,
-                      minHeight: 3,
-                    ),
-                  ),
-                ],
+      child: Semantics(
+        liveRegion: true,
+        label: '$label, $progressLabel',
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              const ExcludeSemantics(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: ExcludeSemantics(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$label · ${progress.done}/${progress.total}',
+                        style: theme.textTheme.labelMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: progress.ratio,
+                          minHeight: 3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

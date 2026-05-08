@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '0.9.13';
+  static const String appVersion = '1.0.0';
   // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
   // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
   // automatiquement par `shared_preferences` au moment de la persistance).
@@ -147,4 +147,8 @@ class AppConstants {
   /// Absent / `false` ⇒ la prochaine ouverture déclenche la migration
   /// d'une éventuelle DB en clair vers une DB chiffrée par la KEK du vault.
   static const String prefKeyDbEncryptedV1 = 'db_encrypted_v1';
+
+  /// Locale forcée par l'utilisateur (`fr` / `en`) ou `system` pour suivre
+  /// la locale du téléphone. v1.0 — i18n FR/EN.
+  static const String prefKeyLocale = 'app_locale';
 }

@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/indexing_service.dart';
 import '../../services/semantic_search_service.dart';
 import '../../services/settings_service.dart';
@@ -109,6 +110,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final semanticEnabled = context.watch<SettingsService>().semanticSearchEnabled;
     // Garde-fou : si l'utilisateur désactive la recherche sémantique pendant
     // qu'il était sur cet onglet, on rebascule en FTS proprement.
@@ -117,23 +119,20 @@ class _SearchScreenState extends State<SearchScreen> {
     });
     return Scaffold(
       appBar: AppBar(
-        title: Semantics(
-          label: 'Champ de recherche avancée',
-          textField: true,
-          child: TextField(
-            controller: _ctrl,
-            autofocus: true,
-            onChanged: _onChanged,
-            enableSuggestions: false,
-            autocorrect: false,
-            textInputAction: TextInputAction.search,
-            decoration: const InputDecoration(
-              hintText: 'Rechercher…',
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              filled: false,
-            ),
+        title: TextField(
+          controller: _ctrl,
+          autofocus: true,
+          onChanged: _onChanged,
+          enableSuggestions: false,
+          autocorrect: false,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            labelText: t.searchTitle,
+            hintText: t.searchHint,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            filled: false,
           ),
         ),
       ),
@@ -144,16 +143,16 @@ class _SearchScreenState extends State<SearchScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
                 child: SegmentedButton<_SearchMode>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: _SearchMode.fts,
-                      icon: Icon(Icons.text_fields),
-                      label: Text('Mots exacts'),
+                      icon: const Icon(Icons.text_fields),
+                      label: Text(t.searchModeFts),
                     ),
                     ButtonSegment(
                       value: _SearchMode.semantic,
-                      icon: Icon(Icons.auto_awesome),
-                      label: Text('Similaires'),
+                      icon: const Icon(Icons.auto_awesome),
+                      label: Text(t.searchModeSemantic),
                     ),
                   ],
                   selected: {_mode},
@@ -161,25 +160,24 @@ class _SearchScreenState extends State<SearchScreen> {
                   onSelectionChanged: (s) => _setMode(s.first),
                 ),
               ),
-            Expanded(child: _buildResults()),
+            Expanded(child: _buildResults(t)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildResults() {
+  Widget _buildResults(AppLocalizations t) {
     final f = _future;
     if (f == null) {
       return EmptyState(
         icon: _mode == _SearchMode.semantic
             ? Icons.auto_awesome
             : Icons.search,
-        title: 'Tapez pour rechercher',
+        title: t.searchEmptyTitle,
         subtitle: _mode == _SearchMode.semantic
-            ? 'La recherche par similarité trouve des notes proches '
-                'même sans le mot exact.'
-            : 'Recherche plein texte instantanée et 100% locale.',
+            ? t.searchEmptySubtitleSemantic
+            : t.searchEmptySubtitleFts,
       );
     }
     return FutureBuilder<List<Note>>(
@@ -189,17 +187,17 @@ class _SearchScreenState extends State<SearchScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snap.hasError) {
-          return const Center(
+          return Center(
               child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Text('Une erreur est survenue.'),
+            padding: const EdgeInsets.all(24),
+            child: Text(t.searchErrorGeneric),
           ));
         }
         final results = snap.data ?? const [];
         if (results.isEmpty) {
-          return const EmptyState(
+          return EmptyState(
             icon: Icons.search_off,
-            title: 'Aucun résultat',
+            title: t.searchEmpty,
           );
         }
         return ListView.separated(

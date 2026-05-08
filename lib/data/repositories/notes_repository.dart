@@ -212,7 +212,7 @@ class NotesRepository {
 
   void _validateTitle(String title) {
     if (title.length > AppConstants.noteTitleMaxLength) {
-      throw const ValidationException('Titre trop long');
+      throw const ValidationException.coded(NotesErrorCode.noteTitleTooLong);
     }
   }
 

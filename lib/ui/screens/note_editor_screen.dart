@@ -21,6 +21,7 @@ import '../../data/models/note.dart';
 import '../../data/models/note_link.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/backlinks_service.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/note_actions.dart';
@@ -128,13 +129,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   Future<void> _load() async {
+    final t = AppLocalizations.of(context);
     try {
       final note = await _repo.get(widget.noteId);
       if (!mounted) return;
       if (note == null) {
         setState(() {
           _loading = false;
-          _error = 'Note introuvable';
+          _error = t.noteEditorErrorNotFound;
         });
         return;
       }
@@ -151,7 +153,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           if (folder == null || !mounted) {
             setState(() {
               _loading = false;
-              _error = 'Dossier coffre introuvable';
+              _error = t.noteEditorErrorVaultFolderMissing;
             });
             return;
           }
@@ -184,14 +186,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error =
-            'Coffre auto-détruit après trop de tentatives ratées. Les notes du dossier sont définitivement perdues.';
+        _error = t.noteEditorErrorVaultWiped;
       });
     } on VaultLockedException {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Coffre re-verrouillé. Rouvrez la note pour réessayer.';
+        _error = t.noteEditorErrorVaultRelocked;
       });
     } catch (e, st) {
       if (!mounted) return;
@@ -202,7 +203,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
       setState(() {
         _loading = false;
-        _error = 'Une erreur est survenue lors du chargement.';
+        _error = t.noteEditorErrorLoadGeneric;
       });
     }
   }
@@ -243,6 +244,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   Future<void> _doSave(Note current, String title, String content) async {
+    final t = AppLocalizations.of(context);
     try {
       // Note du coffre : ré-encrypte le contenu AVANT persistance pour
       // garder l'invariant « toujours chiffré au repos ». Si l'auto-lock
@@ -255,10 +257,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         if (!vault.isUnlocked(toSave.folderId)) {
           if (!mounted) return;
           _savingNotifier.value = false;
-          _showError(
-            'Coffre re-verrouillé pendant l\'édition. '
-            'Ré-ouvrez la note pour reprendre.',
-          );
+          _showError(t.noteEditorErrorVaultRelockedDuringEdit);
           return;
         }
         toSave = await vault.encryptNote(toSave);
@@ -282,7 +281,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     } catch (_) {
       if (!mounted) return;
       _savingNotifier.value = false;
-      _showError('Échec de sauvegarde');
+      _showError(t.noteEditorErrorSaveFailed);
     }
   }
 
@@ -337,10 +336,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   Future<void> _copyMarkdown() async {
     final n = _note;
     if (n == null) return;
+    final t = AppLocalizations.of(context);
     await const NoteActions().copyMarkdown(n);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copié dans le presse-papier')),
+      SnackBar(content: Text(t.noteEditorCopiedToClipboard)),
     );
   }
 
@@ -352,6 +352,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final t = AppLocalizations.of(context);
     // Flush avant export pour ne pas exporter une version stale du contenu.
     await _flushSave();
     final fresh = await _repo.get(n.id);
@@ -390,7 +391,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Export impossible : $e'),
+          content: Text(t.noteEditorExportFailed(e.toString())),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -404,6 +405,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final t = AppLocalizations.of(context);
     final foldersRepo = context.read<FoldersRepository>();
     final targetId = await showMoveToFolderSheet(
       context: context,
@@ -459,8 +461,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             : saved;
       });
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Note déplacée'),
+        SnackBar(
+          content: Text(t.noteEditorMoved),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -468,7 +470,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Déplacement impossible : $e'),
+          content: Text(t.noteEditorMoveFailed(e.toString())),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -563,13 +565,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppLocalizations.of(context);
     if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (_error != null || _note == null) {
       return Scaffold(
         appBar: AppBar(),
-        body: Center(child: Text(_error ?? 'Note introuvable')),
+        body: Center(child: Text(_error ?? t.noteEditorErrorNotFound)),
       );
     }
     final note = _note!;
@@ -583,7 +586,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             // (Enregistrement… → Enregistré) sans que l'utilisateur
             // doive explorer l'AppBar — confort journalistes/seniors.
             liveRegion: true,
-            label: saving ? 'Enregistrement en cours' : 'Note enregistrée',
+            label: saving ? t.noteEditorSaving : t.noteEditorSaved,
             child: Row(
               children: [
                 if (saving)
@@ -593,10 +596,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 else
-                  Icon(Icons.cloud_done_outlined,
-                      size: 16, color: theme.iconTheme.color),
+                  ExcludeSemantics(
+                    child: Icon(Icons.cloud_done_outlined,
+                        size: 16, color: theme.iconTheme.color),
+                  ),
                 const SizedBox(width: 8),
-                Text(saving ? 'Enregistrement…' : 'Enregistré',
+                Text(saving ? t.noteEditorSaving : t.noteEditorSaved,
                     style: theme.textTheme.bodySmall),
               ],
             ),
@@ -604,18 +609,18 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: note.pinned ? 'Désépingler' : 'Épingler',
+            tooltip: note.pinned ? t.homeUnpin : t.noteEditorTooltipPin,
             icon:
                 Icon(note.pinned ? Icons.push_pin : Icons.push_pin_outlined),
             onPressed: _togglePin,
           ),
           IconButton(
-            tooltip: note.favorite ? 'Retirer des favoris' : 'Favori',
+            tooltip: note.favorite ? t.homeUnfav : t.noteEditorTooltipFav,
             icon: Icon(note.favorite ? Icons.star : Icons.star_outline),
             onPressed: _toggleFavorite,
           ),
           IconButton(
-            tooltip: 'Insérer un lien [[note]]',
+            tooltip: t.noteEditorTooltipInsertLink,
             icon: const Icon(Icons.link),
             onPressed: _insertLink,
           ),
@@ -627,16 +632,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           // explicite de fin d'édition.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-            child: FilledButton.tonalIcon(
-              onPressed: _doneEditing,
-              icon: const Icon(Icons.check, size: 18),
-              label: const Text('Terminé'),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Tooltip(
+              message: t.noteEditorTooltipDone,
+              child: FilledButton.tonalIcon(
+                onPressed: _doneEditing,
+                icon: const Icon(Icons.check, size: 18),
+                label: Text(t.noteEditorTooltipDone),
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
               ),
             ),
           ),
           PopupMenuButton<String>(
+            tooltip: t.noteEditorTooltipMore,
             onSelected: (v) {
               switch (v) {
                 case 'move':
@@ -649,33 +658,33 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   _moveToTrash();
               }
             },
-            itemBuilder: (_) => const [
+            itemBuilder: (_) => [
               PopupMenuItem(
                 value: 'move',
                 child: ListTile(
-                  leading: Icon(Icons.drive_file_move_outline),
-                  title: Text('Déplacer vers…'),
+                  leading: const Icon(Icons.drive_file_move_outline),
+                  title: Text(t.noteEditorMenuMove),
                 ),
               ),
               PopupMenuItem(
                 value: 'export',
                 child: ListTile(
-                  leading: Icon(Icons.file_download_outlined),
-                  title: Text('Exporter en Markdown'),
+                  leading: const Icon(Icons.file_download_outlined),
+                  title: Text(t.noteEditorMenuExport),
                 ),
               ),
               PopupMenuItem(
                 value: 'copy',
                 child: ListTile(
-                  leading: Icon(Icons.content_copy),
-                  title: Text('Copier le Markdown'),
+                  leading: const Icon(Icons.content_copy),
+                  title: Text(t.noteEditorMenuCopyMarkdown),
                 ),
               ),
               PopupMenuItem(
                 value: 'trash',
                 child: ListTile(
-                  leading: Icon(Icons.delete_outline),
-                  title: Text('Mettre à la corbeille'),
+                  leading: const Icon(Icons.delete_outline),
+                  title: Text(t.noteEditorMenuTrash),
                 ),
               ),
             ],
@@ -689,53 +698,47 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
-              Semantics(
-                label: 'Titre de la note',
-                textField: true,
+              TextField(
+                controller: _titleCtrl,
+                onChanged: (_) => _scheduleSave(),
+                textInputAction: TextInputAction.next,
+                enableSuggestions: false,
+                autocorrect: false,
+                style: theme.textTheme.titleLarge,
+                decoration: InputDecoration(
+                  labelText: t.noteEditorTitle,
+                  hintText: t.noteEditorTitle,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                inputFormatters: [
+                  LengthLimitingTextInputFormatter(
+                      AppConstants.noteTitleMaxLength),
+                ],
+              ),
+              Divider(color: theme.dividerColor, height: 1),
+              Expanded(
                 child: TextField(
-                  controller: _titleCtrl,
+                  controller: _contentCtrl,
                   onChanged: (_) => _scheduleSave(),
-                  textInputAction: TextInputAction.next,
                   enableSuggestions: false,
                   autocorrect: false,
-                  style: theme.textTheme.titleLarge,
-                  decoration: const InputDecoration(
-                    hintText: 'Titre',
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  keyboardType: TextInputType.multiline,
+                  style: theme.textTheme.bodyLarge,
+                  decoration: InputDecoration(
+                    labelText: t.noteEditorContent,
+                    hintText: t.noteEditorContentHint,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
                     filled: false,
-                    contentPadding: EdgeInsets.symmetric(vertical: 8),
-                  ),
-                  inputFormatters: [
-                    LengthLimitingTextInputFormatter(
-                        AppConstants.noteTitleMaxLength),
-                  ],
-                ),
-              ),
-              Divider(color: theme.dividerColor, height: 1),
-              Expanded(
-                child: Semantics(
-                  label: 'Contenu de la note en Markdown',
-                  textField: true,
-                  child: TextField(
-                    controller: _contentCtrl,
-                    onChanged: (_) => _scheduleSave(),
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    keyboardType: TextInputType.multiline,
-                    style: theme.textTheme.bodyLarge,
-                    decoration: const InputDecoration(
-                      hintText: 'Écrivez en Markdown… ([[Titre]] pour lier)',
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      filled: false,
-                      contentPadding: EdgeInsets.symmetric(vertical: 12),
-                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
               ),

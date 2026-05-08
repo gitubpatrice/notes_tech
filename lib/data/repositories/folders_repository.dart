@@ -31,7 +31,9 @@ class FoldersRepository {
   }) async {
     final trimmed = name.trim();
     if (trimmed.isEmpty) {
-      throw const ValidationException('Le nom du dossier est requis');
+      throw const ValidationException.coded(
+        NotesErrorCode.folderNameRequired,
+      );
     }
     final now = DateTime.now();
     final folder = Folder(
@@ -51,7 +53,9 @@ class FoldersRepository {
   Future<Folder> rename(Folder folder, String newName) async {
     final trimmed = newName.trim();
     if (trimmed.isEmpty) {
-      throw const ValidationException('Le nom du dossier est requis');
+      throw const ValidationException.coded(
+        NotesErrorCode.folderNameRequired,
+      );
     }
     final updated = folder.copyWith(name: trimmed, updatedAt: DateTime.now());
     await _dao.update(updated);

@@ -18,16 +18,21 @@
 /// (plus léger qu'`OutlinedButton`).
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
 import 'sheet_handle.dart';
 import 'vault_passphrase_sheets.dart';
+import 'vault_warning_banner.dart';
 
 // ─── Choix du mode (passphrase vs PIN) ───────────────────────────────
 
@@ -42,6 +47,7 @@ Future<VaultMode?> showVaultModeChooserSheet({
     isScrollControlled: true,
     builder: (ctx) {
       final cs = Theme.of(ctx).colorScheme;
+      final t = AppLocalizations.of(ctx);
       return SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -56,7 +62,7 @@ Future<VaultMode?> showVaultModeChooserSheet({
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Protéger « $folderName »',
+                      t.vaultModeChoose,
                       style: Theme.of(ctx).textTheme.titleMedium,
                     ),
                   ),
@@ -65,25 +71,21 @@ Future<VaultMode?> showVaultModeChooserSheet({
               const SizedBox(height: 16),
               _ModeCard(
                 icon: Icons.password_outlined,
-                title: 'Passphrase',
-                subtitle:
-                    'Phrase secrète 8+ caractères. Robuste seule, '
-                    'recommandé pour secret professionnel.',
+                title: t.vaultModePassphrase,
+                subtitle: t.vaultModePassphraseDesc,
                 onTap: () => Navigator.of(ctx).pop(VaultMode.passphrase),
               ),
               const SizedBox(height: 12),
               _ModeCard(
                 icon: Icons.dialpad_outlined,
-                title: 'Code PIN (4-6 chiffres)',
-                subtitle:
-                    'Pratique au quotidien. Sécurité = device requis '
-                    '+ auto-destruction après 5 tentatives ratées.',
+                title: t.vaultModePin,
+                subtitle: t.vaultModePinDesc,
                 onTap: () => Navigator.of(ctx).pop(VaultMode.pin),
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Annuler'),
+                child: Text(t.commonCancel),
               ),
               const SizedBox(height: 8),
             ],
@@ -213,10 +215,13 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
   }
 
   void _onValidate() {
+    final t = AppLocalizations.of(context);
     final entry = _entryN.value;
     if (entry.length < AppConstants.vaultPinMinLength) {
-      _errorN.value =
-          'Minimum ${AppConstants.vaultPinMinLength} chiffres.';
+      _errorN.value = t.vaultPinTooShort(
+        AppConstants.vaultPinMinLength,
+        AppConstants.vaultPinMaxLength,
+      );
       return;
     }
     if (_stepN.value == _CreateStep.first) {
@@ -228,7 +233,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
     }
     if (entry != _firstPin) {
       _entryN.value = '';
-      _errorN.value = 'Les deux PIN ne correspondent pas. Recommencez.';
+      _errorN.value = t.vaultPinMismatch;
       _firstPin = '';
       _stepN.value = _CreateStep.first;
       return;
@@ -239,6 +244,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -256,8 +262,8 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
                   Expanded(
                     child: Text(
                       step == _CreateStep.first
-                          ? 'Choisir un code PIN pour « ${widget.folderName} »'
-                          : 'Confirmer le code',
+                          ? t.vaultPinCreateTitle
+                          : t.vaultPinConfirmField,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ),
@@ -269,32 +275,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
               valueListenable: _stepN,
               builder: (_, step, _) {
                 if (step != _CreateStep.first) return const SizedBox.shrink();
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: cs.errorContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.warning_amber_outlined,
-                          color: cs.onErrorContainer, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'PIN oublié = données perdues. 5 tentatives '
-                          'ratées détruisent définitivement le coffre.',
-                          style: TextStyle(
-                            color: cs.onErrorContainer,
-                            height: 1.4,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+                return VaultWarningBanner(message: t.vaultPinWarningWipe);
               },
             ),
             const SizedBox(height: 18),
@@ -315,7 +296,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
                   child: Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: cs.error, fontSize: 13),
+                    style: TextStyle(color: cs.error, fontSize: 14),
                   ),
                 );
               },
@@ -336,7 +317,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
             const SizedBox(height: 4),
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Annuler'),
+              child: Text(t.commonCancel),
             ),
             const SizedBox(height: 4),
           ],
@@ -415,10 +396,13 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
 
   Future<void> _onValidate() async {
     if (_busyN.value || _wipedN.value) return;
+    final t = AppLocalizations.of(context);
     final entry = _entryN.value;
     if (entry.length < AppConstants.vaultPinMinLength) {
-      _errorN.value =
-          'Minimum ${AppConstants.vaultPinMinLength} chiffres.';
+      _errorN.value = t.vaultPinTooShort(
+        AppConstants.vaultPinMinLength,
+        AppConstants.vaultPinMaxLength,
+      );
       return;
     }
     // Feedback visuel IMMÉDIAT : flip _busyN avant tout `await` pour
@@ -430,31 +414,41 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
     try {
       await vault.unlockWithPin(folder: widget.folder, pin: entry);
       if (!mounted) return;
+      // A11y : annonce TalkBack que le coffre PIN est déverrouillé.
+      unawaited(
+        SemanticsService.announce(
+          t.homeAnnounceVaultUnlocked,
+          TextDirection.ltr,
+        ),
+      );
       Navigator.of(context).pop(true);
     } on WrongPinException catch (e) {
       if (!mounted) return;
       _busyN.value = false;
       _entryN.value = '';
-      final s = e.attemptsRemaining > 1 ? 's' : '';
       _errorN.value =
-          'PIN incorrect. ${e.attemptsRemaining} tentative$s restante$s.';
+          '${t.vaultPinWrong} ${t.vaultPinAttemptsLeft(e.attemptsRemaining)}';
     } on VaultPinWipedException {
       if (!mounted) return;
       _busyN.value = false;
       _wipedN.value = true;
-      _errorN.value =
-          'Trop de tentatives ratées. Le coffre a été détruit. '
-          'Les données du dossier sont définitivement perdues.';
+      _errorN.value = t.vaultPinWiped;
+      // A11y : annonce critique, l'utilisateur DOIT savoir que le coffre
+      // a été détruit même s'il ne lit pas l'écran.
+      unawaited(
+        SemanticsService.announce(t.vaultPinWiped, TextDirection.ltr),
+      );
     } catch (e) {
       if (!mounted) return;
       _busyN.value = false;
-      _errorN.value = 'Erreur de déverrouillage : $e';
+      _errorN.value = t.commonErrorWith(e.toString());
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -469,18 +463,35 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Code PIN — « ${widget.folder.name} »',
+                    t.vaultPinUnlockTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 4),
+            Text(
+              t.vaultPinUnlockBody(widget.folder.name),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
+            ),
             const SizedBox(height: 18),
             ValueListenableBuilder<String>(
               valueListenable: _entryN,
-              builder: (_, entry, _) => _DotsIndicator(
-                filled: entry.length,
-                max: AppConstants.vaultPinMaxLength,
+              builder: (_, entry, _) => Semantics(
+                liveRegion: true,
+                label: t.vaultPinDigitsAnnounce(
+                  entry.length,
+                  AppConstants.vaultPinMaxLength,
+                ),
+                child: ExcludeSemantics(
+                  child: _DotsIndicator(
+                    filled: entry.length,
+                    max: AppConstants.vaultPinMaxLength,
+                  ),
+                ),
               ),
             ),
             // Spinner busy : feedback visuel immédiat dès _busyN=true,
@@ -489,13 +500,17 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
               valueListenable: _busyN,
               builder: (_, busy, _) {
                 if (!busy) return const SizedBox(height: 12);
-                return const Padding(
-                  padding: EdgeInsets.only(top: 12, bottom: 4),
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
                   child: Center(
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    child: Semantics(
+                      liveRegion: true,
+                      label: t.vaultPassDeriving,
+                      child: const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     ),
                   ),
                 );
@@ -510,7 +525,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
                   child: Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: cs.error, fontSize: 13),
+                    style: TextStyle(color: cs.error, fontSize: 14),
                   ),
                 );
               },
@@ -541,7 +556,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
                   onPressed: busy
                       ? null
                       : () => Navigator.of(context).pop(false),
-                  child: Text(wiped ? 'Fermer' : 'Annuler'),
+                  child: Text(wiped ? t.commonClose : t.commonCancel),
                 ),
               ),
             ),
@@ -645,6 +660,7 @@ class _NumericKeypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return ValueListenableBuilder<bool>(
       valueListenable: disabledListenable,
       builder: (_, disabled, _) {
@@ -676,23 +692,26 @@ class _NumericKeypad extends StatelessWidget {
           );
         }
 
+        Widget digitBtn(String d) =>
+            btn(d, () => onDigit(d), semanticsLabel: t.vaultPinKeyLabel(d));
+
         Widget row(List<Widget> children) =>
             Row(crossAxisAlignment: CrossAxisAlignment.center, children: children);
 
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            row([for (final d in ['1', '2', '3']) btn(d, () => onDigit(d))]),
-            row([for (final d in ['4', '5', '6']) btn(d, () => onDigit(d))]),
-            row([for (final d in ['7', '8', '9']) btn(d, () => onDigit(d))]),
+            row([for (final d in ['1', '2', '3']) digitBtn(d)]),
+            row([for (final d in ['4', '5', '6']) digitBtn(d)]),
+            row([for (final d in ['7', '8', '9']) digitBtn(d)]),
             row([
               btn('', onBackspace,
                   icon: Icons.backspace_outlined,
-                  semanticsLabel: 'Effacer le dernier chiffre'),
-              btn('0', () => onDigit('0')),
+                  semanticsLabel: t.vaultPinKeyDelete),
+              digitBtn('0'),
               btn('', onValidate,
                   icon: Icons.check_circle_outline,
-                  semanticsLabel: 'Valider le code'),
+                  semanticsLabel: t.commonValidate),
             ]),
           ],
         );

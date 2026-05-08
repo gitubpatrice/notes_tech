@@ -175,7 +175,7 @@ packages:
       path: "../files_tech_core"
       relative: true
     source: path
-    version: "0.3.1"
+    version: "0.3.2"
   files_tech_voice:
     dependency: "direct main"
     description:
@@ -220,8 +220,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_localizations:
+    dependency: "direct main"
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_markdown:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: flutter_markdown
       sha256: "08fb8315236099ff8e90cb87bb2b935e0a724a3af1623000a9cec930468e0f27"

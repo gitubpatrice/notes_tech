@@ -1,4 +1,4 @@
-/// Réglages utilisateur : thème, tri par défaut, export, voix.
+/// Réglages utilisateur : thème, langue, tri par défaut, export, voix.
 library;
 
 import 'dart:async';
@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -14,6 +15,7 @@ import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/embedder_coordinator.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/secure_window_service.dart';
@@ -33,49 +35,41 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
+    final t = AppLocalizations.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Réglages')),
+      appBar: AppBar(title: Text(t.settingsTitle)),
       body: ListView(
         children: [
-          _Section(label: 'Apparence', theme: theme),
-          ListTile(
-            leading: const Icon(Icons.dark_mode_outlined),
-            title: const Text('Thème'),
-            subtitle: Text(_themeLabel(settings.themeMode)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showThemeDialog(context, settings),
+          _Section(label: t.settingsSectionAppearance, theme: theme),
+          const _LanguageTile(),
+          const _ThemeTile(),
+          _Section(label: t.homeSortMode, theme: theme),
+          MergeSemantics(
+            child: ListTile(
+              leading: const Icon(Icons.sort),
+              title: Text(t.homeSortMode),
+              subtitle: Text(_localizedSortLabel(t, settings.sortMode)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _showSortDialog(context, settings, t),
+            ),
           ),
-          _Section(label: 'Notes', theme: theme),
-          ListTile(
-            leading: const Icon(Icons.sort),
-            title: const Text('Tri par défaut'),
-            subtitle: Text(settings.sortMode.label),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _showSortDialog(context, settings),
-          ),
-          _Section(label: 'Recherche sémantique', theme: theme),
+          _Section(label: t.searchHeadingSemantic, theme: theme),
           SwitchListTile(
             secondary: const Icon(Icons.auto_awesome_outlined),
-            title: const Text('Mode avancé (MiniLM)'),
-            subtitle: const Text(
-              'Plus pertinent pour les synonymes et les paraphrases. '
-              'La première activation indexe vos notes en arrière-plan.',
-            ),
+            title: Text(t.settingsSemanticSearch),
+            subtitle: Text(t.settingsSemanticSearchSubtitle),
             value: settings.semanticSearchEnabled,
             onChanged: (v) => settings.setSemanticSearchEnabled(v),
           ),
           _SemanticErrorTile(
             error: context.read<EmbedderCoordinator>().lastError,
           ),
-          _Section(label: 'Sécurité', theme: theme),
+          _Section(label: t.settingsSectionSecurity, theme: theme),
           SwitchListTile(
             secondary: const Icon(Icons.visibility_off_outlined),
-            title: const Text('Masquer dans les apps récentes'),
-            subtitle: const Text(
-              'Empêche les captures d\'écran et masque l\'aperçu de l\'app '
-              'dans le sélecteur Android (FLAG_SECURE).',
-            ),
+            title: Text(t.settingsSecureWindow),
+            subtitle: Text(t.settingsSecureWindowSubtitle),
             value: settings.secureWindowEnabled,
             onChanged: (v) async {
               final secure = context.read<SecureWindowService>();
@@ -85,29 +79,28 @@ class SettingsScreen extends StatelessWidget {
           ),
           SwitchListTile(
             secondary: const Icon(Icons.warning_amber_outlined),
-            title: const Text('Accepter un modèle Gemma non vérifié'),
-            subtitle: const Text(
-              'Réglage avancé : permet d\'importer un .task dont le SHA-256 '
-              'ne correspond pas au modèle officiel (variantes, builds tiers). '
-              'À vos risques.',
-            ),
+            title: Text(t.settingsAcceptUnknownGemmaHash),
+            subtitle: Text(t.settingsAcceptUnknownGemmaHashSubtitle),
             value: settings.acceptUnknownGemmaHash,
             onChanged: settings.setAcceptUnknownGemmaHash,
           ),
           const _VaultAutoLockTile(),
-          _Section(label: 'Dictée vocale', theme: theme),
+          _Section(label: t.voiceSetupTitle, theme: theme),
           const _VoiceSection(),
-          _Section(label: 'Exporter mes données', theme: theme),
+          _Section(label: t.settingsExportAll, theme: theme),
           const _ExportSection(),
-          _Section(label: 'Mode panique', theme: theme),
+          _Section(label: t.settingsPanic, theme: theme),
           const _PanicSection(),
-          _Section(label: 'À propos', theme: theme),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('Notes Tech'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+          _Section(label: t.settingsSectionAbout, theme: theme),
+          MergeSemantics(
+            child: ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: Text(t.settingsAbout),
+              subtitle: Text(t.settingsAboutSubtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+              ),
             ),
           ),
         ],
@@ -115,48 +108,31 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  static String _themeLabel(ThemeMode m) => switch (m) {
-        ThemeMode.light => 'Clair',
-        ThemeMode.dark => 'Sombre',
-        ThemeMode.system => 'Système',
+  static String _localizedSortLabel(AppLocalizations t, NoteSortMode m) =>
+      switch (m) {
+        NoteSortMode.updatedDesc => t.homeSortRecentFirst,
+        NoteSortMode.updatedAsc => t.homeSortOldFirst,
+        NoteSortMode.createdDesc => t.homeSortRecentFirst,
+        NoteSortMode.createdAsc => t.homeSortOldFirst,
+        NoteSortMode.titleAsc => t.homeSortAlphaAsc,
+        NoteSortMode.titleDesc => t.homeSortAlphaDesc,
       };
-
-  static Future<void> _showThemeDialog(
-    BuildContext context,
-    SettingsService settings,
-  ) async {
-    final selected = await showDialog<ThemeMode>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Thème'),
-        children: ThemeMode.values
-            .map((m) => ListTile(
-                  leading: Icon(settings.themeMode == m
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked),
-                  title: Text(_themeLabel(m)),
-                  onTap: () => Navigator.of(ctx).pop(m),
-                ))
-            .toList(),
-      ),
-    );
-    if (selected != null) await settings.setThemeMode(selected);
-  }
 
   static Future<void> _showSortDialog(
     BuildContext context,
     SettingsService settings,
+    AppLocalizations t,
   ) async {
     final selected = await showDialog<NoteSortMode>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Tri par défaut'),
+        title: Text(t.homeSortMode),
         children: NoteSortMode.values
             .map((m) => ListTile(
                   leading: Icon(settings.sortMode == m
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked),
-                  title: Text(m.label),
+                  title: Text(_localizedSortLabel(t, m)),
                   onTap: () => Navigator.of(ctx).pop(m),
                 ))
             .toList(),
@@ -166,8 +142,130 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+/// Sélecteur de langue (système / fr / en).
+///
+/// Utilise un PopupMenuButton avec CheckedPopupMenuItem pour signaler
+/// visuellement la sélection courante. Au choix, on appelle
+/// `settings.setLocale(...)` puis on annonce le changement via
+/// `SemanticsService` pour TalkBack/lecteurs d'écran.
+class _LanguageTile extends StatelessWidget {
+  const _LanguageTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsService>();
+    final t = AppLocalizations.of(context);
+    final current = settings.locale?.languageCode ?? 'system';
+
+    String labelFor(String code) => switch (code) {
+          'fr' => t.settingsLanguageFr,
+          'en' => t.settingsLanguageEn,
+          _ => t.settingsLanguageSystem,
+        };
+
+    return MergeSemantics(
+      child: ListTile(
+        leading: const Icon(Icons.language_outlined),
+        title: Text(t.settingsLanguage),
+        subtitle: Text(labelFor(current)),
+        trailing: PopupMenuButton<String>(
+          tooltip: t.settingsLanguage,
+          icon: const Icon(Icons.arrow_drop_down),
+          initialValue: current,
+          onSelected: (code) async {
+            final loc = switch (code) {
+              'fr' => const Locale('fr'),
+              'en' => const Locale('en'),
+              _ => null,
+            };
+            await settings.setLocale(loc);
+            // Annonce dans la nouvelle langue choisie (utile pour TalkBack).
+            final announcement = switch (code) {
+              'en' => t.settingsLanguageChangedEn,
+              _ => t.settingsLanguageChangedFr,
+            };
+            unawaited(
+              SemanticsService.announce(announcement, TextDirection.ltr),
+            );
+          },
+          itemBuilder: (_) => [
+            CheckedPopupMenuItem<String>(
+              value: 'system',
+              checked: current == 'system',
+              child: Text(t.settingsLanguageSystem),
+            ),
+            CheckedPopupMenuItem<String>(
+              value: 'fr',
+              checked: current == 'fr',
+              child: Text(t.settingsLanguageFr),
+            ),
+            CheckedPopupMenuItem<String>(
+              value: 'en',
+              checked: current == 'en',
+              child: Text(t.settingsLanguageEn),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Sélecteur de thème (système / clair / sombre) en PopupMenuButton.
+class _ThemeTile extends StatelessWidget {
+  const _ThemeTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.watch<SettingsService>();
+    final t = AppLocalizations.of(context);
+    final current = settings.themeMode;
+
+    String labelFor(ThemeMode m) => switch (m) {
+          ThemeMode.light => t.settingsThemeLight,
+          ThemeMode.dark => t.settingsThemeDark,
+          ThemeMode.system => t.settingsThemeSystem,
+        };
+
+    return MergeSemantics(
+      child: ListTile(
+        leading: const Icon(Icons.dark_mode_outlined),
+        title: Text(t.settingsTheme),
+        subtitle: Text(labelFor(current)),
+        trailing: PopupMenuButton<ThemeMode>(
+          tooltip: t.settingsTheme,
+          icon: const Icon(Icons.arrow_drop_down),
+          initialValue: current,
+          onSelected: (m) async {
+            await settings.setThemeMode(m);
+            unawaited(
+              SemanticsService.announce(labelFor(m), TextDirection.ltr),
+            );
+          },
+          itemBuilder: (_) => [
+            CheckedPopupMenuItem<ThemeMode>(
+              value: ThemeMode.system,
+              checked: current == ThemeMode.system,
+              child: Text(t.settingsThemeSystem),
+            ),
+            CheckedPopupMenuItem<ThemeMode>(
+              value: ThemeMode.light,
+              checked: current == ThemeMode.light,
+              child: Text(t.settingsThemeLight),
+            ),
+            CheckedPopupMenuItem<ThemeMode>(
+              value: ThemeMode.dark,
+              checked: current == ThemeMode.dark,
+              child: Text(t.settingsThemeDark),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Tuile d'avertissement affichée quand l'activation de MiniLM a échoué.
-/// Visible seulement si `error.value != null`.
 class _SemanticErrorTile extends StatelessWidget {
   const _SemanticErrorTile({required this.error});
   final ValueListenable<String?> error;
@@ -198,81 +296,76 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(label.toUpperCase(),
-          style: theme.textTheme.labelMedium?.copyWith(
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w600,
-          )),
+      child: Semantics(
+        header: true,
+        child: Text(label.toUpperCase(),
+            style: theme.textTheme.labelMedium?.copyWith(
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w600,
+            )),
+      ),
     );
   }
 }
 
 /// Section "Dictée vocale" : présence du modèle Whisper, changer/désinstaller.
-///
-/// Trois états visuels :
-/// - **Pas de modèle** : un seul ListTile "Activer la dictée vocale" qui
-///   pousse [VoiceSetupScreen].
-/// - **Modèle installé** : ListTile descriptif (nom + taille) + ListTile
-///   "Changer de modèle" + ListTile "Désinstaller le modèle".
-/// - **Erreur transitoire** : pas affichée ici (overlay capture s'en occupe).
-///
-/// Le widget écoute [VoiceService] via `Consumer` pour rebuild automatique
-/// après import / désinstallation / changement de modèle.
 class _VoiceSection extends StatelessWidget {
   const _VoiceSection();
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Consumer<VoiceService>(
       builder: (context, voice, _) {
         final model = voice.activeModel;
         if (model == null) {
-          return ListTile(
-            leading: const Icon(Icons.mic_none_outlined),
-            title: const Text('Activer la dictée vocale'),
-            subtitle: const Text(
-              'Importez un modèle Whisper pour dicter vos notes hors-ligne.',
+          return MergeSemantics(
+            child: ListTile(
+              leading: const Icon(Icons.mic_none_outlined),
+              title: Text(t.voiceSetupEnable),
+              subtitle: Text(t.voiceSetupSubtitle),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _openSetup(context),
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _openSetup(context),
           );
         }
         return Column(
           children: [
-            ListTile(
-              leading: const Icon(Icons.mic_outlined),
-              title: const Text('Modèle actif'),
-              subtitle: Text(
-                '${model.displayName}\n'
-                '${_formatSize(model.sizeBytes)}',
+            MergeSemantics(
+              child: ListTile(
+                leading: const Icon(Icons.mic_outlined),
+                title: Text(t.aiChatModelLoaded),
+                subtitle: Text(
+                  '${model.displayName}\n${_formatSize(model.sizeBytes)}',
+                ),
+                isThreeLine: true,
               ),
-              isThreeLine: true,
             ),
-            ListTile(
-              leading: const Icon(Icons.swap_horiz_outlined),
-              title: const Text('Changer de modèle'),
-              subtitle: const Text(
-                'Remplace le modèle actuel par un autre fichier .bin.',
+            MergeSemantics(
+              child: ListTile(
+                leading: const Icon(Icons.swap_horiz_outlined),
+                title: Text(t.voiceSetupChooseModel),
+                subtitle: Text(t.voiceSetupSelectFile),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _openSetup(context),
               ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _openSetup(context),
             ),
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              title: Text(
-                'Désinstaller le modèle',
-                style: TextStyle(
+            MergeSemantics(
+              child: ListTile(
+                leading: Icon(
+                  Icons.delete_outline,
                   color: Theme.of(context).colorScheme.error,
                 ),
+                title: Text(
+                  t.voiceSetupRemove,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                subtitle: Text(_formatSize(model.sizeBytes)),
+                onTap: () =>
+                    _confirmUninstall(context, voice, model.displayName, t),
               ),
-              subtitle: Text(
-                'Libère ${_formatSize(model.sizeBytes)}. La dictée vocale '
-                'sera désactivée jusqu\'à un nouvel import.',
-              ),
-              onTap: () => _confirmUninstall(context, voice, model.displayName),
             ),
           ],
         );
@@ -290,24 +383,22 @@ class _VoiceSection extends StatelessWidget {
     BuildContext context,
     VoiceService voice,
     String displayName,
+    AppLocalizations t,
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         icon: const Icon(Icons.delete_outline),
-        title: const Text('Désinstaller le modèle ?'),
-        content: Text(
-          'Le fichier "$displayName" sera supprimé du téléphone. '
-          'Vous pourrez le réimporter plus tard si besoin.',
-        ),
+        title: Text(t.voiceSetupRemove),
+        content: Text(displayName),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Annuler'),
+            child: Text(t.commonCancel),
           ),
           FilledButton.tonal(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Désinstaller'),
+            child: Text(t.commonRemove),
           ),
         ],
       ),
@@ -316,16 +407,13 @@ class _VoiceSection extends StatelessWidget {
     await voice.uninstallActiveModel();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Modèle désinstallé.'),
+      SnackBar(
+        content: Text(t.voiceSetupRemove),
         behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
-  /// Affiche une taille en Mo arrondie à l'entier le plus proche. Cohérent
-  /// avec l'affichage utilisé dans `voice_setup_screen.dart` (catalogue
-  /// mentionne "57 Mo", pas "57.3 Mo").
   static String _formatSize(int bytes) {
     final mb = (bytes / (1024 * 1024)).round();
     return '$mb Mo';
@@ -333,21 +421,6 @@ class _VoiceSection extends StatelessWidget {
 }
 
 /// Section "Exporter mes données" : portabilité Markdown.
-///
-/// Trois actions :
-/// - Export d'une note unique : se fait depuis l'éditeur (menu "..."),
-///   pas ici. Cette section n'expose que les actions globales.
-/// - Export de TOUTES les notes vivantes (hors corbeille) en ZIP avec
-///   arborescence par dossier + frontmatter YAML compatible Obsidian.
-///
-/// Garanties :
-/// - Aucun envoi réseau : le fichier est écrit dans le tmp privé app
-///   puis transmis au sheet de partage Android (Intent OS).
-/// - Pas d'accès aux notes en corbeille (rétention 30 j respectée — si
-///   l'utilisateur veut les exporter, il restaure d'abord).
-/// - Le fichier ZIP est chiffré uniquement par le système Android (zone
-///   tmp privée). Une fois partagé, c'est l'app cible (Drive, mail) qui
-///   gère sa sécurité — c'est un trade-off explicite de l'export.
 class _ExportSection extends StatefulWidget {
   const _ExportSection();
 
@@ -360,13 +433,13 @@ class _ExportSectionState extends State<_ExportSection> {
 
   Future<void> _exportAllAsZip() async {
     if (_busy) return;
+    final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final notesRepo = context.read<NotesRepository>();
     final foldersRepo = context.read<FoldersRepository>();
+    final vault = context.read<FolderVaultService>();
     setState(() => _busy = true);
     try {
-      // 1. Récupère toutes les notes vivantes (hors corbeille — rétention
-      //    préservée) + index id→Folder pour résoudre les noms.
       final notes = await notesRepo.listAllAlive();
       final folders = await foldersRepo.listAll();
       final foldersById = <String, Folder>{
@@ -376,23 +449,25 @@ class _ExportSectionState extends State<_ExportSection> {
       if (notes.isEmpty) {
         if (!mounted) return;
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Aucune note à exporter.'),
+          SnackBar(
+            content: Text(t.homeNoNotes),
             behavior: SnackBarBehavior.floating,
           ),
         );
         return;
       }
 
-      // 2. Encode le ZIP **dans un isolate** : ZipEncoder est CPU-bound
-      //    pur, le faire sur le thread UI provoque un jank de plusieurs
-      //    centaines de ms à plusieurs secondes (S9, POCO C75) avec un
-      //    spinner qui ne tourne pas. Le `compute()` libère le main, le
-      //    CircularProgressIndicator du `_busy` reste fluide.
-      final zipBytes = await NoteExportService.exportAsZipInIsolate(
+      final result = await const NoteExportService().exportAllAsZip(
         notes: notes,
         foldersById: foldersById,
+        vault: vault,
+        inboxFallbackName: t.homeFolderInbox,
+        // Template `{folder}` substitué dans l'isolate (intl AppLocalizations
+        // n'est pas accessible cross-isolate → on passe la chaîne déjà
+        // localisée avec un placeholder simple).
+        vaultMentionTemplate: t.exportNoteFromVault('{folder}'),
       );
+      final zipBytes = result.zipBytes;
       final tmpDir = await getTemporaryDirectory();
       final ts = DateTime.now()
           .toIso8601String()
@@ -402,16 +477,20 @@ class _ExportSectionState extends State<_ExportSection> {
       final file = File('${tmpDir.path}/notes-tech-export-$ts.zip');
       await file.writeAsBytes(zipBytes, flush: true);
 
-      // 3. Transmet à Android via Intent (Drive, mail, USB...).
       if (!mounted) return;
       try {
         await Share.shareXFiles(
           [XFile(file.path, mimeType: 'application/zip')],
-          subject: 'Export Notes Tech (${notes.length} notes)',
+          subject: t.exportShareSubject(notes.length),
+        );
+        if (!mounted) return;
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(t.settingsExportDone(notes.length)),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       } finally {
-        // Cleanup best-effort : le ZIP peut peser plusieurs Mo. On évite
-        // l'accumulation entre deux purges automatiques d'Android.
         try {
           if (await file.exists()) await file.delete();
         } catch (_) {/* best-effort */}
@@ -420,7 +499,7 @@ class _ExportSectionState extends State<_ExportSection> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Export impossible : $e'),
+          content: Text(t.settingsExportError(e.toString())),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -431,34 +510,29 @@ class _ExportSectionState extends State<_ExportSection> {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: const Icon(Icons.archive_outlined),
-      title: const Text('Exporter toutes mes notes (.zip)'),
-      subtitle: const Text(
-        'Markdown + frontmatter YAML compatible Obsidian. '
-        'Arborescence par dossier. Notes en corbeille exclues.',
+    final t = AppLocalizations.of(context);
+    return MergeSemantics(
+      child: ListTile(
+        leading: const Icon(Icons.archive_outlined),
+        title: Text(t.settingsExportAll),
+        subtitle: Text(t.settingsExportSubtitle),
+        trailing: _busy
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Tooltip(
+                message: t.commonShare,
+                child: const Icon(Icons.share_outlined),
+              ),
+        onTap: _busy ? null : _exportAllAsZip,
       ),
-      trailing: _busy
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.share_outlined),
-      onTap: _busy ? null : _exportAllAsZip,
     );
   }
 }
 
 /// Section "Mode panique" : trigger d'effacement irréversible.
-///
-/// UI volontairement austère et discrète (pas de FAB rouge clignotant) :
-/// - Tile en couleur d'erreur pour signaler la nature destructrice.
-/// - Confirmation par phrase tapée (cf. `confirmPanicDialog`).
-/// - Pendant l'exécution : Scaffold de blocage (impossible de revenir
-///   en arrière). À la fin : navigation `pushReplacement` vers
-///   PanicCompleteScreen — la pile précédente référence des objets dont
-///   les données sont détruites.
 class _PanicSection extends StatefulWidget {
   const _PanicSection();
 
@@ -475,15 +549,8 @@ class _PanicSectionState extends State<_PanicSection> {
     final confirmed = await confirmPanicDialog(context);
     if (confirmed != true || !mounted) return;
 
-    // Affiche un loader bloquant pendant l'exécution. Le mode panique
-    // doit aboutir en quelques secondes même sur S9 — Gemma uninstall
-    // (~530 Mo delete) + DB wipe (zeroize + delete) + tmp purge.
     setState(() => _running = true);
     final navigator = Navigator.of(context);
-    // `unawaited` explicite : le dialog est non-bloquant côté code, mais
-    // visuellement modal côté utilisateur. On le ferme manuellement après
-    // `panic.trigger()`. Pas de `await` ici sinon on attendrait la
-    // fermeture du dialog (ce qui n'arrive jamais sans pop manuel).
     unawaited(
       showDialog<void>(
         context: context,
@@ -495,16 +562,10 @@ class _PanicSectionState extends State<_PanicSection> {
     try {
       await panic.trigger();
     } catch (_) {
-      // Tous les steps sont best-effort dans PanicService.trigger ;
-      // l'exception est cosmétique (ne devrait pas remonter), mais
-      // on ne veut pas planter ici. La séquence a au minimum tenté
-      // de détruire la KEK.
+      // best-effort
     }
     if (!mounted) return;
-    // Ferme le dialogue de progression PUIS remplace la stack pour que
-    // l'utilisateur ne puisse pas revenir sur Settings (les services
-    // sont vides désormais).
-    navigator.pop(); // ferme le dialog
+    navigator.pop();
     await navigator.pushAndRemoveUntil<void>(
       MaterialPageRoute<void>(builder: (_) => const PanicCompleteScreen()),
       (_) => false,
@@ -514,52 +575,50 @@ class _PanicSectionState extends State<_PanicSection> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return ListTile(
-      leading: Icon(Icons.local_fire_department_outlined, color: cs.error),
-      title: Text(
-        'Tout effacer maintenant',
-        style: TextStyle(color: cs.error, fontWeight: FontWeight.w600),
+    final t = AppLocalizations.of(context);
+    return MergeSemantics(
+      child: ListTile(
+        leading: Icon(Icons.local_fire_department_outlined, color: cs.error),
+        title: Text(
+          t.settingsPanic,
+          style: TextStyle(color: cs.error, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(t.settingsPanicSubtitle),
+        trailing: _running
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(Icons.chevron_right, color: cs.error),
+        onTap: _running ? null : _trigger,
       ),
-      subtitle: const Text(
-        'Détruit notes + clé maître + modèles IA + préférences en quelques '
-        'secondes. Action irréversible — confirmation par mot tapé.',
-      ),
-      trailing: _running
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(Icons.chevron_right, color: cs.error),
-      onTap: _running ? null : _trigger,
     );
   }
 }
 
-/// Dialogue modal pendant l'exécution de la panique. PopScope bloque le
-/// retour — l'utilisateur ne doit pas pouvoir interrompre l'effacement
-/// en cours (sinon état partiellement détruit, rare mais possible).
 class _PanicProgressDialog extends StatelessWidget {
   const _PanicProgressDialog();
 
   @override
   Widget build(BuildContext context) {
-    return const PopScope(
+    final t = AppLocalizations.of(context);
+    return PopScope(
       canPop: false,
       child: AlertDialog(
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
             Text(
-              'Effacement en cours…',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              t.panicProgress,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            SizedBox(height: 4),
+            const SizedBox(height: 4),
             Text(
-              'Quelques secondes.',
-              style: TextStyle(fontSize: 12),
+              t.panicProgressSubtitle,
+              style: const TextStyle(fontSize: 12),
             ),
           ],
         ),
@@ -569,39 +628,35 @@ class _PanicProgressDialog extends StatelessWidget {
 }
 
 /// Tuile « Verrouillage auto des coffres » dans la section Sécurité.
-/// Permet à l'utilisateur de choisir un délai d'inactivité après lequel
-/// les coffres déverrouillés se reverrouillent automatiquement.
 class _VaultAutoLockTile extends StatelessWidget {
   const _VaultAutoLockTile();
 
-  static const _options = [
-    (label: 'Jamais', minutes: 0),
-    (label: '5 minutes', minutes: 5),
-    (label: '15 minutes', minutes: 15),
-    (label: '30 minutes', minutes: 30),
-    (label: '60 minutes', minutes: 60),
-  ];
+  static const _options = <int>[0, 5, 15, 30, 60];
+
+  String _labelFor(AppLocalizations t, int minutes) =>
+      minutes == 0 ? t.settingsVaultAutoLockNever : t.settingsVaultAutoLockMinutes(minutes);
 
   Future<void> _showPicker(
     BuildContext context,
     SettingsService settings,
     FolderVaultService vault,
+    AppLocalizations t,
   ) async {
     final current = settings.vaultAutoLockMinutes;
     final selected = await showDialog<int>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Verrouillage automatique'),
+        title: Text(t.settingsVaultAutoLock),
         children: _options
             .map(
-              (o) => ListTile(
+              (minutes) => ListTile(
                 leading: Icon(
-                  current == o.minutes
+                  current == minutes
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
                 ),
-                title: Text(o.label),
-                onTap: () => Navigator.of(ctx).pop(o.minutes),
+                title: Text(_labelFor(t, minutes)),
+                onTap: () => Navigator.of(ctx).pop(minutes),
               ),
             )
             .toList(),
@@ -609,26 +664,22 @@ class _VaultAutoLockTile extends StatelessWidget {
     );
     if (selected == null) return;
     await settings.setVaultAutoLockMinutes(selected);
-    // Propage au service pour replanifier le timer en cours.
     vault.setAutoLockAfter(Duration(minutes: selected));
   }
-
-  String _labelFor(int minutes) =>
-      _options.firstWhere((o) => o.minutes == minutes).label;
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsService>();
     final vault = context.read<FolderVaultService>();
-    return ListTile(
-      leading: const Icon(Icons.lock_clock_outlined),
-      title: const Text('Verrouillage automatique des coffres'),
-      subtitle: Text(
-        'Après ${_labelFor(settings.vaultAutoLockMinutes).toLowerCase()} '
-        'd\'inactivité.',
+    final t = AppLocalizations.of(context);
+    return MergeSemantics(
+      child: ListTile(
+        leading: const Icon(Icons.lock_clock_outlined),
+        title: Text(t.settingsVaultAutoLock),
+        subtitle: Text(_labelFor(t, settings.vaultAutoLockMinutes)),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _showPicker(context, settings, vault, t),
       ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _showPicker(context, settings, vault),
     );
   }
 }

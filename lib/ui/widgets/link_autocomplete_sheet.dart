@@ -12,6 +12,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../data/models/note.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/backlinks_service.dart';
 import '../../utils/debouncer.dart';
 
@@ -96,6 +97,7 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final viewInsets = MediaQuery.viewInsetsOf(context);
     final query = _ctrl.text.trim();
     return Padding(
@@ -108,19 +110,26 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Semantics(
-                label: 'Titre de la note à lier',
-                textField: true,
-                child: TextField(
-                  controller: _ctrl,
-                  autofocus: true,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _onSubmit(query),
-                  decoration: const InputDecoration(
-                    hintText: 'Titre de note…',
-                    prefixIcon: Icon(Icons.link),
+                header: true,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    t.linkAutocompleteTitle,
+                    style: Theme.of(context).textTheme.titleMedium,
                   ),
+                ),
+              ),
+              TextField(
+                controller: _ctrl,
+                autofocus: true,
+                enableSuggestions: false,
+                autocorrect: false,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _onSubmit(query),
+                decoration: InputDecoration(
+                  labelText: t.linkAutocompleteHint,
+                  hintText: t.linkAutocompleteHint,
+                  prefixIcon: const Icon(Icons.link),
                 ),
               ),
               const SizedBox(height: 12),
@@ -134,14 +143,25 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
                     final notes = snap.data ?? const <Note>[];
                     final showCreate =
                         query.isNotEmpty && _isExactMatchAbsent(notes, query);
+                    if (notes.isEmpty && !showCreate) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          t.linkAutocompleteEmpty,
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    }
                     return ListView(
                       shrinkWrap: true,
                       children: [
                         for (final n in notes)
                           ListTile(
-                            leading: const Icon(Icons.description_outlined),
+                            leading: const ExcludeSemantics(
+                              child: Icon(Icons.description_outlined),
+                            ),
                             title: Text(
-                              n.title.isEmpty ? 'Sans titre' : n.title,
+                              n.title.isEmpty ? t.noteUntitled : n.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -151,8 +171,10 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
                           ),
                         if (showCreate)
                           ListTile(
-                            leading: const Icon(Icons.add),
-                            title: Text('Créer « $query »'),
+                            leading: const ExcludeSemantics(
+                              child: Icon(Icons.add),
+                            ),
+                            title: Text(t.linkAutocompleteCreateNew(query)),
                             onTap: () => Navigator.of(context).pop(
                               LinkAutocompleteResult.create(query),
                             ),

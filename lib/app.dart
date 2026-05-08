@@ -1,4 +1,4 @@
-/// Widget racine — branchement thème + écran d'accueil + lifecycle.
+/// Widget racine — branchement thème + locale + écran d'accueil + lifecycle.
 library;
 
 import 'package:flutter/material.dart';
@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'core/constants.dart';
 import 'core/theme.dart';
+import 'l10n/app_localizations.dart';
 import 'services/security/folder_vault_service.dart';
 import 'services/settings_service.dart';
 import 'ui/screens/home_screen.dart';
@@ -47,14 +48,41 @@ class _NotesTechAppState extends State<NotesTechApp>
 
   @override
   Widget build(BuildContext context) {
-    final settings = context.watch<SettingsService>();
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      themeMode: settings.themeMode,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      home: const HomeScreen(),
+    // Selector ciblé : ne reconstruit que sur changement themeMode/locale,
+    // pas sur sortMode/semanticSearchEnabled/secureWindowEnabled/auto-lock
+    // (audit perf P1-3 : context.watch<SettingsService>() reconstruisait
+    // tout le MaterialApp à chaque changement, même non-théme/non-locale).
+    return Selector<SettingsService, _AppSettingsTuple>(
+      selector: (_, s) => _AppSettingsTuple(s.themeMode, s.locale),
+      builder: (_, settings, _) {
+        return MaterialApp(
+          title: AppConstants.appName,
+          debugShowCheckedModeBanner: false,
+          themeMode: settings.themeMode,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          locale: settings.locale,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const HomeScreen(),
+        );
+      },
     );
   }
+}
+
+@immutable
+class _AppSettingsTuple {
+  const _AppSettingsTuple(this.themeMode, this.locale);
+  final ThemeMode themeMode;
+  final Locale? locale;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _AppSettingsTuple &&
+      other.themeMode == themeMode &&
+      other.locale?.languageCode == locale?.languageCode;
+
+  @override
+  int get hashCode => Object.hash(themeMode, locale?.languageCode);
 }

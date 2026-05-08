@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../data/repositories/folders_repository.dart';
+import '../../l10n/app_localizations.dart';
 
 /// Présente la liste des dossiers et retourne l'id sélectionné.
 /// Inclut systématiquement « Boîte de réception » même si elle n'apparaît
@@ -48,12 +49,13 @@ class _MoveSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     // Ordre : Inbox d'abord (toujours présente), puis dossiers utilisateur.
     final inbox = folders.firstWhere(
       (f) => f.id == AppConstants.inboxFolderId,
       orElse: () => Folder(
         id: AppConstants.inboxFolderId,
-        name: 'Boîte de réception',
+        name: t.homeFolderInbox,
         createdAt: DateTime.fromMillisecondsSinceEpoch(0),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
       ),
@@ -69,37 +71,50 @@ class _MoveSheet extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
               children: [
-                Icon(Icons.drive_file_move_outline, color: cs.primary),
+                ExcludeSemantics(
+                  child: Icon(Icons.drive_file_move_outline, color: cs.primary),
+                ),
                 const SizedBox(width: 12),
-                Text(
-                  'Déplacer vers…',
-                  style: Theme.of(context).textTheme.titleMedium,
+                Semantics(
+                  header: true,
+                  child: Text(
+                    t.moveToFolderTitle,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
               ],
             ),
           ),
           const Divider(height: 1),
           Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                _FolderTile(
-                  icon: Icons.inbox_outlined,
-                  name: inbox.name,
-                  selected: currentFolderId == inbox.id,
-                  onTap: () => Navigator.of(context).pop(inbox.id),
-                ),
-                if (others.isNotEmpty) const Divider(height: 1),
-                ...others.map(
-                  (f) => _FolderTile(
-                    icon: Icons.folder_outlined,
-                    name: f.name,
-                    selected: currentFolderId == f.id,
-                    onTap: () => Navigator.of(context).pop(f.id),
+            child: folders.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      t.moveToFolderEmpty,
+                      textAlign: TextAlign.center,
+                    ),
+                  )
+                : ListView(
+                    shrinkWrap: true,
+                    children: [
+                      _FolderTile(
+                        icon: Icons.inbox_outlined,
+                        name: inbox.name,
+                        selected: currentFolderId == inbox.id,
+                        onTap: () => Navigator.of(context).pop(inbox.id),
+                      ),
+                      if (others.isNotEmpty) const Divider(height: 1),
+                      ...others.map(
+                        (f) => _FolderTile(
+                          icon: Icons.folder_outlined,
+                          name: f.name,
+                          selected: currentFolderId == f.id,
+                          onTap: () => Navigator.of(context).pop(f.id),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 8),
         ],

@@ -17,6 +17,24 @@ class SettingsService extends ChangeNotifier {
     return SettingsService(prefs);
   }
 
+  // -------- Locale (v1.0) --------
+  /// Locale forcée par l'utilisateur (`fr` / `en`) ou `null` pour suivre
+  /// la locale système. Persistée sous `AppConstants.prefKeyLocale`.
+  Locale? get locale {
+    final raw = _prefs.getString(AppConstants.prefKeyLocale);
+    return switch (raw) {
+      'fr' => const Locale('fr'),
+      'en' => const Locale('en'),
+      _ => null,
+    };
+  }
+
+  Future<void> setLocale(Locale? locale) async {
+    final raw = locale?.languageCode ?? 'system';
+    await _prefs.setString(AppConstants.prefKeyLocale, raw);
+    notifyListeners();
+  }
+
   // -------- Theme --------
   ThemeMode get themeMode {
     final raw = _prefs.getString(AppConstants.prefKeyThemeMode);

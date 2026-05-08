@@ -10,6 +10,7 @@ import '../../core/constants.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
@@ -171,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openNew() async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final t = AppLocalizations.of(context);
     final vault = context.read<FolderVaultService>();
     // Note créée dans le dossier actif. Si l'utilisateur est sur « Toutes
     // les notes », on retombe sur l'inbox (dossier par défaut, indélébile)
@@ -207,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Création coffre impossible : $e'),
+            content: Text(t.homeVaultCreateError(e.toString())),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -223,10 +225,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     if (isAllScope) {
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Note créée dans Boîte de réception'),
+        SnackBar(
+          content: Text(t.homeNoteCreatedInInbox),
           behavior: SnackBarBehavior.floating,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -241,6 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppLocalizations.of(context);
     return Scaffold(
       drawer: FoldersDrawer(
         currentFolderId: _currentFolderId,
@@ -250,24 +253,27 @@ class _HomeScreenState extends State<HomeScreen> {
         // Titre dynamique : nom du dossier actif si filtré, sinon nom de
         // l'app. Plus efficace qu'un FutureBuilder dans le titre — le
         // nom est mis en cache via `_refreshCurrentFolderName`.
-        title: Text(_currentFolderName ?? AppConstants.appName),
+        title: Semantics(
+          header: true,
+          child: Text(_currentFolderName ?? AppConstants.appName),
+        ),
         actions: [
           IconButton(
-            tooltip: 'Demander à mes notes',
+            tooltip: t.homeAskAi,
             icon: const Icon(Icons.psychology_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const AiChatScreen()),
             ),
           ),
           IconButton(
-            tooltip: 'Recherche avancée',
+            tooltip: t.searchTitle,
             icon: const Icon(Icons.travel_explore),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
             ),
           ),
           IconButton(
-            tooltip: 'Réglages',
+            tooltip: t.settingsTitle,
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
@@ -278,7 +284,8 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openNew,
         icon: const Icon(Icons.edit_outlined),
-        label: const Text('Nouvelle note'),
+        label: Text(t.homeNewNote),
+        tooltip: t.homeNewNote,
       ),
       body: SafeArea(
         child: Column(
@@ -287,7 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Semantics(
-                label: 'Champ de recherche dans toutes les notes',
+                label: t.homeSearchHint,
                 textField: true,
                 child: TextField(
                   controller: _searchCtrl,
@@ -296,15 +303,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   enableSuggestions: false,
                   autocorrect: false,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search),
-                    // Hint constant : la recherche couvre toujours TOUTES
-                    // les notes, indépendamment du filtre dossier
-                    // (cf. _reload).
-                    hintText: 'Rechercher dans toutes les notes',
+                    // labelText persistant pour qu'un lecteur d'écran
+                    // énonce toujours le rôle du champ, même rempli.
+                    labelText: t.homeSearchHint,
+                    prefixIcon: const ExcludeSemantics(
+                      child: Icon(Icons.search),
+                    ),
                     suffixIcon: _searchCtrl.text.isEmpty
                         ? null
                         : IconButton(
-                            tooltip: 'Effacer la recherche',
+                            tooltip: t.searchClear,
                             icon: const Icon(Icons.close),
                             onPressed: () {
                               _searchCtrl.clear();
@@ -320,14 +328,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 future: _future,
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return Center(
+                      child: Semantics(
+                        label: t.commonLoading,
+                        child: const CircularProgressIndicator(),
+                      ),
+                    );
                   }
                   if (snap.hasError) {
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text(
-                          'Une erreur est survenue lors du chargement.',
+                          t.homeLoadError,
                           style: theme.textTheme.bodySmall,
                           textAlign: TextAlign.center,
                         ),
@@ -342,13 +355,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           ? Icons.note_alt_outlined
                           : Icons.search_off,
                       title: _query.isEmpty
-                          ? (inFolder
-                              ? 'Aucune note dans ce dossier'
-                              : 'Aucune note pour le moment')
-                          : 'Aucun résultat',
+                          ? (inFolder ? t.homeNoNotesIn : t.homeNoNotes)
+                          : t.searchEmpty,
                       subtitle: _query.isEmpty
-                          ? 'Touchez « Nouvelle note » pour démarrer.'
-                          : 'Essayez d\'autres mots-clés.',
+                          ? t.homeStartWriting
+                          : t.searchTryOther,
                     );
                   }
                   // En mode "Toutes les notes" (et en recherche globale),
@@ -364,12 +375,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final n = notes[i];
-                      return NoteCard(
-                        note: n,
-                        onTap: () => _open(n),
-                        folderName: showFolderBadge
-                            ? _folderNamesById[n.folderId]
-                            : null,
+                      // MergeSemantics groupe titre + date + tags + badge
+                      // dossier en un seul nœud accessible — un swipe
+                      // TalkBack lit la carte d'un coup au lieu d'égrener.
+                      return MergeSemantics(
+                        child: NoteCard(
+                          note: n,
+                          onTap: () => _open(n),
+                          folderName: showFolderBadge
+                              ? _folderNamesById[n.folderId]
+                              : null,
+                        ),
                       );
                     },
                   );

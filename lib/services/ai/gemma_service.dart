@@ -31,6 +31,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../core/constants.dart';
+import '../../core/exceptions.dart';
 
 class GemmaService {
   GemmaService({String expectedSha256 = AppConstants.gemmaModelSha256})
@@ -127,20 +128,14 @@ class GemmaService {
     bool acceptUnknownHash = false,
   }) async* {
     if (!source.existsSync()) {
-      throw const _GemmaException('Fichier source introuvable');
+      throw const _GemmaException.coded(NotesErrorCode.gemmaFileNotFound);
     }
     final size = source.lengthSync();
     if (size < _minModelSizeBytes) {
-      throw _GemmaException(
-        'Fichier trop petit (${size ~/ (1024 * 1024)} Mo) — '
-        'pas un modèle Gemma valide.',
-      );
+      throw const _GemmaException.coded(NotesErrorCode.gemmaFileTooSmall);
     }
     if (size > _maxModelSizeBytes) {
-      throw _GemmaException(
-        'Fichier trop gros (${size ~/ (1024 * 1024)} Mo) — '
-        'limite ${_maxModelSizeBytes ~/ (1024 * 1024)} Mo.',
-      );
+      throw const _GemmaException.coded(NotesErrorCode.gemmaFileTooLarge);
     }
 
     final dest = await _modelFile();
@@ -219,7 +214,9 @@ class GemmaService {
     try {
       final f = await _modelFile();
       if (!f.existsSync()) {
-        throw const _GemmaException('Modèle Gemma non installé');
+        throw const _GemmaException.coded(
+          NotesErrorCode.gemmaModelNotInstalled,
+        );
       }
 
       await FlutterGemma
@@ -266,6 +263,7 @@ class GemmaService {
     } catch (e) {
       throw _GemmaException(
         'Échec d\'initialisation du modèle (GPU=$gpuError, CPU=$e)',
+        code: NotesErrorCode.gemmaInitFailed,
       );
     }
   }
@@ -299,10 +297,10 @@ class GemmaService {
   /// Le contexte est réinitialisé à chaque appel (Q&A, pas de chat suivi).
   Stream<String> ask(String prompt) async* {
     if (_chat == null) {
-      throw const _GemmaException('Modèle non chargé. Appeler warmUp() avant.');
+      throw const _GemmaException.coded(NotesErrorCode.gemmaNotLoaded);
     }
     if (_busy) {
-      throw const _GemmaException('Une génération est déjà en cours.');
+      throw const _GemmaException.coded(NotesErrorCode.gemmaBusy);
     }
     var cleaned = prompt.trim();
     if (cleaned.isEmpty) return;
@@ -381,9 +379,10 @@ class GemmaService {
   }
 }
 
-class _GemmaException implements Exception {
-  const _GemmaException(this.message);
-  final String message;
+class _GemmaException extends NotesTechException {
+  const _GemmaException(super.message, {super.code});
+  const _GemmaException.coded(NotesErrorCode code)
+      : super('GemmaException', code: code);
   @override
   String toString() => 'GemmaException: $message';
 }

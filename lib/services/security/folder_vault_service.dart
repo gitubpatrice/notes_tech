@@ -70,14 +70,18 @@ import 'keystore_bridge.dart';
 /// Erreur levée quand une passphrase saisie est incorrecte (le wrap
 /// AES-GCM échoue au tag GCM ou le verifier HMAC ne matche pas).
 class WrongPassphraseException extends NotesTechException {
-  const WrongPassphraseException() : super('Passphrase incorrecte.');
+  const WrongPassphraseException()
+      : super(
+          'Passphrase incorrecte.',
+          code: NotesErrorCode.vaultPassphraseWrong,
+        );
 }
 
 /// Erreur levée quand on tente d'opérer sur un coffre qui n'a pas été
 /// déverrouillé (ou a été auto-locké entre temps).
 class VaultLockedException extends NotesTechException {
   const VaultLockedException(this.folderId)
-      : super('Coffre verrouillé.');
+      : super('Coffre verrouillé.', code: NotesErrorCode.vaultLocked);
   final String folderId;
 }
 
@@ -86,7 +90,9 @@ class VaultLockedException extends NotesTechException {
 /// `ValidationException` (note_editor_screen) couvrent aussi les erreurs
 /// vault — single source of truth.
 class VaultValidationException extends ValidationException {
-  const VaultValidationException(super.message);
+  const VaultValidationException(super.message, {super.code});
+  const VaultValidationException.coded(NotesErrorCode code)
+      : super('VaultValidationException', code: code);
 }
 
 /// Erreur levée quand un coffre PIN a été auto-détruit après trop de
@@ -96,7 +102,10 @@ class VaultValidationException extends ValidationException {
 /// définitivement.
 class VaultPinWipedException extends NotesTechException {
   const VaultPinWipedException(this.folderId)
-      : super('Coffre auto-détruit après trop de tentatives ratées.');
+      : super(
+          'Coffre auto-détruit après trop de tentatives ratées.',
+          code: NotesErrorCode.vaultPinWiped,
+        );
   final String folderId;
 }
 
@@ -104,7 +113,7 @@ class VaultPinWipedException extends NotesTechException {
 /// tentatives restantes pour permettre à l'UI d'avertir l'utilisateur.
 class WrongPinException extends NotesTechException {
   const WrongPinException({required this.attemptsRemaining})
-      : super('PIN incorrect.');
+      : super('PIN incorrect.', code: NotesErrorCode.vaultPinWrong);
   final int attemptsRemaining;
 }
 
@@ -181,7 +190,9 @@ class FolderVaultService extends ChangeNotifier {
     required String passphrase,
   }) async {
     if (folder.isVault) {
-      throw const VaultValidationException('Dossier déjà un coffre.');
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultAlreadyEnabled,
+      );
     }
     _validatePassphrase(passphrase);
 
@@ -249,7 +260,9 @@ class FolderVaultService extends ChangeNotifier {
     required String pin,
   }) async {
     if (folder.isVault) {
-      throw const VaultValidationException('Dossier déjà un coffre.');
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultAlreadyEnabled,
+      );
     }
     _validatePin(pin);
 
@@ -318,8 +331,8 @@ class FolderVaultService extends ChangeNotifier {
     required String pin,
   }) async {
     if (!folder.isVault || !folder.isPinVault) {
-      throw const VaultValidationException(
-        'Le dossier n\'est pas un coffre PIN.',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultNotPinVault,
       );
     }
     if (folder.vaultAttempts >= AppConstants.vaultPinMaxAttempts) {
@@ -538,8 +551,8 @@ class FolderVaultService extends ChangeNotifier {
     required String passphrase,
   }) async {
     if (!folder.isVault) {
-      throw const VaultValidationException(
-        'Le dossier n\'est pas un coffre.',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultNotAVault,
       );
     }
     final salt = folder.vaultSalt!;
@@ -642,8 +655,8 @@ class FolderVaultService extends ChangeNotifier {
     final session = _requireSession(note.folderId);
     final blob = note.encryptedContent!;
     if (blob.length < 12 + 16) {
-      throw const VaultValidationException(
-        'Contenu chiffré invalide (trop court).',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultEncryptedContentInvalid,
       );
     }
     final iv = Uint8List.sublistView(blob, 0, 12);
@@ -752,8 +765,8 @@ class FolderVaultService extends ChangeNotifier {
 
   void _validatePassphrase(String passphrase) {
     if (passphrase.length < AppConstants.vaultPassphraseMinLength) {
-      throw const VaultValidationException(
-        'Passphrase trop courte (minimum 8 caractères).',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultPassphraseTooShort,
       );
     }
   }
@@ -765,14 +778,13 @@ class FolderVaultService extends ChangeNotifier {
   void _validatePin(String pin) {
     if (pin.length < AppConstants.vaultPinMinLength ||
         pin.length > AppConstants.vaultPinMaxLength) {
-      throw const VaultValidationException(
-        'PIN invalide : ${AppConstants.vaultPinMinLength} à '
-        '${AppConstants.vaultPinMaxLength} chiffres.',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultPinTooShort,
       );
     }
     if (!_pinDigitsOnly.hasMatch(pin)) {
-      throw const VaultValidationException(
-        'PIN invalide : chiffres uniquement.',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultPinNotDigits,
       );
     }
   }
@@ -859,8 +871,8 @@ class FolderVaultService extends ChangeNotifier {
     required Uint8List aad,
   }) async {
     if (wrapped.length < 16) {
-      throw const VaultValidationException(
-        'Wrap chiffré invalide (tag GCM tronqué).',
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultWrapInvalid,
       );
     }
     final cipherText = Uint8List.sublistView(wrapped, 0, wrapped.length - 16);

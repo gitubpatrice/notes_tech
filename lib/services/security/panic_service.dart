@@ -250,7 +250,21 @@ class PanicService {
 
     // 7. Préférences : tri, dossier actif, hash Gemma accepté, modèle
     //    voix actif… aucun reliquat d'usage.
-    await _runStep(report, PanicStep.prefsClear, _prefs.clear);
+    //
+    // **Whitelist** : on PRÉSERVE deux clés pour la cohérence du redémarrage,
+    // conformément à PRIVACY.{fr,en}.md :
+    //   - `db_encrypted_v1` : flag indiquant que la DB est chiffrée. Si on
+    //     l'effaçait, le prochain démarrage déclencherait à tort une fausse
+    //     "migration plain → encrypted" sur une DB déjà absente.
+    //   - `secure_window_enabled` : préférence FLAG_SECURE — si on l'effaçait,
+    //     le prochain démarrage perd la protection screenshot pendant que
+    //     l'utilisateur reconfigure l'app.
+    //
+    // Tous les autres prefs (theme, locale, sort, vault_wipe_pending_*,
+    // vault_auto_lock_minutes, accept_unknown_gemma_hash, etc.) sont effacés.
+    // Les `vault_wipe_pending_*` doivent rester effacés — ce sont des flags
+    // de reprise après crash qui n'ont plus de sens après wipe DB.
+    await _runStep(report, PanicStep.prefsClear, _prefsClearWithWhitelist);
 
     // 8. Tmp : ZIPs d'export + autres résidus. Best-effort, Android purge.
     await _runStep(report, PanicStep.tmpPurge, _purgeTempDirectory);
@@ -272,6 +286,29 @@ class PanicService {
       // et la garantie minimale (KEK destroy) doit aboutir même si un
       // step antérieur échoue (ex. Gemma déjà désinstallé).
       report.recordFailure(step, e);
+    }
+  }
+
+  /// Clés SharedPreferences PRÉSERVÉES par `prefs.clear()` en mode panique
+  /// — conformément à la promesse `PRIVACY.{fr,en}.md` (cohérence redémarrage).
+  static const Set<String> _panicPreservedKeys = {
+    AppConstants.prefKeyDbEncryptedV1,
+    AppConstants.prefKeySecureWindowEnabled,
+  };
+
+  /// Efface toutes les prefs sauf celles de [_panicPreservedKeys].
+  /// Implémenté en boucle `remove` plutôt que `clear` pour respecter la
+  /// whitelist. Best-effort : un échec sur une clé n'arrête pas la séquence.
+  Future<void> _prefsClearWithWhitelist() async {
+    final keys = _prefs.getKeys()
+        .where((k) => !_panicPreservedKeys.contains(k))
+        .toList(growable: false);
+    for (final k in keys) {
+      try {
+        await _prefs.remove(k);
+      } catch (_) {
+        // Best-effort
+      }
     }
   }
 

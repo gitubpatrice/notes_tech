@@ -35,6 +35,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // FR + EN seulement (économie ressources Material/AndroidX strings).
+        // Cohérent avec generate:true Flutter qui packe nos ARB.
+        resourceConfigurations += listOf("fr", "en")
     }
 
     signingConfigs {
@@ -45,6 +48,31 @@ android {
                 storeFile = keystoreProperties["storeFile"]?.let { rootProject.file(it as String) }
                 storePassword = keystoreProperties["storePassword"] as String?
             }
+        }
+    }
+
+    // Splits ABI : un APK par architecture (arm64-v8a / armeabi-v7a / x86_64),
+    // au lieu d'un universel embarquant les 3. Notes Tech embarque sqlcipher,
+    // ONNX Runtime, Whisper natif, MediaPipe — réduit drastiquement la taille
+    // d'APK livré par device (~30-50 Mo gagnés sur S9 / POCO C75).
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
+    bundle {
+        abi {
+            enableSplit = true
+        }
+        language {
+            // Ne PAS splitter par langue : avec generate:true Flutter, les
+            // ARB sont packagés et l'utilisateur peut switcher la langue
+            // dans Settings indépendamment de la locale système.
+            enableSplit = false
         }
     }
 

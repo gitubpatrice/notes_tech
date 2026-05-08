@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/embedding/embedding_provider.dart';
 import '../../services/indexing_service.dart';
 import 'mentions_legales_screen.dart';
@@ -17,8 +18,9 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('À propos')),
+      appBar: AppBar(title: Text(t.aboutTitle)),
       body: ListView(
         // `AlwaysScrollableScrollPhysics` : feedback de défilement
         // garanti même si le contenu fait pile la hauteur de l'écran.
@@ -29,160 +31,96 @@ class AboutScreen extends StatelessWidget {
           _AppHeader(theme: theme),
           const SizedBox(height: 28),
 
-          const _SectionTitle('Confidentialité'),
-          const _Badge(
-            icon: Icons.cloud_off_outlined,
-            text: 'Aucune connexion réseau — vérifiable dans le manifeste',
-          ),
-          const _Badge(
-            icon: Icons.account_circle_outlined,
-            text: 'Aucun compte, aucune inscription',
-          ),
-          const _Badge(
-            icon: Icons.bar_chart_outlined,
-            text: 'Aucun tracker, aucune publicité',
-          ),
-          const _Badge(
-            icon: Icons.lock_outline,
-            text: 'Notes chiffrées localement (SQLCipher + Android Keystore)',
-          ),
-          const _Badge(
-            icon: Icons.visibility_off_outlined,
-            text: 'Mode "masquer dans les apps récentes" disponible',
-          ),
+          _SectionTitle(t.aboutSectionPrivacy),
+          _Badge(icon: Icons.cloud_off_outlined, text: t.aboutPrivacy1),
+          _Badge(icon: Icons.account_circle_outlined, text: t.aboutPrivacy2),
+          _Badge(icon: Icons.bar_chart_outlined, text: t.aboutPrivacy3),
+          _Badge(icon: Icons.lock_outline, text: t.aboutPrivacy4),
+          _Badge(icon: Icons.visibility_off_outlined, text: t.aboutPrivacy5),
 
           const SizedBox(height: 28),
-          const _SectionTitle('Recherche par similarité'),
+          _SectionTitle(t.aboutSectionSearch),
           const _SearchEngineInfo(),
 
           const SizedBox(height: 28),
-          const _SectionTitle('Q&A "Demander à mes notes"'),
-          const _Badge(
-            icon: Icons.psychology_outlined,
-            text: 'Modèle Gemma 3 1B int4 (~530 Mo, importé manuellement)',
-          ),
-          const _Badge(
-            icon: Icons.shield_outlined,
-            text: 'Empreinte SHA-256 vérifiée à l\'import du modèle',
-          ),
-          const _Badge(
-            icon: Icons.flash_on_outlined,
-            text: 'Inférence 100 % locale, MediaPipe LLM Inference',
-          ),
+          _SectionTitle(t.aboutSectionQa),
+          _Badge(icon: Icons.psychology_outlined, text: t.aboutQa1),
+          _Badge(icon: Icons.shield_outlined, text: t.aboutQa2),
+          _Badge(icon: Icons.flash_on_outlined, text: t.aboutQa3),
 
           const SizedBox(height: 28),
-          const _SectionTitle('Dictée vocale'),
-          const _Badge(
-            icon: Icons.mic_none_outlined,
-            text: 'Whisper on-device (whisper.cpp via files_tech_voice)',
-          ),
-          const _Badge(
-            icon: Icons.shield_outlined,
-            text: 'Modèle vérifié SHA-256 au DL et avant chaque chargement',
-          ),
-          const _Badge(
-            icon: Icons.delete_sweep_outlined,
-            text: 'Audio capturé jamais persisté (effacé après transcription)',
-          ),
-          const _Badge(
-            icon: Icons.memory_outlined,
-            text: 'Coordination RAM Gemma ↔ Whisper (anti-OOM)',
-          ),
+          _SectionTitle(t.aboutSectionVoice),
+          _Badge(icon: Icons.mic_none_outlined, text: t.aboutVoice1),
+          _Badge(icon: Icons.shield_outlined, text: t.aboutVoice2),
+          _Badge(icon: Icons.delete_sweep_outlined, text: t.aboutVoice3),
+          _Badge(icon: Icons.memory_outlined, text: t.aboutVoice4),
 
           const SizedBox(height: 12),
-          const _NoticeBox(
-            title: 'Notice d\'emploi — activer la dictée',
+          _NoticeBox(
+            title: t.aboutNoticeTitle,
             children: [
-              Text(
-                '1. Réglages → Dictée vocale → Activer la dictée vocale.',
-                style: TextStyle(height: 1.5),
-              ),
-              SizedBox(height: 6),
-              Text(
-                '2. Choisissez un modèle (Whisper Base 57 Mo recommandé).',
-                style: TextStyle(height: 1.5),
-              ),
-              SizedBox(height: 6),
-              Text(
-                '3. Tapez "Télécharger sur ce téléphone" — le navigateur '
-                'système télécharge le fichier .bin dans Téléchargements. '
-                'Notes Tech reste sans permission Internet : c\'est votre '
-                'navigateur qui télécharge, pas l\'app.',
-                style: TextStyle(height: 1.5),
-              ),
-              SizedBox(height: 6),
-              Text(
-                '4. Tapez "Sélectionner le fichier .bin" — l\'app vérifie '
-                'l\'empreinte cryptographique puis copie le modèle dans sa '
-                'zone privée.',
-                style: TextStyle(height: 1.5),
-              ),
-              SizedBox(height: 6),
-              Text(
-                '5. Dans une note, tapez l\'icône micro 🎤 dans la barre '
-                'du haut. Parlez, puis tapez "Arrêter". Le texte transcrit '
-                's\'insère au curseur.',
-                style: TextStyle(height: 1.5),
-              ),
+              Text(t.aboutNoticeStep1, style: const TextStyle(height: 1.5)),
+              const SizedBox(height: 6),
+              Text(t.aboutNoticeStep2, style: const TextStyle(height: 1.5)),
+              const SizedBox(height: 6),
+              Text(t.aboutNoticeStep3, style: const TextStyle(height: 1.5)),
+              const SizedBox(height: 6),
+              Text(t.aboutNoticeStep4, style: const TextStyle(height: 1.5)),
+              const SizedBox(height: 6),
+              Text(t.aboutNoticeStep5, style: const TextStyle(height: 1.5)),
             ],
           ),
 
           const SizedBox(height: 28),
-          const _SectionTitle('Sources, licences et code ouvert'),
+          _SectionTitle(t.aboutSectionLicenses),
           const SizedBox(height: 4),
-          const _LinkTile(
+          _LinkTile(
             icon: Icons.code,
-            title: 'Notes Tech (cette app)',
+            title: t.aboutLinkRepo,
             subtitle: 'github.com/gitubpatrice/notes_tech',
             url: 'https://github.com/gitubpatrice/notes_tech',
           ),
-          const _LinkTile(
+          _LinkTile(
             icon: Icons.code,
-            title: 'files_tech_voice (module Whisper STT)',
+            title: t.aboutLinkVoice,
             subtitle: 'github.com/gitubpatrice/files_tech_voice',
             url: 'https://github.com/gitubpatrice/files_tech_voice',
           ),
-          const _LinkTile(
+          _LinkTile(
             icon: Icons.code,
-            title: 'Source des modèles Whisper (.bin)',
+            title: t.aboutLinkWhisper,
             subtitle: 'huggingface.co/ggerganov/whisper.cpp',
             url: 'https://huggingface.co/ggerganov/whisper.cpp',
           ),
-          const _LinkTile(
+          _LinkTile(
             icon: Icons.code,
-            title: 'Source du modèle Gemma 3 1B',
+            title: t.aboutLinkGemma,
             subtitle: 'kaggle.com/models/google/gemma-3 → tfLite',
             url: 'https://www.kaggle.com/models/google/gemma-3/tfLite',
           ),
           const SizedBox(height: 8),
-          const _Badge(
-            icon: Icons.gavel_outlined,
-            text: 'Apache License 2.0 — code source ouvert, vérifiable',
-          ),
-          const _Badge(
-            icon: Icons.attach_money_outlined,
-            text: 'Gratuit — pas de version premium, pas d\'abonnement',
-          ),
+          _Badge(icon: Icons.gavel_outlined, text: t.aboutLicense),
+          _Badge(icon: Icons.attach_money_outlined, text: t.aboutFree),
 
           const SizedBox(height: 28),
-          const _SectionTitle('Auteur & contact'),
+          _SectionTitle(t.aboutSectionContact),
           const _LinkTile(
             icon: Icons.public,
             title: 'Files Tech',
             subtitle: 'files-tech.com',
             url: 'https://www.files-tech.com',
           ),
-          const _LinkTile(
+          _LinkTile(
             icon: Icons.mail_outline,
             title: 'contact@files-tech.com',
-            subtitle: 'Questions, suggestions, retours',
+            subtitle: t.aboutContactQuestions,
             url: 'mailto:contact@files-tech.com',
           ),
           const SizedBox(height: 8),
           Text(AppConstants.appAuthor, style: theme.textTheme.bodyMedium),
 
           const SizedBox(height: 28),
-          const _SectionTitle('Mentions légales'),
+          _SectionTitle(t.aboutSectionLegal),
           // Page dédiée au lieu d'un long bloc inline : la liste des
           // mentions est volumineuse (éditeur, hébergement, données,
           // permissions, droits, licence) et alourdissait l'AboutScreen
@@ -191,10 +129,10 @@ class AboutScreen extends StatelessWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.gavel_outlined),
-            title: const Text('Voir les mentions légales complètes'),
-            subtitle: const Text(
-              'Éditeur, données collectées, permissions, droits, licence',
-              style: TextStyle(fontSize: 12),
+            title: Text(t.aboutLegalLink),
+            subtitle: Text(
+              t.aboutLegalSubtitle,
+              style: const TextStyle(fontSize: 12),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
@@ -219,19 +157,22 @@ class _AppHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Row(
       children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: const Icon(
-            Icons.note_alt_outlined,
-            color: Colors.white,
-            size: 32,
+        ExcludeSemantics(
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.note_alt_outlined,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
         ),
         const SizedBox(width: 16),
@@ -241,12 +182,12 @@ class _AppHeader extends StatelessWidget {
             children: [
               Text(AppConstants.appName, style: theme.textTheme.titleLarge),
               Text(
-                'Version ${AppConstants.appVersion}',
+                t.aboutVersion(AppConstants.appVersion),
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 4),
               Text(
-                'Vos notes restent dans votre poche. L\'IA aussi.',
+                t.aboutTagline,
                 style: theme.textTheme.bodySmall?.copyWith(
                   fontStyle: FontStyle.italic,
                 ),
@@ -267,7 +208,10 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+      child: Semantics(
+        header: true,
+        child: Text(label, style: Theme.of(context).textTheme.titleMedium),
+      ),
     );
   }
 }
@@ -277,15 +221,15 @@ class _SearchEngineInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final embedderNotifier =
         context.watch<ValueNotifier<EmbeddingProvider>>();
     final indexing = context.read<IndexingService>();
     final embedder = embedderNotifier.value;
     final isMiniLm = embedder.modelId.startsWith('minilm');
     final label = isMiniLm
-        ? 'Modèle MiniLM-L6-v2 (quantifié) — recherche sémantique'
-        : 'Encodeur local (n-grammes + hashing trick) — chargement '
-              'sémantique en arrière-plan';
+        ? t.aboutSearchEngineMiniLm
+        : t.aboutSearchEngineLocal;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -293,14 +237,17 @@ class _SearchEngineInfo extends StatelessWidget {
           icon: isMiniLm ? Icons.auto_awesome : Icons.functions,
           text: label,
         ),
-        _Badge(icon: Icons.straighten, text: 'Dimension : ${embedder.dim}'),
+        _Badge(
+          icon: Icons.straighten,
+          text: t.aboutSearchDim(embedder.dim),
+        ),
         FutureBuilder<int>(
           future: indexing.indexedCount(),
           builder: (_, snap) {
             final n = snap.data ?? 0;
             return _Badge(
               icon: Icons.inventory_2_outlined,
-              text: 'Notes indexées : $n',
+              text: t.aboutSearchIndexed(n),
             );
           },
         ),
@@ -322,9 +269,11 @@ class _Badge extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: Icon(icon, size: 18, color: theme.iconTheme.color),
+          ExcludeSemantics(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(icon, size: 18, color: theme.iconTheme.color),
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: theme.textTheme.bodyMedium)),
@@ -352,9 +301,12 @@ class _NoticeBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+          Semantics(
+            header: true,
+            child: Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           const SizedBox(height: 10),
           ...children,
@@ -379,6 +331,7 @@ class _LinkTile extends StatelessWidget {
 
   Future<void> _open(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
+    final copiedMsg = AppLocalizations.of(context).aboutLinkCopied;
     final uri = Uri.parse(url);
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (ok) return;
@@ -387,8 +340,8 @@ class _LinkTile extends StatelessWidget {
     // BuildContext après la frontière asynchrone.
     await Clipboard.setData(ClipboardData(text: url));
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Lien copié — collez-le dans votre navigateur.'),
+      SnackBar(
+        content: Text(copiedMsg),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -407,4 +360,3 @@ class _LinkTile extends StatelessWidget {
     );
   }
 }
-

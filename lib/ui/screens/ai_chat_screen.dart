@@ -20,10 +20,12 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/a11y.dart';
 import '../../data/models/note.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/ai/gemma_service.dart';
 import '../../services/ai/rag_service.dart';
 import '../../services/ml/ml_memory_guard.dart';
@@ -123,19 +125,16 @@ class _AiChatScreenState extends State<AiChatScreen> {
       if (mounted) setState(() => _phase = _Phase.ready);
     } catch (e) {
       if (mounted) {
+        final t = AppLocalizations.of(context);
         setState(() {
           _phase = _Phase.error;
-          _phaseError = 'Chargement du modèle échoué : $e';
+          _phaseError = t.aiChatLoadFailed('$e');
         });
       }
     }
   }
 
   /// Import via Storage Access Framework uniquement.
-  /// Pas de chemin direct codé en dur : sur Android 13+ la lecture
-  /// dans `/storage/emulated/0/Download` exige `READ_MEDIA_*` ou
-  /// `MANAGE_EXTERNAL_STORAGE`, permissions volontairement absentes
-  /// du manifest. Le SAF traverse cette barrière sans permission.
   Future<void> _pickAndImport() async {
     // Lecture du toggle AVANT tout `await` — évite l'usage de `context`
     // après async gap (analyse statique stricte).
@@ -174,12 +173,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Future<File?> _resolveSource() async {
+    final t = AppLocalizations.of(context);
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['task'],
       allowMultiple: false,
       initialDirectory: '/storage/emulated/0/Download',
-      dialogTitle: 'Sélectionnez gemma3-1b-it-int4.task',
+      dialogTitle: t.aiChatPickerDialogTitle,
     );
     if (result == null || result.files.single.path == null) return null;
     return File(result.files.single.path!);
@@ -217,7 +217,8 @@ class _AiChatScreenState extends State<AiChatScreen> {
         },
         onError: (Object e) {
           if (!mounted) return;
-          aiTurn.appendToken('\n\n[Erreur de génération : $e]');
+          final t = AppLocalizations.of(context);
+          aiTurn.appendToken('\n\n[${t.commonErrorWith('$e')}]');
           setState(() => _generating = false);
           _updateCanSend();
         },
@@ -226,11 +227,17 @@ class _AiChatScreenState extends State<AiChatScreen> {
           setState(() => _generating = false);
           _updateCanSend();
           _animateToBottom();
+          final t = AppLocalizations.of(context);
+          SemanticsService.announce(
+            t.aiChatAnnounceDone,
+            TextDirection.ltr,
+          );
         },
       );
     } catch (e) {
       if (mounted) {
-        aiTurn.appendToken('\n\n[Erreur : $e]');
+        final t = AppLocalizations.of(context);
+        aiTurn.appendToken('\n\n[${t.commonErrorWith('$e')}]');
         setState(() => _generating = false);
         _updateCanSend();
       }
@@ -252,9 +259,24 @@ class _AiChatScreenState extends State<AiChatScreen> {
     setState(_turns.clear);
   }
 
+  /// Throttle 80ms : un seul postFrame en vol. Évite d'enfiler 30-50
+  /// callbacks par seconde pendant le streaming Gemma.
+  DateTime? _lastScrollAt;
+  bool _scrollScheduled = false;
   void _jumpToBottom() {
-    if (!_scrollCtrl.hasClients) return;
-    _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+    final now = DateTime.now();
+    if (_lastScrollAt != null &&
+        now.difference(_lastScrollAt!).inMilliseconds < 80) {
+      return;
+    }
+    if (_scrollScheduled) return;
+    _scrollScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollScheduled = false;
+      if (!_scrollCtrl.hasClients) return;
+      _lastScrollAt = DateTime.now();
+      _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+    });
   }
 
   void _animateToBottom() {
@@ -276,13 +298,14 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Demander à mes notes'),
+        title: Text(t.aiChatTitle),
         actions: [
           if (_phase == _Phase.ready)
             IconButton(
-              tooltip: 'Effacer la conversation',
+              tooltip: t.aiChatClearConversation,
               icon: const Icon(Icons.refresh),
               onPressed: _turns.isEmpty ? null : _clearConversation,
             ),
@@ -304,17 +327,15 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Widget _buildNotInstalled() {
+    final t = AppLocalizations.of(context);
     return EmptyState(
       icon: Icons.psychology_alt_outlined,
-      title: 'Modèle IA non installé',
-      subtitle: _phaseError ??
-          'Importe le fichier gemma3-1b-it-int4.task (≈ 530 Mo) '
-              "depuis ton téléphone. Il sera copié dans l'app et "
-              'fonctionnera 100% hors ligne.',
+      title: t.aiChatNotInstalledTitle,
+      subtitle: _phaseError ?? t.aiChatNotInstalledSubtitle,
       action: FilledButton.icon(
         onPressed: _pickAndImport,
         icon: const Icon(Icons.file_open_outlined),
-        label: const Text('Importer le modèle'),
+        label: Text(t.aiChatImportModel),
       ),
     );
   }
@@ -324,6 +345,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     final ratio = (p == null || p.total == 0) ? 0.0 : p.copied / p.total;
     final mb = (p?.copied ?? 0) ~/ (1024 * 1024);
     final total = (p?.total ?? 0) ~/ (1024 * 1024);
+    final t = AppLocalizations.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -333,7 +355,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
             const Icon(Icons.download_outlined, size: 48),
             const SizedBox(height: 16),
             Text(
-              'Import en cours… $mb / $total Mo',
+              t.aiChatImportProgress(mb, total),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -345,15 +367,16 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Widget _buildWarmingUp() {
-    return const Center(
+    final t = AppLocalizations.of(context);
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(32),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Chargement du modèle Gemma…'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(t.aiChatLoadingModel),
           ],
         ),
       ),
@@ -361,24 +384,24 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Widget _buildError() {
+    final t = AppLocalizations.of(context);
     return EmptyState(
       icon: Icons.error_outline,
-      title: 'Chargement impossible',
-      subtitle: '${_phaseError ?? "Erreur inconnue"}\n\n'
-          'Si le modèle est corrompu, supprimez-le et réimportez le fichier.',
+      title: t.aiChatErrorTitle,
+      subtitle: t.aiChatErrorHelp(_phaseError ?? t.commonError),
       action: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           FilledButton.icon(
             onPressed: _initialize,
             icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
+            label: Text(t.commonRetry),
           ),
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: _reinstallModel,
             icon: const Icon(Icons.delete_sweep_outlined),
-            label: const Text('Supprimer et réimporter'),
+            label: Text(t.aiChatReinstall),
           ),
         ],
       ),
@@ -389,7 +412,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     try {
       await _gemma.uninstall();
     } catch (_) {
-      // Best-effort : si la suppression échoue, on enchaîne quand même.
+      // Best-effort.
     }
     if (!mounted) return;
     setState(() {
@@ -399,23 +422,23 @@ class _AiChatScreenState extends State<AiChatScreen> {
   }
 
   Widget _buildChat() {
+    final t = AppLocalizations.of(context);
     return Column(
       children: [
         Expanded(
           child: _turns.isEmpty
-              ? const EmptyState(
+              ? EmptyState(
                   icon: Icons.auto_awesome,
-                  title: 'Pose une question sur tes notes',
-                  subtitle:
-                      'Le modèle répond uniquement à partir des notes les '
-                      'plus proches de ta question.',
+                  title: t.aiChatEmptyTitle,
+                  subtitle: t.aiChatEmptySubtitle,
                 )
               : ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 12, vertical: 16),
                   itemCount: _turns.length,
-                  itemBuilder: (_, i) => _TurnBubble(turn: _turns[i]),
+                  itemBuilder: (_, i) =>
+                      _TurnBubble(turn: _turns[i], generating: _generating),
                 ),
         ),
         const Divider(height: 1),
@@ -424,20 +447,17 @@ class _AiChatScreenState extends State<AiChatScreen> {
           child: Row(
             children: [
               Expanded(
-                child: Semantics(
-                  label: 'Question à poser à l\'assistant',
-                  textField: true,
-                  child: TextField(
-                    controller: _inputCtrl,
-                    textInputAction: TextInputAction.send,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    minLines: 1,
-                    maxLines: 4,
-                    onSubmitted: (_) => _send(),
-                    decoration: const InputDecoration(
-                      hintText: 'Pose une question…',
-                    ),
+                child: TextField(
+                  controller: _inputCtrl,
+                  textInputAction: TextInputAction.send,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  minLines: 1,
+                  maxLines: 4,
+                  onSubmitted: (_) => _send(),
+                  decoration: InputDecoration(
+                    labelText: t.aiChatComposerLabel,
+                    hintText: t.aiChatHint,
                   ),
                 ),
               ),
@@ -446,15 +466,18 @@ class _AiChatScreenState extends State<AiChatScreen> {
                 IconButton.filledTonal(
                   onPressed: _stopGeneration,
                   icon: const Icon(Icons.stop),
-                  tooltip: 'Arrêter',
+                  tooltip: t.aiChatStop,
                 )
               else
                 ValueListenableBuilder<bool>(
                   valueListenable: _canSend,
-                  builder: (_, canSend, _) => IconButton.filled(
-                    onPressed: canSend ? _send : null,
-                    icon: const Icon(Icons.send),
-                    tooltip: 'Envoyer la question',
+                  builder: (_, canSend, _) => Tooltip(
+                    message: t.aiChatSendTooltip,
+                    child: IconButton.filled(
+                      onPressed: canSend ? _send : null,
+                      icon: const Icon(Icons.send),
+                      tooltip: t.aiChatSendTooltip,
+                    ),
                   ),
                 ),
             ],
@@ -495,17 +518,27 @@ class _ChatTurn {
 enum _Role { user, assistant }
 
 class _TurnBubble extends StatelessWidget {
-  const _TurnBubble({required this.turn});
+  const _TurnBubble({required this.turn, required this.generating});
   final _ChatTurn turn;
+  final bool generating;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final t = AppLocalizations.of(context);
     final isUser = turn.role == _Role.user;
     final align = isUser ? Alignment.centerRight : Alignment.centerLeft;
     final color = isUser
         ? theme.colorScheme.primary.withValues(alpha: 0.15)
         : theme.cardTheme.color;
+    final bubbleSemanticsLabel =
+        isUser ? t.aiChatBubbleUser : t.aiChatBubbleAssistant;
+
+    // Pendant le streaming, on exclut le SelectableText des Semantics
+    // pour éviter que le lecteur d'écran lise chaque token incrémentalement.
+    // L'annonce finale est faite par SemanticsService.announce dans onDone.
+    final bool excludeStreamingSemantics =
+        !isUser && generating && turn.textNotifier.value.isEmpty == false;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -513,30 +546,43 @@ class _TurnBubble extends StatelessWidget {
         alignment: align,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.85,
+            maxWidth: MediaQuery.sizeOf(context).width * 0.85,
           ),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ValueListenableBuilder<String>(
-                  valueListenable: turn.textNotifier,
-                  builder: (_, text, _) => SelectableText(
-                    text.isEmpty ? '…' : text,
-                    style: theme.textTheme.bodyMedium,
+          child: Semantics(
+            label: bubbleSemanticsLabel,
+            container: true,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ValueListenableBuilder<String>(
+                    valueListenable: turn.textNotifier,
+                    builder: (_, text, _) {
+                      final selectable = SelectableText(
+                        text.isEmpty ? '…' : text,
+                        style: theme.textTheme.bodyMedium,
+                      );
+                      // Pendant le streaming d'une bulle assistant, on
+                      // empêche l'annonce token-par-token. La sémantique de
+                      // la bulle reste portée par le `Semantics` parent.
+                      if (excludeStreamingSemantics) {
+                        return ExcludeSemantics(child: selectable);
+                      }
+                      return selectable;
+                    },
                   ),
-                ),
-                if (isUser && (turn.sources?.isNotEmpty ?? false)) ...[
-                  const SizedBox(height: 8),
-                  _SourcesRow(sources: turn.sources!),
+                  if (isUser && (turn.sources?.isNotEmpty ?? false)) ...[
+                    const SizedBox(height: 8),
+                    _SourcesRow(sources: turn.sources!),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -551,6 +597,7 @@ class _SourcesRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -558,7 +605,7 @@ class _SourcesRow extends StatelessWidget {
         for (final s in sources)
           ActionChip(
             label: Text(
-              s.note.title.isEmpty ? 'Sans titre' : s.note.title,
+              s.note.title.isEmpty ? t.noteUntitled : s.note.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

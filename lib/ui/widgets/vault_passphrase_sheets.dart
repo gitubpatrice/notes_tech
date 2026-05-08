@@ -17,14 +17,19 @@
 /// fermeture.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/a11y.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
+import 'passphrase_text_field.dart';
 import 'sheet_handle.dart';
+import 'vault_warning_banner.dart';
 
 // ─── Création ─────────────────────────────────────────────────────────
 
@@ -63,8 +68,6 @@ class _CreateVaultSheet extends StatefulWidget {
 class _CreateVaultSheetState extends State<_CreateVaultSheet> {
   final _pass1 = TextEditingController();
   final _pass2 = TextEditingController();
-  bool _hide1 = true;
-  bool _hide2 = true;
 
   bool get _lengthOk =>
       _pass1.text.length >= AppConstants.vaultPassphraseMinLength;
@@ -94,6 +97,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -108,86 +112,41 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Convertir « ${widget.folderName} » en coffre',
+                    t.vaultPassCreateTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: cs.errorContainer.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.warning_amber_outlined,
-                      color: cs.onErrorContainer, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Mot de passe oublié = notes perdues définitivement. '
-                      'Aucune sauvegarde, aucune récupération possible. '
-                      'Choisissez quelque chose de mémorable.',
-                      style: TextStyle(
-                        color: cs.onErrorContainer,
-                        height: 1.4,
-                        fontSize: 13,
-                      ),
-                    ),
+            const SizedBox(height: 8),
+            Text(
+              t.vaultPassCreateBody,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    height: 1.35,
+                    fontSize: 14,
                   ),
-                ],
-              ),
             ),
+            const SizedBox(height: 12),
+            VaultWarningBanner(message: t.vaultPassWarningLost),
             const SizedBox(height: 16),
-            TextField(
+            PassphraseTextField(
               controller: _pass1,
+              labelText: t.vaultPassField,
               autofocus: true,
-              obscureText: _hide1,
               textInputAction: TextInputAction.next,
-              keyboardType: TextInputType.visiblePassword,
-              autofillHints: const [], // jamais autofill pour un coffre
-              decoration: InputDecoration(
-                labelText: 'Passphrase',
-                helperText:
-                    'Minimum ${AppConstants.vaultPassphraseMinLength} caractères',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _hide1 ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  ),
-                  onPressed: () => setState(() => _hide1 = !_hide1),
-                ),
+              helperText: t.vaultPassMinLength(
+                AppConstants.vaultPassphraseMinLength,
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            PassphraseTextField(
               controller: _pass2,
-              obscureText: _hide2,
+              labelText: t.vaultPassConfirmField,
               textInputAction: TextInputAction.done,
-              keyboardType: TextInputType.visiblePassword,
               onSubmitted: (_) => _submit(),
-              decoration: InputDecoration(
-                labelText: 'Confirmer la passphrase',
-                helperText: _pass2.text.isEmpty
-                    ? null
-                    : (_matchOk ? 'Identique ✓' : 'Les deux champs diffèrent'),
-                helperStyle: TextStyle(
-                  color: _pass2.text.isEmpty
-                      ? null
-                      : (_matchOk ? cs.successIcon : cs.error),
-                ),
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _hide2 ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                  ),
-                  onPressed: () => setState(() => _hide2 = !_hide2),
-                ),
-              ),
+              errorText:
+                  (_pass2.text.isNotEmpty && !_matchOk) ? t.vaultPassMismatch : null,
             ),
             const SizedBox(height: 16),
             Row(
@@ -195,7 +154,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Annuler'),
+                    child: Text(t.commonCancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -203,7 +162,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
                   child: FilledButton.icon(
                     onPressed: _canSubmit ? _submit : null,
                     icon: const Icon(Icons.lock_outline),
-                    label: const Text('Créer le coffre'),
+                    label: Text(t.vaultPassCreateAction),
                   ),
                 ),
               ],
@@ -255,7 +214,6 @@ class _UnlockVaultSheet extends StatefulWidget {
 
 class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
   final _passCtrl = TextEditingController();
-  bool _hide = true;
   bool _busy = false;
   String? _error;
 
@@ -268,6 +226,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
   Future<void> _submit() async {
     if (_busy) return;
     if (_passCtrl.text.isEmpty) return;
+    final t = AppLocalizations.of(context);
     setState(() {
       _busy = true;
       _error = null;
@@ -276,12 +235,19 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
     try {
       await vault.unlock(folder: widget.folder, passphrase: _passCtrl.text);
       if (!mounted) return;
+      // A11y : annonce TalkBack/lecteur d'écran que le coffre est ouvert.
+      unawaited(
+        SemanticsService.announce(
+          t.homeAnnounceVaultUnlocked,
+          TextDirection.ltr,
+        ),
+      );
       Navigator.of(context).pop(true);
     } on WrongPassphraseException {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Passphrase incorrecte.';
+        _error = t.vaultPassWrong;
       });
       // Vide le champ, focus reste — UX standard de retry
       _passCtrl.clear();
@@ -289,7 +255,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Erreur de déverrouillage : $e';
+        _error = t.commonErrorWith(e.toString());
       });
     }
   }
@@ -297,6 +263,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -311,35 +278,29 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Déverrouiller « ${widget.folder.name} »',
+                    t.vaultPassUnlockTitle,
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _passCtrl,
-              autofocus: true,
-              obscureText: _hide,
-              enabled: !_busy,
-              textInputAction: TextInputAction.done,
-              keyboardType: TextInputType.visiblePassword,
-              autofillHints: const [],
-              onSubmitted: (_) => _submit(),
-              decoration: InputDecoration(
-                labelText: 'Passphrase',
-                errorText: _error,
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _hide ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            const SizedBox(height: 8),
+            Text(
+              t.vaultPassUnlockBody(widget.folder.name),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                    fontSize: 14,
                   ),
-                  onPressed: _busy
-                      ? null
-                      : () => setState(() => _hide = !_hide),
-                ),
-              ),
+            ),
+            const SizedBox(height: 12),
+            PassphraseTextField(
+              controller: _passCtrl,
+              labelText: t.vaultPassField,
+              enabled: !_busy,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              errorText: _error,
             ),
             const SizedBox(height: 16),
             Row(
@@ -349,7 +310,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
                     onPressed: _busy
                         ? null
                         : () => Navigator.of(context).pop(false),
-                    child: const Text('Annuler'),
+                    child: Text(t.commonCancel),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -357,25 +318,29 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
                   child: FilledButton.icon(
                     onPressed: _busy ? null : _submit,
                     icon: _busy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                        ? Semantics(
+                            liveRegion: true,
+                            label: t.vaultPassDeriving,
+                            child: const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
                           )
                         : const Icon(Icons.lock_open_outlined),
-                    label: Text(_busy ? 'Déverrouillage…' : 'Déverrouiller'),
+                    label: Text(
+                      _busy ? t.vaultPassDeriving : t.vaultPassUnlockAction,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'La dérivation Argon2id prend 1 à 2 s sur les téléphones '
-              'récents. C\'est volontaire — ça rend le bruteforce hors-ligne '
-              'inopérant.',
+              t.vaultPassDeriving,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+                    color: cs.onSurfaceVariant,
+                  ),
             ),
             const SizedBox(height: 8),
           ],
@@ -384,4 +349,3 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
     );
   }
 }
-

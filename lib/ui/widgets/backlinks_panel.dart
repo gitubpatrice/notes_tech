@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../../data/models/note.dart';
 import '../../data/models/note_link.dart';
 import '../../data/repositories/links_repository.dart';
+import '../../l10n/app_localizations.dart';
 import '../../services/backlinks_service.dart';
 
 class BacklinksPanel extends StatefulWidget {
@@ -80,6 +81,7 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return FutureBuilder<_PanelData>(
       future: _future,
       builder: (context, snap) {
@@ -96,7 +98,7 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
               if (data.outgoing.isNotEmpty)
                 _LinkSection(
                   icon: Icons.north_east,
-                  label: 'Liens (${data.outgoing.length})',
+                  label: t.noteEditorOutgoingLinks(data.outgoing.length),
                   children: [
                     for (final l in data.outgoing)
                       _OutgoingChip(link: l, onTap: () => _onTapOutgoing(l)),
@@ -105,14 +107,16 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
               if (data.mentions.isNotEmpty)
                 _LinkSection(
                   icon: Icons.south_west,
-                  label: 'Mentions (${data.mentions.length})',
+                  // Reuse existing key for backlinks header.
+                  label: '${t.noteEditorBacklinks} (${data.mentions.length})',
                   children: [
                     for (final n in data.mentions)
                       ActionChip(
-                        avatar: const Icon(Icons.description_outlined,
-                            size: 16),
+                        avatar: const ExcludeSemantics(
+                          child: Icon(Icons.description_outlined, size: 16),
+                        ),
                         label: Text(
-                          n.title.isEmpty ? 'Sans titre' : n.title,
+                          n.title.isEmpty ? t.noteUntitled : n.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -183,11 +187,14 @@ class _OutgoingChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final dangling = !link.isResolved;
     return ActionChip(
-      avatar: Icon(
-        dangling ? Icons.add_link : Icons.description_outlined,
-        size: 16,
+      avatar: ExcludeSemantics(
+        child: Icon(
+          dangling ? Icons.add_link : Icons.description_outlined,
+          size: 16,
+        ),
       ),
       label: Text(
         link.targetTitle,
@@ -196,7 +203,9 @@ class _OutgoingChip extends StatelessWidget {
         style: dangling ? TextStyle(color: Theme.of(context).hintColor) : null,
       ),
       onPressed: onTap,
-      tooltip: dangling ? 'Note inexistante (toucher pour créer)' : null,
+      tooltip: dangling
+          ? t.noteEditorBacklinkDangling(link.targetTitle)
+          : null,
     );
   }
 }

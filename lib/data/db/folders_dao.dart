@@ -81,8 +81,8 @@ class FoldersDao {
   /// Le dossier `inbox` est protégé.
   Future<void> delete(String id) async {
     if (id == 'inbox') {
-      throw const ValidationException(
-        'Le dossier "Boîte de réception" ne peut pas être supprimé.',
+      throw const ValidationException.coded(
+        NotesErrorCode.inboxNotDeletable,
       );
     }
     try {
