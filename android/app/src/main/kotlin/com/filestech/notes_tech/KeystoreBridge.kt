@@ -3,6 +3,8 @@ package com.filestech.notes_tech
 import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyInfo
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -12,6 +14,7 @@ import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.GCMParameterSpec
 
 /**
@@ -102,10 +105,29 @@ class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallH
                 }
                 else -> result.notImplemented()
             }
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            // Spécifique : la clé Keystore a été détruite par l'OS (changement
+            // d'écran de verrouillage, factory reset partiel, biométrie
+            // retirée). Le wipe du coffre est LÉGITIME — pas de rollback.
+            result.error(
+                "KEY_PERMANENTLY_INVALIDATED",
+                "Keystore key invalidated: ${e.message}",
+                null,
+            )
         } catch (e: Exception) {
             // Pas de contenu sensible : alias non-secret, plaintext jamais
             // logué. Classe + message suffisent pour triage.
-            result.error("KEYSTORE_ERROR", "${e.javaClass.simpleName}: ${e.message}", null)
+            //
+            // Le `code` est `e.javaClass.simpleName` pour permettre à la
+            // couche Dart de différencier les exceptions transitoires
+            // (StrongBox→TEE migration après OTA Samsung, lockscreen
+            // verrouillé bloquant l'accès, OOM JNI) des exceptions
+            // légitimes — afin de ne PAS auto-wipe sur exception transitoire.
+            result.error(
+                e.javaClass.simpleName,
+                "${e.javaClass.simpleName}: ${e.message}",
+                null,
+            )
         }
     }
 
@@ -131,13 +153,46 @@ class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallH
 
         // StrongBox d'abord, fallback TEE software (S9, émulateurs, OEM
         // sans StrongBox). Échec silencieux — pas remonté à l'UI.
-        try {
+        val key: SecretKey = try {
             gen.init(build(strongBox = true))
             gen.generateKey()
         } catch (_: Exception) {
             gen.init(build(strongBox = false))
             gen.generateKey()
         }
+
+        // Sécurité : valider que la clé créée est bien hardware-backed
+        // (TEE ou StrongBox). Sur device sans TEE/StrongBox (rooté avec
+        // Magisk patch, émulateur, etc.), `KeyGenerator` retombe
+        // silencieusement sur software Keystore — le PIN devient alors
+        // bruteforçable hors-device. On supprime la clé et on remonte
+        // une erreur typée pour que la couche Dart propose un coffre
+        // passphrase à la place.
+        try {
+            val factory = SecretKeyFactory.getInstance(key.algorithm, KEYSTORE_PROVIDER)
+            val keyInfo = factory.getKeySpec(key, KeyInfo::class.java) as KeyInfo
+            val secure = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // securityLevel >= TEE (1) considéré sécurisé. STRONGBOX = 2.
+                @Suppress("DEPRECATION")
+                keyInfo.isInsideSecureHardware
+            } else {
+                @Suppress("DEPRECATION")
+                keyInfo.isInsideSecureHardware
+            }
+            if (!secure) {
+                ks.deleteEntry(alias)
+                throw IllegalStateException("KEYSTORE_SOFTWARE_ONLY")
+            }
+        } catch (e: IllegalStateException) {
+            // Re-throw — sera mappé en code "IllegalStateException" + message
+            // "KEYSTORE_SOFTWARE_ONLY" côté Dart.
+            throw e
+        } catch (_: Exception) {
+            // Si l'introspection échoue (rare), on garde la clé. L'utilisateur
+            // n'est pas pénalisé pour un bug d'API ; le risque résiduel est
+            // accepté (probabilité quasi-nulle sur Android moderne).
+        }
+
         return true
     }
 

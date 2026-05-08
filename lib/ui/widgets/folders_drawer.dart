@@ -24,6 +24,7 @@ import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
+import 'blocking_progress_dialog.dart';
 import 'folder_dialogs.dart';
 import 'vault_passphrase_sheets.dart';
 import 'vault_pin_sheets.dart';
@@ -418,7 +419,13 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const _VaultConvertProgressDialog(),
+        builder: (ctx) {
+          final t = AppLocalizations.of(ctx);
+          return BlockingProgressDialog(
+            title: t.folderConvertProgressTitle,
+            subtitle: t.folderConvertProgressBody,
+          );
+        },
       ),
     );
     try {
@@ -524,39 +531,6 @@ class _DrawerTile extends StatelessWidget {
   }
 }
 
-/// Dialog modal pendant la conversion d'un dossier en coffre. PopScope
-/// bloque le retour : interrompre le re-chiffrement laisserait certaines
-/// notes chiffrées et d'autres en clair (incohérent).
-class _VaultConvertProgressDialog extends StatelessWidget {
-  const _VaultConvertProgressDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context);
-    return PopScope(
-      canPop: false,
-      child: AlertDialog(
-        content: Semantics(
-          liveRegion: true,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(),
-              const SizedBox(height: 16),
-              Text(
-                t.folderConvertProgressTitle,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                t.folderConvertProgressBody,
-                style: const TextStyle(fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// `_VaultConvertProgressDialog` retiré v1.0 : remplacé par
+// `BlockingProgressDialog` (cf. `lib/ui/widgets/blocking_progress_dialog.dart`)
+// qui factorise le pattern dupliqué avec `_PanicProgressDialog`.

@@ -2,11 +2,31 @@
 
 > Vos notes restent dans votre poche. L'IA aussi.
 
+**v1.0.0 — Mai 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
+
 Application Android Flutter de prise de notes Markdown chiffrées,
-**100 % locale, zéro permission Internet**. Coffres par dossier
-(passphrase Argon2id ou PIN Keystore-bound), recherche sémantique
-on-device, Q&A Gemma 3 1B, dictée Whisper, backlinks `[[note]]`,
+**100 % locale, zéro permission Internet**. Interface bilingue **FR / EN**.
+Coffres par dossier (passphrase Argon2id ou PIN Keystore-bound), recherche
+sémantique on-device, Q&A Gemma 3 1B, dictée Whisper, backlinks `[[note]]`,
 mode panique multi-step.
+
+## Quoi de neuf en v1.0.0
+
+- **i18n FR / EN complète** : 9 écrans + 14 widgets, sélecteur Langue
+  dans Réglages, locale système suivie par défaut.
+- **Sélecteur de thème** : Clair / Sombre / Système, persisté.
+- **Splits ABI** : APK livré ~1/3 plus léger par device (arm64-v8a,
+  armeabi-v7a, x86_64).
+- **Mode panique whitelist** : `db_encrypted_v1` et `secure_window_enabled`
+  préservés pour cohérence du redémarrage (conformément à PRIVACY.md).
+- **A11y P0** : streaming TalkBack + Semantics complets sur les bulles
+  Q&A, le PIN pad, la sauvegarde.
+- **Helpers UI extraits** : `PassphraseTextField`, `VaultWarningBanner`,
+  `BlockingProgressDialog` (factorisation cross-écrans).
+- **Mentions légales** : page rendue depuis `assets/legal/PRIVACY.{fr,en}.md`
+  et `TERMS.{fr,en}.md` via `flutter_markdown`.
+- **Performance** : `Selector` ciblé sur `themeMode + locale`,
+  `MediaQuery.sizeOf` dans les bulles Q&A, scroll Gemma throttlé 80 ms.
 
 Pour penseurs, thérapeutes, étudiants, chercheurs, écrivains et
 journalistes qui veulent prendre des notes sensibles ou denses sans
@@ -167,7 +187,7 @@ Ce dépôt **n'a pas de pipeline de release CI automatique**. Deux options :
 1. **Build local** (recommandé pour audit) — voir section suivante.
 2. **APK release manuelle** : récupérer le dernier `.apk` publié sur
    [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases)
-   (v0.9.13), vérifier la signature, side-loader.
+   (v1.0.0), vérifier la signature, side-loader.
 
 Pas de Play Store : distribution side-load uniquement (cohérent avec la
 promesse de confidentialité — aucun compte requis pour installer).

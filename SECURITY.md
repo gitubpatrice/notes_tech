@@ -1,5 +1,15 @@
 # Security policy — Notes Tech
 
+**Version current : v1.0.0 — Mai 2026.**
+
+Notes Tech v1.0 introduit plusieurs durcissements sécurité :
+- `prefs.clear()` panique avec **whitelist** (`db_encrypted_v1`,
+  `secure_window_enabled` préservés) conformément à `PRIVACY.md`.
+- `flutter_markdown` cantonné aux pages légales locales (assets), aucun
+  rendu de markdown distant.
+- `ProGuard` rules complètes : `files_tech_voice`, `flutter_markdown`,
+  MediaPipe, ONNX, sqflite, flutter_gemma.
+
 ## Reporting a vulnerability
 
 If you believe you've found a security issue in Notes Tech, please

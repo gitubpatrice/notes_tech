@@ -1,6 +1,6 @@
 # Politique de confidentialité — Notes Tech
 
-**Version** : v0.9.12 — 2026-05-07
+**Version** : v1.0.0 — Mai 2026
 **Éditeur** : Files Tech / Patrice Haltaya
 **Contact** : contact@files-tech.com
 

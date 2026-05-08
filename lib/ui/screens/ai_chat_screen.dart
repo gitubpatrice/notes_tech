@@ -194,7 +194,19 @@ class _AiChatScreenState extends State<AiChatScreen> {
     if (question.isEmpty || _generating || _phase != _Phase.ready) return;
 
     _inputCtrl.clear();
-    final ctx = await _rag.build(question);
+    // v1.0 i18n : on capture les chaînes localisées ICI (la locale du
+    // contexte actif) et on les passe au service RAG. Cela garantit que
+    // Gemma reçoit son prompt système dans la langue de l'utilisateur,
+    // donc répond en français pour un user FR / en anglais pour un user EN.
+    final t = AppLocalizations.of(context);
+    final isEn = Localizations.localeOf(context).languageCode == 'en';
+    final ragStrings = RagLocaleStrings(
+      systemPrompt: isEn ? t.ragSystemPromptEn : t.ragSystemPromptFr,
+      contextHeader: t.ragContextHeader,
+      noResults: t.ragNoResults,
+      untitledFallback: t.noteUntitled,
+    );
+    final ctx = await _rag.build(question, strings: ragStrings);
     final prompt = _rag.composePrompt(ctx);
 
     final userTurn = _ChatTurn.user(question, sources: ctx.sources);

@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
+import '../widgets/blocking_progress_dialog.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
@@ -564,7 +565,13 @@ class _PanicSectionState extends State<_PanicSection> {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const _PanicProgressDialog(),
+        builder: (ctx) {
+          final t = AppLocalizations.of(ctx);
+          return BlockingProgressDialog(
+            title: t.panicProgress,
+            subtitle: t.panicProgressSubtitle,
+          );
+        },
       ),
     );
 
@@ -606,35 +613,8 @@ class _PanicSectionState extends State<_PanicSection> {
   }
 }
 
-class _PanicProgressDialog extends StatelessWidget {
-  const _PanicProgressDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context);
-    return PopScope(
-      canPop: false,
-      child: AlertDialog(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 16),
-            Text(
-              t.panicProgress,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              t.panicProgressSubtitle,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// `_PanicProgressDialog` retiré v1.0 : remplacé par `BlockingProgressDialog`
+// (cf. `lib/ui/widgets/blocking_progress_dialog.dart`).
 
 /// Tuile « Verrouillage auto des coffres » dans la section Sécurité.
 class _VaultAutoLockTile extends StatelessWidget {

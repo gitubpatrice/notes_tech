@@ -363,9 +363,28 @@ class FolderVaultService extends ChangeNotifier {
         pinBlob,
         pinIv,
       );
+    } on KeyPermanentlyInvalidatedException {
+      // Clé Keystore invalidée par l'OS (changement écran de verrouillage,
+      // factory reset partiel, biométrie retirée). Coffre LÉGITIMEMENT
+      // irréparable → wipe.
+      await _autoWipePinVault(folder);
+      throw VaultPinWipedException(folder.id);
+    } on KeystoreTransientException {
+      // Exception transitoire : OTA Samsung One UI en cours de migration
+      // StrongBox→TEE, lockscreen verrouillé bloquant l'accès, OOM JNI.
+      // **NE PAS** auto-wipe — l'utilisateur n'est PAS coupable. Rollback
+      // l'incrément `vault_attempts` pour ne pas pénaliser sur un
+      // problème système, et propose un retry.
+      working = folder.copyWith(vaultAttempts: folder.vaultAttempts);
+      await _folders.update(working);
+      throw const VaultValidationException.coded(
+        // Réutilise un code existant : "vault locked" pendant migration
+        // — le user comprend qu'il doit réessayer plus tard.
+        NotesErrorCode.vaultLocked,
+      );
     } on KeystoreException {
-      // Clé Keystore disparue (factory reset partiel, désinstallation
-      // incomplète, app data effacée mais pas la DB). Coffre irréparable.
+      // Catch-all pour rétrocompat : autres KeystoreException = wipe légitime
+      // (clé disparue, factory reset partiel, etc.).
       await _autoWipePinVault(folder);
       throw VaultPinWipedException(folder.id);
     }

@@ -10,6 +10,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -27,6 +28,7 @@ import '../../services/export/note_export_service.dart';
 import '../../services/note_actions.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../utils/debouncer.dart';
+import '../../utils/error_localize.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
 import '../widgets/move_to_folder_sheet.dart';
@@ -49,6 +51,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final _contentCtrl = TextEditingController();
   final _autosave = Debouncer(AppConstants.autosaveDebounce);
   final _savingNotifier = ValueNotifier<bool>(false);
+
+  /// Throttle pour `SemanticsService.announce(noteEditorAnnounceSavedSuccess)`
+  /// — autosave debounce 500ms peut déclencher 1 save / 1.5s en édition
+  /// continue ; sans throttle, TalkBack saturé. 5s = équilibre confort.
+  DateTime? _lastSavedAnnounce;
 
   Note? _note;
   bool _loading = true;
@@ -274,10 +281,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           ? saved.copyWith(content: content, clearEncrypted: true)
           : saved;
       _savingNotifier.value = false;
+      // A11y v1.0 : annonce TalkBack throttlée 5s pour ne pas saturer.
+      final now = DateTime.now();
+      if (_lastSavedAnnounce == null ||
+          now.difference(_lastSavedAnnounce!).inSeconds >= 5) {
+        _lastSavedAnnounce = now;
+        unawaited(SemanticsService.announce(
+          t.noteEditorAnnounceSavedSuccess,
+          TextDirection.ltr,
+        ));
+      }
     } on ValidationException catch (e) {
       if (!mounted) return;
       _savingNotifier.value = false;
-      _showError(e.message);
+      final code = e.code;
+      _showError(code != null ? code.localize(t) : t.commonErrorWith('$e'));
     } catch (_) {
       if (!mounted) return;
       _savingNotifier.value = false;
