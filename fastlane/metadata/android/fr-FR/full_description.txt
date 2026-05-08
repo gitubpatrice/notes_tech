@@ -1,0 +1,36 @@
+Notes Tech : prise de notes Markdown 100 % locale, chiffrée at-rest, avec IA on-device.
+
+<b>Confidentialité radicale</b>
+• Aucune permission INTERNET (vérifiable dans le manifeste)
+• Aucun compte, aucune télémétrie, aucun tracker, aucune publicité
+• Base SQLCipher AES-256 + clé scellée Android Keystore (hardware-backed)
+• Mode panique multi-step : efface clé + DB + modèles en quelques secondes
+
+<b>Coffres par dossier</b>
+• Passphrase Argon2id RFC 9106 (m=64MB, t=3) ou PIN Keystore-bound
+• AES-256-GCM par note avec AAD = note_id (anti-swap)
+• Auto-wipe PIN après 5 échecs (Keystore device-bound)
+• Auto-verrouillage configurable (5 min à jamais)
+
+<b>IA 100 % on-device</b>
+• Q&A "Demander à mes notes" via Gemma 3 1B int4 (MediaPipe LLM)
+• Recherche sémantique MiniLM-L6-v2 quantifié (optionnel)
+• Dictée vocale Whisper (modèle .bin importé manuellement)
+• SHA-256 vérifié à l'import et avant chaque chargement
+• Coordination RAM Gemma ↔ Whisper (anti-OOM sur 4 Go)
+
+<b>Édition</b>
+• Markdown brut, auto-save 500ms debounce
+• Backlinks `[[Titre]]` avec autocomplétion + panel "notes qui mentionnent celle-ci"
+• Recherche FTS5 + bm25, filtrage par dossier, tri configurable
+• Export ZIP Markdown (frontmatter YAML compatible Obsidian/Logseq)
+
+<b>i18n FR / EN</b>
+• Sélecteur Langue dans Réglages (FR / EN / Système)
+• Sélecteur Thème (Clair / Sombre / Système)
+• Pages légales (PRIVACY / TERMS) localisées
+
+<b>Open source Apache 2.0</b>
+Code source intégral et vérifiable sur GitHub : gitubpatrice/notes_tech
+
+Pour penseurs, thérapeutes, étudiants, chercheurs, écrivains et journalistes qui veulent prendre des notes sensibles ou denses sans qu'elles ne quittent jamais leur téléphone.

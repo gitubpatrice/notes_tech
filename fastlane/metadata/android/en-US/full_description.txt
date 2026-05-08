@@ -1,0 +1,36 @@
+Notes Tech: 100% local Markdown note-taking, encrypted at-rest, with on-device AI.
+
+<b>Radical privacy</b>
+• No INTERNET permission (verifiable in the manifest)
+• No account, no telemetry, no tracker, no advertising
+• SQLCipher AES-256 database + Android Keystore-sealed key (hardware-backed)
+• Multi-step panic mode: wipes key + DB + models in seconds
+
+<b>Per-folder vaults</b>
+• Argon2id RFC 9106 passphrase (m=64MB, t=3) or Keystore-bound PIN
+• AES-256-GCM per note with AAD = note_id (anti-swap)
+• PIN auto-wipe after 5 failures (device-bound Keystore)
+• Configurable auto-lock (5 min to never)
+
+<b>100% on-device AI</b>
+• "Ask my notes" Q&A via Gemma 3 1B int4 (MediaPipe LLM)
+• Quantized MiniLM-L6-v2 semantic search (optional)
+• Whisper voice dictation (.bin model imported manually)
+• SHA-256 verified at import and before every load
+• Gemma ↔ Whisper RAM coordination (anti-OOM on 4 GB devices)
+
+<b>Editing</b>
+• Raw Markdown, 500ms debounced autosave
+• `[[Title]]` backlinks with autocomplete + "notes linking here" panel
+• FTS5 + bm25 search, folder filter, configurable sort
+• ZIP Markdown export (YAML frontmatter, Obsidian/Logseq compatible)
+
+<b>i18n FR / EN</b>
+• Language picker in Settings (FR / EN / System)
+• Theme picker (Light / Dark / System)
+• Localized legal pages (PRIVACY / TERMS)
+
+<b>Open source Apache 2.0</b>
+Full and verifiable source code on GitHub: gitubpatrice/notes_tech
+
+For thinkers, therapists, students, researchers, writers and journalists who want to take sensitive or dense notes without them ever leaving their phone.
