@@ -71,7 +71,10 @@ class SemanticSearchService {
     final q = query.trim();
     if (q.isEmpty) return const [];
 
-    final queryVec = _encodeQuery(q);
+    // v1.0.x : encodage de la query via `embedAsync` pour ne pas bloquer
+    // le main thread (MiniLM ONNX ~30-600 ms selon device → jank au tap
+    // sur S9/POCO C75). LocalEmbedder reste sync via wrap par défaut.
+    final queryVec = await _encodeQueryAsync(q);
     final embeddings = await _ensureLoaded();
     if (embeddings.isEmpty) return const [];
 
@@ -101,11 +104,14 @@ class SemanticSearchService {
 
   // ---------------------------------------------------------------------
 
-  Float32List _encodeQuery(String q) {
+  /// LocalEmbedder est sync léger ; MiniLmEmbedder délègue à un isolate
+  /// worker via `embedAsync` (cf. `MiniLmIsolateWorker`).
+  Future<Float32List> _encodeQueryAsync(String q) async {
     final embedder = _embedder;
-    return embedder is LocalEmbedder
-        ? embedder.embedTitleAndBody(title: q, body: q)
-        : embedder.embed(q);
+    if (embedder is LocalEmbedder) {
+      return embedder.embedTitleAndBody(title: q, body: q);
+    }
+    return embedder.embedAsync(q);
   }
 
   Future<List<NoteEmbedding>> _ensureLoaded() async {

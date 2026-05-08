@@ -25,6 +25,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../utils/vector_math.dart';
 import 'bert_tokenizer.dart';
 import 'embedding_provider.dart';
+import 'minilm_isolate_worker.dart';
 
 class MiniLmEmbedder implements EmbeddingProvider {
   MiniLmEmbedder({
@@ -46,6 +47,13 @@ class MiniLmEmbedder implements EmbeddingProvider {
   BertTokenizer? _tokenizer;
   bool _warmedUp = false;
   Completer<void>? _warmUpInFlight;
+
+  /// Worker isolate pour `embedAsync` (queries interactives sans jank).
+  /// Spawné lazily au premier `embedAsync` après `warmUp`. La passe
+  /// d'indexation initiale (cooperative loop avec `Future.delayed`) reste
+  /// sur `embed` sync — re-spawn par batch, plus économe.
+  MiniLmIsolateWorker? _worker;
+  Completer<MiniLmIsolateWorker>? _workerInFlight;
 
   @override
   String get modelId => _modelId;
@@ -105,10 +113,63 @@ class MiniLmEmbedder implements EmbeddingProvider {
 
   @override
   Future<void> dispose() async {
+    final worker = _worker;
+    _worker = null;
+    if (worker != null) {
+      await worker.dispose();
+    }
     _session?.release();
     _session = null;
     _tokenizer = null;
     _warmedUp = false;
+  }
+
+  /// [embedAsync] : déporte le calcul ONNX dans un worker isolate
+  /// persistant (cf. [MiniLmIsolateWorker]). Le main thread reste fluide
+  /// pendant que le worker calcule (30-600 ms selon device).
+  ///
+  /// Le worker est spawné paresseusement au premier appel ; la session
+  /// principale (utilisée par [embed] sync) reste indépendante pour
+  /// les passes d'indexation cooperatives qui yieldent déjà entre notes.
+  @override
+  Future<Float32List> embedAsync(String text) async {
+    if (text.isEmpty) return Float32List(_dim);
+    final worker = await _ensureWorker();
+    return worker.embed(text);
+  }
+
+  Future<MiniLmIsolateWorker> _ensureWorker() async {
+    final existing = _worker;
+    if (existing != null) return existing;
+    final inFlight = _workerInFlight;
+    if (inFlight != null) return inFlight.future;
+    final completer = Completer<MiniLmIsolateWorker>();
+    _workerInFlight = completer;
+    try {
+      // Pré-requis : warmUp() a déjà extrait le modèle disque + chargé
+      // le tokenizer en RAM. On réutilise ces données pour spawner le
+      // worker (vocab + config primitifs serialisables cross-isolate).
+      if (!_warmedUp) {
+        await warmUp();
+      }
+      final tokenizer = _tokenizer!;
+      final modelPath = await _ensureModelOnDisk();
+      final worker = await MiniLmIsolateWorker.spawn(
+        modelPath: modelPath,
+        tokenizerVocab: tokenizer.vocab,
+        tokenizerConfig: minilmConfigFromTokenizer(tokenizer),
+        maxSequenceLength: _maxSeqLen,
+        dim: _dim,
+      );
+      _worker = worker;
+      completer.complete(worker);
+      return worker;
+    } catch (e, st) {
+      completer.completeError(e, st);
+      rethrow;
+    } finally {
+      _workerInFlight = null;
+    }
   }
 
   // ---------------------------------------------------------------------

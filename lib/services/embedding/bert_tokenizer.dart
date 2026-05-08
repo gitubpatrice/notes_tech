@@ -33,6 +33,28 @@ class BertEncoded {
   int get length => inputIds.length;
 }
 
+/// Factory exposée pour le worker isolate (cf. `minilm_isolate_worker.dart`)
+/// qui reconstruit le tokenizer côté worker à partir de vocab + config
+/// transférés via SendPort. Cohérent avec `loadFromAsset` côté main.
+BertTokenizer bertTokenizerFromConfig({
+  required Map<String, int> vocab,
+  required int unkToken,
+  required int clsToken,
+  required int sepToken,
+  required int padToken,
+  required String continuingPrefix,
+  required int maxInputCharsPerWord,
+}) =>
+    BertTokenizer._(
+      vocab: vocab,
+      unkToken: unkToken,
+      clsToken: clsToken,
+      sepToken: sepToken,
+      padToken: padToken,
+      continuingPrefix: continuingPrefix,
+      maxInputCharsPerWord: maxInputCharsPerWord,
+    );
+
 class BertTokenizer {
   BertTokenizer._({
     required this.vocab,

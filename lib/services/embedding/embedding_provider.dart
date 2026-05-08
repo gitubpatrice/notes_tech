@@ -17,11 +17,16 @@ abstract interface class EmbeddingProvider {
   /// Dimension du vecteur produit. Stable pour un modèle donné.
   int get dim;
 
-  /// Encode un texte en vecteur dense, L2-normalisé.
-  ///
-  /// Implémentations longues (>16 ms) doivent tourner en isolate
-  /// — c'est la responsabilité de l'appelant.
+  /// Encode un texte en vecteur dense, L2-normalisé. Synchrone — peut
+  /// bloquer le main thread sur les implémentations lourdes (MiniLM ONNX
+  /// 30-600 ms selon device). Préférer [embedAsync] côté UI interactive.
   Float32List embed(String text);
+
+  /// Variante asynchrone — délègue typiquement à un isolate worker pour
+  /// éviter de bloquer le main thread. Les embedders légers
+  /// ([LocalEmbedder]) wrappent simplement [embed] ; les lourds
+  /// ([MiniLmEmbedder]) déportent vers [MiniLmIsolateWorker].
+  Future<Float32List> embedAsync(String text);
 
   /// Initialisation paresseuse optionnelle (chargement modèle ONNX, etc.).
   /// L'implémentation par défaut ne fait rien.

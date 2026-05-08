@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, IA on-device (Gemma + Whisper) et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
-version: 1.0.1+32
+version: 1.0.2+33
 
 environment:
   sdk: ^3.11.5

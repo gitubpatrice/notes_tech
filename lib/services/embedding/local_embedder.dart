@@ -48,6 +48,12 @@ class LocalEmbedder implements EmbeddingProvider {
   @override
   Float32List embed(String text) => embedTitleAndBody(title: '', body: text);
 
+  /// LocalEmbedder est purement CPU léger (~1 ms) — pas besoin d'isolate.
+  /// On wrappe simplement [embed] en `Future.value` pour tenir le contrat
+  /// asynchrone de l'interface.
+  @override
+  Future<Float32List> embedAsync(String text) async => embed(text);
+
   /// Encode un (titre, corps). Le titre reçoit un poids ×3.
   Float32List embedTitleAndBody({
     required String title,
