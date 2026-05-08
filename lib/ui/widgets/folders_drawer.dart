@@ -139,7 +139,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               SnackBar(
                 content: Text(t.folderDeleteDecryptFailed(res.failed)),
                 backgroundColor: Theme.of(context).colorScheme.error,
-                behavior: SnackBarBehavior.floating,
+
                 duration: const Duration(seconds: 8),
               ),
             );
@@ -150,7 +150,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           messenger.showSnackBar(
             SnackBar(
               content: Text(t.folderDeleteCancelledError(e.toString())),
-              behavior: SnackBarBehavior.floating,
+
             ),
           );
           return;
@@ -450,7 +450,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               ),
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
+
             duration: const Duration(seconds: 8),
           ),
         );
@@ -462,7 +462,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                   ? t.vaultConvertSuccess
                   : t.vaultConvertSuccessWithCount(result.encrypted),
             ),
-            behavior: SnackBarBehavior.floating,
+
           ),
         );
       }
@@ -472,7 +472,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(t.vaultConvertImpossible(e.toString())),
-          behavior: SnackBarBehavior.floating,
+
         ),
       );
     }

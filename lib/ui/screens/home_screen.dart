@@ -210,7 +210,7 @@ class _HomeScreenState extends State<HomeScreen> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(t.homeVaultCreateError(e.toString())),
-            behavior: SnackBarBehavior.floating,
+
           ),
         );
         return;
@@ -227,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(t.homeNoteCreatedInInbox),
-          behavior: SnackBarBehavior.floating,
+
           duration: const Duration(seconds: 2),
         ),
       );

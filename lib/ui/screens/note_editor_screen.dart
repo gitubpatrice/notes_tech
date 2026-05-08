@@ -410,7 +410,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(t.noteEditorExportFailed(e.toString())),
-          behavior: SnackBarBehavior.floating,
+
         ),
       );
     }
@@ -481,7 +481,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(t.noteEditorMoved),
-          behavior: SnackBarBehavior.floating,
+
         ),
       );
     } catch (e) {
@@ -489,7 +489,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(t.noteEditorMoveFailed(e.toString())),
-          behavior: SnackBarBehavior.floating,
+
         ),
       );
     }

@@ -342,7 +342,7 @@ class _LinkTile extends StatelessWidget {
     messenger.showSnackBar(
       SnackBar(
         content: Text(copiedMsg),
-        behavior: SnackBarBehavior.floating,
+
       ),
     );
   }

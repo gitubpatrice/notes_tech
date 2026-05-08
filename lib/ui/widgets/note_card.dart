@@ -31,13 +31,26 @@ class NoteCard extends StatelessWidget {
   /// passer `null` pour ne pas surcharger l'UI.
   final String? folderName;
 
-  static final DateFormat _df = DateFormat('dd MMM yyyy · HH:mm', 'fr_FR');
+  /// v1.0 : format de date résolu à partir de la locale active. Pas de
+  /// `static final` car le pattern + locale dépendent du contexte. Cache
+  /// micro par locale via [_dfCache] pour éviter de re-instancier le
+  /// formatter à chaque build de chaque carte.
+  static final Map<String, DateFormat> _dfCache = {};
+  static DateFormat _dfFor(String localeCode) {
+    return _dfCache.putIfAbsent(
+      localeCode,
+      () => localeCode == 'en'
+          ? DateFormat('MMM d, yyyy · HH:mm', 'en_US')
+          : DateFormat('dd MMM yyyy · HH:mm', 'fr_FR'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final t = AppLocalizations.of(context);
+    final df = _dfFor(Localizations.localeOf(context).languageCode);
     final excerpt = note.excerpt;
     final locked = note.isLocked;
     return RepaintBoundary(
@@ -114,7 +127,7 @@ class NoteCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text(_df.format(note.updatedAt),
+                      Text(df.format(note.updatedAt),
                           style: theme.textTheme.labelMedium),
                       if (folderName != null) ...[
                         const SizedBox(width: 8),

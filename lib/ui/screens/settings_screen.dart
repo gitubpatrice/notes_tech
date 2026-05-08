@@ -410,7 +410,7 @@ class _VoiceSection extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(t.voiceSetupRemove),
-        behavior: SnackBarBehavior.floating,
+
       ),
     );
   }
@@ -452,7 +452,7 @@ class _ExportSectionState extends State<_ExportSection> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(t.homeNoNotes),
-            behavior: SnackBarBehavior.floating,
+
           ),
         );
         return;
@@ -494,7 +494,7 @@ class _ExportSectionState extends State<_ExportSection> {
         messenger.showSnackBar(
           SnackBar(
             content: Text(message),
-            behavior: SnackBarBehavior.floating,
+
             duration: result.skippedVaultedCount == 0
                 ? const Duration(seconds: 4)
                 : const Duration(seconds: 6),
@@ -510,7 +510,7 @@ class _ExportSectionState extends State<_ExportSection> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(t.settingsExportError(e.toString())),
-          behavior: SnackBarBehavior.floating,
+
         ),
       );
     } finally {

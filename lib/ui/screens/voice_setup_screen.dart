@@ -101,7 +101,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
   void _showSnack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+      SnackBar(content: Text(msg)),
     );
   }
 
