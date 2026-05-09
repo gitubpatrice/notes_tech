@@ -166,9 +166,9 @@ class RagService {
   /// 4. Steering response : `nouvelle consigne`, `as the user said`.
   ///
   /// La sanitization reste **best-effort** : un attaquant déterminé peut
-  /// encore passer (encodage base64, leetspeak, ROT13). Pour une vraie
-  /// défense en profondeur, voir TODO v1.1 : encoder chaque note en
-  /// base64 avec délimiteur ASCII random régénéré par requête.
+  /// encore passer (encodage base64, leetspeak, ROT13). Piste pour
+  /// v1.1 (defense-in-depth) : encoder chaque note en base64 avec un
+  /// délimiteur ASCII aléatoire régénéré par requête.
   static String _sanitize(String s) {
     return s
         .replaceAll(RegExp(r'</\s*note\s*>', caseSensitive: false), '<​/note>')
