@@ -19,9 +19,9 @@ class NoteChangeEvent {
     this.previousTitle,
     this.currentTitle,
   }) : assert(
-          kind == NoteChangeKind.bulk || id != null,
-          'kind != bulk requires id',
-        );
+         kind == NoteChangeKind.bulk || id != null,
+         'kind != bulk requires id',
+       );
 
   /// Sentinelle pour les opérations massives (purge corbeille,
   /// restauration depuis backup, migration future).

@@ -111,7 +111,9 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final semanticEnabled = context.watch<SettingsService>().semanticSearchEnabled;
+    final semanticEnabled = context
+        .watch<SettingsService>()
+        .semanticSearchEnabled;
     // Garde-fou : si l'utilisateur désactive la recherche sémantique pendant
     // qu'il était sur cet onglet, on rebascule en FTS proprement.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -171,9 +173,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final f = _future;
     if (f == null) {
       return EmptyState(
-        icon: _mode == _SearchMode.semantic
-            ? Icons.auto_awesome
-            : Icons.search,
+        icon: _mode == _SearchMode.semantic ? Icons.auto_awesome : Icons.search,
         title: t.searchEmptyTitle,
         subtitle: _mode == _SearchMode.semantic
             ? t.searchEmptySubtitleSemantic
@@ -188,17 +188,15 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         if (snap.hasError) {
           return Center(
-              child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(t.searchErrorGeneric),
-          ));
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(t.searchErrorGeneric),
+            ),
+          );
         }
         final results = snap.data ?? const [];
         if (results.isEmpty) {
-          return EmptyState(
-            icon: Icons.search_off,
-            title: t.searchEmpty,
-          );
+          return EmptyState(icon: Icons.search_off, title: t.searchEmpty);
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),

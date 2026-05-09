@@ -66,7 +66,8 @@ class LinksDao {
     required String targetTitleNorm,
   }) async {
     try {
-      final rows = await _db.rawQuery('''
+      final rows = await _db.rawQuery(
+        '''
         SELECT DISTINCT n.*
         FROM notes n
         JOIN note_links l ON l.source_id = n.id
@@ -74,7 +75,9 @@ class LinksDao {
           AND (l.target_id = ? OR
                (l.target_id IS NULL AND l.target_title_norm = ?))
         ORDER BY n.updated_at DESC
-      ''', [targetId, targetTitleNorm]);
+      ''',
+        [targetId, targetTitleNorm],
+      );
       return rows.map(Note.fromRow).toList(growable: false);
     } catch (e) {
       throw DatabaseException('links.backlinkSources échoué', cause: e);

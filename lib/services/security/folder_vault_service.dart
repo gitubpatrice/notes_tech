@@ -63,6 +63,7 @@ import '../../core/constants.dart';
 import '../../core/exceptions.dart';
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
+import '../../data/repositories/embeddings_repository.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import 'keystore_bridge.dart';
@@ -71,17 +72,17 @@ import 'keystore_bridge.dart';
 /// AES-GCM échoue au tag GCM ou le verifier HMAC ne matche pas).
 class WrongPassphraseException extends NotesTechException {
   const WrongPassphraseException()
-      : super(
-          'Passphrase incorrecte.',
-          code: NotesErrorCode.vaultPassphraseWrong,
-        );
+    : super(
+        'Passphrase incorrecte.',
+        code: NotesErrorCode.vaultPassphraseWrong,
+      );
 }
 
 /// Erreur levée quand on tente d'opérer sur un coffre qui n'a pas été
 /// déverrouillé (ou a été auto-locké entre temps).
 class VaultLockedException extends NotesTechException {
   const VaultLockedException(this.folderId)
-      : super('Coffre verrouillé.', code: NotesErrorCode.vaultLocked);
+    : super('Coffre verrouillé.', code: NotesErrorCode.vaultLocked);
   final String folderId;
 }
 
@@ -92,7 +93,7 @@ class VaultLockedException extends NotesTechException {
 class VaultValidationException extends ValidationException {
   const VaultValidationException(super.message, {super.code});
   const VaultValidationException.coded(NotesErrorCode code)
-      : super('VaultValidationException', code: code);
+    : super('VaultValidationException', code: code);
 }
 
 /// Erreur levée quand un coffre PIN a été auto-détruit après trop de
@@ -102,10 +103,10 @@ class VaultValidationException extends ValidationException {
 /// définitivement.
 class VaultPinWipedException extends NotesTechException {
   const VaultPinWipedException(this.folderId)
-      : super(
-          'Coffre auto-détruit après trop de tentatives ratées.',
-          code: NotesErrorCode.vaultPinWiped,
-        );
+    : super(
+        'Coffre auto-détruit après trop de tentatives ratées.',
+        code: NotesErrorCode.vaultPinWiped,
+      );
   final String folderId;
 }
 
@@ -113,17 +114,33 @@ class VaultPinWipedException extends NotesTechException {
 /// tentatives restantes pour permettre à l'UI d'avertir l'utilisateur.
 class WrongPinException extends NotesTechException {
   const WrongPinException({required this.attemptsRemaining})
-      : super('PIN incorrect.', code: NotesErrorCode.vaultPinWrong);
+    : super('PIN incorrect.', code: NotesErrorCode.vaultPinWrong);
   final int attemptsRemaining;
 }
 
 /// Session active d'un coffre déverrouillé. La `folder_kek` est gardée en
 /// RAM pour la durée de la session ; l'auto-lock zeroize les bytes.
 class _Session {
-  _Session({required this.folderKek, required this.openedAt});
+  _Session({required this.folderKek, required this.openedAt}) {
+    lastActivityElapsedMs = _monotonicMs;
+  }
   Uint8List folderKek;
   DateTime openedAt;
+
+  /// Conservé pour l'horodatage UI (affichage "ouvert depuis 12 min").
+  /// L'auto-lock utilise désormais [lastActivityElapsedMs] (monotonique).
   DateTime lastActivity = DateTime.now();
+
+  /// F8 v1.0.3 — horodatage monotonique pour l'auto-lock. `DateTime.now()`
+  /// suit l'horloge système : un attaquant root qui recule la date
+  /// pouvait empêcher l'auto-lock de tirer (`now - lastActivity` reste
+  /// négatif → jamais > autoLockAfter). `Stopwatch` est monotonique.
+  int lastActivityElapsedMs = 0;
+
+  /// Stopwatch process-wide pour borner l'inactivité monotonique.
+  /// Démarré une seule fois au premier accès.
+  static final Stopwatch _stopwatch = Stopwatch()..start();
+  static int get _monotonicMs => _stopwatch.elapsedMilliseconds;
 }
 
 /// Constante DOMAIN-SEPARATED pour le HMAC verifier. Si on change ce
@@ -135,17 +152,32 @@ class FolderVaultService extends ChangeNotifier {
   FolderVaultService({
     required FoldersRepository folders,
     required NotesRepository notes,
+    EmbeddingsRepository? embeddings,
     Duration autoLockAfter = AppConstants.vaultDefaultAutoLock,
     KeystoreBridge? keystore,
-  })  : _folders = folders,
-        _notes = notes,
-        _autoLockAfter = autoLockAfter,
-        _keystore = keystore ?? KeystoreBridge();
+  }) : _folders = folders,
+       _notes = notes,
+       _embeddings = embeddings,
+       _autoLockAfter = autoLockAfter,
+       _keystore = keystore ?? KeystoreBridge();
 
   final FoldersRepository _folders;
   final NotesRepository _notes;
+
+  /// F1 v1.0.3 — purge synchrone des embeddings 384D au moment de la
+  /// vault-isation d'un dossier. Sans ça, les embeddings plaintext
+  /// historiques restent dans `note_embeddings` jusqu'à la prochaine
+  /// passe d'indexation (debounce 1s) — fenêtre où une recherche
+  /// sémantique peut retrouver le contenu encore indexé.
+  final EmbeddingsRepository? _embeddings;
   final KeystoreBridge _keystore;
   Duration _autoLockAfter;
+
+  /// F7 v1.0.3 — mutex local : empêche la ré-entrance d'`_autoWipePinVault`
+  /// pendant qu'un wipe est en cours (tap rapide UI sur sheet d'unlock
+  /// après un échec PIN au seuil). Sans ça, un 2e appel concurrent
+  /// pouvait pourrir le flag prefs ou logger spuriously.
+  final Set<String> _wipingFolders = <String>{};
 
   /// Sessions actives, indexées par `folder.id`. Une entrée présente
   /// signifie que le coffre est déverrouillé en mémoire.
@@ -171,6 +203,7 @@ class FolderVaultService extends ChangeNotifier {
     final s = _unlocked[folderId];
     if (s == null) return;
     s.lastActivity = DateTime.now();
+    s.lastActivityElapsedMs = _Session._monotonicMs;
     _scheduleAutoLockSweep();
   }
 
@@ -200,8 +233,10 @@ class FolderVaultService extends ChangeNotifier {
     final folderKek = _randomBytes(32);
     final iv = _randomBytes(12);
 
-    final kekFromPass =
-        await _deriveKekArgon2id(passphrase: passphrase, salt: salt);
+    final kekFromPass = await _deriveKekArgon2id(
+      passphrase: passphrase,
+      salt: salt,
+    );
     try {
       final wrapped = await _aesGcmEncrypt(
         key: kekFromPass,
@@ -383,10 +418,17 @@ class FolderVaultService extends ChangeNotifier {
         NotesErrorCode.vaultLocked,
       );
     } on KeystoreException {
-      // Catch-all pour rétrocompat : autres KeystoreException = wipe légitime
-      // (clé disparue, factory reset partiel, etc.).
-      await _autoWipePinVault(folder);
-      throw VaultPinWipedException(folder.id);
+      // F5 v1.0.3 — whitelist au lieu de blacklist (data loss prevention).
+      // Avant : tout `KeystoreException` autre déclenchait un wipe légitime.
+      // Risque : un OTA Samsung One UI exposant un sous-type non listé
+      // (BadPaddingException OEM-spécifique, RuntimeException Magisk…)
+      // → wipe involontaire des notes vault SANS mauvais PIN.
+      // Désormais : SEUL `KeyPermanentlyInvalidatedException` (catch-block
+      // précédent) déclenche le wipe. Tout autre `KeystoreException` est
+      // traité comme transient → rollback + message « réessayer plus tard ».
+      working = folder.copyWith(vaultAttempts: folder.vaultAttempts);
+      await _folders.update(working);
+      throw const VaultValidationException.coded(NotesErrorCode.vaultLocked);
     }
 
     final pinKek = await _deriveKekArgon2idLight(pin: pin, salt: salt);
@@ -424,10 +466,7 @@ class FolderVaultService extends ChangeNotifier {
       working = working.copyWith(vaultAttempts: 0);
       await _folders.update(working);
 
-      _unlocked[folder.id] = _Session(
-        folderKek: kek,
-        openedAt: DateTime.now(),
-      );
+      _unlocked[folder.id] = _Session(folderKek: kek, openedAt: DateTime.now());
       transferredToSession = true; // ownership transférée — ne pas wipe ici
       _scheduleAutoLockSweep();
       notifyListeners();
@@ -477,42 +516,55 @@ class FolderVaultService extends ChangeNotifier {
   /// données ont disparu — c'est le contrat (5 fails = perte définitive,
   /// équivalent factory reset Android).
   Future<void> _autoWipePinVault(Folder folder) async {
-    final prefs = await SharedPreferences.getInstance();
-    final flagKey =
-        '${AppConstants.prefKeyVaultWipePendingPrefix}${folder.id}';
-    await prefs.setBool(flagKey, true);
-
-    // 1. Keystore : delete idempotent.
+    // F7 v1.0.3 — anti ré-entrance. `lock(folder.id)` à la fin déclenche
+    // `notifyListeners()` qui rebuild les Consumer du sheet d'unlock.
+    // Un re-tap rapide sur le sheet pouvait re-invoquer `unlockWithPin`
+    // pendant le wipe en cours, doublant les opérations Keystore et
+    // pouvant pourrir le flag prefs.
+    if (_wipingFolders.contains(folder.id)) return;
+    _wipingFolders.add(folder.id);
     try {
-      await _keystore.deleteKey(_keystoreAlias(folder.id));
-    } catch (_) {
-      // Best-effort : si Keystore refuse, la clé devient orpheline mais
-      // sans le blob côté DB elle est inutile à un attaquant.
-    }
+      final prefs = await SharedPreferences.getInstance();
+      final flagKey =
+          '${AppConstants.prefKeyVaultWipePendingPrefix}${folder.id}';
+      await prefs.setBool(flagKey, true);
 
-    // 2. Notes verrouillées : suppression directe (purge sans corbeille
-    // — la corbeille les conserverait sans pouvoir les déchiffrer).
-    final notes = await _notes.listByFolder(folder.id, includeArchived: true);
-    for (final n in notes) {
-      if (n.isLocked) {
-        try {
-          await _notes.deletePermanently(n.id);
-        } catch (_) {/* best-effort */}
+      // 1. Keystore : delete idempotent.
+      try {
+        await _keystore.deleteKey(_keystoreAlias(folder.id));
+      } catch (_) {
+        // Best-effort : si Keystore refuse, la clé devient orpheline mais
+        // sans le blob côté DB elle est inutile à un attaquant.
       }
+
+      // 2. Notes verrouillées : suppression directe (purge sans corbeille
+      // — la corbeille les conserverait sans pouvoir les déchiffrer).
+      final notes = await _notes.listByFolder(folder.id, includeArchived: true);
+      for (final n in notes) {
+        if (n.isLocked) {
+          try {
+            await _notes.deletePermanently(n.id);
+          } catch (_) {
+            /* best-effort */
+          }
+        }
+      }
+
+      // 3. Démote le dossier.
+      final cleared = folder.copyWith(
+        clearVault: true,
+        updatedAt: DateTime.now(),
+      );
+      await _folders.update(cleared);
+
+      // Ferme la session si ouverte (ne devrait pas l'être à ce stade).
+      lock(folder.id);
+
+      // 4. Retire le flag — wipe terminé proprement.
+      await prefs.remove(flagKey);
+    } finally {
+      _wipingFolders.remove(folder.id);
     }
-
-    // 3. Démote le dossier.
-    final cleared = folder.copyWith(
-      clearVault: true,
-      updatedAt: DateTime.now(),
-    );
-    await _folders.update(cleared);
-
-    // Ferme la session si ouverte (ne devrait pas l'être à ce stade).
-    lock(folder.id);
-
-    // 4. Retire le flag — wipe terminé proprement.
-    await prefs.remove(flagKey);
   }
 
   /// Reprise au démarrage : pour chaque coffre dont le flag de wipe
@@ -550,7 +602,9 @@ class FolderVaultService extends ChangeNotifier {
   Future<void> deletePinKey(String folderId) async {
     try {
       await _keystore.deleteKey(_keystoreAlias(folderId));
-    } catch (_) {/* best-effort */}
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   String _keystoreAlias(String folderId) =>
@@ -570,17 +624,25 @@ class FolderVaultService extends ChangeNotifier {
     required String passphrase,
   }) async {
     if (!folder.isVault) {
-      throw const VaultValidationException.coded(
-        NotesErrorCode.vaultNotAVault,
-      );
+      throw const VaultValidationException.coded(NotesErrorCode.vaultNotAVault);
+    }
+    // F17 v1.0.3 — guard explicite contre l'appel à `unlock()` (mode
+    // passphrase) sur un coffre PIN. Sans ça, les `!` ci-dessous
+    // levaient un `NoSuchMethodError` Dart générique sur la première
+    // colonne null (`vaultKekWrapped`), avec stack trace verbeuse
+    // potentiellement exposée à l'UI.
+    if (folder.vaultMode == VaultMode.pin) {
+      throw const VaultValidationException.coded(NotesErrorCode.vaultLocked);
     }
     final salt = folder.vaultSalt!;
     final wrapped = folder.vaultKekWrapped!;
     final iv = folder.vaultIv!;
     final expectedVerifier = folder.vaultVerifier!;
 
-    final kekFromPass =
-        await _deriveKekArgon2id(passphrase: passphrase, salt: salt);
+    final kekFromPass = await _deriveKekArgon2id(
+      passphrase: passphrase,
+      salt: salt,
+    );
     Uint8List? folderKek;
     try {
       folderKek = await _aesGcmDecrypt(
@@ -686,10 +748,7 @@ class FolderVaultService extends ChangeNotifier {
       wrapped: ciphertext,
       aad: utf8Bytes(note.id),
     );
-    return note.copyWith(
-      content: utf8Decode(plaintext),
-      clearEncrypted: true,
-    );
+    return note.copyWith(content: utf8Decode(plaintext), clearEncrypted: true);
   }
 
   /// Déchiffre toutes les notes verrouillées du dossier coffre
@@ -747,6 +806,14 @@ class FolderVaultService extends ChangeNotifier {
       try {
         final encrypted = await encryptNote(note);
         await _notes.save(encrypted);
+        // F1 v1.0.3 — purge synchrone de l'embedding plaintext historique.
+        // Sans ça, fenêtre où une recherche sémantique peut retrouver le
+        // contenu encore indexé (jusqu'à passe d'indexation suivante).
+        try {
+          await _embeddings?.remove(note.id);
+        } catch (_) {
+          // Best-effort : la passe d'indexation finira par recalculer.
+        }
         ok++;
       } catch (_) {
         failed++;
@@ -765,10 +832,12 @@ class FolderVaultService extends ChangeNotifier {
 
   void _autoLockSweep() {
     if (_unlocked.isEmpty) return;
-    final cutoff = DateTime.now().subtract(_autoLockAfter);
+    // F8 v1.0.3 — horloge monotonique.
+    final nowMs = _Session._monotonicMs;
+    final autoLockMs = _autoLockAfter.inMilliseconds;
     final expired = <String>[];
     for (final entry in _unlocked.entries) {
-      if (entry.value.lastActivity.isBefore(cutoff)) {
+      if (nowMs - entry.value.lastActivityElapsedMs >= autoLockMs) {
         expired.add(entry.key);
       }
     }
@@ -898,11 +967,7 @@ class FolderVaultService extends ChangeNotifier {
     final macBytes = Uint8List.sublistView(wrapped, wrapped.length - 16);
     final algo = AesGcm.with256bits();
     final secret = SecretKey(key);
-    final box = SecretBox(
-      cipherText,
-      nonce: iv,
-      mac: Mac(macBytes),
-    );
+    final box = SecretBox(cipherText, nonce: iv, mac: Mac(macBytes));
     final plain = await algo.decrypt(box, secretKey: secret, aad: aad);
     return Uint8List.fromList(plain);
   }
@@ -910,8 +975,10 @@ class FolderVaultService extends ChangeNotifier {
   Future<Uint8List> _verifierFor(Uint8List folderKek) async {
     final hmac = Hmac.sha256();
     final secret = SecretKey(folderKek);
-    final mac =
-        await hmac.calculateMac(utf8Bytes(_kVerifierMessage), secretKey: secret);
+    final mac = await hmac.calculateMac(
+      utf8Bytes(_kVerifierMessage),
+      secretKey: secret,
+    );
     return Uint8List.fromList(mac.bytes);
   }
 

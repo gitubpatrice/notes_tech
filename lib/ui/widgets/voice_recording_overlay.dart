@@ -101,7 +101,8 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
     // En `transcribing`, on bloque totalement le back : la transcription
     // native tourne déjà, on attend qu'elle finisse pour ne pas perdre
     // silencieusement le résultat. En `recording`, on annule + pop.
-    final canPop = voice.state != VoiceServiceState.recording &&
+    final canPop =
+        voice.state != VoiceServiceState.recording &&
         voice.state != VoiceServiceState.transcribing;
     return PopScope(
       canPop: canPop,
@@ -231,11 +232,7 @@ class _RecordingBody extends StatelessWidget {
             duration: const Duration(seconds: 1),
             builder: (context, value, _) => Opacity(
               opacity: value,
-              child: Icon(
-                Icons.fiber_manual_record,
-                color: cs.error,
-                size: 18,
-              ),
+              child: Icon(Icons.fiber_manual_record, color: cs.error, size: 18),
             ),
           ),
         ),
@@ -383,9 +380,7 @@ class _PermissionErrorBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 8),
-          const ExcludeSemantics(
-            child: Icon(Icons.mic_off_outlined, size: 40),
-          ),
+          const ExcludeSemantics(child: Icon(Icons.mic_off_outlined, size: 40)),
           const SizedBox(height: 12),
           Semantics(
             header: true,

@@ -57,8 +57,7 @@ class _BacklinksPanelState extends State<BacklinksPanel> {
   @override
   void didUpdateWidget(covariant BacklinksPanel old) {
     super.didUpdateWidget(old);
-    if (old.note.id != widget.note.id ||
-        old.note.title != widget.note.title) {
+    if (old.note.id != widget.note.id || old.note.title != widget.note.title) {
       _reload();
     }
   }
@@ -203,9 +202,7 @@ class _OutgoingChip extends StatelessWidget {
         style: dangling ? TextStyle(color: Theme.of(context).hintColor) : null,
       ),
       onPressed: onTap,
-      tooltip: dangling
-          ? t.noteEditorBacklinkDangling(link.targetTitle)
-          : null,
+      tooltip: dangling ? t.noteEditorBacklinkDangling(link.targetTitle) : null,
     );
   }
 }

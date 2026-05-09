@@ -32,9 +32,9 @@ class MiniLmEmbedder implements EmbeddingProvider {
     String modelAsset = 'assets/models/all-MiniLM-L6-v2-quant.onnx',
     String tokenizerAsset = 'assets/models/tokenizer.json',
     int maxSequenceLength = 128,
-  })  : _modelAsset = modelAsset,
-        _tokenizerAsset = tokenizerAsset,
-        _maxSeqLen = maxSequenceLength;
+  }) : _modelAsset = modelAsset,
+       _tokenizerAsset = tokenizerAsset,
+       _maxSeqLen = maxSequenceLength;
 
   final String _modelAsset;
   final String _tokenizerAsset;
@@ -193,12 +193,18 @@ class MiniLmEmbedder implements EmbeddingProvider {
     final tokenTypeIds = Int64List.fromList(encoded.tokenTypeIds);
 
     final shape = [1, seqLen];
-    final inputIdsTensor =
-        OrtValueTensor.createTensorWithDataList(inputIds, shape);
-    final attentionTensor =
-        OrtValueTensor.createTensorWithDataList(attentionMask, shape);
-    final tokenTypeTensor =
-        OrtValueTensor.createTensorWithDataList(tokenTypeIds, shape);
+    final inputIdsTensor = OrtValueTensor.createTensorWithDataList(
+      inputIds,
+      shape,
+    );
+    final attentionTensor = OrtValueTensor.createTensorWithDataList(
+      attentionMask,
+      shape,
+    );
+    final tokenTypeTensor = OrtValueTensor.createTensorWithDataList(
+      tokenTypeIds,
+      shape,
+    );
 
     final inputs = <String, OrtValue>{
       'input_ids': inputIdsTensor,

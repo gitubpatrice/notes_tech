@@ -34,8 +34,8 @@ class MlMemoryGuard {
   MlMemoryGuard({
     required Future<void> Function() evictGemma,
     required Future<void> Function() evictVoice,
-  })  : _evictGemma = evictGemma,
-        _evictVoice = evictVoice;
+  }) : _evictGemma = evictGemma,
+       _evictVoice = evictVoice;
 
   final Future<void> Function() _evictGemma;
   final Future<void> Function() _evictVoice;
@@ -59,32 +59,30 @@ class MlMemoryGuard {
   /// Si Gemma détient le verrou, on l'évince (libération RAM) puis on
   /// transfère le verrou à voix. Timeout dur sur l'éviction.
   Future<void> requestVoice() => _serialize(() async {
-        if (_holder == _Holder.voice) return;
-        if (_holder == _Holder.gemma) {
-          await _evictWithTimeout(_evictGemma);
-        }
-        _holder = _Holder.voice;
-      });
+    if (_holder == _Holder.voice) return;
+    if (_holder == _Holder.gemma) {
+      await _evictWithTimeout(_evictGemma);
+    }
+    _holder = _Holder.voice;
+  });
 
   /// Le service Gemma appelle ceci AVANT `gemma.warmUp()`. Si voix détient
   /// le verrou, on l'évince. Si voix est en plein recording, on évincera
   /// quand même le moteur Whisper. Timeout dur sur l'éviction.
   Future<void> requestGemma() => _serialize(() async {
-        if (_holder == _Holder.gemma) return;
-        if (_holder == _Holder.voice) {
-          await _evictWithTimeout(_evictVoice);
-        }
-        _holder = _Holder.gemma;
-      });
+    if (_holder == _Holder.gemma) return;
+    if (_holder == _Holder.voice) {
+      await _evictWithTimeout(_evictVoice);
+    }
+    _holder = _Holder.gemma;
+  });
 
   /// Wrappe `evict()` avec un timeout dur de [_evictTimeout]. Si l'éviction
   /// hang (JNI bloqué, OOM extrême), on continue après le timeout :
   /// l'utilisateur ne perd pas l'UI sur un moteur ML cassé. Le `_holder`
   /// sera réécrit par le caller, donc le moteur potentiellement encore
   /// présent en RAM sera évincé naturellement au prochain cold start.
-  static Future<void> _evictWithTimeout(
-    Future<void> Function() evict,
-  ) async {
+  static Future<void> _evictWithTimeout(Future<void> Function() evict) async {
     try {
       await evict().timeout(_evictTimeout);
     } on TimeoutException {

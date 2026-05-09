@@ -55,9 +55,7 @@ class _PassphraseTextFieldState extends State<PassphraseTextField> {
           icon: Icon(
             _hidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
           ),
-          tooltip: _hidden
-              ? t.passphraseShowTooltip
-              : t.passphraseHideTooltip,
+          tooltip: _hidden ? t.passphraseShowTooltip : t.passphraseHideTooltip,
           onPressed: () => setState(() => _hidden = !_hidden),
         ),
       ),

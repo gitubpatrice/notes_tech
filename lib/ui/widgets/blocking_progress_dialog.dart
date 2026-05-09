@@ -6,11 +6,7 @@ library;
 import 'package:flutter/material.dart';
 
 class BlockingProgressDialog extends StatelessWidget {
-  const BlockingProgressDialog({
-    super.key,
-    required this.title,
-    this.subtitle,
-  });
+  const BlockingProgressDialog({super.key, required this.title, this.subtitle});
 
   final String title;
   final String? subtitle;

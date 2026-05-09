@@ -65,8 +65,11 @@ class MiniLmIsolateWorker {
       dim: dim,
       mainSendPort: fromWorker.sendPort,
     );
-    final isolate = await Isolate.spawn<_SpawnArgs>(_workerEntry, args,
-        debugName: 'MiniLmWorker');
+    final isolate = await Isolate.spawn<_SpawnArgs>(
+      _workerEntry,
+      args,
+      debugName: 'MiniLmWorker',
+    );
     // Le worker poste son SendPort en premier message, puis tout le reste
     // est multiplexé par requestId.
     late final StreamSubscription<dynamic> sub;
@@ -77,8 +80,7 @@ class MiniLmIsolateWorker {
     });
     final SendPort workerSend;
     try {
-      workerSend = await ready.future
-          .timeout(const Duration(seconds: 30));
+      workerSend = await ready.future.timeout(const Duration(seconds: 30));
     } catch (e) {
       await sub.cancel();
       isolate.kill(priority: Isolate.immediate);
@@ -190,11 +192,7 @@ class _EmbedRequest {
 }
 
 class _EmbedResponse {
-  const _EmbedResponse({
-    required this.requestId,
-    this.vector,
-    this.error,
-  });
+  const _EmbedResponse({required this.requestId, this.vector, this.error});
   final int requestId;
   final Float32List? vector;
   final String? error;
@@ -262,12 +260,18 @@ Float32List _embedSync({
   final attentionMask = Int64List.fromList(encoded.attentionMask);
   final tokenTypeIds = Int64List.fromList(encoded.tokenTypeIds);
   final shape = [1, seqLen];
-  final inputIdsTensor =
-      OrtValueTensor.createTensorWithDataList(inputIds, shape);
-  final attentionTensor =
-      OrtValueTensor.createTensorWithDataList(attentionMask, shape);
-  final tokenTypeTensor =
-      OrtValueTensor.createTensorWithDataList(tokenTypeIds, shape);
+  final inputIdsTensor = OrtValueTensor.createTensorWithDataList(
+    inputIds,
+    shape,
+  );
+  final attentionTensor = OrtValueTensor.createTensorWithDataList(
+    attentionMask,
+    shape,
+  );
+  final tokenTypeTensor = OrtValueTensor.createTensorWithDataList(
+    tokenTypeIds,
+    shape,
+  );
   final inputs = <String, OrtValue>{
     'input_ids': inputIdsTensor,
     'attention_mask': attentionTensor,

@@ -27,24 +27,21 @@ class LinksRepository {
     _emit();
   }
 
-  Future<List<NoteLink>> outgoing(String sourceId) =>
-      _dao.outgoing(sourceId);
+  Future<List<NoteLink>> outgoing(String sourceId) => _dao.outgoing(sourceId);
 
   Future<List<Note>> backlinkSources({
     required String targetId,
     required String targetTitleNorm,
-  }) =>
-      _dao.backlinkSources(
-        targetId: targetId,
-        targetTitleNorm: targetTitleNorm,
-      );
+  }) => _dao.backlinkSources(
+    targetId: targetId,
+    targetTitleNorm: targetTitleNorm,
+  );
 
   Future<int> resolveDangling({
     required String noteId,
     required String titleNorm,
   }) async {
-    final n =
-        await _dao.resolveDangling(noteId: noteId, titleNorm: titleNorm);
+    final n = await _dao.resolveDangling(noteId: noteId, titleNorm: titleNorm);
     if (n > 0) _emit();
     return n;
   }

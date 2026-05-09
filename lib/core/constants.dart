@@ -22,7 +22,9 @@ class AppConstants {
   // 'passphrase'|'pin'|NULL), `vault_pin_blob`+`vault_pin_iv` (wrap
   // Keystore-bound de la folder_kek pour mode PIN), `vault_attempts`
   // (compteur tentatives PIN, auto-wipe à 5).
-  static const int dbVersion = 5;
+  // v6 (1.0.3) : F2 — triggers FTS5 réécrits pour ne plus indexer
+  // `title`/`tags` sur notes verrouillées (`encrypted_content IS NOT NULL`).
+  static const int dbVersion = 6;
 
   /// Identifiant du dossier "Boîte de réception" — racine indélébile de
   /// l'arborescence, créée au premier démarrage. Les notes orphelines
@@ -143,6 +145,7 @@ class AppConstants {
   static const String prefKeySecureWindowEnabled = 'secure_window_enabled';
   static const String prefKeyAcceptUnknownGemmaHash =
       'accept_unknown_gemma_hash';
+
   /// `true` une fois la migration vers la base SQLite chiffrée terminée.
   /// Absent / `false` ⇒ la prochaine ouverture déclenche la migration
   /// d'une éventuelle DB en clair vers une DB chiffrée par la KEK du vault.

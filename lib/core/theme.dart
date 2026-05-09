@@ -40,10 +40,12 @@ class AppTheme {
     final bg = isDark ? AppColors.darkBg : AppColors.lightBg;
     final surface = isDark ? AppColors.darkSurface : AppColors.lightSurface;
     final border = isDark ? AppColors.darkBorder : AppColors.lightBorder;
-    final textPri =
-        isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary;
-    final textSec =
-        isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+    final textPri = isDark
+        ? AppColors.darkTextPrimary
+        : AppColors.lightTextPrimary;
+    final textSec = isDark
+        ? AppColors.darkTextSecondary
+        : AppColors.lightTextSecondary;
     final accent = isDark ? AppColors.darkBlue : AppColors.lightBlue;
 
     final scheme = ColorScheme(
@@ -106,23 +108,28 @@ class AppTheme {
         bodyLarge: TextStyle(color: textPri, fontSize: 15),
         bodyMedium: TextStyle(color: textPri, fontSize: 14),
         bodySmall: TextStyle(color: textSec, fontSize: 12),
-        titleLarge:
-            TextStyle(color: textPri, fontSize: 20, fontWeight: FontWeight.w600),
-        titleMedium:
-            TextStyle(color: textPri, fontSize: 16, fontWeight: FontWeight.w600),
+        titleLarge: TextStyle(
+          color: textPri,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: TextStyle(
+          color: textPri,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
         labelMedium: TextStyle(color: textSec, fontSize: 13),
       ),
       iconTheme: IconThemeData(color: textSec),
-      listTileTheme: ListTileThemeData(
-        iconColor: textSec,
-        textColor: textPri,
-      ),
+      listTileTheme: ListTileThemeData(iconColor: textSec, textColor: textPri),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: accent,
         foregroundColor: Colors.white,
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: isDark ? AppColors.darkSurface2 : AppColors.lightSurface2,
+        backgroundColor: isDark
+            ? AppColors.darkSurface2
+            : AppColors.lightSurface2,
         contentTextStyle: TextStyle(color: textPri),
         behavior: SnackBarBehavior.floating,
       ),

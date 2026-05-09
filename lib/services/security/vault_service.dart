@@ -31,7 +31,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class VaultService {
   VaultService({FlutterSecureStorage? storage})
-      : _storage = storage ?? _defaultStorage();
+    : _storage = storage ?? _defaultStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -58,11 +58,8 @@ class VaultService {
   // deviennent illisibles à jamais. On force donc le comportement
   // « préserver à tout prix » et on laisse l'erreur remonter — l'app
   // affichera un écran d'erreur plutôt que de wiper les données.
-  static FlutterSecureStorage _defaultStorage() => const FlutterSecureStorage(
-        aOptions: AndroidOptions(
-          resetOnError: false,
-        ),
-      );
+  static FlutterSecureStorage _defaultStorage() =>
+      const FlutterSecureStorage(aOptions: AndroidOptions(resetOnError: false));
 
   /// Récupère la KEK existante ou en génère une nouvelle au premier appel.
   /// Retourne une **copie** : l'appelant peut wiper sans corrompre l'état

@@ -84,7 +84,7 @@ class NotesTechException implements Exception {
 /// rétro-compat des tests).
 class NotesException extends NotesTechException {
   const NotesException(NotesErrorCode code, {Object? cause})
-      : super('NotesException', cause: cause, code: code);
+    : super('NotesException', cause: cause, code: code);
 
   @override
   String toString() => 'NotesException(${code?.name})';
@@ -96,12 +96,12 @@ class DatabaseException extends NotesTechException {
 
 class NoteNotFoundException extends NotesTechException {
   const NoteNotFoundException(String noteId)
-      : super('Note introuvable : $noteId');
+    : super('Note introuvable : $noteId');
 }
 
 class FolderNotFoundException extends NotesTechException {
   const FolderNotFoundException(String folderId)
-      : super('Dossier introuvable : $folderId');
+    : super('Dossier introuvable : $folderId');
 }
 
 class ValidationException extends NotesTechException {
@@ -110,5 +110,5 @@ class ValidationException extends NotesTechException {
   /// Constructeur préféré : code obligatoire, message dérivé du code
   /// (placeholder, l'UI le re-localise via [NotesErrorCode.localize]).
   const ValidationException.coded(NotesErrorCode code)
-      : super('ValidationException', code: code);
+    : super('ValidationException', code: code);
 }

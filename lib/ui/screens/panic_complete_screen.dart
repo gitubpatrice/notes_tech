@@ -75,10 +75,7 @@ class _PanicCompleteScreenState extends State<PanicCompleteScreen> {
                   style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
                 ),
                 const SizedBox(height: 32),
-                _Bullet(
-                  icon: Icons.lock_outline,
-                  text: t.panicCompleteBullet1,
-                ),
+                _Bullet(icon: Icons.lock_outline, text: t.panicCompleteBullet1),
                 _Bullet(
                   icon: Icons.delete_forever_outlined,
                   text: t.panicCompleteBullet2,

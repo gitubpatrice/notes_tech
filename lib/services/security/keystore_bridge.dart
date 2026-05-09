@@ -135,7 +135,8 @@ class KeystoreBridge {
     }
     // Le code Kotlin throw `IllegalStateException("KEYSTORE_SOFTWARE_ONLY")`
     // si le device n'a pas de TEE/StrongBox.
-    if (code == 'IllegalStateException' && msg.contains('KEYSTORE_SOFTWARE_ONLY')) {
+    if (code == 'IllegalStateException' &&
+        msg.contains('KEYSTORE_SOFTWARE_ONLY')) {
       return const KeystoreSoftwareOnlyException();
     }
     // Liste blanche d'exceptions transitoires connues — toute autre
@@ -200,7 +201,7 @@ class KeystoreTransientException extends KeystoreException {
 /// (Argon2id RFC 9106 m=64MB t=3, qui ne dépend pas du Keystore).
 class KeystoreSoftwareOnlyException extends KeystoreException {
   const KeystoreSoftwareOnlyException()
-      : super('Device has no hardware-backed Keystore (TEE/StrongBox).');
+    : super('Device has no hardware-backed Keystore (TEE/StrongBox).');
   @override
   String toString() => 'KeystoreSoftwareOnlyException: $message';
 }

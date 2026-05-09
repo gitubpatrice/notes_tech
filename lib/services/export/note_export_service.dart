@@ -95,7 +95,8 @@ class NoteExportService {
     String? inboxFallbackName,
     String? vaultMention,
   }) {
-    final folderLabel = folder?.name ??
+    final folderLabel =
+        folder?.name ??
         (note.folderId == AppConstants.inboxFolderId
             ? (inboxFallbackName ?? _kInboxFolderDirName)
             : note.folderId);
@@ -176,9 +177,28 @@ class NoteExportService {
     if (clean == '.' || clean == '..') clean = '';
     // 6. Garde-fou noms réservés Windows (case-insensitive).
     const reserved = {
-      'CON', 'PRN', 'AUX', 'NUL',
-      'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-      'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
+      'CON',
+      'PRN',
+      'AUX',
+      'NUL',
+      'COM1',
+      'COM2',
+      'COM3',
+      'COM4',
+      'COM5',
+      'COM6',
+      'COM7',
+      'COM8',
+      'COM9',
+      'LPT1',
+      'LPT2',
+      'LPT3',
+      'LPT4',
+      'LPT5',
+      'LPT6',
+      'LPT7',
+      'LPT8',
+      'LPT9',
     };
     if (clean.isEmpty || reserved.contains(clean.toUpperCase())) {
       clean = 'note-${fallbackId.replaceAll('-', '').substring(0, 8)}';
@@ -197,12 +217,14 @@ class NoteExportService {
     String? vaultMention,
   }) {
     return Uint8List.fromList(
-      utf8.encode(renderNoteAsMarkdown(
-        note,
-        folder: folder,
-        inboxFallbackName: inboxFallbackName,
-        vaultMention: vaultMention,
-      )),
+      utf8.encode(
+        renderNoteAsMarkdown(
+          note,
+          folder: folder,
+          inboxFallbackName: inboxFallbackName,
+          vaultMention: vaultMention,
+        ),
+      ),
     );
   }
 
@@ -226,8 +248,9 @@ class NoteExportService {
     for (final note in notes) {
       final folder = foldersById[note.folderId];
       final folderName = _safeFolderDirName(folder, note.folderId);
-      final fromUnlockedVault =
-          vaultedDecryptedFolderIds.contains(note.folderId);
+      final fromUnlockedVault = vaultedDecryptedFolderIds.contains(
+        note.folderId,
+      );
       final baseName = safeFileName(
         note.title,
         fallbackId: note.id,
@@ -247,9 +270,7 @@ class NoteExportService {
     }
 
     final readmeBytes = utf8.encode(_buildReadme(notes.length, now));
-    archive.addFile(
-      ArchiveFile('README.md', readmeBytes.length, readmeBytes),
-    );
+    archive.addFile(ArchiveFile('README.md', readmeBytes.length, readmeBytes));
 
     final encoded = ZipEncoder().encode(archive);
     // Si l'archive_4 retourne déjà un Uint8List, on évite la copie
@@ -382,7 +403,8 @@ class NoteExportService {
     // Nom de dossier ZIP non localisé : « inbox » est technique et
     // déterministe, ce qui évite que deux exports (FR / EN) produisent
     // des arborescences différentes. La couche UI traduit à l'affichage.
-    final raw = folder?.name ??
+    final raw =
+        folder?.name ??
         (folderId == AppConstants.inboxFolderId
             ? _kInboxFolderDirName
             : folderId);
@@ -469,7 +491,8 @@ Uint8List _zipWorker(_ZipJob job) {
     foldersById: job.foldersById,
     vaultedDecryptedFolderIds: job.vaultedDecryptedFolderIds,
     inboxFallbackName: job.inboxFallbackName,
-    vaultMentionBuilder:
-        tpl == null ? null : (folderName) => tpl.replaceAll('{folder}', folderName),
+    vaultMentionBuilder: tpl == null
+        ? null
+        : (folderName) => tpl.replaceAll('{folder}', folderName),
   );
 }

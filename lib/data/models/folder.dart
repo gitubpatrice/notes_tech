@@ -17,15 +17,15 @@ enum VaultMode {
   pin;
 
   static VaultMode? fromDb(String? raw) => switch (raw) {
-        'passphrase' => VaultMode.passphrase,
-        'pin' => VaultMode.pin,
-        _ => null,
-      };
+    'passphrase' => VaultMode.passphrase,
+    'pin' => VaultMode.pin,
+    _ => null,
+  };
 
   String get dbValue => switch (this) {
-        VaultMode.passphrase => 'passphrase',
-        VaultMode.pin => 'pin',
-      };
+    VaultMode.passphrase => 'passphrase',
+    VaultMode.pin => 'pin',
+  };
 }
 
 @immutable
@@ -131,11 +131,11 @@ class Folder {
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       vaultSalt: clearVault ? null : (vaultSalt ?? this.vaultSalt),
-      vaultKekWrapped:
-          clearVault ? null : (vaultKekWrapped ?? this.vaultKekWrapped),
+      vaultKekWrapped: clearVault
+          ? null
+          : (vaultKekWrapped ?? this.vaultKekWrapped),
       vaultIv: clearVault ? null : (vaultIv ?? this.vaultIv),
-      vaultVerifier:
-          clearVault ? null : (vaultVerifier ?? this.vaultVerifier),
+      vaultVerifier: clearVault ? null : (vaultVerifier ?? this.vaultVerifier),
       vaultMode: clearVault ? null : (vaultMode ?? this.vaultMode),
       vaultPinBlob: (clearVault || clearPinFields)
           ? null
@@ -148,42 +148,44 @@ class Folder {
   }
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'name': name,
-        'parent_id': parentId,
-        'color': color,
-        'icon': icon,
-        'created_at': createdAt.millisecondsSinceEpoch,
-        'updated_at': updatedAt.millisecondsSinceEpoch,
-        'vault_salt': vaultSalt,
-        'vault_kek_wrapped': vaultKekWrapped,
-        'vault_iv': vaultIv,
-        'vault_verifier': vaultVerifier,
-        'vault_mode': vaultMode?.dbValue,
-        'vault_pin_blob': vaultPinBlob,
-        'vault_pin_iv': vaultPinIv,
-        'vault_attempts': vaultAttempts,
-      };
+    'id': id,
+    'name': name,
+    'parent_id': parentId,
+    'color': color,
+    'icon': icon,
+    'created_at': createdAt.millisecondsSinceEpoch,
+    'updated_at': updatedAt.millisecondsSinceEpoch,
+    'vault_salt': vaultSalt,
+    'vault_kek_wrapped': vaultKekWrapped,
+    'vault_iv': vaultIv,
+    'vault_verifier': vaultVerifier,
+    'vault_mode': vaultMode?.dbValue,
+    'vault_pin_blob': vaultPinBlob,
+    'vault_pin_iv': vaultPinIv,
+    'vault_attempts': vaultAttempts,
+  };
 
   factory Folder.fromRow(Map<String, Object?> row) => Folder(
-        id: (row['id'] as String?) ?? '',
-        name: (row['name'] as String?) ?? '',
-        parentId: row['parent_id'] as String?,
-        color: row['color'] as int?,
-        icon: row['icon'] as String?,
-        createdAt: DateTime.fromMillisecondsSinceEpoch(
-            (row['created_at'] as int?) ?? 0),
-        updatedAt: DateTime.fromMillisecondsSinceEpoch(
-            (row['updated_at'] as int?) ?? 0),
-        vaultSalt: _asBytes(row['vault_salt']),
-        vaultKekWrapped: _asBytes(row['vault_kek_wrapped']),
-        vaultIv: _asBytes(row['vault_iv']),
-        vaultVerifier: _asBytes(row['vault_verifier']),
-        vaultMode: VaultMode.fromDb(row['vault_mode'] as String?),
-        vaultPinBlob: _asBytes(row['vault_pin_blob']),
-        vaultPinIv: _asBytes(row['vault_pin_iv']),
-        vaultAttempts: (row['vault_attempts'] as int?) ?? 0,
-      );
+    id: (row['id'] as String?) ?? '',
+    name: (row['name'] as String?) ?? '',
+    parentId: row['parent_id'] as String?,
+    color: row['color'] as int?,
+    icon: row['icon'] as String?,
+    createdAt: DateTime.fromMillisecondsSinceEpoch(
+      (row['created_at'] as int?) ?? 0,
+    ),
+    updatedAt: DateTime.fromMillisecondsSinceEpoch(
+      (row['updated_at'] as int?) ?? 0,
+    ),
+    vaultSalt: _asBytes(row['vault_salt']),
+    vaultKekWrapped: _asBytes(row['vault_kek_wrapped']),
+    vaultIv: _asBytes(row['vault_iv']),
+    vaultVerifier: _asBytes(row['vault_verifier']),
+    vaultMode: VaultMode.fromDb(row['vault_mode'] as String?),
+    vaultPinBlob: _asBytes(row['vault_pin_blob']),
+    vaultPinIv: _asBytes(row['vault_pin_iv']),
+    vaultAttempts: (row['vault_attempts'] as int?) ?? 0,
+  );
 
   /// Coerce un BLOB SQLite en `Uint8List`. SQLite peut renvoyer
   /// `List<int>` ou `Uint8List` selon le driver — on normalise.

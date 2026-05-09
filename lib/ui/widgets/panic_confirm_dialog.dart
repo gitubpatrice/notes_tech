@@ -60,8 +60,7 @@ class _PanicDialogState extends State<_PanicDialog> {
     // ne s'applique pas aux claviers physiques ni à certains IME
     // tiers, et l'utilisateur sous stress peut taper le mot sans
     // forcer la majuscule. Le geste reste délibéré (mot exact tapé).
-    final ok =
-        _controller.text.trim().toUpperCase() == _keyword.toUpperCase();
+    final ok = _controller.text.trim().toUpperCase() == _keyword.toUpperCase();
     if (ok != _canConfirm) setState(() => _canConfirm = ok);
   }
 
@@ -77,11 +76,7 @@ class _PanicDialogState extends State<_PanicDialog> {
     final t = AppLocalizations.of(context);
     return AlertDialog(
       icon: ExcludeSemantics(
-        child: Icon(
-          Icons.warning_amber_outlined,
-          color: cs.error,
-          size: 40,
-        ),
+        child: Icon(Icons.warning_amber_outlined, color: cs.error, size: 40),
       ),
       title: Text(t.panicConfirmTitle),
       content: Column(
@@ -126,9 +121,7 @@ class _PanicDialogState extends State<_PanicDialog> {
           child: Text(t.commonCancel),
         ),
         FilledButton.icon(
-          onPressed: _canConfirm
-              ? () => Navigator.of(context).pop(true)
-              : null,
+          onPressed: _canConfirm ? () => Navigator.of(context).pop(true) : null,
           style: FilledButton.styleFrom(
             backgroundColor: _canConfirm ? cs.error : null,
           ),

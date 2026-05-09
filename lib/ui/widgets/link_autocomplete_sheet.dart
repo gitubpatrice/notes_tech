@@ -165,9 +165,9 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            onTap: () => Navigator.of(context).pop(
-                              LinkAutocompleteResult.existing(n.title),
-                            ),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pop(LinkAutocompleteResult.existing(n.title)),
                           ),
                         if (showCreate)
                           ListTile(
@@ -175,9 +175,9 @@ class _LinkAutocompleteSheetState extends State<_LinkAutocompleteSheet> {
                               child: Icon(Icons.add),
                             ),
                             title: Text(t.linkAutocompleteCreateNew(query)),
-                            onTap: () => Navigator.of(context).pop(
-                              LinkAutocompleteResult.create(query),
-                            ),
+                            onTap: () => Navigator.of(
+                              context,
+                            ).pop(LinkAutocompleteResult.create(query)),
                           ),
                       ],
                     );

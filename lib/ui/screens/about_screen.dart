@@ -223,8 +223,7 @@ class _SearchEngineInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final embedderNotifier =
-        context.watch<ValueNotifier<EmbeddingProvider>>();
+    final embedderNotifier = context.watch<ValueNotifier<EmbeddingProvider>>();
     final indexing = context.read<IndexingService>();
     final embedder = embedderNotifier.value;
     final isMiniLm = embedder.modelId.startsWith('minilm');
@@ -238,10 +237,7 @@ class _SearchEngineInfo extends StatelessWidget {
           icon: isMiniLm ? Icons.auto_awesome : Icons.functions,
           text: label,
         ),
-        _Badge(
-          icon: Icons.straighten,
-          text: t.aboutSearchDim(embedder.dim),
-        ),
+        _Badge(icon: Icons.straighten, text: t.aboutSearchDim(embedder.dim)),
         FutureBuilder<int>(
           future: indexing.indexedCount(),
           builder: (_, snap) {

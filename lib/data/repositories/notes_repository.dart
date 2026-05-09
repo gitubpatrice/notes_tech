@@ -68,12 +68,7 @@ class NotesRepository {
     String lowerNeedle, {
     int limit = 32,
     String? excludeId,
-  }) =>
-      _dao.findByTitleLike(
-        lowerNeedle,
-        limit: limit,
-        excludeId: excludeId,
-      );
+  }) => _dao.findByTitleLike(lowerNeedle, limit: limit, excludeId: excludeId);
 
   // ---------------------------------------------------------------------
   // Écriture
@@ -97,11 +92,13 @@ class NotesRepository {
       updatedAt: now,
     );
     await _dao.insert(note);
-    _emit(NoteChangeEvent(
-      kind: NoteChangeKind.created,
-      id: note.id,
-      currentTitle: note.title,
-    ));
+    _emit(
+      NoteChangeEvent(
+        kind: NoteChangeKind.created,
+        id: note.id,
+        currentTitle: note.title,
+      ),
+    );
     return note;
   }
 
@@ -112,12 +109,14 @@ class NotesRepository {
     final previous = await _dao.findById(note.id);
     final updated = note.copyWith(updatedAt: DateTime.now());
     await _dao.update(updated);
-    _emit(NoteChangeEvent(
-      kind: NoteChangeKind.updated,
-      id: updated.id,
-      previousTitle: previous?.title,
-      currentTitle: updated.title,
-    ));
+    _emit(
+      NoteChangeEvent(
+        kind: NoteChangeKind.updated,
+        id: updated.id,
+        previousTitle: previous?.title,
+        currentTitle: updated.title,
+      ),
+    );
     return updated;
   }
 
@@ -133,49 +132,55 @@ class NotesRepository {
   Future<Note> _toggleFlag(Note original, Note candidate) async {
     final updated = candidate.copyWith(updatedAt: DateTime.now());
     await _dao.update(updated);
-    _emit(NoteChangeEvent(
-      kind: NoteChangeKind.updated,
-      id: updated.id,
-      previousTitle: original.title,
-      currentTitle: updated.title,
-    ));
+    _emit(
+      NoteChangeEvent(
+        kind: NoteChangeKind.updated,
+        id: updated.id,
+        previousTitle: original.title,
+        currentTitle: updated.title,
+      ),
+    );
     return updated;
   }
 
   Future<void> moveToTrash(Note note) async {
-    await _dao.update(note.copyWith(
-      trashedAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ));
+    await _dao.update(
+      note.copyWith(trashedAt: DateTime.now(), updatedAt: DateTime.now()),
+    );
     // Une note en corbeille disparaît de toutes les vues vivantes :
     // on la traite comme une suppression côté indexation/backlinks.
-    _emit(NoteChangeEvent(
-      kind: NoteChangeKind.deleted,
-      id: note.id,
-      previousTitle: note.title,
-    ));
+    _emit(
+      NoteChangeEvent(
+        kind: NoteChangeKind.deleted,
+        id: note.id,
+        previousTitle: note.title,
+      ),
+    );
   }
 
   Future<void> restoreFromTrash(Note note) async {
-    await _dao.update(note.copyWith(
-      clearTrashedAt: true,
-      updatedAt: DateTime.now(),
-    ));
-    _emit(NoteChangeEvent(
-      kind: NoteChangeKind.created,
-      id: note.id,
-      currentTitle: note.title,
-    ));
+    await _dao.update(
+      note.copyWith(clearTrashedAt: true, updatedAt: DateTime.now()),
+    );
+    _emit(
+      NoteChangeEvent(
+        kind: NoteChangeKind.created,
+        id: note.id,
+        currentTitle: note.title,
+      ),
+    );
   }
 
   Future<void> deletePermanently(String id) async {
     final note = await _dao.findById(id);
     await _dao.deleteHard(id);
-    _emit(NoteChangeEvent(
-      kind: NoteChangeKind.deleted,
-      id: id,
-      previousTitle: note?.title,
-    ));
+    _emit(
+      NoteChangeEvent(
+        kind: NoteChangeKind.deleted,
+        id: id,
+        previousTitle: note?.title,
+      ),
+    );
   }
 
   /// Réassigne en une seule transaction toutes les notes du dossier

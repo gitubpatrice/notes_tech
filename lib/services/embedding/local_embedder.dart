@@ -55,10 +55,7 @@ class LocalEmbedder implements EmbeddingProvider {
   Future<Float32List> embedAsync(String text) async => embed(text);
 
   /// Encode un (titre, corps). Le titre reçoit un poids ×3.
-  Float32List embedTitleAndBody({
-    required String title,
-    required String body,
-  }) {
+  Float32List embedTitleAndBody({required String title, required String body}) {
     final v = Float32List(dim);
     if (title.isNotEmpty) _accumulate(v, title, weight: 3.0);
     if (body.isNotEmpty) _accumulate(v, body, weight: 1.0);

@@ -21,10 +21,12 @@ class MentionsLegalesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final privacyAsset =
-        isEn ? 'assets/legal/PRIVACY.en.md' : 'assets/legal/PRIVACY.fr.md';
-    final termsAsset =
-        isEn ? 'assets/legal/TERMS.en.md' : 'assets/legal/TERMS.fr.md';
+    final privacyAsset = isEn
+        ? 'assets/legal/PRIVACY.en.md'
+        : 'assets/legal/PRIVACY.fr.md';
+    final termsAsset = isEn
+        ? 'assets/legal/TERMS.en.md'
+        : 'assets/legal/TERMS.fr.md';
 
     return DefaultTabController(
       length: 2,
@@ -40,7 +42,10 @@ class MentionsLegalesScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _MarkdownAssetView(key: ValueKey(privacyAsset), asset: privacyAsset),
+            _MarkdownAssetView(
+              key: ValueKey(privacyAsset),
+              asset: privacyAsset,
+            ),
             _MarkdownAssetView(key: ValueKey(termsAsset), asset: termsAsset),
           ],
         ),
@@ -58,7 +63,9 @@ class _MarkdownAssetView extends StatelessWidget {
     final uri = Uri.tryParse(href);
     if (uri == null) return;
     // Sécurité : on n'ouvre QUE http(s) et mailto via l'app système.
-    if (uri.scheme != 'http' && uri.scheme != 'https' && uri.scheme != 'mailto') {
+    if (uri.scheme != 'http' &&
+        uri.scheme != 'https' &&
+        uri.scheme != 'mailto') {
       return;
     }
     try {

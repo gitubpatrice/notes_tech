@@ -115,10 +115,7 @@ Future<FolderDeletionChoice?> confirmDeleteFolder({
       final t = AppLocalizations.of(ctx);
       return AlertDialog(
         icon: const ExcludeSemantics(child: Icon(Icons.delete_outline)),
-        title: Semantics(
-          header: true,
-          child: Text(t.folderDeleteTitle),
-        ),
+        title: Semantics(header: true, child: Text(t.folderDeleteTitle)),
         content: Text(t.folderDeleteChoiceBody(folderName)),
         actionsOverflowDirection: VerticalDirection.down,
         actions: [

@@ -129,17 +129,14 @@ class _ModeCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
+                  Text(title, style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                          height: 1.3,
-                        ),
+                      color: cs.onSurfaceVariant,
+                      height: 1.3,
+                    ),
                   ),
                 ],
               ),
@@ -166,9 +163,7 @@ Future<String?> showCreatePinSheet({
     isDismissible: false,
     enableDrag: false,
     builder: (ctx) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
       child: _CreatePinSheet(folderName: folderName),
     ),
   );
@@ -209,8 +204,7 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
 
   void _onBackspace() {
     if (_entryN.value.isEmpty) return;
-    _entryN.value =
-        _entryN.value.substring(0, _entryN.value.length - 1);
+    _entryN.value = _entryN.value.substring(0, _entryN.value.length - 1);
     _errorN.value = null;
   }
 
@@ -345,9 +339,7 @@ Future<bool?> showUnlockPinSheet({
     isScrollControlled: true,
     isDismissible: true,
     builder: (ctx) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
       child: _UnlockPinSheet(folder: folder),
     ),
   );
@@ -389,8 +381,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
   void _onBackspace() {
     if (_busyN.value || _wipedN.value) return;
     if (_entryN.value.isEmpty) return;
-    _entryN.value =
-        _entryN.value.substring(0, _entryN.value.length - 1);
+    _entryN.value = _entryN.value.substring(0, _entryN.value.length - 1);
     _errorN.value = null;
   }
 
@@ -435,9 +426,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
       _errorN.value = t.vaultPinWiped;
       // A11y : annonce critique, l'utilisateur DOIT savoir que le coffre
       // a été détruit même s'il ne lit pas l'écran.
-      unawaited(
-        SemanticsService.announce(t.vaultPinWiped, TextDirection.ltr),
-      );
+      unawaited(SemanticsService.announce(t.vaultPinWiped, TextDirection.ltr));
     } catch (e) {
       if (!mounted) return;
       _busyN.value = false;
@@ -473,9 +462,9 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
             Text(
               t.vaultPinUnlockBody(widget.folder.name),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
+                color: cs.onSurfaceVariant,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 18),
             ValueListenableBuilder<String>(
@@ -601,9 +590,13 @@ class _AlwaysFalseListenable extends ValueListenable<bool> {
   @override
   bool get value => false;
   @override
-  void addListener(VoidCallback listener) {/* no-op : valeur fixe */}
+  void addListener(VoidCallback listener) {
+    /* no-op : valeur fixe */
+  }
   @override
-  void removeListener(VoidCallback listener) {/* no-op */}
+  void removeListener(VoidCallback listener) {
+    /* no-op */
+  }
 }
 
 const _AlwaysFalseListenable _kAlwaysFalse = _AlwaysFalseListenable();
@@ -695,23 +688,37 @@ class _NumericKeypad extends StatelessWidget {
         Widget digitBtn(String d) =>
             btn(d, () => onDigit(d), semanticsLabel: t.vaultPinKeyLabel(d));
 
-        Widget row(List<Widget> children) =>
-            Row(crossAxisAlignment: CrossAxisAlignment.center, children: children);
+        Widget row(List<Widget> children) => Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: children,
+        );
 
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            row([for (final d in ['1', '2', '3']) digitBtn(d)]),
-            row([for (final d in ['4', '5', '6']) digitBtn(d)]),
-            row([for (final d in ['7', '8', '9']) digitBtn(d)]),
             row([
-              btn('', onBackspace,
-                  icon: Icons.backspace_outlined,
-                  semanticsLabel: t.vaultPinKeyDelete),
+              for (final d in ['1', '2', '3']) digitBtn(d),
+            ]),
+            row([
+              for (final d in ['4', '5', '6']) digitBtn(d),
+            ]),
+            row([
+              for (final d in ['7', '8', '9']) digitBtn(d),
+            ]),
+            row([
+              btn(
+                '',
+                onBackspace,
+                icon: Icons.backspace_outlined,
+                semanticsLabel: t.vaultPinKeyDelete,
+              ),
               digitBtn('0'),
-              btn('', onValidate,
-                  icon: Icons.check_circle_outline,
-                  semanticsLabel: t.commonValidate),
+              btn(
+                '',
+                onValidate,
+                icon: Icons.check_circle_outline,
+                semanticsLabel: t.commonValidate,
+              ),
             ]),
           ],
         );

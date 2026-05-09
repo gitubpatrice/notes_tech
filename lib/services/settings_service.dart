@@ -116,10 +116,7 @@ class SettingsService extends ChangeNotifier {
       AppConstants.vaultDefaultAutoLock.inMinutes;
 
   Future<void> setVaultAutoLockMinutes(int minutes) async {
-    await _prefs.setInt(
-      AppConstants.prefKeyVaultAutoLockMinutes,
-      minutes,
-    );
+    await _prefs.setInt(AppConstants.prefKeyVaultAutoLockMinutes, minutes);
     notifyListeners();
   }
 }

@@ -28,18 +28,18 @@ class NoteLink {
   bool get isResolved => targetId != null;
 
   Map<String, Object?> toRow() => {
-        'source_id': sourceId,
-        'target_id': targetId,
-        'target_title': targetTitle,
-        'target_title_norm': targetTitleNorm,
-        'position': position,
-      };
+    'source_id': sourceId,
+    'target_id': targetId,
+    'target_title': targetTitle,
+    'target_title_norm': targetTitleNorm,
+    'position': position,
+  };
 
   factory NoteLink.fromRow(Map<String, Object?> row) => NoteLink(
-        sourceId: row['source_id']! as String,
-        targetId: row['target_id'] as String?,
-        targetTitle: (row['target_title'] as String?) ?? '',
-        targetTitleNorm: (row['target_title_norm'] as String?) ?? '',
-        position: (row['position'] as int?) ?? 0,
-      );
+    sourceId: row['source_id']! as String,
+    targetId: row['target_id'] as String?,
+    targetTitle: (row['target_title'] as String?) ?? '',
+    targetTitleNorm: (row['target_title_norm'] as String?) ?? '',
+    position: (row['position'] as int?) ?? 0,
+  );
 }

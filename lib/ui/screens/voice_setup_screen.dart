@@ -63,19 +63,19 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
 
     try {
       await context.read<VoiceService>().importModel(
-            sourcePath: path,
-            model: _selectedModel,
-            onProgress: (p) {
-              if (!mounted) return;
-              final t2 = AppLocalizations.of(context);
-              setState(() {
-                _progress = p.fraction;
-                _phaseLabel = p.phase == 'copying'
-                    ? t2.voiceSetupCopying
-                    : t2.voiceSetupVerifying;
-              });
-            },
-          );
+        sourcePath: path,
+        model: _selectedModel,
+        onProgress: (p) {
+          if (!mounted) return;
+          final t2 = AppLocalizations.of(context);
+          setState(() {
+            _progress = p.fraction;
+            _phaseLabel = p.phase == 'copying'
+                ? t2.voiceSetupCopying
+                : t2.voiceSetupVerifying;
+          });
+        },
+      );
       if (!mounted) return;
       Navigator.of(context).pop();
       _showSnack(t.voiceSetupInstallOk(_selectedModel.displayName));
@@ -135,10 +135,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
     final uri = Uri.parse(_selectedModel.url);
     final t = AppLocalizations.of(context);
     try {
-      final ok = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (!mounted) return;
       if (!ok) {
         await _showError(t.voiceSetupBrowserOpenFailed);
@@ -153,9 +150,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(t.voiceSetupAppBarTitle),
-      ),
+      appBar: AppBar(title: Text(t.voiceSetupAppBarTitle)),
       body: AbsorbPointer(
         absorbing: _busy,
         child: ListView(
@@ -168,7 +163,9 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
               child: Text(
                 t.voiceSetupHowToTitle,
                 style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w600),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -258,10 +255,7 @@ class _OfflineEngagementBanner extends StatelessWidget {
           Expanded(
             child: Text(
               t.voiceSetupOfflineBanner,
-              style: TextStyle(
-                color: cs.onPrimaryContainer,
-                height: 1.4,
-              ),
+              style: TextStyle(color: cs.onPrimaryContainer, height: 1.4),
             ),
           ),
         ],
@@ -321,10 +315,7 @@ class _StepTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(text, style: const TextStyle(height: 1.45)),
-                if (extra != null) ...[
-                  const SizedBox(height: 8),
-                  extra!,
-                ],
+                if (extra != null) ...[const SizedBox(height: 8), extra!],
               ],
             ),
           ),

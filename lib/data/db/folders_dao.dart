@@ -27,8 +27,10 @@ class FoldersDao {
 
   Future<List<Folder>> listAll() async {
     try {
-      final rows =
-          await _db.query('folders', orderBy: 'name COLLATE NOCASE ASC');
+      final rows = await _db.query(
+        'folders',
+        orderBy: 'name COLLATE NOCASE ASC',
+      );
       return rows.map(Folder.fromRow).toList(growable: false);
     } catch (e) {
       throw DatabaseException('folder.listAll échoué', cause: e);
@@ -81,9 +83,7 @@ class FoldersDao {
   /// Le dossier `inbox` est protégé.
   Future<void> delete(String id) async {
     if (id == 'inbox') {
-      throw const ValidationException.coded(
-        NotesErrorCode.inboxNotDeletable,
-      );
+      throw const ValidationException.coded(NotesErrorCode.inboxNotDeletable);
     }
     try {
       await _db.delete('folders', where: 'id = ?', whereArgs: [id]);

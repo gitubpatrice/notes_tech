@@ -56,10 +56,10 @@ class VoiceService extends ChangeNotifier {
     MlMemoryGuard? mlGuard,
     SpeechToText? stt,
     SttSession? session,
-  })  : _prefs = prefs,
-        _mlGuard = mlGuard,
-        _stt = stt ?? WhisperGgmlStt.instance,
-        _session = session ?? SttSession(stt: stt ?? WhisperGgmlStt.instance);
+  }) : _prefs = prefs,
+       _mlGuard = mlGuard,
+       _stt = stt ?? WhisperGgmlStt.instance,
+       _session = session ?? SttSession(stt: stt ?? WhisperGgmlStt.instance);
 
   static const String _kActiveModelIdKey = 'voice.activeModelId';
   // Clé du cache de vérification d'intégrité, sérialisé en JSON :
@@ -83,6 +83,7 @@ class VoiceService extends ChangeNotifier {
 
   VoiceServiceState _state = VoiceServiceState.needsModel;
   String? _lastError;
+
   /// v1.0 : code d'erreur typé (localisable côté UI via `error_localize.dart`).
   /// Préfère ce getter à [lastError] (string brut FR rétro-compat).
   NotesErrorCode? _lastErrorCode;
@@ -171,9 +172,9 @@ class VoiceService extends ChangeNotifier {
         cached.sizeBytes == stat.size &&
         cached.mtimeMs == stat.modified.millisecondsSinceEpoch &&
         DateTime.now()
-                .difference(DateTime.fromMillisecondsSinceEpoch(
-                  cached.verifiedAtMs,
-                ))
+                .difference(
+                  DateTime.fromMillisecondsSinceEpoch(cached.verifiedAtMs),
+                )
                 .compareTo(_verifiedCacheTtl) <
             0) {
       return true;

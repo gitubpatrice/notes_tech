@@ -37,8 +37,8 @@ class BacklinksService {
   BacklinksService({
     required NotesRepository notes,
     required LinksRepository links,
-  })  : _notes = notes,
-        _links = links;
+  }) : _notes = notes,
+       _links = links;
 
   final NotesRepository _notes;
   final LinksRepository _links;
@@ -101,7 +101,7 @@ class BacklinksService {
   ///  - doublons éliminés (même titre normalisé → 1 entrée, première
   ///    position rencontrée).
   static List<({String title, String titleNorm, int position})>
-      extractFromContent(String content) {
+  extractFromContent(String content) {
     final cap = content.length > AppConstants.noteContentIndexLimit
         ? content.substring(0, AppConstants.noteContentIndexLimit)
         : content;
@@ -178,10 +178,7 @@ class BacklinksService {
       // titre obsolète détache les liens devenus incorrects.
       final currentNorm = normalizeTitle(note.title);
       if (currentNorm.isNotEmpty) {
-        await _links.resolveDangling(
-          noteId: note.id,
-          titleNorm: currentNorm,
-        );
+        await _links.resolveDangling(noteId: note.id, titleNorm: currentNorm);
         await _links.unresolveByMismatch(
           noteId: note.id,
           newTitleNorm: currentNorm,
@@ -278,9 +275,9 @@ class BacklinksService {
 
   /// Notes qui mentionnent celle-ci (par id ou par titre normalisé).
   Future<List<Note>> backlinks(Note target) => _links.backlinkSources(
-        targetId: target.id,
-        targetTitleNorm: normalizeTitle(target.title),
-      );
+    targetId: target.id,
+    targetTitleNorm: normalizeTitle(target.title),
+  );
 
   /// Auto-complétion : retourne les notes dont le titre matche `query`
   /// (préfixe ou préfixe de mot, insensible casse/accents). Capé à `limit`.

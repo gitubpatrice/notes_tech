@@ -26,7 +26,9 @@ class IndexingBanner extends StatelessWidget {
         final visible = p != null && !p.finished;
         return AnimatedSize(
           duration: accessibleDuration(
-            context, const Duration(milliseconds: 200)),
+            context,
+            const Duration(milliseconds: 200),
+          ),
           curve: Curves.easeOut,
           alignment: Alignment.topCenter,
           child: visible
@@ -47,7 +49,10 @@ class _BannerBody extends StatelessWidget {
     final theme = Theme.of(context);
     final t = AppLocalizations.of(context);
     final label = t.indexingBannerTitle;
-    final progressLabel = t.indexingBannerProgress(progress.done, progress.total);
+    final progressLabel = t.indexingBannerProgress(
+      progress.done,
+      progress.total,
+    );
     return Material(
       color: theme.colorScheme.primary.withValues(alpha: 0.08),
       child: Semantics(

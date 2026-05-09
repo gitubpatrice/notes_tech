@@ -138,8 +138,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
   Future<void> _pickAndImport() async {
     // Lecture du toggle AVANT tout `await` — évite l'usage de `context`
     // après async gap (analyse statique stricte).
-    final acceptUnknownHash =
-        context.read<SettingsService>().acceptUnknownGemmaHash;
+    final acceptUnknownHash = context
+        .read<SettingsService>()
+        .acceptUnknownGemmaHash;
 
     setState(() => _phaseError = null);
 
@@ -221,31 +222,33 @@ class _AiChatScreenState extends State<AiChatScreen> {
     _jumpToBottom();
 
     try {
-      _genSub = _gemma.ask(prompt).listen(
-        (token) {
-          if (!mounted) return;
-          aiTurn.appendToken(token);
-          _jumpToBottom();
-        },
-        onError: (Object e) {
-          if (!mounted) return;
-          final t = AppLocalizations.of(context);
-          aiTurn.appendToken('\n\n[${t.commonErrorWith('$e')}]');
-          setState(() => _generating = false);
-          _updateCanSend();
-        },
-        onDone: () {
-          if (!mounted) return;
-          setState(() => _generating = false);
-          _updateCanSend();
-          _animateToBottom();
-          final t = AppLocalizations.of(context);
-          SemanticsService.announce(
-            t.aiChatAnnounceDone,
-            TextDirection.ltr,
+      _genSub = _gemma
+          .ask(prompt)
+          .listen(
+            (token) {
+              if (!mounted) return;
+              aiTurn.appendToken(token);
+              _jumpToBottom();
+            },
+            onError: (Object e) {
+              if (!mounted) return;
+              final t = AppLocalizations.of(context);
+              aiTurn.appendToken('\n\n[${t.commonErrorWith('$e')}]');
+              setState(() => _generating = false);
+              _updateCanSend();
+            },
+            onDone: () {
+              if (!mounted) return;
+              setState(() => _generating = false);
+              _updateCanSend();
+              _animateToBottom();
+              final t = AppLocalizations.of(context);
+              SemanticsService.announce(
+                t.aiChatAnnounceDone,
+                TextDirection.ltr,
+              );
+            },
           );
-        },
-      );
     } catch (e) {
       if (mounted) {
         final t = AppLocalizations.of(context);
@@ -297,7 +300,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
         _scrollCtrl.animateTo(
           _scrollCtrl.position.maxScrollExtent,
           duration: accessibleDuration(
-              context, const Duration(milliseconds: 200)),
+            context,
+            const Duration(milliseconds: 200),
+          ),
           curve: Curves.easeOut,
         );
       }
@@ -447,7 +452,9 @@ class _AiChatScreenState extends State<AiChatScreen> {
               : ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 16),
+                    horizontal: 12,
+                    vertical: 16,
+                  ),
                   itemCount: _turns.length,
                   itemBuilder: (_, i) =>
                       _TurnBubble(turn: _turns[i], generating: _generating),
@@ -511,7 +518,7 @@ enum _Phase { checking, notInstalled, importing, warmingUp, ready, error }
 /// pendant le streaming token-par-token.
 class _ChatTurn {
   _ChatTurn._({required this.role, required String initialText, this.sources})
-      : textNotifier = ValueNotifier<String>(initialText);
+    : textNotifier = ValueNotifier<String>(initialText);
 
   factory _ChatTurn.user(String text, {List<SemanticHit> sources = const []}) =>
       _ChatTurn._(role: _Role.user, initialText: text, sources: sources);
@@ -543,8 +550,9 @@ class _TurnBubble extends StatelessWidget {
     final color = isUser
         ? theme.colorScheme.primary.withValues(alpha: 0.15)
         : theme.cardTheme.color;
-    final bubbleSemanticsLabel =
-        isUser ? t.aiChatBubbleUser : t.aiChatBubbleAssistant;
+    final bubbleSemanticsLabel = isUser
+        ? t.aiChatBubbleUser
+        : t.aiChatBubbleAssistant;
 
     // Pendant le streaming, on exclut le SelectableText des Semantics
     // pour éviter que le lecteur d'écran lise chaque token incrémentalement.
@@ -630,7 +638,9 @@ class _SourcesRow extends StatelessWidget {
 
   void _openNote(BuildContext context, Note note) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: note.id)),
+      MaterialPageRoute<void>(
+        builder: (_) => NoteEditorScreen(noteId: note.id),
+      ),
     );
   }
 }

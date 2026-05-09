@@ -264,17 +264,18 @@ class NotesDao {
   }
 
   /// Échappe `%`, `_` et `\` pour usage avec `ESCAPE '\\'`.
-  static String _escapeLike(String s) => s
-      .replaceAll(r'\', r'\\')
-      .replaceAll('%', r'\%')
-      .replaceAll('_', r'\_');
+  static String _escapeLike(String s) =>
+      s.replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
 
   // ---------------------------------------------------------------------
   // Recherche FTS5
   // ---------------------------------------------------------------------
 
   /// Token autorisant le suffixe `*` côté FTS5 (caractères Unicode lettres/chiffres).
-  static final RegExp _ftsPrefixable = RegExp(r'^[\p{L}\p{N}]+$', unicode: true);
+  static final RegExp _ftsPrefixable = RegExp(
+    r'^[\p{L}\p{N}]+$',
+    unicode: true,
+  );
 
   /// Recherche plein-texte dans les notes non corbeille / non archivées.
   /// Le préfixe `*` est ajouté au dernier token pour la recherche incrémentale.
@@ -282,7 +283,8 @@ class NotesDao {
     final fts = _buildFtsMatch(query);
     if (fts.isEmpty) return const <Note>[];
     try {
-      final rows = await _db.rawQuery('''
+      final rows = await _db.rawQuery(
+        '''
         SELECT n.*
         FROM notes n
         JOIN notes_fts f ON f.rowid = n.rowid
@@ -291,7 +293,9 @@ class NotesDao {
           AND n.archived = 0
         ORDER BY bm25(notes_fts), n.updated_at DESC
         LIMIT ?;
-      ''', [fts, limit]);
+      ''',
+        [fts, limit],
+      );
       return rows.map(Note.fromRow).toList(growable: false);
     } catch (e) {
       throw DatabaseException('search échoué', cause: e);

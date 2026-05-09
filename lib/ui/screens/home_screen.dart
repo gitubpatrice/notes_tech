@@ -229,7 +229,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _open(Note note) async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: note.id)),
+      MaterialPageRoute<void>(
+        builder: (_) => NoteEditorScreen(noteId: note.id),
+      ),
     );
   }
 

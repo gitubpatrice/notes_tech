@@ -29,11 +29,11 @@ class EmbedderCoordinator {
     required SemanticSearchService semantic,
     required ValueNotifier<EmbeddingProvider> activeEmbedder,
     required LocalEmbedder localEmbedder,
-  })  : _settings = settings,
-        _indexing = indexing,
-        _semantic = semantic,
-        _active = activeEmbedder,
-        _local = localEmbedder;
+  }) : _settings = settings,
+       _indexing = indexing,
+       _semantic = semantic,
+       _active = activeEmbedder,
+       _local = localEmbedder;
 
   final SettingsService _settings;
   final IndexingService _indexing;

@@ -64,18 +64,14 @@ class EmbeddingsDao {
 
   Future<void> upsert(NoteEmbedding e) async {
     try {
-      await _db.insert(
-        'note_embeddings',
-        {
-          'note_id': e.noteId,
-          'vector': VectorMath.encodeBlob(e.vector),
-          'dim': e.dim,
-          'model_id': e.modelId,
-          'source_hash': e.sourceHash,
-          'updated_at': e.updatedAt.millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await _db.insert('note_embeddings', {
+        'note_id': e.noteId,
+        'vector': VectorMath.encodeBlob(e.vector),
+        'dim': e.dim,
+        'model_id': e.modelId,
+        'source_hash': e.sourceHash,
+        'updated_at': e.updatedAt.millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     } catch (err) {
       throw DatabaseException('emb.upsert échoué', cause: err);
     }
@@ -88,18 +84,14 @@ class EmbeddingsDao {
       await _db.transaction((txn) async {
         final batch = txn.batch();
         for (final e in items) {
-          batch.insert(
-            'note_embeddings',
-            {
-              'note_id': e.noteId,
-              'vector': VectorMath.encodeBlob(e.vector),
-              'dim': e.dim,
-              'model_id': e.modelId,
-              'source_hash': e.sourceHash,
-              'updated_at': e.updatedAt.millisecondsSinceEpoch,
-            },
-            conflictAlgorithm: ConflictAlgorithm.replace,
-          );
+          batch.insert('note_embeddings', {
+            'note_id': e.noteId,
+            'vector': VectorMath.encodeBlob(e.vector),
+            'dim': e.dim,
+            'model_id': e.modelId,
+            'source_hash': e.sourceHash,
+            'updated_at': e.updatedAt.millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
         }
         await batch.commit(noResult: true);
       });
@@ -130,10 +122,7 @@ class EmbeddingsDao {
       }
       // Implémentation via différence : on récupère les note_id existants
       // puis on supprime ceux absents de `aliveIds`.
-      final existing = await _db.query(
-        'note_embeddings',
-        columns: ['note_id'],
-      );
+      final existing = await _db.query('note_embeddings', columns: ['note_id']);
       final toDelete = <String>[];
       for (final r in existing) {
         final id = r['note_id']! as String;
@@ -196,8 +185,7 @@ class EmbeddingsDao {
       dim: dim,
       modelId: row['model_id']! as String,
       sourceHash: row['source_hash']! as int,
-      updatedAt:
-          DateTime.fromMillisecondsSinceEpoch(row['updated_at']! as int),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at']! as int),
     );
   }
 }

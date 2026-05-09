@@ -29,19 +29,13 @@ Future<String?> showMoveToFolderSheet({
     context: context,
     isScrollControlled: true,
     builder: (ctx) {
-      return _MoveSheet(
-        folders: folders,
-        currentFolderId: currentFolderId,
-      );
+      return _MoveSheet(folders: folders, currentFolderId: currentFolderId);
     },
   );
 }
 
 class _MoveSheet extends StatelessWidget {
-  const _MoveSheet({
-    required this.folders,
-    required this.currentFolderId,
-  });
+  const _MoveSheet({required this.folders, required this.currentFolderId});
 
   final List<Folder> folders;
   final String currentFolderId;
@@ -60,7 +54,9 @@ class _MoveSheet extends StatelessWidget {
         updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
       ),
     );
-    final others = folders.where((f) => f.id != AppConstants.inboxFolderId).toList();
+    final others = folders
+        .where((f) => f.id != AppConstants.inboxFolderId)
+        .toList();
 
     return SafeArea(
       child: Column(

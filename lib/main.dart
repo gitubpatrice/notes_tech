@@ -13,10 +13,12 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' show Database;
@@ -52,6 +54,10 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // F4 v1.0.3 — purge `cache/exports/` (résidu ZIP plaintext si le process
+  // a été tué pendant un share sheet précédent). Best-effort, fire-and-forget.
+  unawaited(_purgeExportsCache());
 
   // VaultService injecté avant tout accès DB : `AppDatabase` réutilisera
   // la même instance (source de vérité unique pour la KEK, testable).
@@ -156,6 +162,7 @@ Future<void> main() async {
   final folderVault = FolderVaultService(
     folders: foldersRepo,
     notes: notesRepo,
+    embeddings: embeddingsRepo,
     autoLockAfter: Duration(minutes: settings.vaultAutoLockMinutes),
   );
   // v0.9 — reprend les auto-wipes de coffres PIN interrompus par un
@@ -187,15 +194,9 @@ Future<void> main() async {
       // on assume qu'un service est bloqué et on continue le wipe — le
       // mode panique doit aller au bout coûte que coûte.
       const timeout = Duration(seconds: 2);
-      await coordinator
-          .dispose()
-          .timeout(timeout, onTimeout: () {});
-      await indexing
-          .dispose()
-          .timeout(timeout, onTimeout: () {});
-      await backlinks
-          .dispose()
-          .timeout(timeout, onTimeout: () {});
+      await coordinator.dispose().timeout(timeout, onTimeout: () {});
+      await indexing.dispose().timeout(timeout, onTimeout: () {});
+      await backlinks.dispose().timeout(timeout, onTimeout: () {});
     },
   );
 
@@ -250,3 +251,18 @@ Future<void> main() async {
   );
 }
 
+/// F4 v1.0.3 — purge `cache/exports/` au boot. Si le process a été tué
+/// pendant un Share sheet (panic, OOM, force stop), le `finally`
+/// supprimant le ZIP plaintext n'a pas pu tirer → résidu sur disque.
+/// Le boot suivant nettoie. Best-effort.
+Future<void> _purgeExportsCache() async {
+  try {
+    final tmpDir = await getTemporaryDirectory();
+    final exportsDir = Directory('${tmpDir.path}/exports');
+    if (await exportsDir.exists()) {
+      await exportsDir.delete(recursive: true);
+    }
+  } catch (_) {
+    // Best-effort : pas de cache à purger ou perm refusée.
+  }
+}

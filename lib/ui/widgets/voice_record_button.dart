@@ -20,11 +20,7 @@ typedef OnTranscriptionInsert = void Function(String text);
 /// Le bouton est volontairement compact (icon button) pour s'intégrer dans
 /// la barre d'outils de l'éditeur sans alourdir l'UI.
 class VoiceRecordButton extends StatelessWidget {
-  const VoiceRecordButton({
-    super.key,
-    required this.onInsert,
-    this.tooltip,
-  });
+  const VoiceRecordButton({super.key, required this.onInsert, this.tooltip});
 
   final OnTranscriptionInsert onInsert;
 

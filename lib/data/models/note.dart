@@ -88,25 +88,26 @@ class Note {
       trashedAt: clearTrashedAt ? null : (trashedAt ?? this.trashedAt),
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      encryptedContent:
-          clearEncrypted ? null : (encryptedContent ?? this.encryptedContent),
+      encryptedContent: clearEncrypted
+          ? null
+          : (encryptedContent ?? this.encryptedContent),
     );
   }
 
   Map<String, Object?> toRow() => {
-        'id': id,
-        'title': title,
-        'content': content,
-        'folder_id': folderId,
-        'tags': tags.join(','),
-        'pinned': pinned ? 1 : 0,
-        'favorite': favorite ? 1 : 0,
-        'archived': archived ? 1 : 0,
-        'trashed_at': trashedAt?.millisecondsSinceEpoch,
-        'created_at': createdAt.millisecondsSinceEpoch,
-        'updated_at': updatedAt.millisecondsSinceEpoch,
-        'encrypted_content': encryptedContent,
-      };
+    'id': id,
+    'title': title,
+    'content': content,
+    'folder_id': folderId,
+    'tags': tags.join(','),
+    'pinned': pinned ? 1 : 0,
+    'favorite': favorite ? 1 : 0,
+    'archived': archived ? 1 : 0,
+    'trashed_at': trashedAt?.millisecondsSinceEpoch,
+    'created_at': createdAt.millisecondsSinceEpoch,
+    'updated_at': updatedAt.millisecondsSinceEpoch,
+    'encrypted_content': encryptedContent,
+  };
 
   factory Note.fromRow(Map<String, Object?> row) {
     final rawTags = (row['tags'] as String?) ?? '';
@@ -126,9 +127,11 @@ class Note {
           ? null
           : DateTime.fromMillisecondsSinceEpoch(row['trashed_at']! as int),
       createdAt: DateTime.fromMillisecondsSinceEpoch(
-          (row['created_at'] as int?) ?? 0),
+        (row['created_at'] as int?) ?? 0,
+      ),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(
-          (row['updated_at'] as int?) ?? 0),
+        (row['updated_at'] as int?) ?? 0,
+      ),
       encryptedContent: _asBytes(row['encrypted_content']),
     );
   }
@@ -175,20 +178,20 @@ enum NoteSortMode {
   titleDesc;
 
   String get sqlOrderBy => switch (this) {
-        NoteSortMode.updatedDesc => 'pinned DESC, updated_at DESC',
-        NoteSortMode.updatedAsc => 'pinned DESC, updated_at ASC',
-        NoteSortMode.createdDesc => 'pinned DESC, created_at DESC',
-        NoteSortMode.createdAsc => 'pinned DESC, created_at ASC',
-        NoteSortMode.titleAsc => 'pinned DESC, title COLLATE NOCASE ASC',
-        NoteSortMode.titleDesc => 'pinned DESC, title COLLATE NOCASE DESC',
-      };
+    NoteSortMode.updatedDesc => 'pinned DESC, updated_at DESC',
+    NoteSortMode.updatedAsc => 'pinned DESC, updated_at ASC',
+    NoteSortMode.createdDesc => 'pinned DESC, created_at DESC',
+    NoteSortMode.createdAsc => 'pinned DESC, created_at ASC',
+    NoteSortMode.titleAsc => 'pinned DESC, title COLLATE NOCASE ASC',
+    NoteSortMode.titleDesc => 'pinned DESC, title COLLATE NOCASE DESC',
+  };
 
   String get label => switch (this) {
-        NoteSortMode.updatedDesc => 'Modifiée — récent',
-        NoteSortMode.updatedAsc => 'Modifiée — ancien',
-        NoteSortMode.createdDesc => 'Créée — récent',
-        NoteSortMode.createdAsc => 'Créée — ancien',
-        NoteSortMode.titleAsc => 'Titre A→Z',
-        NoteSortMode.titleDesc => 'Titre Z→A',
-      };
+    NoteSortMode.updatedDesc => 'Modifiée — récent',
+    NoteSortMode.updatedAsc => 'Modifiée — ancien',
+    NoteSortMode.createdDesc => 'Créée — récent',
+    NoteSortMode.createdAsc => 'Créée — ancien',
+    NoteSortMode.titleAsc => 'Titre A→Z',
+    NoteSortMode.titleDesc => 'Titre Z→A',
+  };
 }

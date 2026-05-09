@@ -16,18 +16,18 @@ import 'package:flutter/services.dart';
 class SecureWindowService {
   SecureWindowService();
 
-  static const MethodChannel _channel =
-      MethodChannel('notes_tech/secure_window');
+  static const MethodChannel _channel = MethodChannel(
+    'notes_tech/secure_window',
+  );
 
   /// Applique l'état demandé. Erreurs silencieuses en release : un échec
   /// de canal n'a aucun impact fonctionnel hors écran (le flag persiste
   /// déjà côté pref pour le prochain démarrage).
   Future<void> setEnabled(bool enabled) async {
     try {
-      await _channel.invokeMethod<void>(
-        'setEnabled',
-        <String, Object?>{'enabled': enabled},
-      );
+      await _channel.invokeMethod<void>('setEnabled', <String, Object?>{
+        'enabled': enabled,
+      });
     } catch (e) {
       if (kDebugMode) {
         debugPrint('SecureWindowService.setEnabled($enabled) — $e');

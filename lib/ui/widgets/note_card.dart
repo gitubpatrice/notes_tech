@@ -60,7 +60,9 @@ class NoteCard extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: locked ? cs.error.withValues(alpha: 0.4) : theme.dividerColor,
+            color: locked
+                ? cs.error.withValues(alpha: 0.4)
+                : theme.dividerColor,
           ),
         ),
         child: InkWell(
@@ -81,8 +83,11 @@ class NoteCard extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ExcludeSemantics(
-                            child: Icon(Icons.lock_outline,
-                                size: 14, color: cs.error),
+                            child: Icon(
+                              Icons.lock_outline,
+                              size: 14,
+                              color: cs.error,
+                            ),
                           ),
                         ),
                       if (note.pinned && !locked)
@@ -100,7 +105,9 @@ class NoteCard extends StatelessWidget {
                           // ce comportement (max confidentialité).
                           locked
                               ? t.noteCardLocked
-                              : (note.title.isEmpty ? t.noteUntitled : note.title),
+                              : (note.title.isEmpty
+                                    ? t.noteUntitled
+                                    : note.title),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontStyle: locked ? FontStyle.italic : null,
                             color: locked ? cs.onSurfaceVariant : null,
@@ -111,7 +118,11 @@ class NoteCard extends StatelessWidget {
                       ),
                       if (note.favorite && !locked)
                         ExcludeSemantics(
-                          child: Icon(Icons.star, size: 16, color: cs.favoriteIcon),
+                          child: Icon(
+                            Icons.star,
+                            size: 16,
+                            color: cs.favoriteIcon,
+                          ),
                         ),
                     ],
                   ),
@@ -127,8 +138,10 @@ class NoteCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      Text(df.format(note.updatedAt),
-                          style: theme.textTheme.labelMedium),
+                      Text(
+                        df.format(note.updatedAt),
+                        style: theme.textTheme.labelMedium,
+                      ),
                       if (folderName != null) ...[
                         const SizedBox(width: 8),
                         _FolderChip(label: folderName!),
@@ -183,10 +196,7 @@ class _FolderChip extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                color: cs.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
             ),
           ),
         ],

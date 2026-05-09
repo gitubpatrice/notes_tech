@@ -130,13 +130,17 @@ class SettingsScreen extends StatelessWidget {
       builder: (ctx) => SimpleDialog(
         title: Text(t.homeSortMode),
         children: NoteSortMode.values
-            .map((m) => ListTile(
-                  leading: Icon(settings.sortMode == m
+            .map(
+              (m) => ListTile(
+                leading: Icon(
+                  settings.sortMode == m
                       ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked),
-                  title: Text(_localizedSortLabel(t, m)),
-                  onTap: () => Navigator.of(ctx).pop(m),
-                ))
+                      : Icons.radio_button_unchecked,
+                ),
+                title: Text(_localizedSortLabel(t, m)),
+                onTap: () => Navigator.of(ctx).pop(m),
+              ),
+            )
             .toList(),
       ),
     );
@@ -160,10 +164,10 @@ class _LanguageTile extends StatelessWidget {
     final current = settings.locale?.languageCode ?? 'system';
 
     String labelFor(String code) => switch (code) {
-          'fr' => t.settingsLanguageFr,
-          'en' => t.settingsLanguageEn,
-          _ => t.settingsLanguageSystem,
-        };
+      'fr' => t.settingsLanguageFr,
+      'en' => t.settingsLanguageEn,
+      _ => t.settingsLanguageSystem,
+    };
 
     return MergeSemantics(
       child: ListTile(
@@ -224,10 +228,10 @@ class _ThemeTile extends StatelessWidget {
     final current = settings.themeMode;
 
     String labelFor(ThemeMode m) => switch (m) {
-          ThemeMode.light => t.settingsThemeLight,
-          ThemeMode.dark => t.settingsThemeDark,
-          ThemeMode.system => t.settingsThemeSystem,
-        };
+      ThemeMode.light => t.settingsThemeLight,
+      ThemeMode.dark => t.settingsThemeDark,
+      ThemeMode.system => t.settingsThemeSystem,
+    };
 
     return MergeSemantics(
       child: ListTile(
@@ -280,8 +284,10 @@ class _SemanticErrorTile extends StatelessWidget {
       builder: (_, msg, _) {
         if (msg == null) return const SizedBox.shrink();
         return ListTile(
-          leading: Icon(Icons.warning_amber_outlined,
-              color: theme.colorScheme.error),
+          leading: Icon(
+            Icons.warning_amber_outlined,
+            color: theme.colorScheme.error,
+          ),
           title: Text(msg, style: TextStyle(color: theme.colorScheme.error)),
         );
       },
@@ -300,11 +306,13 @@ class _Section extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
       child: Semantics(
         header: true,
-        child: Text(label.toUpperCase(),
-            style: theme.textTheme.labelMedium?.copyWith(
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w600,
-            )),
+        child: Text(
+          label.toUpperCase(),
+          style: theme.textTheme.labelMedium?.copyWith(
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }
@@ -360,9 +368,7 @@ class _VoiceSection extends StatelessWidget {
                 ),
                 title: Text(
                   t.voiceSetupRemove,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
                 subtitle: Text(_formatSize(model.sizeBytes)),
                 onTap: () =>
@@ -439,9 +445,7 @@ class _ExportSectionState extends State<_ExportSection> {
     try {
       final notes = await notesRepo.listAllAlive();
       final folders = await foldersRepo.listAll();
-      final foldersById = <String, Folder>{
-        for (final f in folders) f.id: f,
-      };
+      final foldersById = <String, Folder>{for (final f in folders) f.id: f};
 
       if (notes.isEmpty) {
         if (!mounted) return;
@@ -460,21 +464,28 @@ class _ExportSectionState extends State<_ExportSection> {
         vaultMentionTemplate: t.exportNoteFromVault('{folder}'),
       );
       final zipBytes = result.zipBytes;
+      // F4 v1.0.3 — sous-dossier `cache/exports/` dédié, purgé au boot
+      // dans main.dart. Si le process est tué pendant le sheet de
+      // partage (panic, OOM kill, force stop), le finally ci-dessous
+      // ne tirera pas — mais le boot suivant nettoiera le résidu.
       final tmpDir = await getTemporaryDirectory();
+      final exportsDir = Directory('${tmpDir.path}/exports');
+      if (!await exportsDir.exists()) {
+        await exportsDir.create(recursive: true);
+      }
       final ts = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
           .split('.')
           .first;
-      final file = File('${tmpDir.path}/notes-tech-export-$ts.zip');
+      final file = File('${exportsDir.path}/notes-tech-export-$ts.zip');
       await file.writeAsBytes(zipBytes, flush: true);
 
       if (!mounted) return;
       try {
-        await Share.shareXFiles(
-          [XFile(file.path, mimeType: 'application/zip')],
-          subject: t.exportShareSubject(result.exportedCount),
-        );
+        await Share.shareXFiles([
+          XFile(file.path, mimeType: 'application/zip'),
+        ], subject: t.exportShareSubject(result.exportedCount));
         if (!mounted) return;
         final message = result.skippedVaultedCount == 0
             ? t.settingsExportDone(result.exportedCount)
@@ -491,7 +502,9 @@ class _ExportSectionState extends State<_ExportSection> {
       } finally {
         try {
           if (await file.exists()) await file.delete();
-        } catch (_) {/* best-effort */}
+        } catch (_) {
+          /* best-effort */
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -605,8 +618,9 @@ class _VaultAutoLockTile extends StatelessWidget {
 
   static const _options = <int>[0, 5, 15, 30, 60];
 
-  String _labelFor(AppLocalizations t, int minutes) =>
-      minutes == 0 ? t.settingsVaultAutoLockNever : t.settingsVaultAutoLockMinutes(minutes);
+  String _labelFor(AppLocalizations t, int minutes) => minutes == 0
+      ? t.settingsVaultAutoLockNever
+      : t.settingsVaultAutoLockMinutes(minutes);
 
   Future<void> _showPicker(
     BuildContext context,

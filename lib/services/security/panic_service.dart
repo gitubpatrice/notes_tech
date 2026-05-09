@@ -117,15 +117,15 @@ class PanicService {
     Future<void> Function()? beforeDbWipe,
     Future<void> Function()? lockAllFolders,
     KeystoreBridge? keystore,
-  })  : _voice = voice,
-        _gemma = gemma,
-        _vault = vault,
-        _db = database,
-        _secureWindow = secureWindow,
-        _prefs = prefs,
-        _beforeDbWipe = beforeDbWipe,
-        _lockAllFolders = lockAllFolders,
-        _keystore = keystore ?? KeystoreBridge();
+  }) : _voice = voice,
+       _gemma = gemma,
+       _vault = vault,
+       _db = database,
+       _secureWindow = secureWindow,
+       _prefs = prefs,
+       _beforeDbWipe = beforeDbWipe,
+       _lockAllFolders = lockAllFolders,
+       _keystore = keystore ?? KeystoreBridge();
 
   final VoiceService _voice;
   final GemmaService _gemma;
@@ -300,7 +300,8 @@ class PanicService {
   /// Implémenté en boucle `remove` plutôt que `clear` pour respecter la
   /// whitelist. Best-effort : un échec sur une clé n'arrête pas la séquence.
   Future<void> _prefsClearWithWhitelist() async {
-    final keys = _prefs.getKeys()
+    final keys = _prefs
+        .getKeys()
         .where((k) => !_panicPreservedKeys.contains(k))
         .toList(growable: false);
     for (final k in keys) {

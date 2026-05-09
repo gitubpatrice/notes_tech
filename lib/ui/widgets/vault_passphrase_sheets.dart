@@ -48,9 +48,7 @@ Future<String?> showCreateVaultSheet({
     builder: (ctx) {
       // Padding réactif au clavier (`viewInsets.bottom` quand IME ouvert).
       return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
         child: _CreateVaultSheet(folderName: folderName),
       );
     },
@@ -71,8 +69,7 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
 
   bool get _lengthOk =>
       _pass1.text.length >= AppConstants.vaultPassphraseMinLength;
-  bool get _matchOk =>
-      _pass1.text.isNotEmpty && _pass1.text == _pass2.text;
+  bool get _matchOk => _pass1.text.isNotEmpty && _pass1.text == _pass2.text;
   bool get _canSubmit => _lengthOk && _matchOk;
 
   @override
@@ -122,10 +119,10 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
             Text(
               t.vaultPassCreateBody,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    height: 1.35,
-                    fontSize: 14,
-                  ),
+                color: cs.onSurfaceVariant,
+                height: 1.35,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 12),
             VaultWarningBanner(message: t.vaultPassWarningLost),
@@ -145,8 +142,9 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
               labelText: t.vaultPassConfirmField,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),
-              errorText:
-                  (_pass2.text.isNotEmpty && !_matchOk) ? t.vaultPassMismatch : null,
+              errorText: (_pass2.text.isNotEmpty && !_matchOk)
+                  ? t.vaultPassMismatch
+                  : null,
             ),
             const SizedBox(height: 16),
             Row(
@@ -195,9 +193,7 @@ Future<bool?> showUnlockVaultSheet({
     isDismissible: true,
     builder: (ctx) {
       return Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
         child: _UnlockVaultSheet(folder: folder),
       );
     },
@@ -288,9 +284,9 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
             Text(
               t.vaultPassUnlockBody(widget.folder.name),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
+                color: cs.onSurfaceVariant,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 12),
             PassphraseTextField(
@@ -338,9 +334,9 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
             const SizedBox(height: 8),
             Text(
               t.vaultPassDeriving,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 8),
           ],

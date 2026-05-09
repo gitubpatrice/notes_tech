@@ -84,9 +84,7 @@ class VectorMath {
     }
     final dim = bytes.lengthInBytes ~/ 4;
     if (expectedDim != null && dim != expectedDim) {
-      throw ArgumentError(
-        'Dimension BLOB inattendue : $dim vs $expectedDim',
-      );
+      throw ArgumentError('Dimension BLOB inattendue : $dim vs $expectedDim');
     }
     // Copie alignée garantie. Évite les vues sur buffer non aligné qui
     // crashent sur certains backends + libère le buffer source côté GC.

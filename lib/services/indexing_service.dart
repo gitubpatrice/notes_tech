@@ -53,9 +53,9 @@ class IndexingService {
     required NotesRepository notes,
     required EmbeddingsRepository embeddings,
     required EmbeddingProvider embedder,
-  })  : _notes = notes,
-        _embeddings = embeddings,
-        _embedder = embedder;
+  }) : _notes = notes,
+       _embeddings = embeddings,
+       _embedder = embedder;
 
   final NotesRepository _notes;
   final EmbeddingsRepository _embeddings;
@@ -103,17 +103,19 @@ class IndexingService {
   /// passe d'indexation est de toute façon debouncée.
   Future<void> start() async {
     _changesSub = _notes.changes.listen((_) => _scheduleRun());
-    unawaited(Future<void>.microtask(() async {
-      if (_disposed) return;
-      try {
-        await _embeddings.purgeOtherModels(_embedder.modelId);
-      } catch (e, st) {
-        if (kDebugMode) {
-          debugPrint('IndexingService: purgeOtherModels — $e\n$st');
+    unawaited(
+      Future<void>.microtask(() async {
+        if (_disposed) return;
+        try {
+          await _embeddings.purgeOtherModels(_embedder.modelId);
+        } catch (e, st) {
+          if (kDebugMode) {
+            debugPrint('IndexingService: purgeOtherModels — $e\n$st');
+          }
         }
-      }
-      _scheduleRun();
-    }));
+        _scheduleRun();
+      }),
+    );
   }
 
   Future<void> dispose() async {
@@ -192,11 +194,13 @@ class IndexingService {
     var done = 0;
     for (final note in toIndex) {
       if (_disposed || !identical(_embedder, embedder)) break;
-      _emitProgress(IndexingProgress(
-        done: done,
-        total: toIndex.length,
-        modelId: embedder.modelId,
-      ));
+      _emitProgress(
+        IndexingProgress(
+          done: done,
+          total: toIndex.length,
+          modelId: embedder.modelId,
+        ),
+      );
       final emb = _encodeWith(embedder, note);
       await _embeddings.save(emb);
       done++;
@@ -207,11 +211,13 @@ class IndexingService {
       }
     }
 
-    _emitProgress(IndexingProgress(
-      done: done,
-      total: toIndex.length,
-      modelId: _embedder.modelId,
-    ));
+    _emitProgress(
+      IndexingProgress(
+        done: done,
+        total: toIndex.length,
+        modelId: _embedder.modelId,
+      ),
+    );
     if ((done > 0 || removed > 0) && !_indexChanges.isClosed) {
       _indexChanges.add(null);
     }

@@ -225,8 +225,9 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                       updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
                     ),
                   );
-                  final userFolders =
-                      all.where((f) => f.id != kInboxFolderId).toList();
+                  final userFolders = all
+                      .where((f) => f.id != kInboxFolderId)
+                      .toList();
 
                   return ListView(
                     children: [
@@ -340,15 +341,12 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                 onTap: () =>
                     Navigator.of(ctx).pop(_FolderAction.convertToVault),
               )
-            else if (context
-                .read<FolderVaultService>()
-                .isUnlocked(folder.id))
+            else if (context.read<FolderVaultService>().isUnlocked(folder.id))
               ListTile(
                 leading: Icon(Icons.lock_outline, color: cs.error),
                 title: Text(t.drawerLockNow),
                 subtitle: Text(t.drawerLockNowSubtitle),
-                onTap: () =>
-                    Navigator.of(ctx).pop(_FolderAction.lockNow),
+                onTap: () => Navigator.of(ctx).pop(_FolderAction.lockNow),
               ),
             ListTile(
               leading: Icon(

@@ -33,9 +33,9 @@ class SemanticSearchService {
     required EmbeddingsRepository embeddings,
     required EmbeddingProvider embedder,
     required IndexingService indexing,
-  })  : _notes = notes,
-        _embeddings = embeddings,
-        _embedder = embedder {
+  }) : _notes = notes,
+       _embeddings = embeddings,
+       _embedder = embedder {
     _indexSub = indexing.changes.listen((_) => invalidateCache());
   }
 
@@ -120,9 +120,10 @@ class SemanticSearchService {
     return _loading ??= _embeddings
         .listByModel(_embedder.modelId)
         .then((list) {
-      _cache = list;
-      return list;
-    }).whenComplete(() => _loading = null);
+          _cache = list;
+          return list;
+        })
+        .whenComplete(() => _loading = null);
   }
 
   /// Insère un score dans une liste triée descendante de taille bornée.

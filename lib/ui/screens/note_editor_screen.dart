@@ -60,7 +60,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   Note? _note;
   bool _loading = true;
-  bool _stale = false; // note supprimée / mise en corbeille → édition désactivée
+  bool _stale =
+      false; // note supprimée / mise en corbeille → édition désactivée
   String? _error;
   Future<void>? _pendingSave;
 
@@ -121,12 +122,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             debugPrint('flush save (dispose) skipped: vault locked');
           }
         } else {
-          unawaited(_repo
-              .save(n.copyWith(title: title, content: content))
-              .catchError((Object e) {
-            if (kDebugMode) debugPrint('flush save (dispose) : $e');
-            return n;
-          }));
+          unawaited(
+            _repo.save(n.copyWith(title: title, content: content)).catchError((
+              Object e,
+            ) {
+              if (kDebugMode) debugPrint('flush save (dispose) : $e');
+              return n;
+            }),
+          );
         }
       }
     }
@@ -155,9 +158,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (note.isLocked) {
         final vault = context.read<FolderVaultService>();
         if (!vault.isUnlocked(note.folderId)) {
-          final folder = await context
-              .read<FoldersRepository>()
-              .get(note.folderId);
+          final folder = await context.read<FoldersRepository>().get(
+            note.folderId,
+          );
           if (folder == null || !mounted) {
             setState(() {
               _loading = false;
@@ -287,10 +290,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       if (_lastSavedAnnounce == null ||
           now.difference(_lastSavedAnnounce!).inSeconds >= 5) {
         _lastSavedAnnounce = now;
-        unawaited(SemanticsService.announce(
-          t.noteEditorAnnounceSavedSuccess,
-          TextDirection.ltr,
-        ));
+        unawaited(
+          SemanticsService.announce(
+            t.noteEditorAnnounceSavedSuccess,
+            TextDirection.ltr,
+          ),
+        );
       }
     } on ValidationException catch (e) {
       if (!mounted) return;
@@ -379,10 +384,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     try {
       const exporter = NoteExportService();
       final bytes = exporter.exportNoteAsBytes(fresh, folder: folder);
-      final fileName = exporter.safeFileName(
-        fresh.title,
-        fallbackId: fresh.id,
-      );
+      final fileName = exporter.safeFileName(fresh.title, fallbackId: fresh.id);
       final tmpDir = await getTemporaryDirectory();
       final file = File('${tmpDir.path}/$fileName');
       await file.writeAsBytes(bytes, flush: true);
@@ -402,7 +404,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         // copie ou tient une URI ouverte) avant qu'on supprime ici.
         try {
           if (await file.exists()) await file.delete();
-        } catch (_) {/* best-effort */}
+        } catch (_) {
+          /* best-effort */
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -517,8 +521,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final value = ctrl.text;
     final sel = ctrl.selection;
     final start = sel.start >= 0 ? sel.start : value.length;
-    final needsLeadingSpace = start > 0 &&
-        !RegExp(r'[\s\n]$').hasMatch(value.substring(0, start));
+    final needsLeadingSpace =
+        start > 0 && !RegExp(r'[\s\n]$').hasMatch(value.substring(0, start));
     final toInsert = (needsLeadingSpace ? ' ' : '') + clean;
     _insertAtCursor(toInsert);
     _scheduleSave();
@@ -599,12 +603,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   )
                 else
                   ExcludeSemantics(
-                    child: Icon(Icons.cloud_done_outlined,
-                        size: 16, color: theme.iconTheme.color),
+                    child: Icon(
+                      Icons.cloud_done_outlined,
+                      size: 16,
+                      color: theme.iconTheme.color,
+                    ),
                   ),
                 const SizedBox(width: 8),
-                Text(saving ? t.noteEditorSaving : t.noteEditorSaved,
-                    style: theme.textTheme.bodySmall),
+                Text(
+                  saving ? t.noteEditorSaving : t.noteEditorSaved,
+                  style: theme.textTheme.bodySmall,
+                ),
               ],
             ),
           ),
@@ -612,8 +621,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         actions: [
           IconButton(
             tooltip: note.pinned ? t.homeUnpin : t.noteEditorTooltipPin,
-            icon:
-                Icon(note.pinned ? Icons.push_pin : Icons.push_pin_outlined),
+            icon: Icon(note.pinned ? Icons.push_pin : Icons.push_pin_outlined),
             onPressed: _togglePin,
           ),
           IconButton(
@@ -718,7 +726,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
                 inputFormatters: [
                   LengthLimitingTextInputFormatter(
-                      AppConstants.noteTitleMaxLength),
+                    AppConstants.noteTitleMaxLength,
+                  ),
                 ],
               ),
               Divider(color: theme.dividerColor, height: 1),

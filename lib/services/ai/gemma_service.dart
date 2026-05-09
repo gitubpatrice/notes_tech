@@ -35,7 +35,7 @@ import '../../core/exceptions.dart';
 
 class GemmaService {
   GemmaService({String expectedSha256 = AppConstants.gemmaModelSha256})
-      : _expectedSha256 = expectedSha256.toLowerCase();
+    : _expectedSha256 = expectedSha256.toLowerCase();
 
   final String _expectedSha256;
 
@@ -219,10 +219,9 @@ class GemmaService {
         );
       }
 
-      await FlutterGemma
-          .installModel(modelType: ModelType.gemmaIt)
-          .fromFile(f.path)
-          .install();
+      await FlutterGemma.installModel(
+        modelType: ModelType.gemmaIt,
+      ).fromFile(f.path).install();
 
       final model = await _createModelWithFallback();
       final chat = await _newChat(model);
@@ -313,16 +312,18 @@ class GemmaService {
       // Phase 1 (sérialisée) : reset chat + push prompt.
       await _serialize<void>(() async {
         await _resetChat();
-        await _chat!
-            .addQueryChunk(Message.text(text: cleaned, isUser: true));
+        await _chat!.addQueryChunk(Message.text(text: cleaned, isUser: true));
       });
 
       // Phase 2 : streaming. Le stream natif n'a pas de close-on-cancel,
       // mais `stopGeneration` ferme la session ce qui le coupe.
-      yield* _chat!.generateChatResponseAsync().map((r) {
-        if (r is TextResponse) return r.token;
-        return '';
-      }).where((t) => t.isNotEmpty);
+      yield* _chat!
+          .generateChatResponseAsync()
+          .map((r) {
+            if (r is TextResponse) return r.token;
+            return '';
+          })
+          .where((t) => t.isNotEmpty);
     } finally {
       _busy = false;
     }
@@ -337,8 +338,7 @@ class GemmaService {
 
   /// Substring qui ne coupe pas une surrogate pair UTF-16.
   @visibleForTesting
-  static String safeSubstring(String s, int max) =>
-      _safeSubstring(s, max);
+  static String safeSubstring(String s, int max) => _safeSubstring(s, max);
 
   static String _safeSubstring(String s, int max) {
     if (s.length <= max) return s;
@@ -353,7 +353,8 @@ class GemmaService {
     final model = _model;
     if (model == null) return;
     final old = _chat;
-    _chat = null; // ferme la fenêtre où ask() pourrait toucher l'ancienne session
+    _chat =
+        null; // ferme la fenêtre où ask() pourrait toucher l'ancienne session
     try {
       await old?.close();
     } catch (e) {
@@ -382,7 +383,7 @@ class GemmaService {
 class _GemmaException extends NotesTechException {
   const _GemmaException(super.message, {super.code});
   const _GemmaException.coded(NotesErrorCode code)
-      : super('GemmaException', code: code);
+    : super('GemmaException', code: code);
   @override
   String toString() => 'GemmaException: $message';
 }
@@ -414,9 +415,9 @@ class GemmaHashMismatchException extends NotesTechException {
     required this.expected,
     required this.actual,
   }) : super(
-          'Empreinte SHA-256 inattendue.',
-          code: NotesErrorCode.gemmaHashMismatch,
-        );
+         'Empreinte SHA-256 inattendue.',
+         code: NotesErrorCode.gemmaHashMismatch,
+       );
   final String expected;
   final String actual;
   @override

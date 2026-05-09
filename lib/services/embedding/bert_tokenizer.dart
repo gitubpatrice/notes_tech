@@ -44,16 +44,15 @@ BertTokenizer bertTokenizerFromConfig({
   required int padToken,
   required String continuingPrefix,
   required int maxInputCharsPerWord,
-}) =>
-    BertTokenizer._(
-      vocab: vocab,
-      unkToken: unkToken,
-      clsToken: clsToken,
-      sepToken: sepToken,
-      padToken: padToken,
-      continuingPrefix: continuingPrefix,
-      maxInputCharsPerWord: maxInputCharsPerWord,
-    );
+}) => BertTokenizer._(
+  vocab: vocab,
+  unkToken: unkToken,
+  clsToken: clsToken,
+  sepToken: sepToken,
+  padToken: padToken,
+  continuingPrefix: continuingPrefix,
+  maxInputCharsPerWord: maxInputCharsPerWord,
+);
 
 class BertTokenizer {
   BertTokenizer._({
@@ -84,8 +83,7 @@ class BertTokenizer {
       for (final e in vocabJson.entries) e.key: (e.value as num).toInt(),
     };
     final unk = (model['unk_token'] as String?) ?? '[UNK]';
-    final continuing =
-        (model['continuing_subword_prefix'] as String?) ?? '##';
+    final continuing = (model['continuing_subword_prefix'] as String?) ?? '##';
     final maxChars =
         (model['max_input_chars_per_word'] as num?)?.toInt() ?? 100;
 

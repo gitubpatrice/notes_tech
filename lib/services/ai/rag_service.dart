@@ -93,7 +93,8 @@ class RagService {
   /// Fallback FR — utilisé si le caller (test, rétrocompat) ne fournit pas
   /// de [RagLocaleStrings]. En production, la UI passe les chaînes ARB.
   static const _defaultFrStrings = RagLocaleStrings(
-    systemPrompt: 'Tu es un assistant qui répond aux questions de '
+    systemPrompt:
+        'Tu es un assistant qui répond aux questions de '
         'l\'utilisateur en s\'appuyant strictement sur ses notes '
         'personnelles ci-dessous. Si la réponse ne se trouve pas dans les '
         'notes, dis-le clairement plutôt que d\'inventer. Réponds en '
@@ -134,7 +135,9 @@ class RagService {
     buf.writeln(strings.contextHeader);
     for (var i = 0; i < hits.length; i++) {
       final h = hits[i];
-      final title = h.note.title.isEmpty ? strings.untitledFallback : h.note.title;
+      final title = h.note.title.isEmpty
+          ? strings.untitledFallback
+          : h.note.title;
       final body = _cap(h.note.content, _perNoteCharCap);
       buf
         ..writeln()
@@ -150,22 +153,67 @@ class RagService {
     return '${s.substring(0, max)}…';
   }
 
-  /// Neutralise toute occurrence de balise `<note …>` ou `</note>` dans
-  /// le contenu utilisateur pour empêcher la fermeture précoce du bloc
-  /// délimiteur (mitigation injection de prompt).
-  /// Conservation du texte (remplacement caractère ZWSP) plutôt que
-  /// suppression brutale, pour ne pas dénaturer le rendu textuel.
+  /// F13 v1.0.3 — sanitize prompt injection élargi.
+  ///
+  /// Couvre :
+  /// 1. Tags délimiteurs (`<note>`, `</note>`) avec ZWSP pour conserver
+  ///    le rendu textuel sans casser le bloc.
+  /// 2. Verbes d'instruction FR/EN classiques :
+  ///    `ignore/disregard/forget/oublie` + `instructions/previous/tout/consigne`.
+  /// 3. Tags de rôle système qui pourraient être interprétés par Gemma :
+  ///    `Assistant:`, `System:`, `<|system|>`, `<|user|>`, `</s>`,
+  ///    `[INST]`, `[/INST]`, `<|assistant|>`.
+  /// 4. Steering response : `nouvelle consigne`, `as the user said`.
+  ///
+  /// La sanitization reste **best-effort** : un attaquant déterminé peut
+  /// encore passer (encodage base64, leetspeak, ROT13). Pour une vraie
+  /// défense en profondeur, voir TODO v1.1 : encoder chaque note en
+  /// base64 avec délimiteur ASCII random régénéré par requête.
   static String _sanitize(String s) {
     return s
-        .replaceAll(RegExp(r'</\s*note\s*>', caseSensitive: false),
-            '<​/note>')
-        .replaceAll(RegExp(r'<\s*note\b', caseSensitive: false),
-            '<​note')
-        // Anti-injection naïve : neutralise les motifs explicites courants.
+        .replaceAll(RegExp(r'</\s*note\s*>', caseSensitive: false), '<​/note>')
+        .replaceAll(RegExp(r'<\s*note\b', caseSensitive: false), '<​note')
+        // (2) Verbes d'instruction FR/EN.
         .replaceAll(
-          RegExp(r'(?:^|\n)\s*ignore\s+(?:les|all)\s+(?:instructions|previous)',
-              caseSensitive: false),
+          RegExp(
+            r'(?:^|\n)\s*'
+            r'(?:ignore|disregard|forget|oublie|oubliez|ne\s+tiens?\s+pas\s+compte)'
+            r'\s+'
+            r'(?:les|all|tout|toutes|toute|the|previous|précédentes?|consignes?|instructions?)'
+            r'\b',
+            caseSensitive: false,
+          ),
           '\n[ligne neutralisée]',
+        )
+        // (3) Tags de rôle système Gemma / instruct-style.
+        .replaceAll(
+          RegExp(r'<\|\s*system\s*\|>', caseSensitive: false),
+          '<​|system|>',
+        )
+        .replaceAll(
+          RegExp(r'<\|\s*user\s*\|>', caseSensitive: false),
+          '<​|user|>',
+        )
+        .replaceAll(
+          RegExp(r'<\|\s*assistant\s*\|>', caseSensitive: false),
+          '<​|assistant|>',
+        )
+        .replaceAll(RegExp(r'</?s>'), '<​/s>')
+        .replaceAll(RegExp(r'\[/?INST\]'), '[​INST]')
+        .replaceAll(
+          RegExp(
+            r'(?:^|\n)\s*(?:Assistant|System|Utilisateur|User)\s*:',
+            caseSensitive: false,
+          ),
+          '\n[rôle neutralisé]:',
+        )
+        // (4) Steering directes "nouvelle consigne".
+        .replaceAll(
+          RegExp(
+            r'(?:^|\n)\s*nouvelles?\s+consignes?\s*:',
+            caseSensitive: false,
+          ),
+          '\n[steering neutralisé]:',
         );
   }
 }
