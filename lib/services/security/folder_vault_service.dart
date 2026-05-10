@@ -687,6 +687,10 @@ class FolderVaultService extends ChangeNotifier {
     final s = _unlocked.remove(folderId);
     if (s != null) {
       _wipe(s.folderKek);
+      // A7 v1.0.4 — cancel le timer auto-lock si plus rien d'unlocked,
+      // pour éviter qu'un Timer orphelin fire `_autoLockSweep` sur un
+      // map vide (no-op mais bruit).
+      if (_unlocked.isEmpty) _autoLockTimer?.cancel();
       notifyListeners();
     }
   }
@@ -699,6 +703,8 @@ class FolderVaultService extends ChangeNotifier {
       _wipe(s.folderKek);
     }
     _unlocked.clear();
+    // A7 v1.0.4 — cancel le timer auto-lock après wipe global.
+    _autoLockTimer?.cancel();
     notifyListeners();
   }
 
@@ -900,7 +906,8 @@ class FolderVaultService extends ChangeNotifier {
     return compute<_Argon2Job, Uint8List>(
       _argon2WorkerEntry,
       _Argon2Job(
-        passphrase: passphrase,
+        // A8 v1.0.4 — passe une COPIE Uint8List wipable au worker.
+        passphraseBytes: Uint8List.fromList(utf8Bytes(passphrase)),
         salt: salt,
         memoryKb: AppConstants.vaultArgon2MemoryKb,
         iterations: AppConstants.vaultArgon2Iterations,
@@ -922,7 +929,7 @@ class FolderVaultService extends ChangeNotifier {
     return compute<_Argon2Job, Uint8List>(
       _argon2WorkerEntry,
       _Argon2Job(
-        passphrase: pin,
+        passphraseBytes: Uint8List.fromList(utf8Bytes(pin)),
         salt: salt,
         memoryKb: AppConstants.vaultPinArgon2MemoryKb,
         iterations: AppConstants.vaultPinArgon2Iterations,
@@ -969,7 +976,19 @@ class FolderVaultService extends ChangeNotifier {
     final secret = SecretKey(key);
     final box = SecretBox(cipherText, nonce: iv, mac: Mac(macBytes));
     final plain = await algo.decrypt(box, secretKey: secret, aad: aad);
-    return Uint8List.fromList(plain);
+    // A6 v1.0.4 — wipe le buffer plain retourné par cryptography une fois
+    // la copie effectuée. Limite la fenêtre où le plaintext folder_kek
+    // (ou le contenu déchiffré) reste dans le heap du package cryptography
+    // jusqu'à GC.
+    final out = Uint8List.fromList(plain);
+    if (plain is Uint8List) {
+      try {
+        plain.fillRange(0, plain.length, 0);
+      } catch (_) {
+        // Buffer non-modifiable (vue, FFI) : best-effort.
+      }
+    }
+    return out;
   }
 
   Future<Uint8List> _verifierFor(Uint8List folderKek) async {
@@ -1018,16 +1037,22 @@ const _utf8 = Utf8Codec();
 
 /// Argument transmis à l'isolate. Tous les champs sont passifs et
 /// sérialisables (String, Uint8List, int).
+///
+/// A8 v1.0.4 — `passphraseBytes` est passé en `Uint8List` (au lieu de
+/// `String`) pour permettre un wipe explicite côté worker isolate à la
+/// fin de la dérivation. Le caller doit fournir `utf8.encode(passphrase)`
+/// converti en `Uint8List` ; la String côté UI reste immutable (limitation
+/// Dart) mais on minimise la fenêtre d'exposition dans l'isolate.
 class _Argon2Job {
   const _Argon2Job({
-    required this.passphrase,
+    required this.passphraseBytes,
     required this.salt,
     required this.memoryKb,
     required this.iterations,
     required this.parallelism,
     required this.hashLength,
   });
-  final String passphrase;
+  final Uint8List passphraseBytes;
   final Uint8List salt;
   final int memoryKb;
   final int iterations;
@@ -1044,8 +1069,17 @@ Future<Uint8List> _argon2WorkerEntry(_Argon2Job job) async {
     parallelism: job.parallelism,
     hashLength: job.hashLength,
   );
-  final secret = SecretKey(utf8Bytes(job.passphrase));
-  final derived = await algo.deriveKey(secretKey: secret, nonce: job.salt);
-  final bytes = await derived.extractBytes();
-  return Uint8List.fromList(bytes);
+  try {
+    final secret = SecretKey(job.passphraseBytes);
+    final derived = await algo.deriveKey(secretKey: secret, nonce: job.salt);
+    final bytes = await derived.extractBytes();
+    return Uint8List.fromList(bytes);
+  } finally {
+    // A8 v1.0.4 — wipe la copie de la passphrase côté worker isolate.
+    try {
+      job.passphraseBytes.fillRange(0, job.passphraseBytes.length, 0);
+    } catch (_) {
+      /* best-effort */
+    }
+  }
 }

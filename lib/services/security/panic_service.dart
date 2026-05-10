@@ -57,6 +57,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -100,6 +101,9 @@ enum PanicStep {
   dbWipe,
   voiceWipe,
   gemmaUninstall,
+
+  /// B6 v1.0.4 — wipe du modèle MiniLM bundled (~25 Mo) + cache.
+  embedderWipe,
   prefsClear,
   tmpPurge,
 }
@@ -248,6 +252,11 @@ class PanicService {
     //    KEK est partie depuis plusieurs steps).
     await _runStep(report, PanicStep.gemmaUninstall, _gemma.uninstall);
 
+    // 6.b B6 v1.0.4 — wipe du cache MiniLM (`<appSupport>/models/`).
+    // Le modèle MiniLM est public mais l'app le copie dans son sandbox.
+    // Cohérence avec wipe Gemma + Whisper : zéro résidu ML post-panic.
+    await _runStep(report, PanicStep.embedderWipe, _wipeEmbedderCache);
+
     // 7. Préférences : tri, dossier actif, hash Gemma accepté, modèle
     //    voix actif… aucun reliquat d'usage.
     //
@@ -323,6 +332,22 @@ class PanicService {
         // Best-effort, certains fichiers peuvent être tenus par d'autres
         // processus système.
       }
+    }
+  }
+
+  /// B6 v1.0.4 — wipe du cache MiniLM (sandbox `<appSupport>/models/`).
+  /// Le modèle bundled est public, mais l'app le copie dans son sandbox.
+  /// Cohérence avec voiceWipe + gemmaUninstall : zéro résidu ML post-panic.
+  /// Best-effort (le modèle sera re-extrait des assets au prochain warmUp).
+  Future<void> _wipeEmbedderCache() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final modelsDir = Directory('${dir.path}/models');
+      if (await modelsDir.exists()) {
+        await modelsDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Best-effort.
     }
   }
 }

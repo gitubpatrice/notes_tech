@@ -114,10 +114,7 @@ void main() {
     test('KEK persistée robuste à un encodage corrompu', () async {
       final storage = _InMemoryStorage();
       // Simule un payload corrompu (longueur correcte, caractères non-hex).
-      await storage.write(
-        key: 'notes_tech.vault.kek.v1',
-        value: 'g' * 64,
-      );
+      await storage.write(key: 'notes_tech.vault.kek.v1', value: 'g' * 64);
       final vault = VaultService(storage: storage);
       // L'erreur doit être générique, sans fragment du payload corrompu.
       try {
@@ -129,18 +126,20 @@ void main() {
       }
     });
 
-    test('appels parallèles partagent la même KEK (pas de double génération)',
-        () async {
-      final storage = _InMemoryStorage();
-      final vault = VaultService(storage: storage);
-      final results = await Future.wait([
-        vault.getOrCreateKek(),
-        vault.getOrCreateKek(),
-        vault.getOrCreateKek(),
-      ]);
-      expect(results[0], equals(results[1]));
-      expect(results[1], equals(results[2]));
-      expect(storage.writes, 1);
-    });
+    test(
+      'appels parallèles partagent la même KEK (pas de double génération)',
+      () async {
+        final storage = _InMemoryStorage();
+        final vault = VaultService(storage: storage);
+        final results = await Future.wait([
+          vault.getOrCreateKek(),
+          vault.getOrCreateKek(),
+          vault.getOrCreateKek(),
+        ]);
+        expect(results[0], equals(results[1]));
+        expect(results[1], equals(results[2]));
+        expect(storage.writes, 1);
+      },
+    );
   });
 }

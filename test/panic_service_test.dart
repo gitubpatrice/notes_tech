@@ -46,6 +46,8 @@ void main() {
         PanicStep.dbWipe,
         PanicStep.voiceWipe,
         PanicStep.gemmaUninstall,
+        // B6 v1.0.4 — embedderWipe wipe le cache MiniLM après Gemma.
+        PanicStep.embedderWipe,
         PanicStep.prefsClear,
         PanicStep.tmpPurge,
       ]);

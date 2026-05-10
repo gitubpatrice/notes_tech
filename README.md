@@ -2,7 +2,7 @@
 
 > Vos notes restent dans votre poche. L'IA aussi.
 
-**v1.0.0 — Mai 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
+**v1.0.4 — Mai 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
 
 Application Android Flutter de prise de notes Markdown chiffrées,
 **100 % locale, zéro permission Internet**. Interface bilingue **FR / EN**.

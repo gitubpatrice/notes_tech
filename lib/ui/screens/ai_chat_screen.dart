@@ -41,7 +41,8 @@ class AiChatScreen extends StatefulWidget {
   State<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends State<AiChatScreen> {
+class _AiChatScreenState extends State<AiChatScreen>
+    with WidgetsBindingObserver {
   late final GemmaService _gemma;
   late final RagService _rag;
   final _inputCtrl = TextEditingController();
@@ -61,6 +62,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _gemma = context.read<GemmaService>();
     _rag = RagService(search: context.read<SemanticSearchService>());
     _inputCtrl.addListener(_updateCanSend);
@@ -69,6 +71,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _inputCtrl.removeListener(_updateCanSend);
     _genSub?.cancel();
     // Si une génération tournait, on la coupe côté natif aussi.
@@ -77,6 +80,29 @@ class _AiChatScreenState extends State<AiChatScreen> {
     _scrollCtrl.dispose();
     _canSend.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // A13 v1.0.4 — clear `_turns` au lifecycle paused/hidden/detached.
+    // Les turns contiennent les réponses Gemma + les `sources` (notes
+    // pertinentes), dont des notes potentiellement vault déchiffrées
+    // résident encore en RAM bien après que le coffre soit re-locké
+    // par lifecycle. Sans clear, RAM forensics post-paused récupère le
+    // plaintext même après auto-lock.
+    // B14 v1.0.4 — stop génération en cours sur paused (économie RAM
+    // + batterie + sécurité : la suite du stream peut contenir le
+    // contenu vault).
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      if (_generating) {
+        _gemma.stopGeneration();
+      }
+      if (_turns.isNotEmpty && mounted) {
+        setState(_turns.clear);
+      }
+    }
   }
 
   void _updateCanSend() {

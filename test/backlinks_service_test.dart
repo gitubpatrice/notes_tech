@@ -10,7 +10,10 @@ void main() {
     });
 
     test('whitespace réduits et trimés', () {
-      expect(BacklinksService.normalizeTitle('  hello   world  '), 'hello world');
+      expect(
+        BacklinksService.normalizeTitle('  hello   world  '),
+        'hello world',
+      );
     });
 
     test('idempotente', () {

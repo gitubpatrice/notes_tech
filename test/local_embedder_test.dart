@@ -53,21 +53,23 @@ void main() {
     expect(allZero, isTrue);
   });
 
-  test('embedTitleAndBody : un titre pertinent pèse plus que le bruit du corps',
-      () {
-    const noise =
-        'plein de remarques diverses sans rapport vacances jardin courses';
-    final aBodyOnly = e.embedTitleAndBody(
-      title: '',
-      body: 'recette tarte tatin $noise',
-    );
-    final bTitled = e.embedTitleAndBody(
-      title: 'recette tarte tatin',
-      body: noise,
-    );
-    final query = e.embed('tarte tatin');
-    final simBody = VectorMath.cosineNormalized(aBodyOnly, query);
-    final simTitled = VectorMath.cosineNormalized(bTitled, query);
-    expect(simTitled, greaterThan(simBody));
-  });
+  test(
+    'embedTitleAndBody : un titre pertinent pèse plus que le bruit du corps',
+    () {
+      const noise =
+          'plein de remarques diverses sans rapport vacances jardin courses';
+      final aBodyOnly = e.embedTitleAndBody(
+        title: '',
+        body: 'recette tarte tatin $noise',
+      );
+      final bTitled = e.embedTitleAndBody(
+        title: 'recette tarte tatin',
+        body: noise,
+      );
+      final query = e.embed('tarte tatin');
+      final simBody = VectorMath.cosineNormalized(aBodyOnly, query);
+      final simTitled = VectorMath.cosineNormalized(bTitled, query);
+      expect(simTitled, greaterThan(simBody));
+    },
+  );
 }

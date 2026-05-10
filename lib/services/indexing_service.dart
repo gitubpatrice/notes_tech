@@ -202,6 +202,17 @@ class IndexingService {
         ),
       );
       final emb = _encodeWith(embedder, note);
+      // A2 v1.0.4 (F6) — race vs hard-delete ou vault-isation concurrente.
+      // Avant : un embedding d'une note supprimée entre listAllAlive et
+      // save était inséré comme orphelin survivant jusqu'à la passe
+      // suivante (leak sémantique transitoire). Idem pour une note
+      // vault-isée pendant la passe (content déjà vidé, embedding
+      // plaintext historique réinséré).
+      final live = await _notes.get(note.id);
+      if (live == null || live.encryptedContent != null) {
+        done++;
+        continue;
+      }
       await _embeddings.save(emb);
       done++;
       if (delay > Duration.zero) {

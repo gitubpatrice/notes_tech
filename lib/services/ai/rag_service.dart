@@ -170,9 +170,23 @@ class RagService {
   /// v1.1 (defense-in-depth) : encoder chaque note en base64 avec un
   /// délimiteur ASCII aléatoire régénéré par requête.
   static String _sanitize(String s) {
-    return s
-        .replaceAll(RegExp(r'</\s*note\s*>', caseSensitive: false), '<​/note>')
-        .replaceAll(RegExp(r'<\s*note\b', caseSensitive: false), '<​note')
+    // A11 v1.0.4 — pré-traitement aligné sur AI Tech v0.6.1 F2 :
+    // 1. Strip caractères zero-width / bidi qui pouvaient fragmenter
+    //    les balises tags (`<|im\u200C_start|>` avec U+200B au milieu
+    //    n'était pas matché par la regex).
+    // 2. Neutralise les blocs base64 longs (40+ chars) qui pouvaient
+    //    encoder une injection que Gemma sait décoder à la volée.
+    final stripped = s.replaceAll(_zeroWidthBidi, '');
+    final noB64 = stripped.replaceAll(
+      RegExp(r'[A-Za-z0-9+/]{40,}={0,2}'),
+      '·[base64 neutralisé]·',
+    );
+    return noB64
+        .replaceAll(
+          RegExp(r'</\s*note\s*>', caseSensitive: false),
+          '<\u200B/note>',
+        )
+        .replaceAll(RegExp(r'<\s*note\b', caseSensitive: false), '<\u200Bnote')
         // (2) Verbes d'instruction FR/EN.
         .replaceAll(
           RegExp(
@@ -188,18 +202,18 @@ class RagService {
         // (3) Tags de rôle système Gemma / instruct-style.
         .replaceAll(
           RegExp(r'<\|\s*system\s*\|>', caseSensitive: false),
-          '<​|system|>',
+          '<\u200B|system|>',
         )
         .replaceAll(
           RegExp(r'<\|\s*user\s*\|>', caseSensitive: false),
-          '<​|user|>',
+          '<\u200B|user|>',
         )
         .replaceAll(
           RegExp(r'<\|\s*assistant\s*\|>', caseSensitive: false),
-          '<​|assistant|>',
+          '<\u200B|assistant|>',
         )
-        .replaceAll(RegExp(r'</?s>'), '<​/s>')
-        .replaceAll(RegExp(r'\[/?INST\]'), '[​INST]')
+        .replaceAll(RegExp(r'</?s>'), '<\u200B/s>')
+        .replaceAll(RegExp(r'\[/?INST\]'), '[\u200BINST]')
         .replaceAll(
           RegExp(
             r'(?:^|\n)\s*(?:Assistant|System|Utilisateur|User)\s*:',
@@ -216,4 +230,16 @@ class RagService {
           '\n[steering neutralisé]:',
         );
   }
+
+  /// A11 v1.0.4 — regex pré-compilée pour stripper les caractères
+  /// zero-width / bidi (alignement AI Tech v0.6.1 F2). Couvre :
+  ///   U+200B-U+200F  ZWSP, ZWNJ, ZWJ, LRM, RLM
+  ///   U+202A-U+202E  bidi overrides (LRE, RLE, PDF, LRO, RLO)
+  ///   U+2066-U+2069  bidi isolates (LRI, RLI, FSI, PDI)
+  ///   U+FEFF         BOM / ZWNBSP
+  /// Définis via Unicode escapes pour éviter d'introduire ces caractères
+  /// dans le source lui-même (warnings analyzer bidi).
+  static final RegExp _zeroWidthBidi = RegExp(
+    '[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]',
+  );
 }

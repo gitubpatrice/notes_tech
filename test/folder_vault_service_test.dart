@@ -75,8 +75,7 @@ void main() {
       // Keystore peuvent être créées dans un AndroidKeyStore éphémère
       // de l'émulateur.
     },
-    skip:
-        'mocks Keystore + repositories + sqflite_ffi requis — voir header',
+    skip: 'mocks Keystore + repositories + sqflite_ffi requis — voir header',
   );
 
   test(

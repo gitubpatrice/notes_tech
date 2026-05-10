@@ -1,6 +1,6 @@
 # Security policy — Notes Tech
 
-**Version current : v1.0.0 — Mai 2026.**
+**Version current : v1.0.4 — Mai 2026.**
 
 Notes Tech v1.0 introduit plusieurs durcissements sécurité :
 - `prefs.clear()` panique avec **whitelist** (`db_encrypted_v1`,
