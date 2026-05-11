@@ -1478,4 +1478,84 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorGemmaHashMismatch =>
       'Unexpected SHA-256 fingerprint. File does not match the official model.';
+
+  @override
+  String get gemmaSectionTitle => 'Gemma 3 AI model';
+
+  @override
+  String gemmaStatusInstalled(String size) {
+    return 'Installed — $size MB';
+  }
+
+  @override
+  String get gemmaStatusNotInstalled => 'Not installed';
+
+  @override
+  String get gemmaHowToInstall => 'How to install Gemma 3?';
+
+  @override
+  String get gemmaHowToInstallSubtitle =>
+      'Download gemma3-1b-it-int4.task then import it here.';
+
+  @override
+  String get gemmaImportFile => 'Import a .task file';
+
+  @override
+  String get gemmaUninstall => 'Uninstall the model';
+
+  @override
+  String get gemmaUninstallConfirm =>
+      'Delete the Gemma 3 model? You will need to re-download it (~530 MB) to use the \"Ask my notes\" feature again.';
+
+  @override
+  String get gemmaUninstalled => 'Gemma 3 model uninstalled.';
+
+  @override
+  String get gemmaSheetTitle => 'Install Gemma 3 1B';
+
+  @override
+  String get gemmaSheetStep1Title => '1. Download the .task file';
+
+  @override
+  String get gemmaSheetStep1Subtitle =>
+      'Choose a source below. The file is ~530 MB.';
+
+  @override
+  String get gemmaSheetStep2Title => '2. Accept the license';
+
+  @override
+  String get gemmaSheetStep2Subtitle =>
+      'Google requires you to accept the Gemma model terms of use.';
+
+  @override
+  String get gemmaSheetStep3Title => '3. Come back here and import';
+
+  @override
+  String get gemmaSheetStep3Subtitle =>
+      'The file will be in Downloads. Tap \"Import a .task file\".';
+
+  @override
+  String get gemmaOpenKaggle => 'Open Kaggle (official)';
+
+  @override
+  String get gemmaOpenHf => 'Open Hugging Face (mirror)';
+
+  @override
+  String get gemmaCheckUpdates => 'Check for updates';
+
+  @override
+  String gemmaImporting(int copied, int total) {
+    return 'Importing — $copied/$total MB';
+  }
+
+  @override
+  String get gemmaImportDone => 'Gemma 3 model ready to use.';
+
+  @override
+  String gemmaImportError(String error) {
+    return 'Import failed: $error';
+  }
+
+  @override
+  String get gemmaNoBrowser => 'No browser available on this phone.';
 }

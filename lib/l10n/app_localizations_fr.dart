@@ -1493,4 +1493,84 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get errorGemmaHashMismatch =>
       'Empreinte SHA-256 inattendue. Le fichier ne correspond pas au modèle officiel.';
+
+  @override
+  String get gemmaSectionTitle => 'Modèle IA Gemma 3';
+
+  @override
+  String gemmaStatusInstalled(String size) {
+    return 'Installé — $size Mo';
+  }
+
+  @override
+  String get gemmaStatusNotInstalled => 'Non installé';
+
+  @override
+  String get gemmaHowToInstall => 'Comment installer Gemma 3 ?';
+
+  @override
+  String get gemmaHowToInstallSubtitle =>
+      'Téléchargez gemma3-1b-it-int4.task puis importez-le ici.';
+
+  @override
+  String get gemmaImportFile => 'Importer un fichier .task';
+
+  @override
+  String get gemmaUninstall => 'Désinstaller le modèle';
+
+  @override
+  String get gemmaUninstallConfirm =>
+      'Supprimer le modèle Gemma 3 ? Vous devrez le re-télécharger (~530 Mo) pour réutiliser la fonction « Demander à mes notes ».';
+
+  @override
+  String get gemmaUninstalled => 'Modèle Gemma 3 désinstallé.';
+
+  @override
+  String get gemmaSheetTitle => 'Installer Gemma 3 1B';
+
+  @override
+  String get gemmaSheetStep1Title => '1. Téléchargez le fichier .task';
+
+  @override
+  String get gemmaSheetStep1Subtitle =>
+      'Choisissez une source ci-dessous. Le fichier fait ~530 Mo.';
+
+  @override
+  String get gemmaSheetStep2Title => '2. Acceptez la licence';
+
+  @override
+  String get gemmaSheetStep2Subtitle =>
+      'Google demande d\'accepter les conditions d\'usage du modèle Gemma.';
+
+  @override
+  String get gemmaSheetStep3Title => '3. Revenez ici et importez';
+
+  @override
+  String get gemmaSheetStep3Subtitle =>
+      'Le fichier sera dans Téléchargements. Touchez « Importer un fichier .task ».';
+
+  @override
+  String get gemmaOpenKaggle => 'Ouvrir Kaggle (officiel)';
+
+  @override
+  String get gemmaOpenHf => 'Ouvrir Hugging Face (miroir)';
+
+  @override
+  String get gemmaCheckUpdates => 'Vérifier les mises à jour';
+
+  @override
+  String gemmaImporting(int copied, int total) {
+    return 'Import en cours — $copied/$total Mo';
+  }
+
+  @override
+  String get gemmaImportDone => 'Modèle Gemma 3 prêt à l\'emploi.';
+
+  @override
+  String gemmaImportError(String error) {
+    return 'Échec de l\'import : $error';
+  }
+
+  @override
+  String get gemmaNoBrowser => 'Aucun navigateur disponible sur ce téléphone.';
 }

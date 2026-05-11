@@ -8,16 +8,17 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
-import '../../utils/snackbar_ext.dart';
-import '../widgets/blocking_progress_dialog.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/ai/gemma_service.dart';
 import '../../services/embedder_coordinator.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/secure_window_service.dart';
@@ -25,6 +26,8 @@ import '../../services/security/folder_vault_service.dart';
 import '../../services/security/panic_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/voice/voice_service.dart';
+import '../../utils/snackbar_ext.dart';
+import '../widgets/blocking_progress_dialog.dart';
 import '../widgets/panic_confirm_dialog.dart';
 import 'about_screen.dart';
 import 'panic_complete_screen.dart';
@@ -87,6 +90,8 @@ class SettingsScreen extends StatelessWidget {
             onChanged: settings.setAcceptUnknownGemmaHash,
           ),
           const _VaultAutoLockTile(),
+          _Section(label: t.aiChatTitle, theme: theme),
+          const _GemmaModelSection(),
           _Section(label: t.voiceSetupTitle, theme: theme),
           const _VoiceSection(),
           _Section(label: t.settingsExportAll, theme: theme),
@@ -665,6 +670,398 @@ class _VaultAutoLockTile extends StatelessWidget {
         subtitle: Text(_labelFor(t, settings.vaultAutoLockMinutes)),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => _showPicker(context, settings, vault, t),
+      ),
+    );
+  }
+}
+
+/// Section Réglages dédiée au modèle IA Gemma 3.
+///
+/// Cohérence avec la promesse "100% offline" de Notes Tech :
+/// l'app NE TÉLÉCHARGE PAS le modèle directement (pas de permission
+/// INTERNET dans le manifest). À la place :
+///   1. Bouton "Comment installer ?" → bottom sheet avec étapes.
+///   2. Sources externes (Kaggle / Hugging Face) ouvertes via
+///      `launchUrl(externalApplication)` — l'utilisateur télécharge dans
+///      son navigateur, accepte la licence Gemma de Google.
+///   3. Bouton "Importer un fichier .task" → System Access Framework
+///      qui pointe vers le fichier dans `Téléchargements/`.
+///   4. `GemmaService.importFromFile` (existant) copie en streaming,
+///      vérifie SHA-256, rename atomique vers le sandbox.
+///   5. Bouton "Désinstaller" libère ~530 Mo de stockage.
+///
+/// Sécurité :
+/// - Aucune permission réseau ajoutée.
+/// - URLs hardcodées (pas d'input utilisateur).
+/// - `acceptUnknownGemmaHash` toggle Settings préservé (cas variants).
+class _GemmaModelSection extends StatefulWidget {
+  const _GemmaModelSection();
+
+  @override
+  State<_GemmaModelSection> createState() => _GemmaModelSectionState();
+}
+
+class _GemmaModelSectionState extends State<_GemmaModelSection> {
+  /// URLs officielles du modèle Gemma 3 1B IT INT4 (~530 Mo).
+  /// Kaggle = source officielle Google avec EULA. Hugging Face = miroir
+  /// communautaire LiteRT (utile si Kaggle indisponible dans le pays).
+  static const _kaggleUrl =
+      'https://www.kaggle.com/models/google/gemma-3/tfLite/gemma-3-1b-it-int4';
+  static const _hfUrl = 'https://huggingface.co/litert-community/Gemma3-1B-IT';
+
+  late final GemmaService _gemma;
+  bool _loading = true;
+  bool _installed = false;
+  int _sizeBytes = 0;
+  bool _importing = false;
+  int _importCopied = 0;
+  int _importTotal = 0;
+  StreamSubscription<({int copied, int total})>? _importSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _gemma = context.read<GemmaService>();
+    _refreshStatus();
+  }
+
+  @override
+  void dispose() {
+    _importSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshStatus() async {
+    final installed = await _gemma.isModelInstalled();
+    final size = await _gemma.installedSizeBytes();
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      _installed = installed;
+      _sizeBytes = size;
+    });
+  }
+
+  Future<void> _openUrl(String url) async {
+    final t = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ok = await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok && mounted) {
+        messenger.showFloatingSnack(t.gemmaNoBrowser);
+      }
+    } catch (_) {
+      if (mounted) messenger.showFloatingSnack(t.gemmaNoBrowser);
+    }
+  }
+
+  Future<void> _showHowToSheet() async {
+    final t = AppLocalizations.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.viewInsetsOf(sheetCtx).bottom,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      t.gemmaSheetTitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _GemmaStep(
+                    n: '1',
+                    title: t.gemmaSheetStep1Title,
+                    subtitle: t.gemmaSheetStep1Subtitle,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.tonalIcon(
+                    icon: const Icon(Icons.public),
+                    label: Text(t.gemmaOpenKaggle),
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      _openUrl(_kaggleUrl);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.public_outlined),
+                    label: Text(t.gemmaOpenHf),
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      _openUrl(_hfUrl);
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  _GemmaStep(
+                    n: '2',
+                    title: t.gemmaSheetStep2Title,
+                    subtitle: t.gemmaSheetStep2Subtitle,
+                  ),
+                  const SizedBox(height: 20),
+                  _GemmaStep(
+                    n: '3',
+                    title: t.gemmaSheetStep3Title,
+                    subtitle: t.gemmaSheetStep3Subtitle,
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickAndImport() async {
+    final t = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final settings = context.read<SettingsService>();
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['task'],
+      allowMultiple: false,
+      initialDirectory: '/storage/emulated/0/Download',
+    );
+    if (result == null || result.files.single.path == null) return;
+    final src = File(result.files.single.path!);
+    if (!mounted) return;
+
+    setState(() {
+      _importing = true;
+      _importCopied = 0;
+      _importTotal = src.lengthSync();
+    });
+
+    try {
+      await for (final p in _gemma.importFromFile(
+        src,
+        acceptUnknownHash: settings.acceptUnknownGemmaHash,
+      )) {
+        if (!mounted) return;
+        setState(() {
+          _importCopied = p.copied;
+          _importTotal = p.total;
+        });
+      }
+      if (!mounted) return;
+      setState(() => _importing = false);
+      await _refreshStatus();
+      if (mounted) messenger.showFloatingSnack(t.gemmaImportDone);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _importing = false);
+      messenger.showFloatingSnack(t.gemmaImportError('$e'));
+    }
+  }
+
+  Future<void> _confirmUninstall() async {
+    final t = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.delete_outline, size: 36),
+        title: Text(t.gemmaUninstall),
+        content: Text(t.gemmaUninstallConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.errorContainer,
+              foregroundColor: Theme.of(ctx).colorScheme.onErrorContainer,
+            ),
+            child: Text(t.gemmaUninstall),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    await _gemma.uninstall();
+    await _refreshStatus();
+    if (mounted) messenger.showFloatingSnack(t.gemmaUninstalled);
+  }
+
+  String _formatSizeMb(int bytes) {
+    final mb = bytes / (1024 * 1024);
+    return mb.toStringAsFixed(0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final statusIcon = _installed
+        ? Icons.check_circle_outline
+        : Icons.cloud_download_outlined;
+    final statusText = _installed
+        ? t.gemmaStatusInstalled(_formatSizeMb(_sizeBytes))
+        : t.gemmaStatusNotInstalled;
+
+    return Column(
+      children: [
+        // 1. Statut visuel.
+        MergeSemantics(
+          child: ListTile(
+            leading: Icon(statusIcon),
+            title: Text(t.gemmaSectionTitle),
+            subtitle: Text(statusText),
+          ),
+        ),
+        // 2. Progress import en cours (overlay sur la section).
+        if (_importing) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Semantics(
+              liveRegion: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    t.gemmaImporting(
+                      _importCopied ~/ (1024 * 1024),
+                      _importTotal ~/ (1024 * 1024),
+                    ),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: _importTotal > 0
+                        ? _importCopied / _importTotal
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ] else ...[
+          // 3a. Bouton primaire pour découvrir comment installer.
+          ListTile(
+            leading: const Icon(Icons.lightbulb_outline),
+            title: Text(t.gemmaHowToInstall),
+            subtitle: Text(t.gemmaHowToInstallSubtitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showHowToSheet,
+          ),
+          // 3b. Import direct si l'utilisateur a déjà le fichier.
+          ListTile(
+            leading: const Icon(Icons.folder_open_outlined),
+            title: Text(t.gemmaImportFile),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickAndImport,
+          ),
+          // 3c. "Mises à jour" = ouvrir Kaggle (page modèle, version
+          //     visible). Pas d'auto-update : promesse offline.
+          ListTile(
+            leading: const Icon(Icons.system_update_outlined),
+            title: Text(t.gemmaCheckUpdates),
+            trailing: const Icon(Icons.open_in_new),
+            onTap: () => _openUrl(_kaggleUrl),
+          ),
+          // 3d. Désinstaller si présent.
+          if (_installed)
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
+                t.gemmaUninstall,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              onTap: _confirmUninstall,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Étape numérotée affichée dans la bottom sheet "Comment installer".
+class _GemmaStep extends StatelessWidget {
+  const _GemmaStep({
+    required this.n,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String n;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return MergeSemantics(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: cs.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              n,
+              style: TextStyle(
+                color: cs.onPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: cs.outline, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

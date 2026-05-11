@@ -2683,6 +2683,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unexpected SHA-256 fingerprint. File does not match the official model.'**
   String get errorGemmaHashMismatch;
+
+  /// No description provided for @gemmaSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma 3 AI model'**
+  String get gemmaSectionTitle;
+
+  /// No description provided for @gemmaStatusInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed — {size} MB'**
+  String gemmaStatusInstalled(String size);
+
+  /// No description provided for @gemmaStatusNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get gemmaStatusNotInstalled;
+
+  /// No description provided for @gemmaHowToInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'How to install Gemma 3?'**
+  String get gemmaHowToInstall;
+
+  /// No description provided for @gemmaHowToInstallSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download gemma3-1b-it-int4.task then import it here.'**
+  String get gemmaHowToInstallSubtitle;
+
+  /// No description provided for @gemmaImportFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import a .task file'**
+  String get gemmaImportFile;
+
+  /// No description provided for @gemmaUninstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Uninstall the model'**
+  String get gemmaUninstall;
+
+  /// No description provided for @gemmaUninstallConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the Gemma 3 model? You will need to re-download it (~530 MB) to use the \"Ask my notes\" feature again.'**
+  String get gemmaUninstallConfirm;
+
+  /// No description provided for @gemmaUninstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma 3 model uninstalled.'**
+  String get gemmaUninstalled;
+
+  /// No description provided for @gemmaSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Gemma 3 1B'**
+  String get gemmaSheetTitle;
+
+  /// No description provided for @gemmaSheetStep1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'1. Download the .task file'**
+  String get gemmaSheetStep1Title;
+
+  /// No description provided for @gemmaSheetStep1Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a source below. The file is ~530 MB.'**
+  String get gemmaSheetStep1Subtitle;
+
+  /// No description provided for @gemmaSheetStep2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'2. Accept the license'**
+  String get gemmaSheetStep2Title;
+
+  /// No description provided for @gemmaSheetStep2Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Google requires you to accept the Gemma model terms of use.'**
+  String get gemmaSheetStep2Subtitle;
+
+  /// No description provided for @gemmaSheetStep3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'3. Come back here and import'**
+  String get gemmaSheetStep3Title;
+
+  /// No description provided for @gemmaSheetStep3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The file will be in Downloads. Tap \"Import a .task file\".'**
+  String get gemmaSheetStep3Subtitle;
+
+  /// No description provided for @gemmaOpenKaggle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Kaggle (official)'**
+  String get gemmaOpenKaggle;
+
+  /// No description provided for @gemmaOpenHf.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Hugging Face (mirror)'**
+  String get gemmaOpenHf;
+
+  /// No description provided for @gemmaCheckUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get gemmaCheckUpdates;
+
+  /// No description provided for @gemmaImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing — {copied}/{total} MB'**
+  String gemmaImporting(int copied, int total);
+
+  /// No description provided for @gemmaImportDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Gemma 3 model ready to use.'**
+  String get gemmaImportDone;
+
+  /// No description provided for @gemmaImportError.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: {error}'**
+  String gemmaImportError(String error);
+
+  /// No description provided for @gemmaNoBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'No browser available on this phone.'**
+  String get gemmaNoBrowser;
 }
 
 class _AppLocalizationsDelegate

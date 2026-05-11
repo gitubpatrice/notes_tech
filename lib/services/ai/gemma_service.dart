@@ -241,23 +241,32 @@ class GemmaService {
   /// Tente d'instancier le modèle sur GPU (OpenCL) ; en cas d'échec,
   /// retombe silencieusement sur CPU. Le warmUp réussit tant qu'au
   /// moins un backend marche.
+  ///
+  /// Fix v1.0.4 (bug "Bad state: Flutter gemma not initialized") :
+  /// flutter_gemma 0.14.5 dissocie l'installation du modèle (qui
+  /// enregistre simplement le path côté Dart) de l'activation du modèle
+  /// côté natif MediaPipe. `FlutterGemmaPlugin.instance.createModel(...)`
+  /// suppose que le modèle est déjà "actif" mais `installModel().install()`
+  /// ne marque PAS le modèle comme actif → exception. La voie correcte
+  /// (et celle utilisée par AI Tech v0.6.x) est `FlutterGemma.getActiveModel(...)`
+  /// qui récupère le handle natif du modèle fraîchement installé.
   Future<InferenceModel> _createModelWithFallback() async {
     Object? gpuError;
     try {
-      return await FlutterGemmaPlugin.instance.createModel(
-        modelType: ModelType.gemmaIt,
+      return await FlutterGemma.getActiveModel(
         maxTokens: _maxTokens,
         preferredBackend: PreferredBackend.gpu,
+        supportImage: false,
       );
     } catch (e) {
       gpuError = e;
       if (kDebugMode) debugPrint('Gemma GPU indisponible : $e');
     }
     try {
-      return await FlutterGemmaPlugin.instance.createModel(
-        modelType: ModelType.gemmaIt,
+      return await FlutterGemma.getActiveModel(
         maxTokens: _maxTokens,
         preferredBackend: PreferredBackend.cpu,
+        supportImage: false,
       );
     } catch (e) {
       throw _GemmaException(

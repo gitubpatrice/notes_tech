@@ -33,6 +33,7 @@ import '../../services/semantic_search_service.dart';
 import '../../services/settings_service.dart';
 import '../widgets/empty_state.dart';
 import 'note_editor_screen.dart';
+import 'settings_screen.dart';
 
 class AiChatScreen extends StatefulWidget {
   const AiChatScreen({super.key});
@@ -374,13 +375,40 @@ class _AiChatScreenState extends State<AiChatScreen>
     return EmptyState(
       icon: Icons.psychology_alt_outlined,
       title: t.aiChatNotInstalledTitle,
-      subtitle: _phaseError ?? t.aiChatNotInstalledSubtitle,
-      action: FilledButton.icon(
-        onPressed: _pickAndImport,
-        icon: const Icon(Icons.file_open_outlined),
-        label: Text(t.aiChatImportModel),
+      subtitle: _phaseError ?? t.gemmaHowToInstallSubtitle,
+      action: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // v1.0.4 fix UX — bouton primaire qui guide vers la section
+          // dédiée des Réglages (étapes claires + sources de téléchargement
+          // officielles). Plus pédagogique que le file picker direct.
+          FilledButton.icon(
+            onPressed: _openSettingsForGemma,
+            icon: const Icon(Icons.settings_outlined),
+            label: Text(t.gemmaHowToInstall),
+          ),
+          const SizedBox(height: 8),
+          // Secondaire : import direct pour l'utilisateur expérimenté qui
+          // a déjà le .task dans Téléchargements.
+          TextButton.icon(
+            onPressed: _pickAndImport,
+            icon: const Icon(Icons.folder_open_outlined),
+            label: Text(t.gemmaImportFile),
+          ),
+        ],
       ),
     );
+  }
+
+  /// Ouvre l'écran Réglages, qui contient la section dédiée Gemma 3
+  /// (statut, sources de téléchargement, import, désinstallation).
+  Future<void> _openSettingsForGemma() async {
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    // L'utilisateur peut avoir importé le modèle depuis Settings ; on
+    // re-check l'état au retour.
+    if (mounted) await _initialize();
   }
 
   Widget _buildImporting() {
