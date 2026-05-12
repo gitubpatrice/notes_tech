@@ -104,6 +104,7 @@ flutter:
   uses-material-design: true
   generate: true
   assets:
+    - assets/icon/app_icon.png
     - assets/models/all-MiniLM-L6-v2-quant.onnx
     - assets/models/tokenizer.json
     - assets/legal/

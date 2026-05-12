@@ -162,17 +162,13 @@ class _AppHeader extends StatelessWidget {
     return Row(
       children: [
         ExcludeSemantics(
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(
-              Icons.note_alt_outlined,
-              color: Colors.white,
-              size: 32,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.asset(
+              'assets/icon/app_icon.png',
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
             ),
           ),
         ),
