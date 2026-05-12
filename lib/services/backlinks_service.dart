@@ -170,6 +170,21 @@ class BacklinksService {
       final note = await _notes.get(id);
       if (note == null) return; // race : la note vient d'être supprimée
 
+      // v1.0.7 sécu M-01 — note dans un coffre verrouillé : on traite
+      // exactement comme si elle venait d'être supprimée. Effets :
+      //  - liens sortants purgés (le contenu de la note locked est
+      //    déjà vidé, mais d'anciens liens pouvaient survivre depuis
+      //    une indexation antérieure au vault-isation) ;
+      //  - liens entrants pointant vers son ancien titre repassent
+      //    en fantômes (forcés via `newTitleNorm: ''`), pour qu'aucun
+      //    backlink ne révèle l'existence/le titre de la note locked.
+      if (note.isLocked) {
+        await _links.replaceLinksForSource(id, const <NoteLink>[]);
+        await _links.unresolveByMismatch(noteId: id, newTitleNorm: '');
+        lastError.value = null;
+        return;
+      }
+
       // Index sortant ciblé.
       final byTitleNorm = await _buildTitleIndex();
       await _indexOne(note, byTitleNorm);
@@ -220,6 +235,16 @@ class BacklinksService {
       final byTitleNorm = _indexByTitle(notes);
       for (final n in notes) {
         if (_disposed) return;
+        // v1.0.7 sécu M-01 — pas d'indexation des liens pour les notes
+        // verrouillées. Le contenu chiffré n'a pas de `[[`, mais on
+        // assure aussi la purge des liens entrants pointant vers cette
+        // note (les fantômes via `target_title_norm` continueraient à
+        // révéler l'existence/titre via les listes de backlinks).
+        if (n.isLocked) {
+          await _links.replaceLinksForSource(n.id, const <NoteLink>[]);
+          await _links.unresolveByMismatch(noteId: n.id, newTitleNorm: '');
+          continue;
+        }
         // Heuristique cheap : pas de `[[` = pas de backlinks possibles.
         // On skip sans toucher la DB.
         if (!n.content.contains('[[')) continue;
@@ -240,10 +265,16 @@ class BacklinksService {
     return _indexByTitle(notes);
   }
 
+  /// v1.0.7 sécu M-01 — exclut les notes verrouillées de l'index titre→id.
+  /// Sans ce filtre, un lien `[[Titre verrouillé]]` dans une note alive
+  /// résolverait son `target_id` au moment de l'indexation et révélerait
+  /// l'existence + le mapping titre↔id de la note locked via la table
+  /// `note_links`. La note locked apparaîtrait aussi comme cible cliquable
+  /// dans la liste des liens sortants.
   static Map<String, String> _indexByTitle(List<Note> notes) {
     return <String, String>{
       for (final n in notes)
-        if (n.title.isNotEmpty) normalizeTitle(n.title): n.id,
+        if (n.title.isNotEmpty && !n.isLocked) normalizeTitle(n.title): n.id,
     };
   }
 

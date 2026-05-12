@@ -29,6 +29,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/ai/gemma_service.dart';
 import '../../services/ai/rag_service.dart';
 import '../../services/ml/ml_memory_guard.dart';
+import '../../services/secure_window_service.dart';
 import '../../services/semantic_search_service.dart';
 import '../../services/settings_service.dart';
 import '../widgets/empty_state.dart';
@@ -43,7 +44,7 @@ class AiChatScreen extends StatefulWidget {
 }
 
 class _AiChatScreenState extends State<AiChatScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SecureWindowGuardMixin {
   late final GemmaService _gemma;
   late final RagService _rag;
   final _inputCtrl = TextEditingController();
@@ -80,7 +81,21 @@ class _AiChatScreenState extends State<AiChatScreen>
     _inputCtrl.dispose();
     _scrollCtrl.dispose();
     _canSend.dispose();
+    // v1.0.7 qual H1 — libère les notifiers de chaque tour avant de
+    // quitter l'écran. Le `_turns.clear` implicite ne dispose pas les
+    // notifiers Dart (GC du conteneur ≠ dispose Listenable).
+    _disposeAllTurns();
     super.dispose();
+  }
+
+  /// Dispose tous les notifiers des tours puis vide la liste. Centralisé
+  /// pour garantir le pattern partout où l'on clear `_turns` (lifecycle
+  /// paused/hidden/detached, clear conversation, dispose final).
+  void _disposeAllTurns() {
+    for (final t in _turns) {
+      t.dispose();
+    }
+    _turns.clear();
   }
 
   @override
@@ -101,7 +116,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         _gemma.stopGeneration();
       }
       if (_turns.isNotEmpty && mounted) {
-        setState(_turns.clear);
+        setState(_disposeAllTurns);
       }
     }
   }
@@ -298,7 +313,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   Future<void> _clearConversation() async {
     if (_generating) await _stopGeneration();
     if (!mounted) return;
-    setState(_turns.clear);
+    setState(_disposeAllTurns);
   }
 
   /// Throttle 80ms : un seul postFrame en vol. Évite d'enfiler 30-50
@@ -586,6 +601,14 @@ class _ChatTurn {
   void appendToken(String chunk) {
     textNotifier.value = textNotifier.value + chunk;
   }
+
+  /// v1.0.7 qual H1 — libère le `ValueNotifier` du turn.
+  /// Sans ce dispose, chaque tour de conversation (user + assistant) crée
+  /// un notifier jamais libéré → fuite cumulative sur les sessions longues
+  /// et sur les clear `_turns` au lifecycle paused.
+  void dispose() {
+    textNotifier.dispose();
+  }
 }
 
 enum _Role { user, assistant }
@@ -679,7 +702,14 @@ class _SourcesRow extends StatelessWidget {
         for (final s in sources)
           ActionChip(
             label: Text(
-              s.note.title.isEmpty ? t.noteUntitled : s.note.title,
+              // v1.0.7 sécu M-02 — défense en profondeur : si une note
+              // verrouillée se retrouve dans les sources RAG (ne devrait
+              // jamais arriver car embeddings purgés au vault-isation,
+              // F1 v1.0.3), on masque son titre. La chip reste cliquable
+              // pour amener l'utilisateur à l'unlock sheet.
+              s.note.isLocked
+                  ? t.noteCardLocked
+                  : (s.note.title.isEmpty ? t.noteUntitled : s.note.title),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

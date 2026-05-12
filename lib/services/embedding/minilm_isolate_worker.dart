@@ -120,6 +120,13 @@ class MiniLmIsolateWorker {
   }
 
   /// Tue l'isolate et libère les ressources. Idempotent.
+  ///
+  /// v1.0.7 qual M1 — shutdown propre côté worker :
+  /// 1) Envoi d'un `_ShutdownRequest` au worker pour qu'il `release()` sa
+  ///    session ONNX native (sinon FD natifs leakés tant que l'OS ne récupère
+  ///    pas l'isolate).
+  /// 2) Attente ACK avec timeout court (300 ms) — au-delà, on tue d'office.
+  /// 3) `Isolate.kill` immédiat + `ReceivePort.close`.
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
@@ -130,6 +137,18 @@ class MiniLmIsolateWorker {
       }
     }
     _pending.clear();
+
+    // Demande au worker de fermer sa session ONNX proprement avant kill.
+    final ackPort = ReceivePort();
+    try {
+      _sendPort.send(_ShutdownRequest(replyTo: ackPort.sendPort));
+      await ackPort.first.timeout(const Duration(milliseconds: 300));
+    } catch (_) {
+      // Timeout ou worker déjà mort : on enchaîne sur le kill immédiat.
+    } finally {
+      ackPort.close();
+    }
+
     await _replySub?.cancel();
     _replySub = null;
     _isolate.kill(priority: Isolate.immediate);
@@ -191,6 +210,13 @@ class _EmbedRequest {
   final String text;
 }
 
+/// Demande au worker de fermer proprement sa session ONNX et d'ACK.
+/// Émise par `dispose()` avant `Isolate.kill`.
+class _ShutdownRequest {
+  const _ShutdownRequest({required this.replyTo});
+  final SendPort replyTo;
+}
+
 class _EmbedResponse {
   const _EmbedResponse({required this.requestId, this.vector, this.error});
   final int requestId;
@@ -223,6 +249,17 @@ Future<void> _workerEntry(_SpawnArgs args) async {
   args.mainSendPort.send(fromMain.sendPort);
 
   await for (final msg in fromMain) {
+    if (msg is _ShutdownRequest) {
+      // v1.0.7 qual M1 — release FFI natif avant que l'isolate soit tué.
+      try {
+        session.release();
+      } catch (_) {/* best-effort */}
+      try {
+        msg.replyTo.send(true);
+      } catch (_) {/* best-effort : caller a peut-être timeout */}
+      fromMain.close();
+      return;
+    }
     if (msg is! _EmbedRequest) continue;
     try {
       final vec = _embedSync(

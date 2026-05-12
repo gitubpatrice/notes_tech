@@ -26,6 +26,7 @@ import '../../l10n/app_localizations.dart';
 import '../../services/backlinks_service.dart';
 import '../../services/export/note_export_service.dart';
 import '../../services/note_actions.dart';
+import '../../services/secure_window_service.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../utils/debouncer.dart';
 import '../../utils/error_localize.dart';
@@ -71,6 +72,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// persistance, gardant le modèle « toujours chiffré au repos ».
   bool _wasLocked = false;
 
+  /// v1.0.7 UI I1 — force FLAG_SECURE pendant que le contenu d'une note
+  /// déchiffrée vault est en RAM, même si l'utilisateur a désactivé la
+  /// préférence globale. Refcount via [SecureWindowService] : on appelle
+  /// `forceEnabled()` une seule fois quand la note s'avère locked, puis
+  /// `restore()` une seule fois au dispose. Le flag `_secureForced` évite
+  /// le double-call si on rebascule entre vault et non-vault via move.
+  final _secureWindow = SecureWindowService();
+  bool _secureForced = false;
+
+  void _ensureSecureForced() {
+    if (_secureForced) return;
+    _secureForced = true;
+    _secureWindow.forceEnabled();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -100,43 +116,56 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final title = _titleCtrl.text;
       final content = _contentCtrl.text;
       if (title != n.title || content != n.content) {
-        if (_wasLocked) {
-          // Note coffre : ré-encrypter AVANT save. Si la session a
-          // expiré, on ABANDONNE la modif plutôt que d'écrire le
-          // contenu en clair dans la DB (invariant : jamais clair au
-          // repos pour une note de coffre). L'utilisateur a quitté
-          // l'écran, pas d'UI pour le signaler — perte acceptée.
-          if (_vault.isUnlocked(n.folderId)) {
-            final draft = n.copyWith(title: title, content: content);
-            unawaited(() async {
-              try {
-                final encrypted = await _vault.encryptNote(draft);
-                await _repo.save(encrypted);
-              } catch (e) {
-                if (kDebugMode) {
-                  debugPrint('flush save (dispose, vault) : $e');
-                }
-              }
-            }());
-          } else if (kDebugMode) {
-            debugPrint('flush save (dispose) skipped: vault locked');
-          }
-        } else {
-          unawaited(
-            _repo.save(n.copyWith(title: title, content: content)).catchError((
-              Object e,
-            ) {
-              if (kDebugMode) debugPrint('flush save (dispose) : $e');
-              return n;
-            }),
-          );
-        }
+        // v1.0.7 qual H2 — sérialise le flush final derrière `_pendingSave`.
+        // Avant : dispose lançait un `unawaited` save en parallèle d'un
+        // autosave debounce déjà en vol → 2 UPDATE concurrents possibles
+        // sur la même note. Maintenant on attend la fin du save courant
+        // avant de lancer le final (au pire les deux opèrent sur le même
+        // contenu et le 2e est un no-op, mais l'ordre est garanti).
+        final pending = _pendingSave;
+        final flush = pending == null
+            ? _flushFinalSave(n, title, content)
+            : pending.then((_) => _flushFinalSave(n, title, content));
+        unawaited(flush);
       }
     }
     _titleCtrl.dispose();
     _contentCtrl.dispose();
     _savingNotifier.dispose();
+    // v1.0.7 UI I1 — relâche le refcount FLAG_SECURE si on l'avait poussé.
+    // Le restore est idempotent côté natif (clamp à 0) — mais on garde le
+    // flag local pour ne pas spammer le canal au reload du screen.
+    if (_secureForced) {
+      _secureForced = false;
+      _secureWindow.restore();
+    }
     super.dispose();
+  }
+
+  /// Save terminal exécuté après que l'autosave courant est terminé.
+  /// Logique miroir de `_doSave` mais sans dépendance à `mounted` ni à
+  /// `context` (l'écran est déjà disposed à ce stade).
+  Future<void> _flushFinalSave(Note n, String title, String content) async {
+    try {
+      if (_wasLocked) {
+        // Note coffre : ré-encrypter AVANT save. Si la session a
+        // expiré, on ABANDONNE la modif plutôt que d'écrire le contenu
+        // en clair dans la DB (invariant : jamais clair au repos pour
+        // une note de coffre). L'utilisateur a quitté l'écran, pas
+        // d'UI pour le signaler — perte acceptée.
+        if (_vault.isUnlocked(n.folderId)) {
+          final draft = n.copyWith(title: title, content: content);
+          final encrypted = await _vault.encryptNote(draft);
+          await _repo.save(encrypted);
+        } else if (kDebugMode) {
+          debugPrint('flush save (dispose) skipped: vault locked');
+        }
+      } else {
+        await _repo.save(n.copyWith(title: title, content: content));
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('flush save (dispose) : $e');
+    }
   }
 
   Future<void> _load() async {
@@ -182,6 +211,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         // Vault déverrouillé : déchiffrement éphémère en RAM.
         resolved = await vault.decryptNote(note);
         _wasLocked = true;
+        // v1.0.7 UI I1 — force FLAG_SECURE tant que le plaintext déchiffré
+        // est exposé dans l'éditeur (recents, screenshots, MediaProjection).
+        _ensureSecureForced();
       }
 
       _titleCtrl.text = resolved.title;
@@ -476,6 +508,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             ? saved.copyWith(content: plainContent, clearEncrypted: true)
             : saved;
       });
+      // v1.0.7 UI I1 — déplacer une note vers un coffre expose son
+      // plaintext en RAM dans l'éditeur ; force le flag jusqu'au dispose.
+      if (_wasLocked) _ensureSecureForced();
       messenger.showFloatingSnack(t.noteEditorMoved);
     } catch (e) {
       if (!mounted) return;

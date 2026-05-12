@@ -26,6 +26,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_window_service.dart';
 import '../../services/security/folder_vault_service.dart';
 import 'passphrase_text_field.dart';
 import 'sheet_handle.dart';
@@ -63,7 +64,8 @@ class _CreateVaultSheet extends StatefulWidget {
   State<_CreateVaultSheet> createState() => _CreateVaultSheetState();
 }
 
-class _CreateVaultSheetState extends State<_CreateVaultSheet> {
+class _CreateVaultSheetState extends State<_CreateVaultSheet>
+    with SecureWindowGuardMixin {
   final _pass1 = TextEditingController();
   final _pass2 = TextEditingController();
 
@@ -118,10 +120,9 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet> {
             const SizedBox(height: 8),
             Text(
               t.vaultPassCreateBody,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
                 height: 1.35,
-                fontSize: 14,
               ),
             ),
             const SizedBox(height: 12),
@@ -208,7 +209,8 @@ class _UnlockVaultSheet extends StatefulWidget {
   State<_UnlockVaultSheet> createState() => _UnlockVaultSheetState();
 }
 
-class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
+class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
+    with SecureWindowGuardMixin {
   final _passCtrl = TextEditingController();
   bool _busy = false;
   String? _error;
@@ -283,9 +285,8 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet> {
             const SizedBox(height: 8),
             Text(
               t.vaultPassUnlockBody(widget.folder.name),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
-                fontSize: 14,
               ),
             ),
             const SizedBox(height: 12),

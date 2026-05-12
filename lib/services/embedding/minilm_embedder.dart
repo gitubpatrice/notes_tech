@@ -277,6 +277,22 @@ class MiniLmEmbedder implements EmbeddingProvider {
     final outDir = Directory(p.join(dir.path, 'models'));
     if (!outDir.existsSync()) outDir.createSync(recursive: true);
     final outFile = File(p.join(outDir.path, p.basename(_modelAsset)));
+    final sidecar = File('${outFile.path}.size');
+
+    // v1.0.7 perf H4 — fast path SANS charger l'asset.
+    // Avant : `rootBundle.load` chargeait 25 Mo en RAM transitoire à chaque
+    // warmUp et chaque spawn de worker pour comparer la taille. Maintenant
+    // on écrit la taille attendue dans un sidecar `.size` (quelques octets)
+    // au moment de l'extraction, et on stat les deux fichiers ensuite.
+    // L'asset n'est rechargé que si le sidecar manque (1ère install,
+    // APK mis à jour, sandbox vidé par PanicService) ou si les tailles
+    // divergent (corruption, downgrade APK).
+    if (outFile.existsSync() && sidecar.existsSync()) {
+      final expected = int.tryParse(sidecar.readAsStringSync().trim());
+      if (expected != null && outFile.lengthSync() == expected) {
+        return outFile.path;
+      }
+    }
 
     final data = await rootBundle.load(_modelAsset);
     final bytes = data.buffer.asUint8List(
@@ -284,11 +300,29 @@ class MiniLmEmbedder implements EmbeddingProvider {
       data.lengthInBytes,
     );
 
-    // Évite la réécriture si la taille correspond déjà.
-    if (outFile.existsSync() && outFile.lengthSync() == bytes.lengthInBytes) {
-      return outFile.path;
+    // v1.0.7 qual H3bis — écriture atomique tmp + rename.
+    // Avant : `writeAsBytes` direct laissait un fichier tronqué en cas de
+    // kill app pendant l'écriture des 25 Mo. Au boot suivant, le check de
+    // taille rattrapait, mais entre-temps `OrtSession.fromFile` sur un
+    // ONNX tronqué levait une exception et la recherche sémantique
+    // restait KO jusqu'à un redémarrage manuel.
+    final tmp = File('${outFile.path}.tmp');
+    try {
+      await tmp.writeAsBytes(bytes, flush: true);
+      await tmp.rename(outFile.path);
+      // Sidecar écrit APRÈS le rename : si on crash entre rename et
+      // sidecar, le prochain boot rechargera l'asset (safe) mais ne lira
+      // pas un fichier corrompu (le rename est atomique).
+      await sidecar.writeAsString('${bytes.lengthInBytes}', flush: true);
+    } catch (e) {
+      // Best-effort cleanup du tmp orphelin.
+      if (tmp.existsSync()) {
+        try {
+          tmp.deleteSync();
+        } catch (_) {/* best-effort */}
+      }
+      rethrow;
     }
-    await outFile.writeAsBytes(bytes, flush: true);
     return outFile.path;
   }
 }

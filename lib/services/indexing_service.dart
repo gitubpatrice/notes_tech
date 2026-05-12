@@ -61,7 +61,12 @@ class IndexingService {
   final EmbeddingsRepository _embeddings;
   EmbeddingProvider _embedder;
 
-  static const Duration _writeDebounce = Duration(seconds: 1);
+  /// Debounce long pour limiter les passes pendant édition continue. Une
+  /// frappe rapide (autosave 500 ms) déclencherait sinon une nouvelle
+  /// passe à chaque écriture, créant un fond CPU permanent — particulièrement
+  /// coûteux quand MiniLM est actif. 3 s laisse le temps à l'utilisateur de
+  /// finir sa phrase tout en restant réactif côté recherche.
+  static const Duration _writeDebounce = Duration(seconds: 3);
 
   StreamSubscription<NoteChangeEvent>? _changesSub;
   Timer? _debounceTimer;
@@ -191,6 +196,13 @@ class IndexingService {
         ? AppConstants.indexingDelayLocal
         : AppConstants.indexingDelayMiniLm;
 
+    // v1.0.7 perf H2 — pré-charge map id→Note pour le check race A2/F6.
+    // Avant : `_notes.get(note.id)` séquentiel par itération = N round-trips
+    // SQLCipher (~3-8 s cumulés sur 1000 notes S9). Maintenant une seule
+    // passe `listAllAlive` partagée avec l'étape 1 sert aussi de référentiel
+    // race-check.
+    final liveById = {for (final n in notes) n.id: n};
+
     var done = 0;
     for (final note in toIndex) {
       if (_disposed || !identical(_embedder, embedder)) break;
@@ -201,14 +213,20 @@ class IndexingService {
           modelId: embedder.modelId,
         ),
       );
-      final emb = _encodeWith(embedder, note);
+      // v1.0.7 perf C1 — `embedAsync` route vers le worker isolate quand
+      // l'embedder le supporte (MiniLM). Avant : `embed()` sync bloquait
+      // le main thread 30-60 ms par note (~15-30 s cumulés sur 500 notes).
+      final emb = await _encodeWith(embedder, note);
       // A2 v1.0.4 (F6) — race vs hard-delete ou vault-isation concurrente.
-      // Avant : un embedding d'une note supprimée entre listAllAlive et
-      // save était inséré comme orphelin survivant jusqu'à la passe
-      // suivante (leak sémantique transitoire). Idem pour une note
-      // vault-isée pendant la passe (content déjà vidé, embedding
-      // plaintext historique réinséré).
-      final live = await _notes.get(note.id);
+      // Le check final via `_notes.get(note.id)` garde un round-trip ciblé
+      // pour les notes qui ont VRAIMENT pu changer pendant l'encodage (la
+      // map snapshot du début ne reflète pas l'état au moment du save).
+      // Pour les notes intactes vis-à-vis du snapshot, on évite le SELECT.
+      final snapshot = liveById[note.id];
+      Note? live = snapshot;
+      if (snapshot == null || snapshot.updatedAt != note.updatedAt) {
+        live = await _notes.get(note.id);
+      }
       if (live == null || live.encryptedContent != null) {
         done++;
         continue;
@@ -240,11 +258,18 @@ class IndexingService {
     if (!_progress.isClosed) _progress.add(p);
   }
 
-  NoteEmbedding _encodeWith(EmbeddingProvider embedder, Note n) {
+  /// Encode une note avec l'embedder fourni. LocalEmbedder reste sync
+  /// (pur Dart, ~µs). MiniLM est routé vers `embedAsync` qui déporte le
+  /// calcul ONNX dans un worker isolate dédié — main thread fluide même
+  /// pendant l'indexation initiale de centaines de notes.
+  Future<NoteEmbedding> _encodeWith(EmbeddingProvider embedder, Note n) async {
     final body = _capContent(n.content);
-    final vec = embedder is LocalEmbedder
-        ? embedder.embedTitleAndBody(title: n.title, body: body)
-        : embedder.embed('${n.title}\n\n$body');
+    final Float32List vec;
+    if (embedder is LocalEmbedder) {
+      vec = embedder.embedTitleAndBody(title: n.title, body: body);
+    } else {
+      vec = await embedder.embedAsync('${n.title}\n\n$body');
+    }
     return NoteEmbedding(
       noteId: n.id,
       vector: vec,

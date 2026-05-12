@@ -29,6 +29,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../l10n/app_localizations.dart';
+import '../../services/secure_window_service.dart';
 import '../../services/security/folder_vault_service.dart';
 import 'sheet_handle.dart';
 import 'vault_passphrase_sheets.dart';
@@ -290,7 +291,9 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
                   child: Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: cs.error, fontSize: 14),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: cs.error,
+                    ),
                   ),
                 );
               },
@@ -353,7 +356,8 @@ class _UnlockPinSheet extends StatefulWidget {
   State<_UnlockPinSheet> createState() => _UnlockPinSheetState();
 }
 
-class _UnlockPinSheetState extends State<_UnlockPinSheet> {
+class _UnlockPinSheetState extends State<_UnlockPinSheet>
+    with SecureWindowGuardMixin {
   // ValueNotifiers : pavé isolé des changements d'entry.
   // `_busyN` est consommé à la fois par le pavé (disable) ET par le
   // bouton Annuler/Fermer + le spinner.
@@ -461,9 +465,8 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
             const SizedBox(height: 4),
             Text(
               t.vaultPinUnlockBody(widget.folder.name),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
-                fontSize: 14,
               ),
             ),
             const SizedBox(height: 18),
@@ -514,7 +517,9 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet> {
                   child: Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: cs.error, fontSize: 14),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: cs.error,
+                    ),
                   ),
                 );
               },
@@ -755,8 +760,10 @@ class _KeypadButton extends StatelessWidget {
               ? Icon(icon, size: 26, color: fg)
               : Text(
                   label ?? '',
-                  style: TextStyle(
-                    fontSize: 22,
+                  // v1.0.7 UI I2 — base sur titleLarge (22sp) puis copyWith
+                  // pour conserver le textScaler système (a11y). Avant :
+                  // fontSize statique ignorait MediaQuery.textScaler.
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: fg,
                   ),

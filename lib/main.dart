@@ -51,12 +51,14 @@ import 'services/voice/voice_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // v1.0.6 fix — initialise le plugin flutter_gemma au boot.
-  // Sans ce call, `FlutterGemma.installModel(...).install()` ne peut
-  // pas enregistrer le modèle côté natif et toute opération suivante
-  // (import OU getActiveModel) lève « Bad state: Flutter gemma not
-  // initialized ». Aligné sur AI Tech main.dart:62.
-  await FlutterGemma.initialize();
+  // v1.0.7 perf M5 — lance `FlutterGemma.initialize()` EN PARALLÈLE des
+  // autres bootstraps. L'init JNI Gemma coûte 80-200 ms sur S9 froid ;
+  // ce temps est entièrement masqué par l'init DB + date formatting +
+  // settings qui se déroulent en parallèle. Le first frame n'attend plus
+  // Gemma. Le `await` final n'a lieu qu'avant d'instancier `GemmaService`,
+  // ce qui garantit la mémoire de v1.0.6 (init AVANT toute op Gemma) tout
+  // en supprimant le coût série.
+  final gemmaInit = FlutterGemma.initialize();
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -111,6 +113,10 @@ Future<void> main() async {
     embedder: localEmbedder,
     indexing: indexing,
   );
+  // v1.0.7 perf M5 — join sur l'init Gemma lancée en parallèle au boot.
+  // Garantit l'invariant v1.0.6 : aucune opération `flutter_gemma` (install,
+  // getActiveModel, createModel) avant que le plugin natif soit prêt.
+  await gemmaInit;
   final gemma = GemmaService();
 
   // Service de backlinks `[[Titre]]` — écoute les changements de notes

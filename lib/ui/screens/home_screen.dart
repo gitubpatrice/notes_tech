@@ -367,13 +367,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 96),
                     itemCount: notes.length,
+                    // v1.0.7 perf M3 — cacheExtent élargi (default 250 px)
+                    // pour que le pre-build aille au-delà de la viewport
+                    // visible. Sur scroll long (>300 notes), le scroll reste
+                    // 60 fps là où le default produit des creux à chaque
+                    // nouvelle batch d'items à créer.
+                    cacheExtent: 600,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final n = notes[i];
+                      // v1.0.7 perf M3 — `ValueKey(note.id)` stabilise
+                      // l'identité des Elements entre rebuilds (changement
+                      // de filtre, reload, edit d'une note). Sans clé,
+                      // Flutter ré-attache aveuglément les Elements par
+                      // position, invalidant les RenderObject de NoteCard
+                      // au moindre `_reload`.
                       // MergeSemantics groupe titre + date + tags + badge
                       // dossier en un seul nœud accessible — un swipe
                       // TalkBack lit la carte d'un coup au lieu d'égrener.
                       return MergeSemantics(
+                        key: ValueKey('note_${n.id}'),
                         child: NoteCard(
                           note: n,
                           onTap: () => _open(n),

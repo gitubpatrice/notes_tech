@@ -118,6 +118,24 @@ class WrongPinException extends NotesTechException {
   final int attemptsRemaining;
 }
 
+/// v1.0.7 sécu M-05 — erreur levée quand une nouvelle tentative de PIN
+/// arrive AVANT la fin du delay exponentiel post-échec. Permet à l'UI
+/// d'afficher un compte à rebours et de désactiver le pavé.
+///
+/// Le delay est cumulatif sur la session app : un attaquant qui observe
+/// passivement la saisie ne peut plus enchaîner 5 essais à la chaîne.
+/// Un kill+restart de l'app remet le compteur à zéro côté lockout, mais
+/// `vault_attempts` (persistant) reste — l'auto-wipe au 5e fail reste
+/// déclenché.
+class VaultLockoutInProgressException extends NotesTechException {
+  const VaultLockoutInProgressException({required this.remainingMs})
+    : super(
+        'Tentative trop rapide après un échec.',
+        code: NotesErrorCode.vaultLocked,
+      );
+  final int remainingMs;
+}
+
 /// Session active d'un coffre déverrouillé. La `folder_kek` est gardée en
 /// RAM pour la durée de la session ; l'auto-lock zeroize les bytes.
 class _Session {
@@ -178,6 +196,14 @@ class FolderVaultService extends ChangeNotifier {
   /// après un échec PIN au seuil). Sans ça, un 2e appel concurrent
   /// pouvait pourrir le flag prefs ou logger spuriously.
   final Set<String> _wipingFolders = <String>{};
+
+  /// v1.0.7 sécu M-05 — lockout exponentiel post-échec PIN.
+  /// Clé = folderId, valeur = `_Session._monotonicMs` au-delà duquel
+  /// la prochaine tentative de unlock est autorisée. Stocké en mémoire
+  /// (monotonique, immune au clock-skew root) ; reset au kill de l'app
+  /// est acceptable car l'attaquant paie aussi le coût du redémarrage et
+  /// `vault_attempts` persiste pour borner le wipe final à 5 fails.
+  final Map<String, int> _pinLockoutUntilMs = <String, int>{};
 
   /// Sessions actives, indexées par `folder.id`. Une entrée présente
   /// signifie que le coffre est déverrouillé en mémoire.
@@ -377,6 +403,13 @@ class FolderVaultService extends ChangeNotifier {
       await _autoWipePinVault(folder);
       throw VaultPinWipedException(folder.id);
     }
+    // v1.0.7 sécu M-05 — refuse les tentatives qui arrivent avant la fin
+    // du delay exponentiel post-échec. L'UI doit afficher le compte à
+    // rebours et désactiver le pavé PIN pendant ce temps.
+    final lockoutRemaining = _pinLockoutRemainingMs(folder.id);
+    if (lockoutRemaining > 0) {
+      throw VaultLockoutInProgressException(remainingMs: lockoutRemaining);
+    }
     _validatePin(pin);
 
     // Incrément persisté AVANT tentative — anti-kill-loop.
@@ -487,6 +520,14 @@ class FolderVaultService extends ChangeNotifier {
   /// Déclenché à chaque échec de PIN. Si on a atteint le max → auto-wipe
   /// + [VaultPinWipedException] ; sinon → [WrongPinException] avec le
   /// nombre de tentatives restantes.
+  ///
+  /// v1.0.7 sécu M-05 — arme un lockout exponentiel monotonique après
+  /// chaque échec : 1 s, 2 s, 4 s, 8 s (cap 30 s). Le delay est calculé
+  /// à partir de `vault_attempts` persisté ; un kill+restart de l'app
+  /// remet le lockout en mémoire à zéro MAIS conserve `vault_attempts`
+  /// qui borne le wipe à 5 fails. Net : un attaquant qui kill+restart
+  /// paie le coût de relance (≥1-2 s sur S9) à chaque tentative — bilan
+  /// supérieur ou égal au lockout en-process.
   Future<Never> _onPinFailure(Folder afterIncrement) async {
     final remaining =
         AppConstants.vaultPinMaxAttempts - afterIncrement.vaultAttempts;
@@ -494,8 +535,37 @@ class FolderVaultService extends ChangeNotifier {
       await _autoWipePinVault(afterIncrement);
       throw VaultPinWipedException(afterIncrement.id);
     }
+    _armPinLockout(afterIncrement.id, afterIncrement.vaultAttempts);
     throw WrongPinException(attemptsRemaining: remaining);
   }
+
+  /// Arme le lockout exponentiel après un échec PIN. `attempts` est le
+  /// compteur persisté APRÈS l'échec courant (donc 1 = 1er fail).
+  void _armPinLockout(String folderId, int attempts) {
+    // 2^(attempts-1) × 1000 ms, cap 30 000 ms. Soit 1/2/4/8/16/30 s.
+    final shift = (attempts - 1).clamp(0, 5);
+    final delayMs = (1000 << shift).clamp(1000, 30000);
+    _pinLockoutUntilMs[folderId] = _Session._monotonicMs + delayMs;
+  }
+
+  /// Retourne les millisecondes restantes avant la prochaine tentative
+  /// autorisée pour `folderId`. 0 si aucun lockout actif.
+  int _pinLockoutRemainingMs(String folderId) {
+    final until = _pinLockoutUntilMs[folderId];
+    if (until == null) return 0;
+    final now = _Session._monotonicMs;
+    if (now >= until) {
+      _pinLockoutUntilMs.remove(folderId);
+      return 0;
+    }
+    return until - now;
+  }
+
+  /// API publique : exposé à l'UI (vault PIN sheet) pour afficher un
+  /// compte à rebours et désactiver le pavé pendant le lockout.
+  /// Retourne `Duration.zero` si aucun lockout actif.
+  Duration pinLockoutRemaining(String folderId) =>
+      Duration(milliseconds: _pinLockoutRemainingMs(folderId));
 
   /// Auto-destruction d'un coffre PIN après trop de tentatives :
   ///   0. Pose un flag prefs `vault_wipe_pending_<id>` (anti-reprise).

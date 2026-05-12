@@ -27,9 +27,11 @@ class VaultWarningBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
+              // v1.0.7 UI I2 — base sur `bodyMedium` du textTheme pour
+              // respecter `MediaQuery.textScaler` (a11y). `bodyMedium`
+              // est à 14sp dans le thème par défaut Material 3.
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: cs.onErrorContainer,
-                fontSize: 14,
                 height: 1.35,
               ),
             ),

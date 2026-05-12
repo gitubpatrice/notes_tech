@@ -145,6 +145,15 @@ class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallH
                 .setKeySize(256)
                 .setRandomizedEncryptionRequired(true)
                 .setUserAuthenticationRequired(false)
+            // v1.0.7 sécu M-03 — défense en profondeur : exige que l'écran
+            // soit déverrouillé pour utiliser la clé (API 28+). Empêche
+            // qu'un attaquant avec un debug bridge USB sur un device verrouillé
+            // ne puisse exercer la clé pour brute-forcer le PIN du coffre
+            // hors-bande. Idempotent : ne change pas les clés existantes,
+            // seules les nouvelles créations bénéficient du flag.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                b.setUnlockedDeviceRequired(true)
+            }
             if (strongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 b.setIsStrongBoxBacked(true)
             }

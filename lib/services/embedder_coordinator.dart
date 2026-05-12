@@ -109,6 +109,23 @@ class EmbedderCoordinator {
       _semantic.setEmbedder(_local);
       await _indexing.swapEmbedder(_local);
       _active.value = _local;
+      // v1.0.7 qual C1 — libère l'isolate worker MiniLM + la session ONNX.
+      // Avant : le toggle ON→OFF gardait l'isolate vivant ad vitam et son
+      // OrtSession natif (~25 Mo) jusqu'à la fermeture de l'app. Maintenant
+      // on dispose après la bascule active (l'utilisateur ne tape plus
+      // dessus). Le `dispose()` est idempotent et tolère un worker non
+      // spawné (jamais utilisé en sync embed()).
+      final m = _miniLm;
+      _miniLm = null;
+      if (m != null) {
+        try {
+          await m.dispose();
+        } catch (e, st) {
+          if (kDebugMode) {
+            debugPrint('Dispose MiniLM post-downgrade échoué : $e\n$st');
+          }
+        }
+      }
       lastError.value = null;
     } catch (e, st) {
       if (kDebugMode) debugPrint('Downgrade vers Local échoué : $e\n$st');
