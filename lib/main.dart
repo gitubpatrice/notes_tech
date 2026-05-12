@@ -51,14 +51,16 @@ import 'services/voice/voice_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // v1.0.7 perf M5 — lance `FlutterGemma.initialize()` EN PARALLÈLE des
-  // autres bootstraps. L'init JNI Gemma coûte 80-200 ms sur S9 froid ;
-  // ce temps est entièrement masqué par l'init DB + date formatting +
-  // settings qui se déroulent en parallèle. Le first frame n'attend plus
-  // Gemma. Le `await` final n'a lieu qu'avant d'instancier `GemmaService`,
-  // ce qui garantit la mémoire de v1.0.6 (init AVANT toute op Gemma) tout
-  // en supprimant le coût série.
-  final gemmaInit = FlutterGemma.initialize();
+  // v1.0.7.1 hotfix — rollback de la parallélisation M5.
+  // Symptôme terrain : page blanche bloquée sur certains devices/scenarios
+  // de cold boot. On revient au pattern v1.0.6 (await strict avant tout
+  // autre bootstrap) qui est éprouvé. Coût série assumé (~80-200 ms sur
+  // S9 froid) — préférable à un risque de blocage de l'initialisation.
+  //
+  // Voir [[feedback_flutter_gemma_initialize]] : `FlutterGemma.initialize()`
+  // DOIT être appelée AVANT toute opération flutter_gemma (install,
+  // getActiveModel, createModel). Aligné sur AI Tech main.dart:62.
+  await FlutterGemma.initialize();
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -113,10 +115,8 @@ Future<void> main() async {
     embedder: localEmbedder,
     indexing: indexing,
   );
-  // v1.0.7 perf M5 — join sur l'init Gemma lancée en parallèle au boot.
-  // Garantit l'invariant v1.0.6 : aucune opération `flutter_gemma` (install,
-  // getActiveModel, createModel) avant que le plugin natif soit prêt.
-  await gemmaInit;
+  // v1.0.7.1 hotfix — `FlutterGemma.initialize()` est désormais await
+  // strict en début de `main()` (rollback de la parallélisation M5).
   final gemma = GemmaService();
 
   // Service de backlinks `[[Titre]]` — écoute les changements de notes

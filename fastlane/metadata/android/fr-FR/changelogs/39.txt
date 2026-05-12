@@ -1,0 +1,18 @@
+v1.0.8 — Hotfix démarrage bloqué (page blanche)
+
+Corrections critiques
+• Fix démarrage bloqué sur page blanche avec logo : rollback de la
+  parallélisation de `FlutterGemma.initialize()` introduite en v1.0.7.
+  L'init revient à un `await` strict en début de `main()` (pattern
+  v1.0.6 éprouvé). Coût : ~80-200 ms de cold start réintroduits sur
+  S9 — préférable à un risque de blocage.
+• Retrait du PRAGMA `mmap_size = 64 Mo` sur SQLCipher : sur certaines
+  builds natives Android, l'appel pouvait hang silencieusement au
+  cold boot. Le PRAGMA `cache_size = 32 Mo` est conservé (gain perf
+  FTS intact, sans risque).
+
+Tout le hardening v1.0.7 reste actif (15 fixes perf/qualité/sécurité/UI) :
+SecureWindow dynamique, lockout exponentiel PIN, indexing MiniLM async
+worker, atomic ONNX write, dispose propre, R8 full mode, etc.
+
+flutter analyze : 0 erreur, 0 warning. flutter test : 64/64 passed.
