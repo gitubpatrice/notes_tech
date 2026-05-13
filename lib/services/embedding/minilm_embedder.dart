@@ -319,7 +319,9 @@ class MiniLmEmbedder implements EmbeddingProvider {
       if (tmp.existsSync()) {
         try {
           tmp.deleteSync();
-        } catch (_) {/* best-effort */}
+        } catch (_) {
+          /* best-effort */
+        }
       }
       rethrow;
     }

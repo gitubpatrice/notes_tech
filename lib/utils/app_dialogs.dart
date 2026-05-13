@@ -25,12 +25,19 @@ Future<bool?> showConfirmDialog(
         content: SingleChildScrollView(child: Text(body)),
         actions: [
           TextButton(
+            // U3 v1.0.9 — `autofocus` sur Annuler quand le dialog est
+            // destructif : la touche Entrée (clavier physique / a11y)
+            // déclenche l'annulation, pas la suppression. Safe default.
+            autofocus: destructive,
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(noLabel ?? t.commonCancel),
           ),
           FilledButton(
             style: destructive
-                ? FilledButton.styleFrom(backgroundColor: cs.error)
+                ? FilledButton.styleFrom(
+                    backgroundColor: cs.errorContainer,
+                    foregroundColor: cs.onErrorContainer,
+                  )
                 : null,
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(yesLabel),

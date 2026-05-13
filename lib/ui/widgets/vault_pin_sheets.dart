@@ -291,9 +291,9 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
                   child: Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.error,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: cs.error),
                   ),
                 );
               },
@@ -411,6 +411,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
       if (!mounted) return;
       // A11y : annonce TalkBack que le coffre PIN est déverrouillé.
       unawaited(
+        // ignore: deprecated_member_use
         SemanticsService.announce(
           t.homeAnnounceVaultUnlocked,
           TextDirection.ltr,
@@ -430,6 +431,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
       _errorN.value = t.vaultPinWiped;
       // A11y : annonce critique, l'utilisateur DOIT savoir que le coffre
       // a été détruit même s'il ne lit pas l'écran.
+      // ignore: deprecated_member_use
       unawaited(SemanticsService.announce(t.vaultPinWiped, TextDirection.ltr));
     } catch (e) {
       if (!mounted) return;
@@ -465,9 +467,9 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
             const SizedBox(height: 4),
             Text(
               t.vaultPinUnlockBody(widget.folder.name),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 18),
             ValueListenableBuilder<String>(
@@ -517,9 +519,9 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
                   child: Text(
                     error,
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: cs.error,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: cs.error),
                   ),
                 );
               },

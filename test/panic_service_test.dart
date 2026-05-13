@@ -17,7 +17,7 @@ import 'package:notes_tech/services/security/panic_service.dart';
 void main() {
   group('PanicStep ordering', () {
     test('pinKeysWipe precedes kekDestroy', () {
-      final values = PanicStep.values;
+      const values = PanicStep.values;
       final pinIdx = values.indexOf(PanicStep.pinKeysWipe);
       final kekIdx = values.indexOf(PanicStep.kekDestroy);
       expect(pinIdx, greaterThanOrEqualTo(0));
@@ -54,7 +54,7 @@ void main() {
     });
 
     test('foldersLockAll precedes pinKeysWipe', () {
-      final values = PanicStep.values;
+      const values = PanicStep.values;
       final lockIdx = values.indexOf(PanicStep.foldersLockAll);
       final pinIdx = values.indexOf(PanicStep.pinKeysWipe);
       expect(lockIdx, greaterThanOrEqualTo(0));
@@ -71,7 +71,7 @@ void main() {
     });
 
     test('foldersLockAll < pinKeysWipe < kekDestroy < dbWipe', () {
-      final values = PanicStep.values;
+      const values = PanicStep.values;
       final lockIdx = values.indexOf(PanicStep.foldersLockAll);
       final pinIdx = values.indexOf(PanicStep.pinKeysWipe);
       final kekIdx = values.indexOf(PanicStep.kekDestroy);

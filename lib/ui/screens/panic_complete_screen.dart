@@ -32,6 +32,7 @@ class _PanicCompleteScreenState extends State<PanicCompleteScreen> {
     // SemanticsService.announce nécessite un context localisé : on attend
     // didChangeDependencies pour avoir AppLocalizations disponible.
     final msg = AppLocalizations.of(context).panicAnnounceDone;
+    // ignore: deprecated_member_use
     SemanticsService.announce(msg, TextDirection.ltr);
   }
 

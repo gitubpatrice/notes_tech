@@ -285,6 +285,7 @@ class _AiChatScreenState extends State<AiChatScreen>
               _updateCanSend();
               _animateToBottom();
               final t = AppLocalizations.of(context);
+              // ignore: deprecated_member_use
               SemanticsService.announce(
                 t.aiChatAnnounceDone,
                 TextDirection.ltr,

@@ -1,0 +1,39 @@
+v1.0.9 — Audit expert : sécurité, performance et a11y
+
+Sécurité :
+* F1 — Lockout exponentiel sur le déverrouillage par passphrase
+  (parité avec le PIN ajouté en v1.0.7). Backoff 1/2/4/8/16/30 s
+  après 5 essais. Empêche l'attaque par dictionnaire sur device
+  saisi (script ADB / clavier physique).
+* F3 — L'auto-complétion `[[…]]` dans une note alive ne propose
+  plus les titres des notes verrouillées (était une fuite par
+  défaut depuis la création des coffres).
+* F7 — Le texte de la question utilisateur est désormais
+  sanitizé avant envoi à Gemma (mêmes filtres anti-injection
+  zero-width / bidi / tags que les sources RAG).
+* F8 — FLAG_SECURE posé AVANT le déchiffrement de la note
+  (fenêtre ~5-20 ms supprimée pendant laquelle un screenshot
+  manuel ou MediaProjection pouvait capturer le plaintext).
+
+Performance :
+* P1.2 — L'éditeur de note ne re-`get` plus la note à chaque
+  événement de changements (filtre maintenant sur l'id). Sur
+  auto-save 500 ms + multi-écrans ouverts : 1 SELECT/s
+  SQLCipher en moins.
+
+UX / a11y :
+* U1+U2+U11 — Champ passphrase coffre :
+    - Autofill Android désactivé (`autofillHints: []`)
+    - Clavier `visiblePassword` (neutralise auto-cap SwiftKey/Gboard)
+    - Sélection/copie bloquées quand masqué (anti clipboard manager)
+* U3 — Dialogs destructifs : `autofocus` sur Annuler + bouton
+  rouge via `cs.errorContainer` (safe default a11y).
+* U4 — Icône À propos avec `cacheWidth` borné — ~12 Mo de RAM
+  permanent économisés (le PNG 1024×1024 était décodé sans
+  borne pour afficher 56 dp).
+* U9 — Bouton "Nouvelle note" inline dans l'état vide
+  (le FAB existe mais reste peu découvrable au premier
+  lancement / sur tablette).
+
+Aucun changement de format DB (toujours v6) ni de format coffre.
+`flutter analyze` 0 issue, tests verts.

@@ -113,10 +113,14 @@ class RagService {
   /// la locale (Gemma comprend les deux ; le wording de réponse est fixé
   /// par le `systemPrompt` localisé).
   String composePrompt(RagContext ctx) {
+    // F7 v1.0.9 — Sanitize aussi le user prompt (titres+bodies des sources
+    // étaient déjà sanitizés via `_systemPrompt`). Couvre le cas d'une
+    // injection arrivant via dictée vocale ou auto-paste (zero-width,
+    // bidi, tags `<|system|>` qui sont neutralisés par la même regex).
     final buf = StringBuffer()
       ..writeln(ctx.systemPrompt)
       ..writeln()
-      ..writeln('Question: ${ctx.userPrompt}');
+      ..writeln('Question: ${_sanitize(ctx.userPrompt)}');
     return buf.toString();
   }
 

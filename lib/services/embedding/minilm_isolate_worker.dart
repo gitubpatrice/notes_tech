@@ -253,10 +253,14 @@ Future<void> _workerEntry(_SpawnArgs args) async {
       // v1.0.7 qual M1 — release FFI natif avant que l'isolate soit tué.
       try {
         session.release();
-      } catch (_) {/* best-effort */}
+      } catch (_) {
+        /* best-effort */
+      }
       try {
         msg.replyTo.send(true);
-      } catch (_) {/* best-effort : caller a peut-être timeout */}
+      } catch (_) {
+        /* best-effort : caller a peut-être timeout */
+      }
       fromMain.close();
       return;
     }

@@ -14,11 +14,11 @@ import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
+import '../../utils/snackbar_ext.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/folders_drawer.dart';
 import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
-import '../../utils/snackbar_ext.dart';
 import '../widgets/vault_pin_sheets.dart';
 import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
@@ -355,6 +355,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       subtitle: _query.isEmpty
                           ? t.homeStartWriting
                           : t.searchTryOther,
+                      // U9 v1.0.9 — CTA bouton inline dans l'état vide
+                      // (le FAB existe mais reste peu découvrable au
+                      // premier lancement / sur tablette).
+                      action: _query.isEmpty
+                          ? FilledButton.tonalIcon(
+                              onPressed: _openNew,
+                              icon: const Icon(Icons.add),
+                              label: Text(t.homeNewNote),
+                            )
+                          : null,
                     );
                   }
                   // En mode "Toutes les notes" (et en recherche globale),

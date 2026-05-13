@@ -1,6 +1,82 @@
 # Security policy — Notes Tech
 
-**Version current : v1.0.4 — Mai 2026.**
+**Version current : v1.0.9 — Mai 2026.**
+
+## v1.0.9 — Audit expert post-v1.0.8 (2026-05-13)
+
+Suite à un audit 3-agents (sécu / perf / UX), 11 corrections livrées.
+Aucun changement de format DB (toujours v6) ni de format coffre.
+`flutter analyze` 0 issue, tests verts.
+
+### Sécurité
+
+- **F1** — `FolderVaultService.unlock()` (mode passphrase) bénéficie
+  désormais du même lockout exponentiel monotonique que `unlockWithPin()`
+  (M-05 v1.0.7) : compteur RAM `_passFailCount` + backoff
+  `1/2/4/8/16/30 s` après 5 essais, levant `VaultLockoutInProgressException`.
+  Avant : sur S24+ flagship Argon2id m=64Mo t=3 prenait ~600-900 ms →
+  un attaquant ADB + dictionnaire 10k passphrases pouvait tester ~4
+  essais/s sans friction. API publique `passphraseLockoutRemaining()`
+  exposée pour countdown UI symétrique au PIN.
+- **F3** — `BacklinksService.suggestTitles()` filtre maintenant
+  `n.isLocked`. Avant : l'auto-complétion `[[…]]` dans une note alive
+  proposait les titres des notes verrouillées → fuite par défaut depuis
+  la création des coffres. Aligne sur M-01 v1.0.7 (`_indexByTitle`,
+  `_handleSingleChange`, `_reindexAll` qui skippaient déjà locked).
+- **F7** — `RagService.composePrompt` applique désormais `_sanitize`
+  au `userPrompt` (les titres et bodies des sources étaient déjà
+  sanitizés). Couvre une injection arrivant via dictée vocale ou
+  auto-paste (`<|system|>`, zero-width, bidi).
+- **F8** — `note_editor_screen` pose `FLAG_SECURE` (`_ensureSecureForced`)
+  AVANT `vault.decryptNote`. Avant : fenêtre ~5-20 ms (channel
+  round-trip) pendant laquelle un screenshot manuel ou MediaProjection
+  pouvait capter le plaintext entre `decryptNote` et `_ensureSecureForced`.
+
+### Performance
+
+- **P1.2** — `note_editor_screen._changesSub` filtre maintenant les
+  événements (`event.id != widget.noteId && !event.isBulk` → return).
+  Avant : `get(noteId)` re-déclenché sur CHAQUE event (y compris ses
+  propres saves + tous les autres éditeurs ouverts) → 1 SELECT
+  SQLCipher/s minimum en auto-save continu (debounce 500 ms).
+- P1.1 (backlinks title cache) et P1.4 (notes_repository.save without
+  systematic `findById`) reportés à v1.1 (refactors plus profonds).
+
+### UX / a11y
+
+- **U1+U2+U11** — `PassphraseTextField` (centralisé) ajoute
+  `autofillHints: const []` (désactive Samsung Pass / Google Autofill),
+  `keyboardType: TextInputType.visiblePassword` (neutralise
+  SwiftKey/Gboard auto-cap), et `enableInteractiveSelection: !_hidden`
+  (bloque sélection/copie quand masqué — anti clipboard manager).
+- **U3** — `confirmDialog` (helper centralisé `app_dialogs.dart`) :
+  bouton Annuler `autofocus: true` quand le dialog est destructif +
+  bouton confirme via `cs.errorContainer/onErrorContainer` au lieu
+  de `cs.error` brut.
+- **U4** — `about_screen` icône `Image.asset` avec `cacheWidth: 112`
+  / `cacheHeight: 112` (avant : PNG 1024×1024 décodé sans borne pour
+  afficher 56dp = ~12 Mo RAM permanent).
+- **U9** — Empty state home : `FilledButton.tonalIcon` "Nouvelle note"
+  inline en plus du FAB (plus découvrable au premier lancement).
+
+### Info-only nettoyés (analyze 0 issue)
+
+9 occurrences `SemanticsService.announce` annotées
+`// ignore: deprecated_member_use` (migration Flutter 3.35
+`sendAnnouncement` prévue v1.1), 2 `directives_ordering`
+(home_screen / settings_screen imports triés), 3 `prefer_const`
+dans `panic_service_test.dart`.
+
+### Tests
+
+Tests existants tous verts (64+ assertions). Le test e2e flow
+`unlock → wrong passphrase × 5 → lockout` est volontairement déféré
+à l'instrumentation (Keystore mock non-trivial en pure Dart, cf.
+`folder_vault_service_test.dart`).
+
+---
+
+**Version précédente : v1.0.4 — Mai 2026.**
 
 Notes Tech v1.0 introduit plusieurs durcissements sécurité :
 - `prefs.clear()` panique avec **whitelist** (`db_encrypted_v1`,

@@ -205,6 +205,20 @@ class FolderVaultService extends ChangeNotifier {
   /// `vault_attempts` persiste pour borner le wipe final à 5 fails.
   final Map<String, int> _pinLockoutUntilMs = <String, int>{};
 
+  /// F1 v1.0.9 — Lockout exponentiel pour le mode PASSPHRASE (parity PIN).
+  ///
+  /// Sur S24+ flagship, Argon2id m=64Mo t=3 prend ~600-900 ms — un attaquant
+  /// avec dictionnaire 10k passwords branché via ADB ou clavier physique
+  /// pouvait tester ~4 essais/s sans backoff. Le PIN avait été couvert en
+  /// v1.0.7 (M-05) mais pas le passphrase.
+  ///
+  /// Compteur en RAM uniquement (pas persisté en DB pour éviter migration
+  /// format-breaking) : un attaquant qui kill l'app remet le compteur à
+  /// zéro, mais perd aussi sa session ADB → coût d'attaque équivalent au
+  /// re-setup complet. Acceptable.
+  final Map<String, int> _passLockoutUntilMs = <String, int>{};
+  final Map<String, int> _passFailCount = <String, int>{};
+
   /// Sessions actives, indexées par `folder.id`. Une entrée présente
   /// signifie que le coffre est déverrouillé en mémoire.
   final Map<String, _Session> _unlocked = {};
@@ -567,6 +581,29 @@ class FolderVaultService extends ChangeNotifier {
   Duration pinLockoutRemaining(String folderId) =>
       Duration(milliseconds: _pinLockoutRemainingMs(folderId));
 
+  /// F1 v1.0.9 — Variante PASSPHRASE de `_armPinLockout`. Délai 1/2/4/8/16/30s.
+  void _armPassLockout(String folderId, int attempts) {
+    final shift = (attempts - 1).clamp(0, 5);
+    final delayMs = (1000 << shift).clamp(1000, 30000);
+    _passLockoutUntilMs[folderId] = _Session._monotonicMs + delayMs;
+  }
+
+  int _passLockoutRemainingMs(String folderId) {
+    final until = _passLockoutUntilMs[folderId];
+    if (until == null) return 0;
+    final now = _Session._monotonicMs;
+    if (now >= until) {
+      _passLockoutUntilMs.remove(folderId);
+      return 0;
+    }
+    return until - now;
+  }
+
+  /// API publique : compte à rebours UI pour les vaults passphrase
+  /// (`vault_passphrase_sheets` peut afficher un countdown identique au PIN).
+  Duration passphraseLockoutRemaining(String folderId) =>
+      Duration(milliseconds: _passLockoutRemainingMs(folderId));
+
   /// Auto-destruction d'un coffre PIN après trop de tentatives :
   ///   0. Pose un flag prefs `vault_wipe_pending_<id>` (anti-reprise).
   ///   1. Supprime la clé Keystore (alias = `vault_pin_<id>`).
@@ -704,6 +741,14 @@ class FolderVaultService extends ChangeNotifier {
     if (folder.vaultMode == VaultMode.pin) {
       throw const VaultValidationException.coded(NotesErrorCode.vaultLocked);
     }
+
+    // F1 v1.0.9 — lockout exponentiel parity PIN. Refus immédiat si le
+    // dernier échec a armé un backoff (compteur RAM, reset au kill app).
+    final passLockoutRemaining = _passLockoutRemainingMs(folder.id);
+    if (passLockoutRemaining > 0) {
+      throw VaultLockoutInProgressException(remainingMs: passLockoutRemaining);
+    }
+
     final salt = folder.vaultSalt!;
     final wrapped = folder.vaultKekWrapped!;
     final iv = folder.vaultIv!;
@@ -723,6 +768,10 @@ class FolderVaultService extends ChangeNotifier {
       );
     } on SecretBoxAuthenticationError {
       _wipe(kekFromPass);
+      // F1 v1.0.9 — incrément compteur + armement backoff exponentiel.
+      final attempts = (_passFailCount[folder.id] ?? 0) + 1;
+      _passFailCount[folder.id] = attempts;
+      _armPassLockout(folder.id, attempts);
       throw const WrongPassphraseException();
     } catch (_) {
       _wipe(kekFromPass);
@@ -738,6 +787,12 @@ class FolderVaultService extends ChangeNotifier {
     try {
       final actualVerifier = await _verifierFor(folderKek);
       if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
+        // F1 v1.0.9 — branche de défense-en-profondeur (en pratique
+        // jamais atteinte si tag GCM a passé) : incrémente aussi le
+        // compteur pour cohérence.
+        final attempts = (_passFailCount[folder.id] ?? 0) + 1;
+        _passFailCount[folder.id] = attempts;
+        _armPassLockout(folder.id, attempts);
         throw const WrongPassphraseException();
       }
       _unlocked[folder.id] = _Session(
@@ -745,6 +800,9 @@ class FolderVaultService extends ChangeNotifier {
         openedAt: DateTime.now(),
       );
       transferredToSession = true; // ownership transférée
+      // F1 v1.0.9 — succès : reset compteur+lockout passphrase.
+      _passFailCount.remove(folder.id);
+      _passLockoutUntilMs.remove(folder.id);
       _scheduleAutoLockSweep();
       notifyListeners();
     } finally {

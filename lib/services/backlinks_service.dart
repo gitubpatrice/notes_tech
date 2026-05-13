@@ -334,6 +334,12 @@ class BacklinksService {
     final out = <Note>[];
     for (final n in candidates) {
       if (n.title.isEmpty) continue;
+      // F3 v1.0.9 — Skip locked notes : sinon l'auto-complétion `[[…]]`
+      // dans l'éditeur d'une note alive révèle le titre + l'existence
+      // de notes dans un coffre verrouillé. Aligne sur M-01 v1.0.7
+      // (`_indexByTitle` + `_handleSingleChange` + `_reindexAll` qui
+      // skip déjà locked).
+      if (n.isLocked) continue;
       final t = normalizeTitle(n.title);
       if (t.startsWith(norm) || t.contains(' $norm')) {
         out.add(n);

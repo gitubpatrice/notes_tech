@@ -78,6 +78,7 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
       if (!mounted) return;
       // Annonce TalkBack que la transcription est terminée et insérée.
       unawaited(
+        // ignore: deprecated_member_use
         SemanticsService.announce(t.voiceTranscribed, TextDirection.ltr),
       );
       navigator.pop(result);

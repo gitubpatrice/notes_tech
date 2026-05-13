@@ -235,6 +235,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
       if (!mounted) return;
       // A11y : annonce TalkBack/lecteur d'écran que le coffre est ouvert.
       unawaited(
+        // ignore: deprecated_member_use
         SemanticsService.announce(
           t.homeAnnounceVaultUnlocked,
           TextDirection.ltr,
@@ -285,9 +286,9 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
             const SizedBox(height: 8),
             Text(
               t.vaultPassUnlockBody(widget.folder.name),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             PassphraseTextField(

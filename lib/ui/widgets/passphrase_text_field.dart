@@ -45,6 +45,20 @@ class _PassphraseTextFieldState extends State<PassphraseTextField> {
       autofocus: widget.autofocus,
       autocorrect: false,
       enableSuggestions: false,
+      // U1 v1.0.9 — désactive le service Autofill Android (Samsung Pass /
+      // Google Autofill) sur la passphrase du coffre. Le service Autofill
+      // pourrait capturer / proposer la valeur cross-app.
+      autofillHints: const <String>[],
+      // U2 v1.0.9 — `visiblePassword` : neutralise les suggestions et
+      // l'auto-capitalisation de SwiftKey / Gboard tiers (au-delà du
+      // `autocorrect/enableSuggestions: false` qui peut être ignoré par
+      // certains claviers Android).
+      keyboardType: TextInputType.visiblePassword,
+      // U11 v1.0.9 — sélection/copie désactivée tant que masqué : empêche
+      // un long-press → "Tout sélectionner" → Copier qui exposerait la
+      // passphrase au clipboard (capté par les clipboard managers tiers
+      // sur Android 13-).
+      enableInteractiveSelection: !_hidden,
       textInputAction: widget.textInputAction,
       onSubmitted: widget.onSubmitted,
       decoration: InputDecoration(

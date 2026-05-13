@@ -96,8 +96,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // Si la note est supprimée/mise à la corbeille depuis un autre écran,
     // on désactive l'édition pour éviter de "ressusciter" la note via
     // un save final dans dispose.
-    _changesSub = _repo.changes.listen((_) async {
+    _changesSub = _repo.changes.listen((event) async {
       if (!mounted) return;
+      // P1.2 v1.0.9 — Ne re-`get` que si l'événement concerne CETTE note
+      // (ou est un bulk qui peut purger la corbeille). Avant : `get`
+      // déclenché à chaque save d'une autre note → 1 SELECT SQLCipher/s en
+      // édition continue (autosave 500 ms + multi-écrans ouverts).
+      if (!event.isBulk && event.id != widget.noteId) return;
       final fresh = await _repo.get(widget.noteId);
       if (!mounted) return;
       if (fresh == null || fresh.isTrashed) {
@@ -208,12 +213,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             return;
           }
         }
+        _wasLocked = true;
+        // F8 v1.0.9 — Pose FLAG_SECURE AVANT le déchiffrement. Avant :
+        // fenêtre ~5-20 ms (MethodChannel round-trip) entre `decryptNote`
+        // et `_ensureSecureForced` pendant laquelle un screenshot manuel
+        // ou MediaProjection captait le plaintext. Désormais le flag est
+        // actif avant tout accès au clair.
+        _ensureSecureForced();
         // Vault déverrouillé : déchiffrement éphémère en RAM.
         resolved = await vault.decryptNote(note);
-        _wasLocked = true;
-        // v1.0.7 UI I1 — force FLAG_SECURE tant que le plaintext déchiffré
-        // est exposé dans l'éditeur (recents, screenshots, MediaProjection).
-        _ensureSecureForced();
       }
 
       _titleCtrl.text = resolved.title;
@@ -323,6 +331,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           now.difference(_lastSavedAnnounce!).inSeconds >= 5) {
         _lastSavedAnnounce = now;
         unawaited(
+          // ignore: deprecated_member_use
           SemanticsService.announce(
             t.noteEditorAnnounceSavedSuccess,
             TextDirection.ltr,

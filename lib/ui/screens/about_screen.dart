@@ -168,6 +168,11 @@ class _AppHeader extends StatelessWidget {
               'assets/icon/app_icon.png',
               width: 56,
               height: 56,
+              // U4 v1.0.9 — `cacheWidth` borné au double de la cible
+              // (DPR ≤ 2) : le PNG source 1024×1024 décodé pour afficher
+              // 56dp prenait ~12 Mo en RAM permanent.
+              cacheWidth: 112,
+              cacheHeight: 112,
               fit: BoxFit.cover,
             ),
           ),
