@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -564,6 +565,11 @@ class _PanicSectionState extends State<_PanicSection> {
 
     setState(() => _running = true);
     final navigator = Navigator.of(context);
+    // U9 v1.1.0 — feedback haptique heavyImpact sur action irréversible
+    // (panic = destruction du coffre + de la DB). Confirme tactilement
+    // à l'utilisateur que l'action a démarré. Aligné Pass Tech U9.
+    // `navigator` capturé AVANT l'await (anti use_build_context_synchronously).
+    unawaited(HapticFeedback.heavyImpact());
     unawaited(
       showDialog<void>(
         context: context,

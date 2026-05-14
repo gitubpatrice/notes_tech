@@ -60,7 +60,13 @@ android {
             isEnable = true
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = true
+            // P2 v1.1.0 — `isUniversalApk = false`. Avant : générait un 4ᵉ
+            // APK universel ~294 Mo embarquant les libs natives des 3 ABIs
+            // (sqlcipher + ONNX + Whisper + MediaPipe), upload GitHub +
+            // bandwidth user pour rien (un seul ABI utile par device).
+            // Désormais : 3 APKs par-ABI seuls. Distribution via GitHub
+            // Releases (split-per-abi cohérent) ; pas de Play Store/AAB.
+            isUniversalApk = false
         }
     }
 

@@ -275,11 +275,34 @@ class PanicService {
     // de reprise après crash qui n'ont plus de sens après wipe DB.
     await _runStep(report, PanicStep.prefsClear, _prefsClearWithWhitelist);
 
+    // F7 v1.1.0 — purge `cache/exports/` (sous-dossier ZIP partage). Avant :
+    // `_purgeTempDirectory` (étape 8) ratait ce dossier qui est dans
+    // `getApplicationCacheDirectory()` et non `getTemporaryDirectory()`.
+    // Un export en cours de Share (Intent EXTRA_STREAM) restait en clair.
+    await _runStep(report, PanicStep.tmpPurge, _wipeExportsCache);
+
     // 8. Tmp : ZIPs d'export + autres résidus. Best-effort, Android purge.
     await _runStep(report, PanicStep.tmpPurge, _purgeTempDirectory);
 
     report.endedAt = DateTime.now();
     return report;
+  }
+
+  /// F7 v1.1.0 — purge `cache/exports/` (sandbox cache, hors temp).
+  /// Le dossier est créé par `settings_screen._exportAllNotes` pour
+  /// stocker les ZIP avant Share. Si le process meurt entre Share et
+  /// l'auto-purge boot (main.dart:69), un attaquant root peut lire le
+  /// plaintext exporté.
+  Future<void> _wipeExportsCache() async {
+    try {
+      final cacheDir = await getApplicationCacheDirectory();
+      final exportsDir = Directory('${cacheDir.path}/exports');
+      if (await exportsDir.exists()) {
+        await exportsDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Best-effort (le boot suivant rejouera la purge si nécessaire).
+    }
   }
 
   Future<void> _runStep(

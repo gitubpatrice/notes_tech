@@ -435,6 +435,9 @@
   "noteEditorMoved": "Note déplacée",
   "noteEditorMoveFailed": "Déplacement impossible : {message}",
   "@noteEditorMoveFailed": { "placeholders": { "message": { "type": "String" } } },
+  "noteEditorExitVaultTitle": "Sortir cette note du coffre ?",
+  "noteEditorExitVaultBody": "Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.",
+  "noteEditorExitVaultConfirm": "Sortir du coffre",
   "noteEditorMenuCopyMarkdown": "Copier le Markdown",
   "noteEditorContentHint": "Écrivez en Markdown… ([[Titre]] pour lier)",
 

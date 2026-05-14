@@ -217,11 +217,17 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   Future<File?> _resolveSource() async {
     final t = AppLocalizations.of(context);
+    // F5 v1.1.0 — pas de `initialDirectory` hard-coded `/storage/emulated/0/
+    // Download`. Avant : ce path absolu supposait READ_EXTERNAL_STORAGE
+    // accordé, sinon SAF ouvrait un picker vide silencieusement ; et
+    // pointait vers Downloads d'autres apps (Telegram, WhatsApp) ouvrant
+    // la voie à un `.task` malveillant non lié au flux SAF maître.
+    // Laisser SAF par défaut = scope-limited (l'utilisateur navigue via
+    // l'arborescence Documents sandbox, sans READ_EXTERNAL_STORAGE).
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['task'],
       allowMultiple: false,
-      initialDirectory: '/storage/emulated/0/Download',
       dialogTitle: t.aiChatPickerDialogTitle,
     );
     if (result == null || result.files.single.path == null) return null;
@@ -541,6 +547,9 @@ class _AiChatScreenState extends State<AiChatScreen>
                   textInputAction: TextInputAction.send,
                   enableSuggestions: false,
                   autocorrect: false,
+                  // U11 v1.1.0 — capitalisation auto pour la question IA
+                  // (aligné Pass Tech U6 / AI Tech U7).
+                  textCapitalization: TextCapitalization.sentences,
                   minLines: 1,
                   maxLines: 4,
                   onSubmitted: (_) => _send(),

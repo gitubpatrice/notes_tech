@@ -1,6 +1,131 @@
 # Security policy — Notes Tech
 
-**Version current : v1.0.9 — Mai 2026.**
+**Version current : v1.1.0 — Mai 2026.**
+
+## v1.1.0 — Audit expert post-v1.0.9 (2026-05-14)
+
+Suite à un audit 3-agents (sécu / perf / UX) + audit cross-files,
+23 corrections livrées (F1-F14, P1-P5, U1-U11). Aucun changement
+de format DB ni de format coffre. `flutter analyze` 0 issue, 68/68
+tests verts (+5 nouveaux `test/audit_v1_1_0_test.dart`).
+
+### Sécurité
+
+- **F1** — `note_editor._moveToFolder` : confirmation EXPLICITE
+  (dialog destructif `cs.errorContainer` + Cancel autofocus) avant
+  de sortir une note d'un coffre vers un dossier ordinaire. Avant :
+  le contenu était décrypté + persisté en clair sans signal UI,
+  irréversible. Si l'auto-lock du coffre tombait pendant la mutation,
+  l'utilisateur croyait l'écran fermé alors que le flush plaintext
+  passait silencieusement.
+- **F2** — `NotesDao.findByTitleLike` : ajout du filtre SQL
+  `encrypted_content IS NULL`. Avant : `BacklinksService.suggestTitles`
+  (F3 v1.0.9) filtrait côté Dart, mais le DAO sous-jacent exposait
+  toutes les notes locked à tout futur caller, et le `limit` SQL
+  était consommé par les notes vault AVANT le filtre Dart → les
+  suggestions s'amincissaient sur les gros coffres sans raison
+  apparente. Defense-in-depth.
+- **F3** — `IndexingService._indexAll` : skip explicite des notes
+  vault AVANT `_encodeWith(embedder, note)`. Avant : si
+  `knownHashes[n.id]` ne matchait pas pour une note locked
+  (hash stale), MiniLM encodait son contenu en RAM côté worker
+  ONNX, et l'embedding n'était écarté qu'APRÈS l'encoding via
+  `live.encryptedContent != null`. Désormais aucun feed à l'embedder
+  pour les notes locked, quel que soit le hash.
+- **F4** — `NoteActions.copyMarkdown` : MethodChannel natif Kotlin
+  `com.filestech.notes_tech/clipboard.copySensitive` qui pose
+  `ClipDescription.EXTRA_IS_SENSITIVE` (Android 13+) + auto-clear
+  60 s du presse-papier côté Dart (vérifie que la valeur courante
+  est encore celle qu'on a posée avant clear, ne touche pas un
+  autre secret copié entretemps). Avant : `Clipboard.setData` brut
+  exposait le plaintext d'une note vault déchiffrée à TOUT clipboard
+  manager tiers + Knox clipboard history sans expiration.
+- **F5** — `ai_chat_screen._resolveSource` : suppression du
+  `initialDirectory: '/storage/emulated/0/Download'`. Avant : path
+  absolu nécessitant READ_EXTERNAL_STORAGE (sinon SAF picker vide
+  silencieusement) ET ouvrait sur Downloads d'autres apps
+  (Telegram, WhatsApp) ouvrant la voie à un `.task` malveillant
+  non lié au flux SAF maître.
+- **F6** — `VoiceService._isPresentAndPlausible` : TTL du cache de
+  vérification SHA-256 réduit de 30 jours à 24 heures, et refus
+  si `cached.mtimeMs > cached.verifiedAtMs` (file touché après
+  notre dernière vérif réussie). Avant : un attaquant root pouvant
+  écrire un Whisper trojanisé avec `touch -t` matchant (size, mtime)
+  restait validé 30 jours sans rehash. Coût utilisateur : ~3-5 s
+  de hash strict au premier `startRecording` post-24h.
+- **F7** — `PanicService` : nouvelle étape `_wipeExportsCache` qui
+  purge `getApplicationCacheDirectory()/exports/`. Avant : un ZIP
+  d'export en cours de Share survivait à panic car
+  `_purgeTempDirectory` ne couvrait que `getTemporaryDirectory()`.
+- **F8** — `RagService._sanitize` étendu : Llama2 `<<SYS>>`,
+  ChatML `<|im_start|>` / `<|im_end|>`, Alpaca/Vicuna
+  `### Instruction:` / `### Response:`, Mistral `[ASSISTANT]` /
+  `[USER]` brackets neutralisés. Avant : Gemma 3 1B (decoder
+  generaliste pré-entraîné sur ces formats) pouvait basculer en
+  mode chat formel si un attaquant insérait ces marqueurs dans une
+  note contexte RAG. F13 v1.0.3 listait ces patterns comme
+  best-effort, désormais couverts.
+- **F10** — `FolderVaultService._unlockInProgress: Set<String>`
+  guard sur `unlock()` / `unlockWithPin()`. Avant : Dart est
+  mono-thread mais Argon2id `compute()` (600-900 ms sur S24)
+  cède l'event-loop entre `await` — un `Timer(_autoLockAfter)`
+  pouvait alors firer pendant le unlock et wiper la `folder_kek`
+  fraîchement assignée avant qu'elle ne soit consommée par
+  `encryptNote`. `_autoLockSweep` skip désormais les folderIds
+  en cours de unlock.
+- **F11** — `note_editor._flushFinalSave` : si le coffre est
+  verrouillé pendant le flush final (dispose post-auto-lock), on
+  persiste l'`id` dans `prefs.vault_lost_drafts`. Avant : « perte
+  acceptée » silencieuse, l'utilisateur croyait l'auto-save
+  infaillible. Consommable par un futur écran « N modifications
+  perdues sur des notes vault » au prochain boot.
+- **F14** — `AppDatabase._attachSql` : validation regex stricte
+  `^[A-Za-z0-9_./:\\-]+$` du path AVANT l'`ATTACH`. Avant : le
+  path provenait de `getApplicationDocumentsDirectory()`, qui peut
+  être détourné via `LD_PRELOAD` / root setup pointant vers un
+  chemin contenant des méta-SQL (`'; DROP --`). Cas extrême
+  root-only mais c'est la « source unique de vérité » de la DB.
+
+### Performance
+
+- **P1** — `HomeScreen._reloadDebouncer` (250 ms) coalesce les
+  events `notes.changes` pendant l'auto-save continu (1 event/500
+  ms par frappe). Avant : un SELECT complet `listAllAlive` exécuté
+  à CHAQUE event, soit ~50-200 ms SQLCipher sur 500 notes ×
+  fréquence de frappe.
+- **P2** — `isUniversalApk = false` dans `build.gradle.kts`.
+  Avant : générait un 4ᵉ APK universel ~294 Mo embarquant les libs
+  natives des 3 ABIs (sqlcipher + ONNX + Whisper + MediaPipe).
+  Économie ~70 Mo upload GitHub Releases + bandwidth user.
+- **P3** — `BacklinksService._buildTitleIndex` : cache TTL 5 s
+  invalidé explicitement sur changement de titre. Avant :
+  `listAllAlive()` re-exécuté à CHAQUE save d'une note (rafale
+  d'auto-saves = 1 SELECT/500ms même sans mutation de titre).
+- **P5** — `MentionsLegalesScreen._MarkdownAssetView._load` :
+  cache `static final Map<String, String>` process-wide des
+  assets `.md`. Avant : `rootBundle.loadString` re-exécuté à
+  CHAQUE switch d'onglet TabBarView ou de locale.
+
+### UX / a11y
+
+- **U1** — `HapticFeedback.selectionClick()` sur copy Markdown
+  + `HapticFeedback.heavyImpact()` sur déclenchement panique.
+  Avant : 0 hit `HapticFeedback` dans tout `lib/` — aucun
+  feedback tactile pour les actions critiques (alignement avec
+  Pass Tech v2.4.4 U9 / AI Tech U4).
+- **U2** — `SnackbarMessengerExt.showFloatingSnack` accepte
+  désormais `foregroundColor`. 2 sites `folders_drawer` mis à
+  jour : `cs.errorContainer` + `cs.onErrorContainer` (contraste
+  WCAG AA ~13:1 en light mode vs ~3.5:1 mesuré avec `cs.error`
+  brut sur `textPri` clair).
+- **U3** — TextField titre + contenu note : `textCapitalization:
+  TextCapitalization.sentences`. Avant : saisie tactile à doigt
+  unique sans capitalisation auto → titres avec minuscules
+  initiales.
+- **U11** — TextField composer AI : `textCapitalization:
+  TextCapitalization.sentences`.
+
+---
 
 ## v1.0.9 — Audit expert post-v1.0.8 (2026-05-13)
 

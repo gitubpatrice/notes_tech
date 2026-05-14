@@ -136,9 +136,13 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           final res = await vault.decryptAllNotesInFolder(folder.id);
           if (!mounted) return;
           if (res.failed > 0) {
+            final cs = Theme.of(context).colorScheme;
+            // U2 v1.1.0 — errorContainer + onErrorContainer pour contraste
+            // WCAG AA (vs cs.error brut qui donnait ~3.5:1 en light mode).
             messenger.showFloatingSnack(
               t.folderDeleteDecryptFailed(res.failed),
-              backgroundColor: Theme.of(context).colorScheme.error,
+              backgroundColor: cs.errorContainer,
+              foregroundColor: cs.onErrorContainer,
               duration: const Duration(seconds: 8),
             );
             return;
@@ -434,12 +438,15 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // Affichage HONNÊTE du résultat : si failed > 0, on alerte
       // l'utilisateur en rouge plutôt que de masquer l'incohérence.
       if (result.failed > 0) {
+        final cs = Theme.of(context).colorScheme;
+        // U2 v1.1.0 — errorContainer + onErrorContainer (cf. ci-dessus).
         messenger.showFloatingSnack(
           t.vaultConvertPartialFail(
             result.failed,
             result.encrypted + result.failed,
           ),
-          backgroundColor: Theme.of(context).colorScheme.error,
+          backgroundColor: cs.errorContainer,
+          foregroundColor: cs.onErrorContainer,
           duration: const Duration(seconds: 8),
         );
       } else {

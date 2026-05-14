@@ -37,6 +37,12 @@ class _HomeScreenState extends State<HomeScreen> {
   late final FoldersRepository _folders;
   late final SettingsService _settings;
   late final Debouncer _searchDebouncer;
+  // P1 v1.1.0 — debouncer dédié au reload sur events `notes.changes`
+  // (auto-save 500ms / frappe → 1 event/keystroke → 1 SELECT complet
+  // SQLCipher 50-200ms sur 500 notes). 250ms coalescent une rafale.
+  final Debouncer _reloadDebouncer = Debouncer(
+    const Duration(milliseconds: 250),
+  );
   late final StreamSubscription<void> _changesSub;
   late final StreamSubscription<void> _foldersSub;
   final _searchCtrl = TextEditingController();
@@ -67,8 +73,17 @@ class _HomeScreenState extends State<HomeScreen> {
     _activeSort = _settings.sortMode;
     _settings.addListener(_onSettingsChanged);
     _searchDebouncer = Debouncer(AppConstants.searchDebounce);
+    // P1 v1.1.0 — debounce du reload pour coalescer les rafales d'events
+    // pendant l'auto-save continu (1 event/500ms par frappe). Avant : un
+    // SELECT complet listAllAlive() était re-exécuté à CHAQUE event de
+    // note, même si l'éditeur ouvert au-dessus du Home déclenchait un
+    // event/keystroke. Sur 500 notes : ~50-200 ms SQLCipher par save +
+    // rebuild ListView. Désormais : 1 reload par fenêtre de 250 ms max.
     _changesSub = _notes.changes.listen((_) {
-      if (mounted) _reload();
+      if (!mounted) return;
+      _reloadDebouncer.run(() {
+        if (mounted) _reload();
+      });
     });
     _foldersSub = _folders.changes.listen((_) {
       if (!mounted) return;
@@ -87,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _changesSub.cancel();
     _foldersSub.cancel();
     _searchDebouncer.dispose();
+    _reloadDebouncer.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }

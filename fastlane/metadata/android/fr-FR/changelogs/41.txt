@@ -1,0 +1,52 @@
+v1.1.0 — Audit expert : 23 corrections sécurité, perf, UX
+
+Sécurité :
+* F1 — Sortir une note d'un coffre vers un dossier ordinaire exige
+  désormais une confirmation explicite (action irréversible : le
+  contenu transite hors chiffrement).
+* F2 — Auto-complétion par titre (DAO) filtre strictement les notes
+  vault (defense-in-depth en plus du filtre Dart existant).
+* F3 — Indexation MiniLM : skip explicite des notes verrouillées
+  AVANT encodage (plus de fuite titre/contenu dans le worker ONNX
+  même si le hash source semble obsolète).
+* F4 — Copie Markdown : Android 13+ `EXTRA_IS_SENSITIVE` + auto-clear
+  60 s du presse-papier (anti-mémorisation Knox/clipboard managers).
+* F5 — AI Chat sélecteur .task : suppression du path absolu
+  `/storage/emulated/0/Download` (scope SAF par défaut).
+* F6 — Vérification du modèle Whisper : TTL réduit de 30 j à 24 h
+  + refus si mtime > verifiedAt (anti touch-attack).
+* F7 — Mode panique : purge dédiée de `cache/exports/` (ZIPs en
+  cours de Share qui survivaient sinon entre 2 purges Android).
+* F8 — Sanitize prompt injection RAG étendu : Llama2 `<<SYS>>`,
+  ChatML `<|im_start|>`, Alpaca `### Instruction:`, Mistral
+  `[ASSISTANT]` neutralisés (defense-in-depth Gemma).
+* F10 — Mutex anti-race entre unlock coffre en cours et auto-lock
+  sweep (Argon2id 600-900 ms peut être interrompu sinon).
+* F11 — Notes vault aux modifications perdues (coffre verrouillé
+  pendant le flush final) tracées pour bannière au prochain boot.
+* F14 — Path DB validé par regex stricte avant `ATTACH` SQLCipher
+  (anti-injection SQL via path détourné par root).
+
+Performance :
+* P1 — HomeScreen : debounce 250 ms du reload sur events note
+  (au lieu d'un SELECT complet par auto-save / frappe).
+* P2 — `isUniversalApk = false` : 3 APK splits par ABI au lieu
+  de 4 (économie ~70 Mo upload GitHub Releases).
+* P3 — BacklinksService : cache TTL 5 s de l'index titre→id
+  (coalesce 1 SELECT/frappe).
+* P5 — Mentions légales : cache process-wide des assets Markdown
+  (relus à chaque switch onglet/locale auparavant).
+
+UX / a11y :
+* U1 — Feedback haptique sur copier (selectionClick) et
+  déclenchement panique (heavyImpact).
+* U2 — Snacks d'erreur folders_drawer : `cs.errorContainer` +
+  `onErrorContainer` (contraste WCAG AA en light mode).
+* U3 — TextField titre + contenu note : `textCapitalization:
+  sentences` (saisie à doigt unique sans Shift).
+* U11 — TextField composer AI : `textCapitalization: sentences`.
+
+Tests garde : +5 tests `audit_v1_1_0_test.dart` (sanitize
+Llama2/ChatML/Alpaca/Mistral). Total 68 tests verts.
+`flutter analyze` 0 issue. Aucun changement de format DB ni de
+crypto vault — `adb install -r` préserve les coffres existants.

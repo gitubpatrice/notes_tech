@@ -170,6 +170,14 @@ class BacklinksService {
       final note = await _notes.get(id);
       if (note == null) return; // race : la note vient d'être supprimée
 
+      // P3 v1.1.0 — invalide le cache d'index titre→id si le titre vient
+      // de changer (ou si l'event ne précise pas, par sûreté). Sans ça,
+      // une rafale d'auto-saves portant un rename pouvait laisser le cache
+      // 5 s avec l'ancien titre, brisant la résolution de backlinks.
+      if (event.previousTitle != null && event.previousTitle != note.title) {
+        _invalidateTitleIndex();
+      }
+
       // v1.0.7 sécu M-01 — note dans un coffre verrouillé : on traite
       // exactement comme si elle venait d'être supprimée. Effets :
       //  - liens sortants purgés (le contenu de la note locked est
@@ -260,9 +268,32 @@ class BacklinksService {
     }
   }
 
+  // P3 v1.1.0 — cache TTL court de l'index titre→id pour coalescer les
+  // rafales d'auto-save (1 event/500ms par frappe → 1 SELECT complet
+  // listAllAlive() = 50-200ms × N saves). 5s couvre une rafale typique
+  // tout en restant frais : un titre venant de changer met < 5s à se
+  // propager partout. Invalidé explicitement par les callers qui savent
+  // qu'un titre vient de muter.
+  Map<String, String>? _titleIndexCache;
+  int _titleIndexCacheAtMs = 0;
+  static const int _titleIndexTtlMs = 5000;
+
+  void _invalidateTitleIndex() {
+    _titleIndexCache = null;
+    _titleIndexCacheAtMs = 0;
+  }
+
   Future<Map<String, String>> _buildTitleIndex() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final cached = _titleIndexCache;
+    if (cached != null && now - _titleIndexCacheAtMs < _titleIndexTtlMs) {
+      return cached;
+    }
     final notes = await _notes.listAllAlive();
-    return _indexByTitle(notes);
+    final idx = _indexByTitle(notes);
+    _titleIndexCache = idx;
+    _titleIndexCacheAtMs = now;
+    return idx;
   }
 
   /// v1.0.7 sécu M-01 — exclut les notes verrouillées de l'index titre→id.

@@ -206,6 +206,19 @@ class IndexingService {
     var done = 0;
     for (final note in toIndex) {
       if (_disposed || !identical(_embedder, embedder)) break;
+      // F3 v1.1.0 — skip explicite des notes vault AVANT encodage. Avant :
+      // le filtre `live.encryptedContent != null` (ligne 230) ne tournait
+      // qu'APRÈS `_encodeWith(embedder, note)`. Si `knownHashes[n.id]` ne
+      // matchait pas `hashSource(n)` pour une note locked (hash basé sur
+      // un état pre-vault stale), MiniLM encodait `'<title>\n\n<content>'`
+      // avec les valeurs en mémoire avant que le check final l'écarte —
+      // leak titre + contenu pendant l'embedding (RAM worker isolate +
+      // potentiels logs natifs ONNX). Désormais : skip immédiat sans
+      // jamais nourrir l'embedder.
+      if (note.encryptedContent != null) {
+        done++;
+        continue;
+      }
       _emitProgress(
         IndexingProgress(
           done: done,

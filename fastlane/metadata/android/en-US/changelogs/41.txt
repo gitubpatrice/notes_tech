@@ -1,0 +1,52 @@
+v1.1.0 — Expert audit: 23 fixes (security, perf, UX)
+
+Security:
+* F1 — Moving a note out of a vault into a regular folder now
+  requires explicit confirmation (irreversible: content transits
+  outside encryption).
+* F2 — Title auto-completion (DAO) strictly filters vault notes
+  (defense-in-depth on top of the existing Dart filter).
+* F3 — MiniLM indexing: explicit skip of locked notes BEFORE
+  encoding (no more title/content leak to the ONNX worker even
+  when source hash looks stale).
+* F4 — Copy Markdown: Android 13+ `EXTRA_IS_SENSITIVE` + 60s
+  auto-clear of clipboard (anti Knox/clipboard-manager memorization).
+* F5 — AI Chat .task picker: removed hard-coded path
+  `/storage/emulated/0/Download` (SAF default scope).
+* F6 — Whisper model check: TTL reduced from 30 d to 24 h
+  + refuse if `mtime > verifiedAt` (anti touch-attack).
+* F7 — Panic mode: dedicated purge of `cache/exports/` (Share-pending
+  ZIPs that survived between Android purges otherwise).
+* F8 — RAG prompt-injection sanitize extended: Llama2 `<<SYS>>`,
+  ChatML `<|im_start|>`, Alpaca `### Instruction:`, Mistral
+  `[ASSISTANT]` now neutralized (defense-in-depth for Gemma).
+* F10 — Anti-race mutex between in-progress vault unlock and
+  auto-lock sweep (Argon2id 600-900ms could be interrupted otherwise).
+* F11 — Vault notes whose final flush was lost (vault locked
+  during dispose) are tracked for a banner on next boot.
+* F14 — DB path validated by strict regex before SQLCipher
+  `ATTACH` (anti SQL injection via root-controlled path).
+
+Performance:
+* P1 — HomeScreen: 250ms debounce on note-change events (was a
+  full SELECT per autosave / keystroke).
+* P2 — `isUniversalApk = false`: 3 ABI-split APKs instead of 4
+  (~70 MB GitHub upload saved).
+* P3 — BacklinksService: 5s TTL cache of the title→id index
+  (coalesces 1 SELECT/keystroke).
+* P5 — Legal screen: process-wide cache for Markdown assets
+  (re-read on every tab/locale switch before).
+
+UX / a11y:
+* U1 — Haptic feedback on copy (selectionClick) and panic
+  trigger (heavyImpact).
+* U2 — Error snacks in folders_drawer: `cs.errorContainer` +
+  `onErrorContainer` (WCAG AA contrast in light mode).
+* U3 — Note title + content TextFields: `textCapitalization:
+  sentences` (one-finger tactile typing without Shift).
+* U11 — AI composer TextField: `textCapitalization: sentences`.
+
+Guard tests: +5 `audit_v1_1_0_test.dart` (sanitize Llama2/ChatML
+/Alpaca/Mistral). 68 tests total, all green. `flutter analyze`
+0 issue. No DB schema or vault crypto change — `adb install -r`
+preserves existing vaults.

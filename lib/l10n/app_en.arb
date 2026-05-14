@@ -435,6 +435,9 @@
   "noteEditorMoved": "Note moved",
   "noteEditorMoveFailed": "Move failed: {message}",
   "@noteEditorMoveFailed": { "placeholders": { "message": { "type": "String" } } },
+  "noteEditorExitVaultTitle": "Move note out of vault?",
+  "noteEditorExitVaultBody": "The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.",
+  "noteEditorExitVaultConfirm": "Leave vault",
   "noteEditorMenuCopyMarkdown": "Copy Markdown",
   "noteEditorContentHint": "Write in Markdown… ([[Title]] to link)",
 

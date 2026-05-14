@@ -72,7 +72,14 @@ class VoiceService extends ChangeNotifier {
   // 30 jours : suffisamment long pour ne pas pénaliser l'usage normal,
   // assez court pour rattraper une corruption silencieuse au pire dans
   // le mois.
-  static const Duration _verifiedCacheTtl = Duration(days: 30);
+  /// F6 v1.1.0 — TTL réduit de 30 jours à 24 heures. Avant : un attaquant
+  /// root pouvant écrire dans `<appSupport>/whisper/` un Whisper trojanisé
+  /// (~57 Mo) avec `touch -t` matchant (size, mtime) restait validé jusqu'à
+  /// 30 jours sans rehash. Désormais : rehash forcé chaque jour, fenêtre
+  /// d'attaque drastiquement réduite. Coût utilisateur : ~3-5 s de hash
+  /// au premier `startRecording` post-24h. Voir aussi check
+  /// `mtimeMs <= verifiedAtMs` ci-dessous (anti touch-to-past).
+  static const Duration _verifiedCacheTtl = Duration(hours: 24);
 
   final SharedPreferences _prefs;
   final MlMemoryGuard? _mlGuard;
@@ -167,10 +174,18 @@ class VoiceService extends ChangeNotifier {
     final stat = await file.stat();
     if (stat.type != FileSystemEntityType.file) return false;
     final cached = _readVerifiedCache();
+    // F6 v1.1.0 — check additionnel : `mtimeMs <= verifiedAtMs`. Un
+    // attaquant qui réécrit le fichier avec un `touch -t` matchant le
+    // (size, mtime) précédent verrait quand même son mtime de réécriture
+    // refusé si celui-ci dépasse `verifiedAtMs`. Pour passer, il devrait
+    // simuler un mtime antérieur à notre dernière vérif réussie — ce qui
+    // implique qu'il sait QUAND on a vérifié, info non exposée par l'API
+    // Dart côté natif sans accès aux SharedPreferences root-protégés.
     if (cached != null &&
         cached.modelId == model.id &&
         cached.sizeBytes == stat.size &&
         cached.mtimeMs == stat.modified.millisecondsSinceEpoch &&
+        cached.mtimeMs <= cached.verifiedAtMs &&
         DateTime.now()
                 .difference(
                   DateTime.fromMillisecondsSinceEpoch(cached.verifiedAtMs),

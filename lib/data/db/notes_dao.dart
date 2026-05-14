@@ -243,6 +243,13 @@ class NotesDao {
     final whereParts = <String>[
       "(LOWER(title) LIKE ? ESCAPE '\\' OR LOWER(title) LIKE ? ESCAPE '\\')",
       'trashed_at IS NULL',
+      // F2 v1.1.0 — defense-in-depth : exclut les notes vault (encrypted_content
+      // non-NULL). Avant : `BacklinksService.suggestTitles` filtrait côté Dart
+      // (F3 v1.0.9), mais tout futur caller (auto-complétion ajoutée ailleurs,
+      // hybride FTS) héritait du leak. Plus important : le `limit` SQL était
+      // consommé par les notes locked AVANT le filtre Dart — sur un coffre
+      // grand, les suggestions visibles s'amincissaient sans raison apparente.
+      'encrypted_content IS NULL',
     ];
     final args = <Object?>['$escaped%', '% $escaped%'];
     if (excludeId != null) {

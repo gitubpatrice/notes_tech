@@ -223,6 +223,14 @@ class FolderVaultService extends ChangeNotifier {
   /// signifie que le coffre est déverrouillé en mémoire.
   final Map<String, _Session> _unlocked = {};
 
+  /// F10 v1.1.0 — guard anti-race entre `unlock`/`unlockWithPin` en cours
+  /// et `_autoLockSweep` qui pourrait wiper la `folder_kek` fraîchement
+  /// assignée avant qu'elle ne soit consommée par `encryptNote`. Dart est
+  /// mono-thread mais Argon2id `compute()` (600-900 ms sur S24) cède
+  /// l'event-loop entre 2 `await` — un `Timer(_autoLockAfter)` peut alors
+  /// firer entre deux étapes du unlock.
+  final Set<String> _unlockInProgress = <String>{};
+
   Timer? _autoLockTimer;
 
   /// Liste les `id` des coffres actuellement déverrouillés (pour l'UI
@@ -425,6 +433,9 @@ class FolderVaultService extends ChangeNotifier {
       throw VaultLockoutInProgressException(remainingMs: lockoutRemaining);
     }
     _validatePin(pin);
+    // F10 v1.1.0 — marque le folderId comme "unlock en cours" pour que
+    // `_autoLockSweep` ne wipe pas la session qu'on est en train d'écrire.
+    _unlockInProgress.add(folder.id);
 
     // Incrément persisté AVANT tentative — anti-kill-loop.
     final attemptsBefore = folder.vaultAttempts + 1;
@@ -528,6 +539,8 @@ class FolderVaultService extends ChangeNotifier {
       if (!transferredToSession && folderKek != null) {
         _wipe(folderKek);
       }
+      // F10 v1.1.0 — libère le guard.
+      _unlockInProgress.remove(folder.id);
     }
   }
 
@@ -748,65 +761,72 @@ class FolderVaultService extends ChangeNotifier {
     if (passLockoutRemaining > 0) {
       throw VaultLockoutInProgressException(remainingMs: passLockoutRemaining);
     }
+    // F10 v1.1.0 — guard anti-race auto-lock sweep (cf. unlockWithPin).
+    _unlockInProgress.add(folder.id);
 
     final salt = folder.vaultSalt!;
     final wrapped = folder.vaultKekWrapped!;
     final iv = folder.vaultIv!;
     final expectedVerifier = folder.vaultVerifier!;
 
-    final kekFromPass = await _deriveKekArgon2id(
-      passphrase: passphrase,
-      salt: salt,
-    );
-    Uint8List? folderKek;
     try {
-      folderKek = await _aesGcmDecrypt(
-        key: kekFromPass,
-        iv: iv,
-        wrapped: wrapped,
-        aad: utf8Bytes(folder.id),
+      final kekFromPass = await _deriveKekArgon2id(
+        passphrase: passphrase,
+        salt: salt,
       );
-    } on SecretBoxAuthenticationError {
-      _wipe(kekFromPass);
-      // F1 v1.0.9 — incrément compteur + armement backoff exponentiel.
-      final attempts = (_passFailCount[folder.id] ?? 0) + 1;
-      _passFailCount[folder.id] = attempts;
-      _armPassLockout(folder.id, attempts);
-      throw const WrongPassphraseException();
-    } catch (_) {
-      _wipe(kekFromPass);
-      rethrow;
-    }
-    _wipe(kekFromPass);
-
-    // Pattern identique au mode PIN : try/finally global pour garantir
-    // que `folderKek` est wipée si une exception survient dans
-    // `_verifierFor` (OOM dans l'isolate, dispose anticipée du
-    // SecretKey…) avant le transfert à la session.
-    var transferredToSession = false;
-    try {
-      final actualVerifier = await _verifierFor(folderKek);
-      if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
-        // F1 v1.0.9 — branche de défense-en-profondeur (en pratique
-        // jamais atteinte si tag GCM a passé) : incrémente aussi le
-        // compteur pour cohérence.
+      Uint8List? folderKek;
+      try {
+        folderKek = await _aesGcmDecrypt(
+          key: kekFromPass,
+          iv: iv,
+          wrapped: wrapped,
+          aad: utf8Bytes(folder.id),
+        );
+      } on SecretBoxAuthenticationError {
+        _wipe(kekFromPass);
+        // F1 v1.0.9 — incrément compteur + armement backoff exponentiel.
         final attempts = (_passFailCount[folder.id] ?? 0) + 1;
         _passFailCount[folder.id] = attempts;
         _armPassLockout(folder.id, attempts);
         throw const WrongPassphraseException();
+      } catch (_) {
+        _wipe(kekFromPass);
+        rethrow;
       }
-      _unlocked[folder.id] = _Session(
-        folderKek: folderKek,
-        openedAt: DateTime.now(),
-      );
-      transferredToSession = true; // ownership transférée
-      // F1 v1.0.9 — succès : reset compteur+lockout passphrase.
-      _passFailCount.remove(folder.id);
-      _passLockoutUntilMs.remove(folder.id);
-      _scheduleAutoLockSweep();
-      notifyListeners();
+      _wipe(kekFromPass);
+
+      // Pattern identique au mode PIN : try/finally global pour garantir
+      // que `folderKek` est wipée si une exception survient dans
+      // `_verifierFor` (OOM dans l'isolate, dispose anticipée du
+      // SecretKey…) avant le transfert à la session.
+      var transferredToSession = false;
+      try {
+        final actualVerifier = await _verifierFor(folderKek);
+        if (!_constantTimeEq(actualVerifier, expectedVerifier)) {
+          // F1 v1.0.9 — branche de défense-en-profondeur (en pratique
+          // jamais atteinte si tag GCM a passé) : incrémente aussi le
+          // compteur pour cohérence.
+          final attempts = (_passFailCount[folder.id] ?? 0) + 1;
+          _passFailCount[folder.id] = attempts;
+          _armPassLockout(folder.id, attempts);
+          throw const WrongPassphraseException();
+        }
+        _unlocked[folder.id] = _Session(
+          folderKek: folderKek,
+          openedAt: DateTime.now(),
+        );
+        transferredToSession = true; // ownership transférée
+        // F1 v1.0.9 — succès : reset compteur+lockout passphrase.
+        _passFailCount.remove(folder.id);
+        _passLockoutUntilMs.remove(folder.id);
+        _scheduleAutoLockSweep();
+        notifyListeners();
+      } finally {
+        if (!transferredToSession) _wipe(folderKek);
+      }
     } finally {
-      if (!transferredToSession) _wipe(folderKek);
+      // F10 v1.1.0 — libère le guard, qu'il y ait eu succès ou exception.
+      _unlockInProgress.remove(folder.id);
     }
   }
 
@@ -971,6 +991,11 @@ class FolderVaultService extends ChangeNotifier {
     final autoLockMs = _autoLockAfter.inMilliseconds;
     final expired = <String>[];
     for (final entry in _unlocked.entries) {
+      // F10 v1.1.0 — saute les entrées dont un unlock concurrent est
+      // EN COURS. Sans ce guard, l'auto-lock pouvait fire entre 2 `await`
+      // du `unlock()` (notamment pendant Argon2id 600-900 ms) et wiper la
+      // session fraîchement écrite avant qu'elle ne soit consommée.
+      if (_unlockInProgress.contains(entry.key)) continue;
       if (nowMs - entry.value.lastActivityElapsedMs >= autoLockMs) {
         expired.add(entry.key);
       }

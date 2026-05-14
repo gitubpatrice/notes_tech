@@ -1269,6 +1269,16 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get noteEditorExitVaultTitle => 'Sortir cette note du coffre ?';
+
+  @override
+  String get noteEditorExitVaultBody =>
+      'Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.';
+
+  @override
+  String get noteEditorExitVaultConfirm => 'Sortir du coffre';
+
+  @override
   String get noteEditorMenuCopyMarkdown => 'Copier le Markdown';
 
   @override

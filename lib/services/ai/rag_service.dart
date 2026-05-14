@@ -15,6 +15,8 @@
 /// avec les chaînes localisées (FR ou EN) et le passe au service.
 library;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import '../semantic_search_service.dart';
 
 /// Strings localisées injectées dans le prompt RAG, fournies par le caller
@@ -173,6 +175,12 @@ class RagService {
   /// encore passer (encodage base64, leetspeak, ROT13). Piste pour
   /// v1.1 (defense-in-depth) : encoder chaque note en base64 avec un
   /// délimiteur ASCII aléatoire régénéré par requête.
+  /// Exposé pour les tests garde (`test/audit_v1_1_0_test.dart` F8).
+  /// Ne pas utiliser hors tests : la sémantique de sanitize peut évoluer
+  /// (élargissement de la couverture). Aucun caller production non-test.
+  @visibleForTesting
+  static String debugSanitize(String s) => _sanitize(s);
+
   static String _sanitize(String s) {
     // A11 v1.0.4 — pré-traitement aligné sur AI Tech v0.6.1 F2 :
     // 1. Strip caractères zero-width / bidi qui pouvaient fragmenter
@@ -224,6 +232,34 @@ class RagService {
             caseSensitive: false,
           ),
           '\n[rôle neutralisé]:',
+        )
+        // F8 v1.1.0 — Llama2 `<<SYS>>...<</SYS>>` syntax (Gemma 3 est
+        // decoder generaliste pré-entraîné sur ces formats).
+        .replaceAll(
+          RegExp(r'<<\s*/?\s*SYS\s*>>', caseSensitive: false),
+          '<​<SYS>>',
+        )
+        // F8 v1.1.0 — ChatML `<|im_start|>` / `<|im_end|>` (Qwen, Hermes,
+        // OpenAI o1) — Gemma peut basculer en mode "chat formel".
+        .replaceAll(
+          RegExp(r'<\|\s*im_(?:start|end)\s*\|>', caseSensitive: false),
+          '<​|im_role|>',
+        )
+        // F8 v1.1.0 — Alpaca/Vicuna `### Instruction:` / `### Response:`.
+        .replaceAll(
+          RegExp(
+            r'(?:^|\n)\s*###\s*(?:Instruction|Response|Réponse)\s*:',
+            caseSensitive: false,
+          ),
+          '\n[instruction neutralisée]:',
+        )
+        // F8 v1.1.0 — Mistral / Llama-instruct `[ASSISTANT]` brackets.
+        .replaceAll(
+          RegExp(
+            r'\[\s*(?:ASSISTANT|USER|SYSTEM|UTILISATEUR)\s*\]',
+            caseSensitive: false,
+          ),
+          '[​rôle]',
         )
         // (4) Steering directes "nouvelle consigne".
         .replaceAll(

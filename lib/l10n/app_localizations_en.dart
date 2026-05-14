@@ -1259,6 +1259,16 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get noteEditorExitVaultTitle => 'Move note out of vault?';
+
+  @override
+  String get noteEditorExitVaultBody =>
+      'The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.';
+
+  @override
+  String get noteEditorExitVaultConfirm => 'Leave vault';
+
+  @override
   String get noteEditorMenuCopyMarkdown => 'Copy Markdown';
 
   @override

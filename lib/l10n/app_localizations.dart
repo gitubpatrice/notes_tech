@@ -2294,6 +2294,24 @@ abstract class AppLocalizations {
   /// **'Move failed: {message}'**
   String noteEditorMoveFailed(String message);
 
+  /// No description provided for @noteEditorExitVaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Move note out of vault?'**
+  String get noteEditorExitVaultTitle;
+
+  /// No description provided for @noteEditorExitVaultBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.'**
+  String get noteEditorExitVaultBody;
+
+  /// No description provided for @noteEditorExitVaultConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave vault'**
+  String get noteEditorExitVaultConfirm;
+
   /// No description provided for @noteEditorMenuCopyMarkdown.
   ///
   /// In en, this message translates to:

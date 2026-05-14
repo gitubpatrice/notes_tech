@@ -58,6 +58,21 @@ class _MarkdownAssetView extends StatelessWidget {
   const _MarkdownAssetView({super.key, required this.asset});
   final String asset;
 
+  /// P5 v1.1.0 — cache process-wide des assets Markdown chargés. Avant :
+  /// chaque switch d'onglet TabBarView ou de locale FR/EN re-déclenchait
+  /// `rootBundle.loadString` (~5-20 Ko I/O + reparse Markdown intégral).
+  /// Désormais : `static final Map` retient le contenu pour la durée de
+  /// l'app — `PRIVACY.*` et `TERMS.*` sont immuables côté assets.
+  static final Map<String, String> _assetCache = <String, String>{};
+
+  Future<String> _load() async {
+    final cached = _assetCache[asset];
+    if (cached != null) return cached;
+    final raw = await rootBundle.loadString(asset);
+    _assetCache[asset] = raw;
+    return raw;
+  }
+
   Future<void> _onTapLink(BuildContext context, String? href) async {
     if (href == null || href.isEmpty) return;
     final uri = Uri.tryParse(href);
@@ -81,7 +96,8 @@ class _MarkdownAssetView extends StatelessWidget {
     return FutureBuilder<String>(
       // `key: ValueKey(asset)` au-dessus force un rebuild + reload du
       // FutureBuilder quand l'utilisateur change de locale dans Settings.
-      future: rootBundle.loadString(asset),
+      // P5 v1.1.0 — `_load()` cache le contenu déjà chargé (assets immuables).
+      future: _load(),
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());

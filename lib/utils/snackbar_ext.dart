@@ -12,6 +12,7 @@ extension SnackbarExt on BuildContext {
     String message, {
     Duration? duration,
     Color? backgroundColor,
+    Color? foregroundColor,
   }) {
     final messenger = ScaffoldMessenger.maybeOf(this);
     if (messenger == null) return;
@@ -19,6 +20,7 @@ extension SnackbarExt on BuildContext {
       message,
       duration: duration,
       backgroundColor: backgroundColor,
+      foregroundColor: foregroundColor,
     );
   }
 }
@@ -29,14 +31,26 @@ extension SnackbarExt on BuildContext {
 /// `use_build_context_synchronously`).
 extension SnackbarMessengerExt on ScaffoldMessengerState {
   /// Affiche un SnackBar avec les défauts du thème global (floating).
+  ///
+  /// U2 v1.1.0 — Le caller peut passer [foregroundColor] pour garantir
+  /// le contraste WCAG AA (ex: pour une erreur, `cs.onErrorContainer`
+  /// sur un fond `cs.errorContainer`). Avant : texte par défaut
+  /// (souvent `textPri` clair) sur fond rouge brut donnait un contraste
+  /// limite en light mode (~3.5:1, exigence AA 4.5:1).
   void showFloatingSnack(
     String message, {
     Duration? duration,
     Color? backgroundColor,
+    Color? foregroundColor,
   }) {
     showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          message,
+          style: foregroundColor != null
+              ? TextStyle(color: foregroundColor)
+              : null,
+        ),
         duration: duration ?? const Duration(seconds: 4),
         backgroundColor: backgroundColor,
       ),

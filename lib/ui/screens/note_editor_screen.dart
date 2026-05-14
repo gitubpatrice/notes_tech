@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
 import '../../core/exceptions.dart';
@@ -156,14 +157,36 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         // Note coffre : ré-encrypter AVANT save. Si la session a
         // expiré, on ABANDONNE la modif plutôt que d'écrire le contenu
         // en clair dans la DB (invariant : jamais clair au repos pour
-        // une note de coffre). L'utilisateur a quitté l'écran, pas
-        // d'UI pour le signaler — perte acceptée.
+        // une note de coffre).
         if (_vault.isUnlocked(n.folderId)) {
           final draft = n.copyWith(title: title, content: content);
           final encrypted = await _vault.encryptNote(draft);
           await _repo.save(encrypted);
-        } else if (kDebugMode) {
-          debugPrint('flush save (dispose) skipped: vault locked');
+        } else {
+          // F11 v1.1.0 — Avant : « perte acceptée » sans signal UI, le
+          // user croyait l'auto-save infaillible. Désormais : on persiste
+          // l'id de la note dans un set `vault_lost_drafts` consulté au
+          // prochain boot pour afficher un banner « N notes vault ont
+          // perdu leurs dernières modifications (coffre verrouillé
+          // pendant la sauvegarde) ».
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            final cur =
+                prefs.getStringList(AppConstants.prefKeyVaultLostDrafts) ??
+                const <String>[];
+            if (!cur.contains(n.id)) {
+              await prefs.setStringList(AppConstants.prefKeyVaultLostDrafts, [
+                ...cur,
+                n.id,
+              ]);
+            }
+          } catch (_) {
+            // Best-effort : si la persistance échoue, on retombe sur le
+            // silence pré-F11 — pas pire qu'avant.
+          }
+          if (kDebugMode) {
+            debugPrint('flush save (dispose) skipped: vault locked');
+          }
         }
       } else {
         await _repo.save(n.copyWith(title: title, content: content));
@@ -402,7 +425,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     final t = AppLocalizations.of(context);
-    await const NoteActions().copyMarkdown(n);
+    // U1 v1.1.0 — feedback haptique sur copy (selectionClick = action
+    // utilisateur réussie). Aligné Pass Tech v2.4.4 U9 / AI Tech U4.
+    await HapticFeedback.selectionClick();
+    await NoteActions.instance.copyMarkdown(n);
     if (!mounted) return;
     context.showFloatingSnack(t.noteEditorCopiedToClipboard);
   }
@@ -482,6 +508,41 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         folder: targetFolder,
       );
       if (ok != true || !mounted) return;
+    }
+
+    // F1 v1.1.0 — Avant : un déplacement note vault → dossier ordinaire
+    // persistait silencieusement le plaintext en DB SQLCipher (avec
+    // `encrypted_content` purgé), action irréversible sans signal UI.
+    // L'auto-lock d'un coffre pendant cette mutation rendait le flush
+    // invisible. Désormais : confirmation EXPLICITE via dialog destructif
+    // (cs.errorContainer + Cancel autofocus) si on quitte un coffre.
+    final isVaultExit = n.encryptedContent != null && !targetFolder.isVault;
+    if (isVaultExit) {
+      final cs = Theme.of(context).colorScheme;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: Icon(Icons.lock_open, color: cs.error, size: 28),
+          title: Text(t.noteEditorExitVaultTitle),
+          content: Text(t.noteEditorExitVaultBody),
+          actions: [
+            TextButton(
+              autofocus: true,
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(t.commonCancel),
+            ),
+            FilledButton.tonal(
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.errorContainer,
+                foregroundColor: cs.onErrorContainer,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(t.noteEditorExitVaultConfirm),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
     }
 
     // Flush avant la mutation pour ne pas perdre les éditions en cours.
@@ -758,6 +819,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 textInputAction: TextInputAction.next,
                 enableSuggestions: false,
                 autocorrect: false,
+                // U3 v1.1.0 — capitalisation auto sur titre (saisie tactile
+                // mémoire à doigt unique sans Shift). Aligné AI Tech U7.
+                textCapitalization: TextCapitalization.sentences,
                 style: theme.textTheme.titleLarge,
                 decoration: InputDecoration(
                   labelText: t.noteEditorTitle,
@@ -781,6 +845,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   onChanged: (_) => _scheduleSave(),
                   enableSuggestions: false,
                   autocorrect: false,
+                  // U3 v1.1.0 — capitalisation auto sur contenu (Markdown
+                  // est principalement de la prose).
+                  textCapitalization: TextCapitalization.sentences,
                   maxLines: null,
                   expands: true,
                   textAlignVertical: TextAlignVertical.top,

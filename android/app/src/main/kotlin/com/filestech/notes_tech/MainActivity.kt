@@ -1,6 +1,12 @@
 package com.filestech.notes_tech
 
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -30,6 +36,12 @@ class MainActivity : FlutterActivity() {
 
     companion object {
         private const val CHANNEL = "notes_tech/secure_window"
+        // F4 v1.1.0 — channel dédié au clipboard "sensible" Android 13+.
+        // Pose `ClipDescription.EXTRA_IS_SENSITIVE` qui informe les
+        // clipboard managers tiers + Knox + Material You "Smart Reply"
+        // que le payload ne doit pas être pré-affiché en preview ni
+        // mémorisé dans l'historique.
+        private const val CLIPBOARD_CHANNEL = "com.filestech.notes_tech/clipboard"
         // Doit correspondre à `AppConstants.prefKeySecureWindowEnabled`
         // côté Dart. shared_preferences mappe sur `FlutterSharedPreferences`.
         private const val PREFS_NAME = "FlutterSharedPreferences"
@@ -74,6 +86,32 @@ class MainActivity : FlutterActivity() {
                         if (forcedCount > 0) forcedCount -= 1
                         runOnUiThread { applyEffective() }
                         result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        // F4 v1.1.0 — channel clipboard sensitive.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CLIPBOARD_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "copySensitive" -> {
+                        val text = call.argument<String>("text") ?: ""
+                        try {
+                            val cm = applicationContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("note", text)
+                            // Android 13 (API 33) introduit le flag IS_SENSITIVE
+                            // qui empêche les previews dans le clipboard
+                            // editor + bloque la mémorisation dans l'historique.
+                            if (Build.VERSION.SDK_INT >= 33) {
+                                val extras = PersistableBundle()
+                                extras.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true)
+                                clip.description.extras = extras
+                            }
+                            cm.setPrimaryClip(clip)
+                            result.success(true)
+                        } catch (e: Throwable) {
+                            result.success(false)
+                        }
                     }
                     else -> result.notImplemented()
                 }
