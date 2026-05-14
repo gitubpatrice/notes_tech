@@ -51,24 +51,19 @@ android {
         }
     }
 
-    // Splits ABI : un APK par architecture (arm64-v8a / armeabi-v7a / x86_64),
-    // au lieu d'un universel embarquant les 3. Notes Tech embarque sqlcipher,
-    // ONNX Runtime, Whisper natif, MediaPipe — réduit drastiquement la taille
-    // d'APK livré par device (~30-50 Mo gagnés sur S9 / POCO C75).
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a", "x86_64")
-            // P2 v1.1.0 — `isUniversalApk = false`. Avant : générait un 4ᵉ
-            // APK universel ~294 Mo embarquant les libs natives des 3 ABIs
-            // (sqlcipher + ONNX + Whisper + MediaPipe), upload GitHub +
-            // bandwidth user pour rien (un seul ABI utile par device).
-            // Désormais : 3 APKs par-ABI seuls. Distribution via GitHub
-            // Releases (split-per-abi cohérent) ; pas de Play Store/AAB.
-            isUniversalApk = false
-        }
-    }
+    // P2 v1.1.0 — Splits ABI obtenus via CLI `flutter build apk --release
+    // --split-per-abi`, PAS via un bloc `splits.abi {}` ici. Cause : depuis
+    // Flutter 3.41 le SDK pose `ndk.abiFilters = [armeabi-v7a, arm64-v8a,
+    // x86_64]` par défaut au niveau projet. Avoir EN PLUS un bloc
+    // `splits.abi { include(...) }` déclenche au build :
+    //   `Conflicting configuration : '...' in ndk abiFilters cannot be
+    //    present when splits abi filters are set`
+    // (cf. CI run `25856790750` v1.1.0 fail).
+    //
+    // Solution : on s'appuie uniquement sur la CLI `--split-per-abi` qui
+    // produit les 3 APKs par-ABI sans toucher au gradle. Pas d'APK
+    // universel (économie ~70 Mo upload GitHub Releases). Même hotfix
+    // appliqué à Pass Tech v2.4.3 et Read Files Tech v2.13.1.
 
     bundle {
         abi {
