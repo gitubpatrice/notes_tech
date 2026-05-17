@@ -39,6 +39,7 @@ import 'services/backlinks_service.dart';
 import 'services/embedder_coordinator.dart';
 import 'services/embedding/embedding_provider.dart';
 import 'services/embedding/local_embedder.dart';
+import 'services/first_launch_flag.dart';
 import 'services/indexing_service.dart';
 import 'services/ml/ml_memory_guard.dart';
 import 'services/secure_window_service.dart';
@@ -213,6 +214,11 @@ Future<void> main() async {
     },
   );
 
+  // v1.1.1 — splash de presentation Files Tech au tout premier lancement
+  // uniquement. SharedPreferences deja hydrate via voicePrefs ci-dessus,
+  // lecture peu couteuse.
+  final showSplash = await FirstLaunchFlag.shouldShow();
+
   runApp(
     MultiProvider(
       providers: [
@@ -259,7 +265,7 @@ Future<void> main() async {
         // graceful si la valeur n'est pas dispo (test).
         Provider<MlMemoryGuard?>.value(value: mlGuard),
       ],
-      child: const NotesTechApp(),
+      child: NotesTechApp(showSplash: showSplash),
     ),
   );
 }

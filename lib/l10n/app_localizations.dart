@@ -2839,6 +2839,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No browser available on this phone.'**
   String get gemmaNoBrowser;
+
+  /// Tagline shown under the title on the first-launch splash (Files Tech, mirror of Pass Tech).
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum protection\nfor your notes.'**
+  String get splashTagline;
+
+  /// Discreet hint at the bottom of the splash for instant skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the screen to continue'**
+  String get splashSkipHint;
+
+  /// TalkBack content description for the logo image on the splash.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes Tech logo'**
+  String get splashLogoContentDescription;
+
+  /// TalkBack announcement for the full splash screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes Tech splash screen'**
+  String get splashSemanticsLabel;
 }
 
 class _AppLocalizationsDelegate

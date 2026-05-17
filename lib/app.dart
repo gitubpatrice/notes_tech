@@ -10,9 +10,14 @@ import 'l10n/app_localizations.dart';
 import 'services/security/folder_vault_service.dart';
 import 'services/settings_service.dart';
 import 'ui/screens/home_screen.dart';
+import 'ui/screens/splash_screen.dart';
 
 class NotesTechApp extends StatefulWidget {
-  const NotesTechApp({super.key});
+  /// v1.1.1 — Drapeau "splash de premiere ouverture pas encore vu" determine
+  /// dans `main()` via [FirstLaunchFlag.shouldShow]. Passé ici par constructor
+  /// pour rester `const`-friendly et eviter une lecture I/O dans `build`.
+  final bool showSplash;
+  const NotesTechApp({super.key, required this.showSplash});
 
   @override
   State<NotesTechApp> createState() => _NotesTechAppState();
@@ -64,7 +69,10 @@ class _NotesTechAppState extends State<NotesTechApp>
           locale: settings.locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const HomeScreen(),
+          home: SplashGate(
+            showSplash: widget.showSplash,
+            nextChild: const HomeScreen(),
+          ),
         );
       },
     );

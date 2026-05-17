@@ -538,5 +538,14 @@
   "gemmaImportDone": "Gemma 3 model ready to use.",
   "gemmaImportError": "Import failed: {error}",
   "@gemmaImportError": { "placeholders": { "error": { "type": "String" } } },
-  "gemmaNoBrowser": "No browser available on this phone."
+  "gemmaNoBrowser": "No browser available on this phone.",
+
+  "splashTagline": "Maximum protection\nfor your notes.",
+  "@splashTagline": { "description": "Tagline shown under the title on the first-launch splash (Files Tech, mirror of Pass Tech)." },
+  "splashSkipHint": "Tap the screen to continue",
+  "@splashSkipHint": { "description": "Discreet hint at the bottom of the splash for instant skip." },
+  "splashLogoContentDescription": "Notes Tech logo",
+  "@splashLogoContentDescription": { "description": "TalkBack content description for the logo image on the splash." },
+  "splashSemanticsLabel": "Notes Tech splash screen",
+  "@splashSemanticsLabel": { "description": "TalkBack announcement for the full splash screen." }
 }

@@ -20,6 +20,7 @@ import '../widgets/folders_drawer.dart';
 import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
 import '../widgets/vault_pin_sheets.dart';
+import 'about_screen.dart';
 import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
 import 'search_screen.dart';
@@ -288,6 +289,13 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.settings_outlined),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+          IconButton(
+            tooltip: t.aboutTitle,
+            icon: const Icon(Icons.info_outline),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
             ),
           ),
         ],

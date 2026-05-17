@@ -115,13 +115,13 @@
   "settingsSectionData": "Données",
   "settingsSectionAbout": "À propos",
   "settingsLanguage": "Langue",
-  "settingsLanguageSystem": "Suivre le système",
+  "settingsLanguageSystem": "Système",
   "settingsLanguageFr": "Français",
   "settingsLanguageEn": "English",
   "settingsLanguageChangedFr": "Langue changée en français",
   "settingsLanguageChangedEn": "Language switched to English",
   "settingsTheme": "Thème",
-  "settingsThemeSystem": "Suivre le système",
+  "settingsThemeSystem": "Système",
   "settingsThemeLight": "Clair",
   "settingsThemeDark": "Sombre",
   "settingsSemanticSearch": "Recherche sémantique avancée (MiniLM)",
@@ -538,5 +538,14 @@
   "gemmaImportDone": "Modèle Gemma 3 prêt à l'emploi.",
   "gemmaImportError": "Échec de l'import : {error}",
   "@gemmaImportError": { "placeholders": { "error": { "type": "String" } } },
-  "gemmaNoBrowser": "Aucun navigateur disponible sur ce téléphone."
+  "gemmaNoBrowser": "Aucun navigateur disponible sur ce téléphone.",
+
+  "splashTagline": "La protection maximale\npour vos notes.",
+  "@splashTagline": { "description": "Slogan affiche sous le titre sur le splash de premiere ouverture (Files Tech, parallele Pass Tech)." },
+  "splashSkipHint": "Toucher l'écran pour continuer",
+  "@splashSkipHint": { "description": "Hint discret en bas du splash pour skip immediat." },
+  "splashLogoContentDescription": "Logo Notes Tech",
+  "@splashLogoContentDescription": { "description": "Description TalkBack pour l'image du logo sur le splash." },
+  "splashSemanticsLabel": "Splash de présentation Notes Tech",
+  "@splashSemanticsLabel": { "description": "Annonce TalkBack pour l'ecran splash complet." }
 }

@@ -333,7 +333,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsLanguage => 'Langue';
 
   @override
-  String get settingsLanguageSystem => 'Suivre le système';
+  String get settingsLanguageSystem => 'Système';
 
   @override
   String get settingsLanguageFr => 'Français';
@@ -351,7 +351,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsTheme => 'Thème';
 
   @override
-  String get settingsThemeSystem => 'Suivre le système';
+  String get settingsThemeSystem => 'Système';
 
   @override
   String get settingsThemeLight => 'Clair';
@@ -1583,4 +1583,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get gemmaNoBrowser => 'Aucun navigateur disponible sur ce téléphone.';
+
+  @override
+  String get splashTagline => 'La protection maximale\npour vos notes.';
+
+  @override
+  String get splashSkipHint => 'Toucher l\'écran pour continuer';
+
+  @override
+  String get splashLogoContentDescription => 'Logo Notes Tech';
+
+  @override
+  String get splashSemanticsLabel => 'Splash de présentation Notes Tech';
 }

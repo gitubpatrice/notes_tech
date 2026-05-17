@@ -1568,4 +1568,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gemmaNoBrowser => 'No browser available on this phone.';
+
+  @override
+  String get splashTagline => 'Maximum protection\nfor your notes.';
+
+  @override
+  String get splashSkipHint => 'Tap the screen to continue';
+
+  @override
+  String get splashLogoContentDescription => 'Notes Tech logo';
+
+  @override
+  String get splashSemanticsLabel => 'Notes Tech splash screen';
 }

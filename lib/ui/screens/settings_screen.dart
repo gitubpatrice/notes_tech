@@ -41,73 +41,158 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsService>();
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final t = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(title: Text(t.settingsTitle)),
       body: ListView(
+        // `AlwaysScrollableScrollPhysics` — feedback de défilement garanti
+        // même quand le contenu fait pile la hauteur de l'écran (bug S24).
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
-          _Section(label: t.settingsSectionAppearance, theme: theme),
-          const _LanguageTile(),
-          const _ThemeTile(),
-          _Section(label: t.homeSortMode, theme: theme),
-          MergeSemantics(
-            child: ListTile(
-              leading: const Icon(Icons.sort),
-              title: Text(t.homeSortMode),
-              subtitle: Text(_localizedSortLabel(t, settings.sortMode)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _showSortDialog(context, settings, t),
+          // ── Apparence ────────────────────────────────────────────────────
+          _SectionTitle(t.settingsSectionAppearance),
+          const SizedBox(height: 8),
+          const Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [_LanguageTile(), Divider(height: 1), _ThemeTile()],
             ),
           ),
-          _Section(label: t.searchHeadingSemantic, theme: theme),
-          SwitchListTile(
-            secondary: const Icon(Icons.auto_awesome_outlined),
-            title: Text(t.settingsSemanticSearch),
-            subtitle: Text(t.settingsSemanticSearchSubtitle),
-            value: settings.semanticSearchEnabled,
-            onChanged: (v) => settings.setSemanticSearchEnabled(v),
+
+          const SizedBox(height: 20),
+
+          // ── Tri ──────────────────────────────────────────────────────────
+          _SectionTitle(t.homeSortMode),
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: MergeSemantics(
+              child: ListTile(
+                leading: const Icon(Icons.sort),
+                title: Text(t.homeSortMode),
+                subtitle: Text(_localizedSortLabel(t, settings.sortMode)),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _showSortDialog(context, settings, t),
+              ),
+            ),
           ),
-          _SemanticErrorTile(
-            error: context.read<EmbedderCoordinator>().lastError,
+
+          const SizedBox(height: 20),
+
+          // ── Recherche sémantique ─────────────────────────────────────────
+          _SectionTitle(t.searchHeadingSemantic),
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.auto_awesome_outlined),
+                  title: Text(t.settingsSemanticSearch),
+                  subtitle: Text(t.settingsSemanticSearchSubtitle),
+                  value: settings.semanticSearchEnabled,
+                  onChanged: (v) => settings.setSemanticSearchEnabled(v),
+                ),
+                _SemanticErrorTile(
+                  error: context.read<EmbedderCoordinator>().lastError,
+                ),
+              ],
+            ),
           ),
-          _Section(label: t.settingsSectionSecurity, theme: theme),
-          SwitchListTile(
-            secondary: const Icon(Icons.visibility_off_outlined),
-            title: Text(t.settingsSecureWindow),
-            subtitle: Text(t.settingsSecureWindowSubtitle),
-            value: settings.secureWindowEnabled,
-            onChanged: (v) async {
-              final secure = context.read<SecureWindowService>();
-              await settings.setSecureWindowEnabled(v);
-              await secure.setEnabled(v);
-            },
+
+          const SizedBox(height: 20),
+
+          // ── Sécurité ─────────────────────────────────────────────────────
+          _SectionTitle(t.settingsSectionSecurity),
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(Icons.visibility_off_outlined),
+                  title: Text(t.settingsSecureWindow),
+                  subtitle: Text(t.settingsSecureWindowSubtitle),
+                  value: settings.secureWindowEnabled,
+                  onChanged: (v) async {
+                    // Capture le service AVANT l'await pour ne pas dépendre
+                    // de BuildContext après la frontière asynchrone.
+                    final secure = context.read<SecureWindowService>();
+                    await settings.setSecureWindowEnabled(v);
+                    await secure.setEnabled(v);
+                  },
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
+                  secondary: const Icon(Icons.warning_amber_outlined),
+                  title: Text(t.settingsAcceptUnknownGemmaHash),
+                  subtitle: Text(t.settingsAcceptUnknownGemmaHashSubtitle),
+                  value: settings.acceptUnknownGemmaHash,
+                  onChanged: settings.setAcceptUnknownGemmaHash,
+                ),
+                const Divider(height: 1),
+                const _VaultAutoLockTile(),
+              ],
+            ),
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.warning_amber_outlined),
-            title: Text(t.settingsAcceptUnknownGemmaHash),
-            subtitle: Text(t.settingsAcceptUnknownGemmaHashSubtitle),
-            value: settings.acceptUnknownGemmaHash,
-            onChanged: settings.setAcceptUnknownGemmaHash,
+
+          const SizedBox(height: 20),
+
+          // ── IA Gemma ─────────────────────────────────────────────────────
+          _SectionTitle(t.aiChatTitle),
+          const SizedBox(height: 8),
+          const Card(clipBehavior: Clip.antiAlias, child: _GemmaModelSection()),
+
+          const SizedBox(height: 20),
+
+          // ── Dictée vocale ────────────────────────────────────────────────
+          _SectionTitle(t.voiceSetupTitle),
+          const SizedBox(height: 8),
+          const Card(clipBehavior: Clip.antiAlias, child: _VoiceSection()),
+
+          const SizedBox(height: 20),
+
+          // ── Export ───────────────────────────────────────────────────────
+          _SectionTitle(t.settingsExportAll),
+          const SizedBox(height: 8),
+          const Card(clipBehavior: Clip.antiAlias, child: _ExportSection()),
+
+          const SizedBox(height: 20),
+
+          // ── Mode panique (zone destructive — bordure rouge subtle) ───────
+          _SectionTitle(t.settingsPanic),
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: cs.error.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: const _PanicSection(),
           ),
-          const _VaultAutoLockTile(),
-          _Section(label: t.aiChatTitle, theme: theme),
-          const _GemmaModelSection(),
-          _Section(label: t.voiceSetupTitle, theme: theme),
-          const _VoiceSection(),
-          _Section(label: t.settingsExportAll, theme: theme),
-          const _ExportSection(),
-          _Section(label: t.settingsPanic, theme: theme),
-          const _PanicSection(),
-          _Section(label: t.settingsSectionAbout, theme: theme),
-          MergeSemantics(
-            child: ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: Text(t.settingsAbout),
-              subtitle: Text(t.settingsAboutSubtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+
+          const SizedBox(height: 20),
+
+          // ── À propos ─────────────────────────────────────────────────────
+          _SectionTitle(t.settingsSectionAbout),
+          const SizedBox(height: 8),
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: MergeSemantics(
+              child: ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(t.settingsAbout),
+                subtitle: Text(t.settingsAboutSubtitle),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+                ),
               ),
             ),
           ),
@@ -303,22 +388,29 @@ class _SemanticErrorTile extends StatelessWidget {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.label, required this.theme});
+/// v1.1.1 — Titre de section aligné sur [AboutScreen]._SectionTitle.
+///
+/// Cohérence visuelle Files Tech : libellé `titleMedium` `w700` `17px` en
+/// `colorScheme.primary` (bleu logo : darkBlue #58A6FF / lightBlue #0969DA).
+/// Marqué `Semantics header: true` pour navigation TalkBack par sections.
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.label);
   final String label;
-  final ThemeData theme;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      padding: const EdgeInsets.only(left: 2),
       child: Semantics(
         header: true,
         child: Text(
-          label.toUpperCase(),
-          style: theme.textTheme.labelMedium?.copyWith(
-            letterSpacing: 1.2,
-            fontWeight: FontWeight.w600,
+          label,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.w700,
+            fontSize: 17,
+            letterSpacing: 0.3,
           ),
         ),
       ),
