@@ -1,7 +1,7 @@
 Notes Tech: 100% local Markdown note-taking, encrypted at-rest, with on-device AI.
 
 <b>Radical privacy</b>
-• No INTERNET permission (verifiable in the manifest)
+• INTERNET permission explicitly removed via manifest merger (tools:node="remove" on android.permission.INTERNET and ACCESS_NETWORK_STATE) — verifiable post-merge with `aapt dump permissions app.apk`
 • No account, no telemetry, no tracker, no advertising
 • SQLCipher AES-256 database + Android Keystore-sealed key (hardware-backed)
 • Multi-step panic mode: wipes key + DB + models in seconds

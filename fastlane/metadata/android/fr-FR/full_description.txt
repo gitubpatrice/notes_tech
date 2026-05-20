@@ -1,7 +1,7 @@
 Notes Tech : prise de notes Markdown 100 % locale, chiffrée at-rest, avec IA on-device.
 
 <b>Confidentialité radicale</b>
-• Aucune permission INTERNET (vérifiable dans le manifeste)
+• Permission INTERNET retirée explicitement via le manifest merger (tools:node="remove" sur android.permission.INTERNET et ACCESS_NETWORK_STATE) — vérifiable post-merge avec `aapt dump permissions app.apk`
 • Aucun compte, aucune télémétrie, aucun tracker, aucune publicité
 • Base SQLCipher AES-256 + clé scellée Android Keystore (hardware-backed)
 • Mode panique multi-step : efface clé + DB + modèles en quelques secondes
