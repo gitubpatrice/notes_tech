@@ -49,6 +49,12 @@ void main() {
         // B6 v1.0.4 — embedderWipe wipe le cache MiniLM après Gemma.
         PanicStep.embedderWipe,
         PanicStep.prefsClear,
+        // v1.1.4 — exportsWipe distinct de tmpPurge (rapport panique sans
+        // ambiguïté). exportsWipe purge cache/exports/, tmpPurge purge
+        // getTemporaryDirectory(). Les deux DOIVENT rester côte-à-côte
+        // en fin de séquence pour ne pas re-créer un export pendant la
+        // séquence (steps précédents n'écrivent pas dans cache/exports/).
+        PanicStep.exportsWipe,
         PanicStep.tmpPurge,
       ]);
     });

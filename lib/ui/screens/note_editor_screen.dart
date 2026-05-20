@@ -409,6 +409,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       // le SnackBar « Coffre re-verrouillé » et décide quoi faire.
       return;
     }
+    // v1.1.4 (B2) — feedback haptique sur le "Terminé" explicite.
+    // L'auto-save (debounce 500 ms) n'a pas d'haptique pour ne pas saturer
+    // pendant la frappe ; le tap "Terminé" est lui un signal de fin clair.
+    unawaited(HapticFeedback.mediumImpact());
     Navigator.of(context).pop();
   }
 

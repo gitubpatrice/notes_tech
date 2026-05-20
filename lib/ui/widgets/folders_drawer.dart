@@ -16,6 +16,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants.dart';
@@ -374,6 +375,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     if (action == _FolderAction.lockNow) {
       if (!mounted) return;
       context.read<FolderVaultService>().lock(folder.id);
+      // v1.1.4 (B2) — feedback haptique sur lock manuel : geste sécurité
+      // déclenché par l'utilisateur, retour tactile court (lightImpact)
+      // pour confirmer l'action. Aligné Pass Tech v2.4.4 U9 (lock).
+      unawaited(HapticFeedback.lightImpact());
     }
   }
 

@@ -293,11 +293,13 @@ class IndexingService {
     );
   }
 
-  /// Tronque le contenu à `noteContentIndexLimit` caractères pour éviter
-  /// tout coût catastrophique sur une note volumineuse.
+  /// v1.1.4 — tronque le contenu à `noteContentEmbeddingLimit` (8 ko).
+  /// MiniLM-L6 a une fenêtre dure de 512 tokens (~2 ko), donc sérialiser
+  /// plus de 8 ko vers l'isolate worker est du gaspillage RAM pur (cible
+  /// device low-end F-Droid POCO C75, 2 Go RAM).
   static String _capContent(String s) {
-    if (s.length <= AppConstants.noteContentIndexLimit) return s;
-    return s.substring(0, AppConstants.noteContentIndexLimit);
+    if (s.length <= AppConstants.noteContentEmbeddingLimit) return s;
+    return s.substring(0, AppConstants.noteContentEmbeddingLimit);
   }
 
   /// Hash 32 bits déterministe de (title | content) avec sentinelle.

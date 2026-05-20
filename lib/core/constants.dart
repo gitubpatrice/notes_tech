@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '1.1.3';
+  static const String appVersion = '1.1.4';
   // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
   // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
   // automatiquement par `shared_preferences` au moment de la persistance).
@@ -123,11 +123,32 @@ class AppConstants {
   static const int recentNotesLimit = 50;
   static const int trashRetentionDays = 30;
 
-  /// Borne haute (en caractères) du contenu d'une note transmis à
-  /// l'encodeur sémantique. Au-delà, on tronque pour éviter les coûts
-  /// catastrophiques (DoS via collage massif). La note elle-même n'est
-  /// pas tronquée — seul l'embedding voit cette version raccourcie.
-  static const int noteContentIndexLimit = 200000; // ≈ 200 ko de texte
+  /// v1.1.4 — split du cap historique `noteContentIndexLimit = 200000`
+  /// en deux constantes contextuelles pour économiser la RAM sur les
+  /// devices low-end (cible F-Droid : POCO C75, 2 Go RAM).
+  ///
+  /// Borne haute du contenu d'une note transmis à l'**encodeur sémantique**
+  /// (MiniLM ONNX). MiniLM-L6-v2 a une fenêtre dure de 512 tokens (~2 ko
+  /// de texte utile) ; au-delà l'ONNX runtime tronque silencieusement.
+  /// Sérialiser 200 ko vers l'isolate worker était du gaspillage pur.
+  /// 8 ko = 4× la fenêtre réelle, marge de sécurité pour le préprocessing
+  /// (suppression Markdown, normalisation espaces). DoS-protection
+  /// préservée : un collage massif ne sérialise plus 200 ko vers le
+  /// worker, juste 8 ko.
+  static const int noteContentEmbeddingLimit = 8192; // ~8 ko
+
+  /// Borne haute du contenu parsé par `BacklinksService` pour extraire
+  /// les wikilinks `[[note]]`. La regex est déjà capée à 200 chars par
+  /// match, mais on plafonne aussi le scan total pour ne pas walker des
+  /// notes énormes à chaque édition (debounce 500 ms). 50 ko ≈ 15 000
+  /// mots, bien au-delà d'une note utile manuelle.
+  static const int noteContentBacklinksLimit = 50000; // ~50 ko
+
+  /// @Deprecated v1.1.4 — gardé pour rétrocompatibilité d'éventuels
+  /// callers externes. Tous les usages internes ont migré vers les deux
+  /// constantes ci-dessus. À retirer en v1.2.0.
+  @Deprecated('Use noteContentEmbeddingLimit or noteContentBacklinksLimit')
+  static const int noteContentIndexLimit = noteContentBacklinksLimit;
 
   // Durées UI
   static const Duration searchDebounce = Duration(milliseconds: 200);

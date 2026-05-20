@@ -105,6 +105,10 @@ enum PanicStep {
   /// B6 v1.0.4 — wipe du modèle MiniLM bundled (~25 Mo) + cache.
   embedderWipe,
   prefsClear,
+
+  /// v1.1.4 — purge `cache/exports/` (sandbox cache, hors temp).
+  /// Distinguée de [tmpPurge] pour que `PanicReport.steps` reste sans ambiguïté.
+  exportsWipe,
   tmpPurge,
 }
 
@@ -279,7 +283,7 @@ class PanicService {
     // `_purgeTempDirectory` (étape 8) ratait ce dossier qui est dans
     // `getApplicationCacheDirectory()` et non `getTemporaryDirectory()`.
     // Un export en cours de Share (Intent EXTRA_STREAM) restait en clair.
-    await _runStep(report, PanicStep.tmpPurge, _wipeExportsCache);
+    await _runStep(report, PanicStep.exportsWipe, _wipeExportsCache);
 
     // 8. Tmp : ZIPs d'export + autres résidus. Best-effort, Android purge.
     await _runStep(report, PanicStep.tmpPurge, _purgeTempDirectory);

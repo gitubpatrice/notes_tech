@@ -48,16 +48,46 @@ class AppTheme {
         : AppColors.lightTextSecondary;
     final accent = isDark ? AppColors.darkBlue : AppColors.lightBlue;
 
+    // v1.1.4 — déclaration EXPLICITE des tokens M3 dérivés
+    // (errorContainer / onErrorContainer / surfaceContainerHighest /
+    // primaryContainer / onPrimaryContainer / secondaryContainer / onSurfaceVariant).
+    // Sans ça, M3 les calcule automatiquement à partir d'une palette GitHub
+    // custom et le résultat peut être imprévisible (ex : errorContainer
+    // dérivé de darkRed avec ratio WCAG insuffisant en light mode).
+    // Tokens vérifiés à la main : ratio ≥ 4.5:1 sur onContainer / Container.
+    final errorContainer = isDark
+        ? const Color(0xFF8B1A1A) // darkRed assombri
+        : const Color(0xFFFDECEC); // pâle sur fond clair
+    final onErrorContainer = isDark
+        ? const Color(0xFFFFDAD6)
+        : const Color(0xFF410002);
+    final primaryContainer = isDark
+        ? AppColors.darkBlueContainer
+        : const Color(0xFFD3E4FF);
+    final onPrimaryContainer = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final surfaceContainerHighest = isDark
+        ? AppColors.darkSurface2
+        : AppColors.lightSurface2;
+
     final scheme = ColorScheme(
       brightness: brightness,
       primary: accent,
       onPrimary: Colors.white,
+      primaryContainer: primaryContainer,
+      onPrimaryContainer: onPrimaryContainer,
       secondary: accent,
       onSecondary: Colors.white,
+      secondaryContainer: primaryContainer,
+      onSecondaryContainer: onPrimaryContainer,
       surface: surface,
       onSurface: textPri,
+      onSurfaceVariant: textSec,
+      surfaceContainerHighest: surfaceContainerHighest,
       error: AppColors.darkRed,
       onError: Colors.white,
+      errorContainer: errorContainer,
+      onErrorContainer: onErrorContainer,
+      outline: border,
     );
 
     return ThemeData(

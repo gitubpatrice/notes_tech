@@ -23,6 +23,33 @@ extension SnackbarExt on BuildContext {
       foregroundColor: foregroundColor,
     );
   }
+
+  /// v1.1.4 (M4) — helper canonique snack d'erreur. Pose automatiquement
+  /// la paire `cs.errorContainer` + `cs.onErrorContainer` pour garantir
+  /// le contraste WCAG AA, et ferme la porte aux usages où un caller
+  /// omettait `foregroundColor`. Durée par défaut 6 s (lecture erreur).
+  void showErrorSnack(String message, {Duration? duration}) {
+    final cs = Theme.of(this).colorScheme;
+    showFloatingSnack(
+      message,
+      backgroundColor: cs.errorContainer,
+      foregroundColor: cs.onErrorContainer,
+      duration: duration ?? const Duration(seconds: 6),
+    );
+  }
+
+  /// v1.1.4 (M4) — helper canonique snack succès. Pose la paire
+  /// `cs.primaryContainer` + `cs.onPrimaryContainer`. Durée par défaut
+  /// 3 s (acquittement bref).
+  void showSuccessSnack(String message, {Duration? duration}) {
+    final cs = Theme.of(this).colorScheme;
+    showFloatingSnack(
+      message,
+      backgroundColor: cs.primaryContainer,
+      foregroundColor: cs.onPrimaryContainer,
+      duration: duration ?? const Duration(seconds: 3),
+    );
+  }
 }
 
 /// Variante pour les flux async où l'appelant a capturé [ScaffoldMessenger]

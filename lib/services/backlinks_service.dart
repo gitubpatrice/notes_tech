@@ -54,6 +54,12 @@ class BacklinksService {
   /// Garde-fou contre un texte spam saturant la table `note_links`.
   static const int _maxLinksPerNote = 256;
 
+  /// v1.1.4 (B5) — debounce court (500 ms) : on parse `[[...]]` par regex
+  /// pure (pas de coût ML), donc on peut suivre quasi temps réel les
+  /// frappes utilisateur pour que les backlinks remontent vite dans le
+  /// panneau latéral. Divergence INTENTIONNELLE avec
+  /// `IndexingService._writeDebounce = 3 s` (lui doit espacer les passes
+  /// MiniLM coûteuses CPU).
   static const Duration _writeDebounce = Duration(milliseconds: 500);
 
   /// Dernière erreur d'indexation, si pertinente pour l'UI.
@@ -96,14 +102,14 @@ class BacklinksService {
 
   /// Extrait les liens `[[Titre]]` d'un texte. Pas de side-effects DB.
   /// Bornes :
-  ///  - contenu tronqué à `noteContentIndexLimit` caractères ;
+  ///  - contenu tronqué à `noteContentBacklinksLimit` caractères (50 ko) ;
   ///  - max `_maxLinksPerNote` liens retenus (les suivants sont ignorés) ;
   ///  - doublons éliminés (même titre normalisé → 1 entrée, première
   ///    position rencontrée).
   static List<({String title, String titleNorm, int position})>
   extractFromContent(String content) {
-    final cap = content.length > AppConstants.noteContentIndexLimit
-        ? content.substring(0, AppConstants.noteContentIndexLimit)
+    final cap = content.length > AppConstants.noteContentBacklinksLimit
+        ? content.substring(0, AppConstants.noteContentBacklinksLimit)
         : content;
     final seen = <String>{};
     final out = <({String title, String titleNorm, int position})>[];
@@ -274,9 +280,17 @@ class BacklinksService {
   // tout en restant frais : un titre venant de changer met < 5s à se
   // propager partout. Invalidé explicitement par les callers qui savent
   // qu'un titre vient de muter.
+  //
+  // v1.1.4 (M3) — Stopwatch monotone (anti-rollback root) au lieu de
+  // DateTime.now() : un root qui recule l'horloge système ne peut plus
+  // forcer un cache stale au-delà du TTL. Stopwatch démarre au boot du
+  // service et reste monotone jusqu'au process kill. Aligné avec le
+  // pattern doctrine `MonotonicClock sur tout TTL` (cf.
+  // ~/.claude/references/android-security-patterns.md §9).
   Map<String, String>? _titleIndexCache;
   int _titleIndexCacheAtMs = 0;
   static const int _titleIndexTtlMs = 5000;
+  final Stopwatch _monoClock = Stopwatch()..start();
 
   void _invalidateTitleIndex() {
     _titleIndexCache = null;
@@ -284,7 +298,7 @@ class BacklinksService {
   }
 
   Future<Map<String, String>> _buildTitleIndex() async {
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = _monoClock.elapsedMilliseconds;
     final cached = _titleIndexCache;
     if (cached != null && now - _titleIndexCacheAtMs < _titleIndexTtlMs) {
       return cached;

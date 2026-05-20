@@ -181,7 +181,19 @@ class RagService {
   @visibleForTesting
   static String debugSanitize(String s) => _sanitize(s);
 
+  /// v1.1.4 (B3) — cap de sécurité avant les passes regex. Le contenu
+  /// d'une note est déjà tronqué à `noteContentEmbeddingLimit` (8 ko) en
+  /// amont, mais le `userPrompt` libre n'avait aucun cap explicite. 12
+  /// passes `replaceAll(RegExp(...))` sur un input pathologique (1 Mo
+  /// collé dans le chat) auraient été coûteuses sans danger crypto, mais
+  /// inutilement bloquantes (DoS UX). 16 ko = ~4 000 mots = bien au-delà
+  /// d'une question utilisateur normale.
+  static const int _sanitizeMaxInputChars = 16000;
+
   static String _sanitize(String s) {
+    if (s.length > _sanitizeMaxInputChars) {
+      s = s.substring(0, _sanitizeMaxInputChars);
+    }
     // A11 v1.0.4 — pré-traitement aligné sur AI Tech v0.6.1 F2 :
     // 1. Strip caractères zero-width / bidi qui pouvaient fragmenter
     //    les balises tags (`<|im\u200C_start|>` avec U+200B au milieu
