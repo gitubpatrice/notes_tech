@@ -1,6 +1,37 @@
 # Security policy — Notes Tech
 
-**Version current : v1.1.0 — Mai 2026.**
+**Version current : v1.1.5 — Juillet 2026.**
+
+## v1.1.5 — Audit expert post-v1.1.4 (2026-07-07)
+
+Audit 4-agents (sécu / perf-qualité / câblage / cohérence-i18n) sur ~24,8k LOC.
+Aucune faille CRITICAL/HIGH. Corrections sécu/robustesse + features anti-perte
+de données. `flutter analyze` 0 issue, 84 tests verts.
+
+### Sécurité / robustesse
+
+- **Purge des sidecars WAL/SHM/journal EN CLAIR** lors de la migration DB
+  héritée plain → chiffré (`database.dart._migratePlainToEncrypted`). Le mode
+  `journal_mode = WAL` laissait `notes_tech.db-wal`/`-shm` contenant des pages
+  de notes en clair, survivant à la migration (fuite sur device rooté /
+  extraction physique). Désormais purgés après `sqlcipher_export` + checkpoint,
+  symétriquement au wipe du `.plain.bak`.
+- **Résilience du cache d'embeddings** (`embeddings_dao.listByModel`) : une
+  ligne empoisonnée (blob de taille incohérente) ne condamne plus tout le
+  chargement du cache sémantique — décodage tolérant par ligne.
+- **Gardes `mounted`** ajoutées (`ai_chat` après l'isolate MiniLM, `search`
+  post-frame) : plus de `setState` après `dispose`.
+- **Signalement anti-perte vault** : les notes de coffre dont la dernière
+  modification a été perdue (coffre verrouillé pendant la sauvegarde) sont
+  désormais signalées par un banner à l'ouverture — la pref `vault_lost_drafts`
+  (F11 v1.1.0) était écrite mais jamais relue.
+
+### Point ouvert
+
+- `NoteActions.cancelAndClear()` (vidage immédiat du presse-papiers) n'est PAS
+  câblé dans `PanicService` : après un partage/copie de note, le presse-papiers
+  repose sur l'auto-clear 60 s. À câbler dans l'orchestrateur panique pour un
+  effacement immédiat.
 
 ## v1.1.0 — Audit expert post-v1.0.9 (2026-05-14)
 

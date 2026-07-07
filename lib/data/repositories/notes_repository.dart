@@ -46,9 +46,6 @@ class NotesRepository {
   }) =>
       _dao.listByFolder(folderId, sort: sort, includeArchived: includeArchived);
 
-  Future<List<Note>> recent() =>
-      _dao.listRecent(limit: AppConstants.recentNotesLimit);
-
   /// Toutes les notes vivantes (hors corbeille). Utilisé par l'indexation
   /// d'embeddings — pas par l'UI.
   Future<List<Note>> listAllAlive() => _dao.listAllAlive();
@@ -125,9 +122,6 @@ class NotesRepository {
 
   Future<Note> toggleFavorite(Note note) =>
       _toggleFlag(note, note.copyWith(favorite: !note.favorite));
-
-  Future<Note> toggleArchive(Note note) =>
-      _toggleFlag(note, note.copyWith(archived: !note.archived));
 
   Future<Note> _toggleFlag(Note original, Note candidate) async {
     final updated = candidate.copyWith(updatedAt: DateTime.now());

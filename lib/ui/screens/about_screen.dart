@@ -46,7 +46,7 @@ class AboutScreen extends StatelessWidget {
           _SectionTitle(t.aboutSectionPrivacy),
           const SizedBox(height: 8),
           _PrivacyCard(
-            title: '100 % privé — zéro surveillance',
+            title: t.aboutPrivacyCardTitle,
             items: [
               (
                 icon: Icons.cloud_off_outlined,

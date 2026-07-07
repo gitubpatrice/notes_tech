@@ -4,7 +4,11 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+// ScrollCacheExtent (remplaçant de `cacheExtent`, déprécié Flutter 3.44) vit
+// dans rendering et n'est pas ré-exporté par material.
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
 import '../../data/models/note.dart';
@@ -72,6 +76,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _folders = context.read<FoldersRepository>();
     _settings = context.read<SettingsService>();
     _activeSort = _settings.sortMode;
+    // F11 v1.1.0 → v1.1.5 : consomme au boot le set des notes vault dont la
+    // dernière modif a été perdue (coffre verrouillé pendant la sauvegarde),
+    // pour afficher un banner. Avant : la pref était écrite mais jamais lue.
+    unawaited(_loadVaultLostDrafts());
     _settings.addListener(_onSettingsChanged);
     _searchDebouncer = Debouncer(AppConstants.searchDebounce);
     // P1 v1.1.0 — debounce du reload pour coalescer les rafales d'events
@@ -190,6 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openNew() async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snacks d'erreur post-await
     final t = AppLocalizations.of(context);
     final vault = context.read<FolderVaultService>();
     // Note créée dans le dossier actif. Si l'utilisateur est sur « Toutes
@@ -225,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
         await _notes.save(encrypted);
       } catch (e) {
         if (!mounted) return;
-        messenger.showFloatingSnack(t.homeVaultCreateError(e.toString()));
+        messenger.showErrorSnack(t.homeVaultCreateError(e.toString()), cs);
         return;
       }
     }
@@ -250,6 +259,31 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => NoteEditorScreen(noteId: note.id),
       ),
     );
+  }
+
+  int _vaultLostCount = 0;
+
+  Future<void> _loadVaultLostDrafts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ids =
+          prefs.getStringList(AppConstants.prefKeyVaultLostDrafts) ??
+          const <String>[];
+      if (!mounted || ids.isEmpty) return;
+      setState(() => _vaultLostCount = ids.length);
+    } catch (_) {
+      /* best-effort : pas de banner plutôt qu'un crash */
+    }
+  }
+
+  Future<void> _dismissVaultLostDrafts() async {
+    setState(() => _vaultLostCount = 0);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(AppConstants.prefKeyVaultLostDrafts);
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   @override
@@ -310,6 +344,41 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const IndexingBanner(),
+            if (_vaultLostCount > 0)
+              Material(
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_outlined,
+                        size: 20,
+                        color: theme.colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          t.homeVaultLostBanner(_vaultLostCount),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _dismissVaultLostDrafts,
+                        child: Text(
+                          t.commonOk,
+                          style: TextStyle(
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Semantics(
@@ -406,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // visible. Sur scroll long (>300 notes), le scroll reste
                     // 60 fps là où le default produit des creux à chaque
                     // nouvelle batch d'items à créer.
-                    cacheExtent: 600,
+                    scrollCacheExtent: const ScrollCacheExtent.pixels(600),
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final n = notes[i];

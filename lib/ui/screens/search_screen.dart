@@ -82,6 +82,7 @@ class _SearchScreenState extends State<SearchScreen> {
   /// se trouvait sur cet onglet, on bascule en FTS pour ne pas exposer un
   /// résultat dégradé issu de `LocalEmbedder` sans le signaler.
   void _coerceModeForSettings(bool semanticEnabled) {
+    if (!mounted) return;
     if (!semanticEnabled && _mode == _SearchMode.semantic) {
       setState(() => _mode = _SearchMode.fts);
       if (_query.isNotEmpty) _runSearch();
@@ -115,10 +116,14 @@ class _SearchScreenState extends State<SearchScreen> {
         .watch<SettingsService>()
         .semanticSearchEnabled;
     // Garde-fou : si l'utilisateur désactive la recherche sémantique pendant
-    // qu'il était sur cet onglet, on rebascule en FTS proprement.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _coerceModeForSettings(semanticEnabled);
-    });
+    // qu'il était sur cet onglet, on rebascule en FTS proprement. On n'enfile
+    // le callback que si une coercition est nécessaire (évite un post-frame
+    // à chaque rebuild).
+    if (!semanticEnabled && _mode == _SearchMode.semantic) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _coerceModeForSettings(semanticEnabled);
+      });
+    }
     return Scaffold(
       appBar: AppBar(
         title: TextField(

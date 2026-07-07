@@ -26,6 +26,7 @@ import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../utils/snackbar_ext.dart';
+import '../screens/trash_screen.dart';
 import 'blocking_progress_dialog.dart';
 import 'folder_dialogs.dart';
 import 'vault_passphrase_sheets.dart';
@@ -113,6 +114,9 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     if (folder.id == kInboxFolderId) return; // garde-fou redondant
     final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    // Capturé avant les await : sert aux snacks d'erreur post-async
+    // (contraste WCAG via showErrorSnack).
+    final cs = Theme.of(context).colorScheme;
     final vault = context.read<FolderVaultService>();
     final outcome = await confirmDeleteFolder(
       context: context,
@@ -137,22 +141,17 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           final res = await vault.decryptAllNotesInFolder(folder.id);
           if (!mounted) return;
           if (res.failed > 0) {
-            final cs = Theme.of(context).colorScheme;
-            // U2 v1.1.0 — errorContainer + onErrorContainer pour contraste
-            // WCAG AA (vs cs.error brut qui donnait ~3.5:1 en light mode).
-            messenger.showFloatingSnack(
+            // Contraste WCAG AA via le helper canonique.
+            messenger.showErrorSnack(
               t.folderDeleteDecryptFailed(res.failed),
-              backgroundColor: cs.errorContainer,
-              foregroundColor: cs.onErrorContainer,
+              cs,
               duration: const Duration(seconds: 8),
             );
             return;
           }
         } catch (e) {
           if (!mounted) return;
-          messenger.showFloatingSnack(
-            t.folderDeleteCancelledError(e.toString()),
-          );
+          messenger.showErrorSnack(t.folderDeleteCancelledError(e.toString()), cs);
           return;
         }
       }
@@ -299,6 +298,19 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               ),
             ),
             const Divider(height: 1),
+            _DrawerTile(
+              icon: Icons.delete_outline,
+              title: t.drawerTrash,
+              selected: false,
+              onTap: () {
+                Navigator.of(context).pop(); // ferme le drawer
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TrashScreen(),
+                  ),
+                );
+              },
+            ),
             Padding(
               padding: const EdgeInsets.all(12),
               child: SizedBox(
@@ -392,6 +404,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   Future<void> _convertToVault(Folder folder) async {
     final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // pour snacks d'erreur post-await
     final vault = context.read<FolderVaultService>();
 
     // v0.9 — choix mode passphrase vs PIN. L'user décide selon usage :
@@ -443,28 +456,26 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // Affichage HONNÊTE du résultat : si failed > 0, on alerte
       // l'utilisateur en rouge plutôt que de masquer l'incohérence.
       if (result.failed > 0) {
-        final cs = Theme.of(context).colorScheme;
-        // U2 v1.1.0 — errorContainer + onErrorContainer (cf. ci-dessus).
-        messenger.showFloatingSnack(
+        messenger.showErrorSnack(
           t.vaultConvertPartialFail(
             result.failed,
             result.encrypted + result.failed,
           ),
-          backgroundColor: cs.errorContainer,
-          foregroundColor: cs.onErrorContainer,
+          cs,
           duration: const Duration(seconds: 8),
         );
       } else {
-        messenger.showFloatingSnack(
+        messenger.showSuccessSnack(
           result.encrypted == 0
               ? t.vaultConvertSuccess
               : t.vaultConvertSuccessWithCount(result.encrypted),
+          cs,
         );
       }
     } catch (e) {
       if (!mounted) return;
       navigator.pop(); // ferme le dialog progress
-      messenger.showFloatingSnack(t.vaultConvertImpossible(e.toString()));
+      messenger.showErrorSnack(t.vaultConvertImpossible(e.toString()), cs);
     }
   }
 }

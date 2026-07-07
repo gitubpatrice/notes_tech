@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/exceptions.dart';
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/folders_repository.dart';
@@ -367,15 +368,21 @@ class _ThemeTile extends StatelessWidget {
 /// Tuile d'avertissement affichée quand l'activation de MiniLM a échoué.
 class _SemanticErrorTile extends StatelessWidget {
   const _SemanticErrorTile({required this.error});
-  final ValueListenable<String?> error;
+  final ValueListenable<EmbedderErrorCode?> error;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ValueListenableBuilder<String?>(
+    final t = AppLocalizations.of(context);
+    return ValueListenableBuilder<EmbedderErrorCode?>(
       valueListenable: error,
-      builder: (_, msg, _) {
-        if (msg == null) return const SizedBox.shrink();
+      builder: (_, code, _) {
+        if (code == null) return const SizedBox.shrink();
+        final msg = switch (code) {
+          EmbedderErrorCode.modelAbsent => t.embedderErrorModelAbsent,
+          EmbedderErrorCode.loadFailed => t.embedderErrorLoadFailed,
+          EmbedderErrorCode.downgradeFailed => t.embedderErrorDowngradeFailed,
+        };
         return ListTile(
           leading: Icon(
             Icons.warning_amber_outlined,
@@ -538,6 +545,7 @@ class _ExportSectionState extends State<_ExportSection> {
     if (_busy) return;
     final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snacks post-await
     final notesRepo = context.read<NotesRepository>();
     final foldersRepo = context.read<FoldersRepository>();
     final vault = context.read<FolderVaultService>();
@@ -593,8 +601,9 @@ class _ExportSectionState extends State<_ExportSection> {
                 result.exportedCount,
                 result.skippedVaultedCount,
               );
-        messenger.showFloatingSnack(
+        messenger.showSuccessSnack(
           message,
+          cs,
           duration: result.skippedVaultedCount == 0
               ? const Duration(seconds: 4)
               : const Duration(seconds: 6),
@@ -608,7 +617,7 @@ class _ExportSectionState extends State<_ExportSection> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showFloatingSnack(t.settingsExportError(e.toString()));
+      messenger.showErrorSnack(t.settingsExportError(e.toString()), cs);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -845,16 +854,17 @@ class _GemmaModelSectionState extends State<_GemmaModelSection> {
   Future<void> _openUrl(String url) async {
     final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snack d'erreur post-await
     try {
       final ok = await launchUrl(
         Uri.parse(url),
         mode: LaunchMode.externalApplication,
       );
       if (!ok && mounted) {
-        messenger.showFloatingSnack(t.gemmaNoBrowser);
+        messenger.showErrorSnack(t.gemmaNoBrowser, cs);
       }
     } catch (_) {
-      if (mounted) messenger.showFloatingSnack(t.gemmaNoBrowser);
+      if (mounted) messenger.showErrorSnack(t.gemmaNoBrowser, cs);
     }
   }
 
@@ -938,6 +948,7 @@ class _GemmaModelSectionState extends State<_GemmaModelSection> {
   Future<void> _pickAndImport() async {
     final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snacks post-await
     final settings = context.read<SettingsService>();
 
     final result = await FilePicker.platform.pickFiles(
@@ -970,17 +981,26 @@ class _GemmaModelSectionState extends State<_GemmaModelSection> {
       if (!mounted) return;
       setState(() => _importing = false);
       await _refreshStatus();
-      if (mounted) messenger.showFloatingSnack(t.gemmaImportDone);
+      if (mounted) messenger.showSuccessSnack(t.gemmaImportDone, cs);
     } catch (e) {
       if (!mounted) return;
       setState(() => _importing = false);
-      messenger.showFloatingSnack(t.gemmaImportError('$e'));
+      // Empreinte SHA-256 : message localisé dédié (avant : le toString() FR
+      // de l'exception était interpolé brut, s'affichant en français même en
+      // locale EN).
+      final msg =
+          e is NotesTechException &&
+              e.code == NotesErrorCode.gemmaHashMismatch
+          ? t.aiChatModelHashMismatch
+          : t.gemmaImportError('$e');
+      messenger.showErrorSnack(msg, cs);
     }
   }
 
   Future<void> _confirmUninstall() async {
     final t = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snack post-await
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1006,7 +1026,7 @@ class _GemmaModelSectionState extends State<_GemmaModelSection> {
     if (ok != true || !mounted) return;
     await _gemma.uninstall();
     await _refreshStatus();
-    if (mounted) messenger.showFloatingSnack(t.gemmaUninstalled);
+    if (mounted) messenger.showSuccessSnack(t.gemmaUninstalled, cs);
   }
 
   String _formatSizeMb(int bytes) {

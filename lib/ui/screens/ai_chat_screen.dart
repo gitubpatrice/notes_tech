@@ -256,6 +256,11 @@ class _AiChatScreenState extends State<AiChatScreen>
       untitledFallback: t.noteUntitled,
     );
     final ctx = await _rag.build(question, strings: ragStrings);
+    // _rag.build encode la requête via un isolate MiniLM (~30-600 ms) : si
+    // l'utilisateur quitte l'écran pendant ce délai, le setState plus bas
+    // planterait (« setState after dispose »). Le try/listen ne démarre
+    // qu'après, donc il ne couvre pas ce setState.
+    if (!mounted) return;
     final prompt = _rag.composePrompt(ctx);
 
     final userTurn = _ChatTurn.user(question, sources: ctx.sources);

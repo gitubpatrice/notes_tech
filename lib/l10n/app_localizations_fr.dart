@@ -197,6 +197,61 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeTrash => 'Mettre à la corbeille';
 
   @override
+  String homeVaultLostBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count notes de coffre ont perdu leurs dernières modifications',
+      one: '1 note de coffre a perdu ses dernières modifications',
+    );
+    return '$_temp0 (coffre verrouillé pendant l\'enregistrement).';
+  }
+
+  @override
+  String get drawerTrash => 'Corbeille';
+
+  @override
+  String get trashTitle => 'Corbeille';
+
+  @override
+  String get trashEmptyTitle => 'Corbeille vide';
+
+  @override
+  String get trashEmptySubtitle =>
+      'Les notes supprimées apparaissent ici avant leur effacement définitif.';
+
+  @override
+  String trashRetentionNotice(int days) {
+    return 'Les notes en corbeille sont supprimées automatiquement après $days jours.';
+  }
+
+  @override
+  String get commonRestore => 'Restaurer';
+
+  @override
+  String get trashRestored => 'Note restaurée';
+
+  @override
+  String get trashDeleteForever => 'Supprimer définitivement';
+
+  @override
+  String get trashDeleteForeverTitle => 'Supprimer définitivement ?';
+
+  @override
+  String get trashDeleteForeverBody =>
+      'Cette note sera effacée définitivement. Cette action est irréversible.';
+
+  @override
+  String get trashDeletedForever => 'Note supprimée définitivement';
+
+  @override
+  String get trashEmptyAll => 'Vider la corbeille';
+
+  @override
+  String get trashEmptyAllConfirm =>
+      'Supprimer définitivement toutes les notes de la corbeille ? Cette action est irréversible.';
+
+  @override
   String get homeRestore => 'Restaurer';
 
   @override
@@ -367,6 +422,17 @@ class AppLocalizationsFr extends AppLocalizations {
       'Plus pertinente, première indexation lente. Désactivable à tout moment.';
 
   @override
+  String get embedderErrorModelAbsent =>
+      'Modèle MiniLM absent de l\'application.';
+
+  @override
+  String get embedderErrorLoadFailed =>
+      'Échec du chargement du modèle sémantique.';
+
+  @override
+  String get embedderErrorDowngradeFailed => 'Échec du retour au mode léger.';
+
+  @override
   String get settingsSecureWindow => 'Masquer dans les apps récentes';
 
   @override
@@ -466,6 +532,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aboutSectionPrivacy => 'Confidentialité';
+
+  @override
+  String get aboutPrivacyCardTitle => '100 % privé — zéro surveillance';
 
   @override
   String get aboutPrivacy1 =>

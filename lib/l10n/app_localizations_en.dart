@@ -196,6 +196,61 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeTrash => 'Move to trash';
 
   @override
+  String homeVaultLostBanner(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count vault notes lost their latest changes',
+      one: '1 vault note lost its latest changes',
+    );
+    return '$_temp0 (vault locked during save).';
+  }
+
+  @override
+  String get drawerTrash => 'Trash';
+
+  @override
+  String get trashTitle => 'Trash';
+
+  @override
+  String get trashEmptyTitle => 'Trash is empty';
+
+  @override
+  String get trashEmptySubtitle =>
+      'Deleted notes appear here before permanent removal.';
+
+  @override
+  String trashRetentionNotice(int days) {
+    return 'Notes in the trash are automatically deleted after $days days.';
+  }
+
+  @override
+  String get commonRestore => 'Restore';
+
+  @override
+  String get trashRestored => 'Note restored';
+
+  @override
+  String get trashDeleteForever => 'Delete permanently';
+
+  @override
+  String get trashDeleteForeverTitle => 'Delete permanently?';
+
+  @override
+  String get trashDeleteForeverBody =>
+      'This note will be permanently erased. This cannot be undone.';
+
+  @override
+  String get trashDeletedForever => 'Note permanently deleted';
+
+  @override
+  String get trashEmptyAll => 'Empty trash';
+
+  @override
+  String get trashEmptyAllConfirm =>
+      'Permanently delete all notes in the trash? This cannot be undone.';
+
+  @override
   String get homeRestore => 'Restore';
 
   @override
@@ -366,6 +421,16 @@ class AppLocalizationsEn extends AppLocalizations {
       'More relevant, slow first indexing. Can be disabled at any time.';
 
   @override
+  String get embedderErrorModelAbsent => 'MiniLM model missing from the app.';
+
+  @override
+  String get embedderErrorLoadFailed => 'Failed to load the semantic model.';
+
+  @override
+  String get embedderErrorDowngradeFailed =>
+      'Failed to switch back to lightweight mode.';
+
+  @override
   String get settingsSecureWindow => 'Hide in recent apps';
 
   @override
@@ -463,6 +528,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutSectionPrivacy => 'Privacy';
+
+  @override
+  String get aboutPrivacyCardTitle => '100% private — zero surveillance';
 
   @override
   String get aboutPrivacy1 =>

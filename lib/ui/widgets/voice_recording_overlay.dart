@@ -73,8 +73,12 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
     final voice = context.read<VoiceService>();
     final navigator = Navigator.of(context);
     final t = AppLocalizations.of(context);
+    // Langue de transcription = locale active (l'app est bilingue FR/EN).
+    // Figée à 'fr' auparavant → dictée EN transcrite avec l'indice FR
+    // (précision dégradée). Aligné sur la propagation de locale du RAG.
+    final lang = Localizations.localeOf(context).languageCode;
     try {
-      final result = await voice.stopAndTranscribe(language: 'fr');
+      final result = await voice.stopAndTranscribe(language: lang);
       if (!mounted) return;
       // Annonce TalkBack que la transcription est terminée et insérée.
       unawaited(

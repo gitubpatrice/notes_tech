@@ -14,8 +14,6 @@ class EmbeddingsRepository {
   Future<Map<String, int>> sourceHashes(String modelId) =>
       _dao.listSourceHashes(modelId);
   Future<void> save(NoteEmbedding e) => _dao.upsert(e);
-  Future<void> saveAll(Iterable<NoteEmbedding> items) =>
-      _dao.upsertBatch(items);
   Future<void> remove(String noteId) => _dao.deleteByNoteId(noteId);
   Future<int> deleteOrphans(Set<String> aliveIds) =>
       _dao.deleteOrphans(aliveIds);

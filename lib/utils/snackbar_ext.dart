@@ -83,4 +83,38 @@ extension SnackbarMessengerExt on ScaffoldMessengerState {
       ),
     );
   }
+
+  /// v1.1.5 — pendant `ScaffoldMessengerState` de [SnackbarExt.showErrorSnack].
+  /// Le [cs] doit être capturé AVANT l'`await` (comme le messenger), car cette
+  /// extension n'a pas de `BuildContext` pour résoudre le thème. Pose la paire
+  /// `errorContainer`/`onErrorContainer` (contraste WCAG AA). Sans ce helper,
+  /// les erreurs émises dans un `catch` post-await s'affichaient en style
+  /// neutre (le contraste erreur annoncé n'était pas effectif).
+  void showErrorSnack(
+    String message,
+    ColorScheme cs, {
+    Duration? duration,
+  }) {
+    showFloatingSnack(
+      message,
+      backgroundColor: cs.errorContainer,
+      foregroundColor: cs.onErrorContainer,
+      duration: duration ?? const Duration(seconds: 6),
+    );
+  }
+
+  /// v1.1.5 — pendant `ScaffoldMessengerState` de [SnackbarExt.showSuccessSnack].
+  /// [cs] capturé avant l'`await`. Pose `primaryContainer`/`onPrimaryContainer`.
+  void showSuccessSnack(
+    String message,
+    ColorScheme cs, {
+    Duration? duration,
+  }) {
+    showFloatingSnack(
+      message,
+      backgroundColor: cs.primaryContainer,
+      foregroundColor: cs.onPrimaryContainer,
+      duration: duration ?? const Duration(seconds: 3),
+    );
+  }
 }

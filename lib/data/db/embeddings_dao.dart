@@ -1,8 +1,7 @@
 /// Accès direct à la table `note_embeddings`.
 library;
 
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' hide DatabaseException;
 
 import '../../core/exceptions.dart';
@@ -37,7 +36,21 @@ class EmbeddingsDao {
         where: 'model_id = ?',
         whereArgs: [modelId],
       );
-      return rows.map(_fromRow).toList(growable: false);
+      // Décodage tolérant : une seule ligne empoisonnée (blob de taille
+      // incohérente / dim invalide → ArgumentError de decodeBlob) ne doit pas
+      // condamner tout le cache sémantique. On la saute ; la note sera
+      // ré-indexée au prochain passage d'indexation.
+      final out = <NoteEmbedding>[];
+      for (final row in rows) {
+        try {
+          out.add(_fromRow(row));
+        } catch (e) {
+          if (kDebugMode) {
+            debugPrint('[EmbeddingsDao.listByModel] ligne ignorée: $e');
+          }
+        }
+      }
+      return List.unmodifiable(out);
     } catch (e) {
       throw DatabaseException('emb.listByModel échoué', cause: e);
     }
@@ -77,28 +90,6 @@ class EmbeddingsDao {
     }
   }
 
-  /// Insertion en lot dans une transaction unique.
-  Future<void> upsertBatch(Iterable<NoteEmbedding> items) async {
-    if (items.isEmpty) return;
-    try {
-      await _db.transaction((txn) async {
-        final batch = txn.batch();
-        for (final e in items) {
-          batch.insert('note_embeddings', {
-            'note_id': e.noteId,
-            'vector': VectorMath.encodeBlob(e.vector),
-            'dim': e.dim,
-            'model_id': e.modelId,
-            'source_hash': e.sourceHash,
-            'updated_at': e.updatedAt.millisecondsSinceEpoch,
-          }, conflictAlgorithm: ConflictAlgorithm.replace);
-        }
-        await batch.commit(noResult: true);
-      });
-    } catch (err) {
-      throw DatabaseException('emb.upsertBatch échoué', cause: err);
-    }
-  }
 
   Future<int> deleteByNoteId(String noteId) async {
     try {

@@ -434,6 +434,90 @@ abstract class AppLocalizations {
   /// **'Move to trash'**
   String get homeTrash;
 
+  /// No description provided for @homeVaultLostBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 vault note lost its latest changes} other{{count} vault notes lost their latest changes}} (vault locked during save).'**
+  String homeVaultLostBanner(int count);
+
+  /// No description provided for @drawerTrash.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash'**
+  String get drawerTrash;
+
+  /// No description provided for @trashTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash'**
+  String get trashTitle;
+
+  /// No description provided for @trashEmptyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Trash is empty'**
+  String get trashEmptyTitle;
+
+  /// No description provided for @trashEmptySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted notes appear here before permanent removal.'**
+  String get trashEmptySubtitle;
+
+  /// No description provided for @trashRetentionNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes in the trash are automatically deleted after {days} days.'**
+  String trashRetentionNotice(int days);
+
+  /// No description provided for @commonRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get commonRestore;
+
+  /// No description provided for @trashRestored.
+  ///
+  /// In en, this message translates to:
+  /// **'Note restored'**
+  String get trashRestored;
+
+  /// No description provided for @trashDeleteForever.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently'**
+  String get trashDeleteForever;
+
+  /// No description provided for @trashDeleteForeverTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete permanently?'**
+  String get trashDeleteForeverTitle;
+
+  /// No description provided for @trashDeleteForeverBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This note will be permanently erased. This cannot be undone.'**
+  String get trashDeleteForeverBody;
+
+  /// No description provided for @trashDeletedForever.
+  ///
+  /// In en, this message translates to:
+  /// **'Note permanently deleted'**
+  String get trashDeletedForever;
+
+  /// No description provided for @trashEmptyAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty trash'**
+  String get trashEmptyAll;
+
+  /// No description provided for @trashEmptyAllConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Permanently delete all notes in the trash? This cannot be undone.'**
+  String get trashEmptyAllConfirm;
+
   /// No description provided for @homeRestore.
   ///
   /// In en, this message translates to:
@@ -764,6 +848,24 @@ abstract class AppLocalizations {
   /// **'More relevant, slow first indexing. Can be disabled at any time.'**
   String get settingsSemanticSearchSubtitle;
 
+  /// No description provided for @embedderErrorModelAbsent.
+  ///
+  /// In en, this message translates to:
+  /// **'MiniLM model missing from the app.'**
+  String get embedderErrorModelAbsent;
+
+  /// No description provided for @embedderErrorLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load the semantic model.'**
+  String get embedderErrorLoadFailed;
+
+  /// No description provided for @embedderErrorDowngradeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to switch back to lightweight mode.'**
+  String get embedderErrorDowngradeFailed;
+
   /// No description provided for @settingsSecureWindow.
   ///
   /// In en, this message translates to:
@@ -913,6 +1015,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Privacy'**
   String get aboutSectionPrivacy;
+
+  /// No description provided for @aboutPrivacyCardTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'100% private — zero surveillance'**
+  String get aboutPrivacyCardTitle;
 
   /// No description provided for @aboutPrivacy1.
   ///

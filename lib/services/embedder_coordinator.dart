@@ -41,9 +41,11 @@ class EmbedderCoordinator {
   final ValueNotifier<EmbeddingProvider> _active;
   final LocalEmbedder _local;
 
-  /// Dernière erreur d'upgrade/downgrade (null si tout va bien).
-  /// Consommé par l'écran Settings pour afficher un message clair.
-  final ValueNotifier<String?> lastError = ValueNotifier<String?>(null);
+  /// Dernier code d'erreur d'upgrade/downgrade (null si tout va bien).
+  /// Consommé par l'écran Settings, qui le mappe sur une chaîne localisée
+  /// (avant : chaîne FR figée ici → s'affichait en français en locale EN).
+  final ValueNotifier<EmbedderErrorCode?> lastError =
+      ValueNotifier<EmbedderErrorCode?>(null);
 
   MiniLmEmbedder? _miniLm;
   bool _converging = false;
@@ -85,7 +87,7 @@ class EmbedderCoordinator {
   Future<void> _upgrade() async {
     final available = await MiniLmEmbedder.assetsAvailable();
     if (!available) {
-      lastError.value = 'Modèle MiniLM absent de l\'APK.';
+      lastError.value = EmbedderErrorCode.modelAbsent;
       await _settings.setSemanticSearchEnabled(false);
       return;
     }
@@ -99,7 +101,7 @@ class EmbedderCoordinator {
       lastError.value = null;
     } catch (e, st) {
       if (kDebugMode) debugPrint('Upgrade MiniLM échoué : $e\n$st');
-      lastError.value = 'Chargement du modèle sémantique échoué.';
+      lastError.value = EmbedderErrorCode.loadFailed;
       await _settings.setSemanticSearchEnabled(false);
     }
   }
@@ -129,7 +131,11 @@ class EmbedderCoordinator {
       lastError.value = null;
     } catch (e, st) {
       if (kDebugMode) debugPrint('Downgrade vers Local échoué : $e\n$st');
-      lastError.value = 'Bascule vers le mode léger échouée.';
+      lastError.value = EmbedderErrorCode.downgradeFailed;
     }
   }
 }
+
+/// Codes d'erreur de bascule d'embedder, mappés sur des chaînes localisées
+/// côté UI (Settings) — voir `embedderError* ` dans les ARB.
+enum EmbedderErrorCode { modelAbsent, loadFailed, downgradeFailed }

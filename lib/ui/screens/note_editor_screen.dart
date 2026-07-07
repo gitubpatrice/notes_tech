@@ -374,7 +374,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _showError(String msg) {
-    context.showFloatingSnack(msg);
+    context.showErrorSnack(msg);
   }
 
   Future<void> _togglePin() async {
@@ -445,6 +445,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snack d'erreur post-await
     final t = AppLocalizations.of(context);
     // Flush avant export pour ne pas exporter une version stale du contenu.
     await _flushSave();
@@ -481,7 +482,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showFloatingSnack(t.noteEditorExportFailed(e.toString()));
+      messenger.showErrorSnack(t.noteEditorExportFailed(e.toString()), cs);
     }
   }
 
@@ -492,6 +493,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snacks post-await
     final t = AppLocalizations.of(context);
     final foldersRepo = context.read<FoldersRepository>();
     final targetId = await showMoveToFolderSheet(
@@ -585,10 +587,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       // v1.0.7 UI I1 — déplacer une note vers un coffre expose son
       // plaintext en RAM dans l'éditeur ; force le flag jusqu'au dispose.
       if (_wasLocked) _ensureSecureForced();
-      messenger.showFloatingSnack(t.noteEditorMoved);
+      messenger.showSuccessSnack(t.noteEditorMoved, cs);
     } catch (e) {
       if (!mounted) return;
-      messenger.showFloatingSnack(t.noteEditorMoveFailed(e.toString()));
+      messenger.showErrorSnack(t.noteEditorMoveFailed(e.toString()), cs);
     }
   }
 

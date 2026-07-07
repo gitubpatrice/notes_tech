@@ -373,9 +373,8 @@ class VoiceService extends ChangeNotifier {
   /// Mode panique : supprime tous les modèles installés ET les WAV temp.
   /// L'app peut continuer à tourner sans voix (fallback gracieux).
   ///
-  /// **À câbler** quand le flow panique global de Notes Tech sera
-  /// implémenté (cf. roadmap v0.6 dans `vault_service.dart`). Séquence
-  /// recommandée à suivre dans l'orchestrateur panique :
+  /// Câblé dans l'orchestrateur panique (`PanicService`, step `voiceWipe`).
+  /// Pour rappel, la séquence panique globale est :
   ///
   /// 1. `voice.cancelRecording()` — coupe la capture en cours, supprime le
   ///    WAV temp.
