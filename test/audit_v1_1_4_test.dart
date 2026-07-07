@@ -12,6 +12,8 @@
 // Un futur refactor qui régresserait l'un de ces invariants serait
 // immédiatement détecté en CI.
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_tech/core/constants.dart';
 import 'package:notes_tech/services/ai/rag_service.dart';
@@ -129,8 +131,16 @@ void main() {
   });
 
   group('AppConstants — drift detection', () {
-    test('appVersion synchro avec pubspec (v1.1.4)', () {
-      expect(AppConstants.appVersion, '1.1.4',
+    test('appVersion synchro avec pubspec.yaml', () {
+      // Lit dynamiquement la version de pubspec.yaml plutôt que de figer une
+      // constante (qui devenait périmée à chaque bump). Teste réellement la
+      // synchro AppConstants.appVersion ↔ pubspec.
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+      final match = RegExp(r'^version:\s*([0-9]+\.[0-9]+\.[0-9]+)',
+              multiLine: true)
+          .firstMatch(pubspec);
+      expect(match, isNotNull, reason: 'version introuvable dans pubspec.yaml');
+      expect(AppConstants.appVersion, match!.group(1),
           reason: 'AppConstants.appVersion DOIT être bumpée en parallèle '
               'de pubspec.yaml (cf. feedback_appinfo_version_bump.md). '
               'Si ce test fail, la constante a divergé.');
