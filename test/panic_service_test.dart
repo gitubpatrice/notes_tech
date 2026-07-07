@@ -39,6 +39,8 @@ void main() {
       expect(PanicStep.values, [
         PanicStep.forceSecureWindow,
         PanicStep.voiceCancel,
+        // v1.1.5 — clipboardClear tôt (couper l'exposition immédiate).
+        PanicStep.clipboardClear,
         PanicStep.foldersLockAll,
         PanicStep.pinKeysWipe,
         PanicStep.kekDestroy,

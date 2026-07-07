@@ -25,13 +25,17 @@ de données. `flutter analyze` 0 issue, 84 tests verts.
   modification a été perdue (coffre verrouillé pendant la sauvegarde) sont
   désormais signalées par un banner à l'ouverture — la pref `vault_lost_drafts`
   (F11 v1.1.0) était écrite mais jamais relue.
+- **Vidage du presse-papiers en mode panique** : nouveau step
+  `PanicStep.clipboardClear` (tôt dans la séquence, après `voiceCancel`) qui
+  appelle `NoteActions.cancelAndClear()`. Une note copiée
+  (`copyMarkdown`) restait en clair dans le presse-papiers jusqu'à
+  l'auto-clear 60 s ; en panique on n'attend plus ce délai.
 
-### Point ouvert
+### Maintenance
 
-- `NoteActions.cancelAndClear()` (vidage immédiat du presse-papiers) n'est PAS
-  câblé dans `PanicService` : après un partage/copie de note, le presse-papiers
-  repose sur l'auto-clear 60 s. À câbler dans l'orchestrateur panique pour un
-  effacement immédiat.
+- Purge de **99 clés l10n orphelines** (jamais référencées) des ARB FR/EN —
+  parité conservée (380 clés chacune), `flutter analyze` 0 issue confirme
+  qu'aucune n'était utilisée.
 
 ## v1.1.0 — Audit expert post-v1.0.9 (2026-05-14)
 

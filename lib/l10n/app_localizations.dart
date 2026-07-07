@@ -122,12 +122,6 @@ abstract class AppLocalizations {
   /// **'Close'**
   String get commonClose;
 
-  /// No description provided for @commonSave.
-  ///
-  /// In en, this message translates to:
-  /// **'Save'**
-  String get commonSave;
-
   /// No description provided for @commonDelete.
   ///
   /// In en, this message translates to:
@@ -146,53 +140,11 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get commonRetry;
 
-  /// No description provided for @commonContinue.
-  ///
-  /// In en, this message translates to:
-  /// **'Continue'**
-  String get commonContinue;
-
-  /// No description provided for @commonBack.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get commonBack;
-
-  /// No description provided for @commonImport.
-  ///
-  /// In en, this message translates to:
-  /// **'Import'**
-  String get commonImport;
-
-  /// No description provided for @commonCopy.
-  ///
-  /// In en, this message translates to:
-  /// **'Copy'**
-  String get commonCopy;
-
-  /// No description provided for @commonOpen.
-  ///
-  /// In en, this message translates to:
-  /// **'Open'**
-  String get commonOpen;
-
   /// No description provided for @commonRename.
   ///
   /// In en, this message translates to:
   /// **'Rename'**
   String get commonRename;
-
-  /// No description provided for @commonCreate.
-  ///
-  /// In en, this message translates to:
-  /// **'Create'**
-  String get commonCreate;
-
-  /// No description provided for @commonExport.
-  ///
-  /// In en, this message translates to:
-  /// **'Export'**
-  String get commonExport;
 
   /// No description provided for @commonShare.
   ///
@@ -218,65 +170,11 @@ abstract class AppLocalizations {
   /// **'Loading…'**
   String get commonLoading;
 
-  /// No description provided for @commonYes.
-  ///
-  /// In en, this message translates to:
-  /// **'Yes'**
-  String get commonYes;
-
-  /// No description provided for @commonNo.
-  ///
-  /// In en, this message translates to:
-  /// **'No'**
-  String get commonNo;
-
-  /// No description provided for @commonNone.
-  ///
-  /// In en, this message translates to:
-  /// **'None'**
-  String get commonNone;
-
   /// No description provided for @commonValidate.
   ///
   /// In en, this message translates to:
   /// **'Confirm'**
   String get commonValidate;
-
-  /// No description provided for @commonUnlock.
-  ///
-  /// In en, this message translates to:
-  /// **'Unlock'**
-  String get commonUnlock;
-
-  /// No description provided for @commonLock.
-  ///
-  /// In en, this message translates to:
-  /// **'Lock'**
-  String get commonLock;
-
-  /// No description provided for @dateJustNow.
-  ///
-  /// In en, this message translates to:
-  /// **'just now'**
-  String get dateJustNow;
-
-  /// No description provided for @dateMinutesAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{n} min ago'**
-  String dateMinutesAgo(int n);
-
-  /// No description provided for @dateHoursAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{n} h ago'**
-  String dateHoursAgo(int n);
-
-  /// No description provided for @dateDaysAgo.
-  ///
-  /// In en, this message translates to:
-  /// **'{n} d ago'**
-  String dateDaysAgo(int n);
 
   /// No description provided for @homeAllNotes.
   ///
@@ -296,23 +194,11 @@ abstract class AppLocalizations {
   /// **'New note'**
   String get homeNewNote;
 
-  /// No description provided for @homeSearch.
-  ///
-  /// In en, this message translates to:
-  /// **'Search'**
-  String get homeSearch;
-
   /// No description provided for @homeSearchHint.
   ///
   /// In en, this message translates to:
   /// **'Search a note'**
   String get homeSearchHint;
-
-  /// No description provided for @homeMenu.
-  ///
-  /// In en, this message translates to:
-  /// **'Menu'**
-  String get homeMenu;
 
   /// No description provided for @homeNoNotes.
   ///
@@ -374,65 +260,17 @@ abstract class AppLocalizations {
   /// **'Ask my notes'**
   String get homeAskAi;
 
-  /// No description provided for @homeFilterChip.
-  ///
-  /// In en, this message translates to:
-  /// **'Folder: {name}'**
-  String homeFilterChip(String name);
-
-  /// No description provided for @homeNoteCount.
-  ///
-  /// In en, this message translates to:
-  /// **'{n, plural, =0{No notes} =1{1 note} other{{n} notes}}'**
-  String homeNoteCount(int n);
-
-  /// No description provided for @homePin.
-  ///
-  /// In en, this message translates to:
-  /// **'Pin'**
-  String get homePin;
-
   /// No description provided for @homeUnpin.
   ///
   /// In en, this message translates to:
   /// **'Unpin'**
   String get homeUnpin;
 
-  /// No description provided for @homeFav.
-  ///
-  /// In en, this message translates to:
-  /// **'Favorite'**
-  String get homeFav;
-
   /// No description provided for @homeUnfav.
   ///
   /// In en, this message translates to:
   /// **'Remove from favorites'**
   String get homeUnfav;
-
-  /// No description provided for @homeArchive.
-  ///
-  /// In en, this message translates to:
-  /// **'Archive'**
-  String get homeArchive;
-
-  /// No description provided for @homeUnarchive.
-  ///
-  /// In en, this message translates to:
-  /// **'Unarchive'**
-  String get homeUnarchive;
-
-  /// No description provided for @homeMoveTo.
-  ///
-  /// In en, this message translates to:
-  /// **'Move to…'**
-  String get homeMoveTo;
-
-  /// No description provided for @homeTrash.
-  ///
-  /// In en, this message translates to:
-  /// **'Move to trash'**
-  String get homeTrash;
 
   /// No description provided for @homeVaultLostBanner.
   ///
@@ -518,35 +356,11 @@ abstract class AppLocalizations {
   /// **'Permanently delete all notes in the trash? This cannot be undone.'**
   String get trashEmptyAllConfirm;
 
-  /// No description provided for @homeRestore.
-  ///
-  /// In en, this message translates to:
-  /// **'Restore'**
-  String get homeRestore;
-
-  /// No description provided for @homeNoteDeleted.
-  ///
-  /// In en, this message translates to:
-  /// **'Note deleted'**
-  String get homeNoteDeleted;
-
-  /// No description provided for @homeUndo.
-  ///
-  /// In en, this message translates to:
-  /// **'Undo'**
-  String get homeUndo;
-
   /// No description provided for @homeAnnounceVaultUnlocked.
   ///
   /// In en, this message translates to:
   /// **'Vault unlocked'**
   String get homeAnnounceVaultUnlocked;
-
-  /// No description provided for @homeAnnounceVaultLocked.
-  ///
-  /// In en, this message translates to:
-  /// **'Vault locked'**
-  String get homeAnnounceVaultLocked;
 
   /// No description provided for @noteUntitled.
   ///
@@ -577,12 +391,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Saving…'**
   String get noteEditorSaving;
-
-  /// No description provided for @noteEditorTooltipBack.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get noteEditorTooltipBack;
 
   /// No description provided for @noteEditorTooltipPin.
   ///
@@ -632,47 +440,11 @@ abstract class AppLocalizations {
   /// **'Export to Markdown'**
   String get noteEditorMenuExport;
 
-  /// No description provided for @noteEditorMenuShare.
-  ///
-  /// In en, this message translates to:
-  /// **'Share'**
-  String get noteEditorMenuShare;
-
-  /// No description provided for @noteEditorMenuArchive.
-  ///
-  /// In en, this message translates to:
-  /// **'Archive'**
-  String get noteEditorMenuArchive;
-
-  /// No description provided for @noteEditorMenuUnarchive.
-  ///
-  /// In en, this message translates to:
-  /// **'Unarchive'**
-  String get noteEditorMenuUnarchive;
-
   /// No description provided for @noteEditorMenuTrash.
   ///
   /// In en, this message translates to:
   /// **'Move to trash'**
   String get noteEditorMenuTrash;
-
-  /// No description provided for @noteEditorMenuDelete.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete permanently'**
-  String get noteEditorMenuDelete;
-
-  /// No description provided for @noteEditorDeleteTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Delete this note?'**
-  String get noteEditorDeleteTitle;
-
-  /// No description provided for @noteEditorDeleteBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Note “{title}” will be deleted permanently.'**
-  String noteEditorDeleteBody(String title);
 
   /// No description provided for @noteEditorBacklinks.
   ///
@@ -691,12 +463,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Note saved'**
   String get noteEditorAnnounceSavedSuccess;
-
-  /// No description provided for @noteEditorAnnounceVoiceDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Dictation complete, text inserted'**
-  String get noteEditorAnnounceVoiceDone;
 
   /// No description provided for @searchTitle.
   ///
@@ -722,12 +488,6 @@ abstract class AppLocalizations {
   /// **'Try another keyword.'**
   String get searchTryOther;
 
-  /// No description provided for @searchHeadingExact.
-  ///
-  /// In en, this message translates to:
-  /// **'Matches'**
-  String get searchHeadingExact;
-
   /// No description provided for @searchHeadingSemantic.
   ///
   /// In en, this message translates to:
@@ -752,23 +512,11 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get settingsSectionAppearance;
 
-  /// No description provided for @settingsSectionAi.
-  ///
-  /// In en, this message translates to:
-  /// **'Artificial intelligence'**
-  String get settingsSectionAi;
-
   /// No description provided for @settingsSectionSecurity.
   ///
   /// In en, this message translates to:
   /// **'Security'**
   String get settingsSectionSecurity;
-
-  /// No description provided for @settingsSectionData.
-  ///
-  /// In en, this message translates to:
-  /// **'Data'**
-  String get settingsSectionData;
 
   /// No description provided for @settingsSectionAbout.
   ///
@@ -896,12 +644,6 @@ abstract class AppLocalizations {
   /// **'Never'**
   String get settingsVaultAutoLockNever;
 
-  /// No description provided for @settingsVaultAutoLockOnPause.
-  ///
-  /// In en, this message translates to:
-  /// **'When app goes to background'**
-  String get settingsVaultAutoLockOnPause;
-
   /// No description provided for @settingsAcceptUnknownGemmaHash.
   ///
   /// In en, this message translates to:
@@ -913,18 +655,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Off by default. Enable if you import a different variant of the official model (verify the hash yourself).'**
   String get settingsAcceptUnknownGemmaHashSubtitle;
-
-  /// No description provided for @settingsManageGemma.
-  ///
-  /// In en, this message translates to:
-  /// **'Gemma AI model'**
-  String get settingsManageGemma;
-
-  /// No description provided for @settingsManageVoice.
-  ///
-  /// In en, this message translates to:
-  /// **'Voice dictation'**
-  String get settingsManageVoice;
 
   /// No description provided for @settingsExportAll.
   ///
@@ -949,12 +679,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Export complete: {count} notes ({skipped} skipped in locked vaults)'**
   String settingsExportDonePartial(int count, int skipped);
-
-  /// No description provided for @exportSkippedVaultedSuffix.
-  ///
-  /// In en, this message translates to:
-  /// **' (locked vaults skipped: {n})'**
-  String exportSkippedVaultedSuffix(int n);
 
   /// No description provided for @exportNoteFromVault.
   ///
@@ -997,12 +721,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'About'**
   String get aboutTitle;
-
-  /// No description provided for @aboutVersion.
-  ///
-  /// In en, this message translates to:
-  /// **'Version {version}'**
-  String aboutVersion(String version);
 
   /// No description provided for @aboutTagline.
   ///
@@ -1268,114 +986,6 @@ abstract class AppLocalizations {
   /// **'Terms'**
   String get legalTabTerms;
 
-  /// No description provided for @legalSectionEditor.
-  ///
-  /// In en, this message translates to:
-  /// **'Publisher'**
-  String get legalSectionEditor;
-
-  /// No description provided for @legalEditorBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Files Tech / Patrice Haltaya — independent publisher.\nOfficial site: https://www.files-tech.com\nContact: contact@files-tech.com'**
-  String get legalEditorBody;
-
-  /// No description provided for @legalSectionHosting.
-  ///
-  /// In en, this message translates to:
-  /// **'Hosting'**
-  String get legalSectionHosting;
-
-  /// No description provided for @legalHostingBody.
-  ///
-  /// In en, this message translates to:
-  /// **'No hosting. Notes Tech has no server. The app has no Android permission to access the Internet (tools:node=\"remove\" declaration in the manifest).'**
-  String get legalHostingBody;
-
-  /// No description provided for @legalSectionDataCollected.
-  ///
-  /// In en, this message translates to:
-  /// **'Data collected'**
-  String get legalSectionDataCollected;
-
-  /// No description provided for @legalDataCollectedBody.
-  ///
-  /// In en, this message translates to:
-  /// **'None. Notes Tech collects nothing remotely — no usage statistics, no advertising identifier, no IP address, no third-party crash reporter (Firebase, Sentry, Crashlytics: absent).'**
-  String get legalDataCollectedBody;
-
-  /// No description provided for @legalSectionDataLocal.
-  ///
-  /// In en, this message translates to:
-  /// **'Data stored locally'**
-  String get legalSectionDataLocal;
-
-  /// No description provided for @legalDataLocalBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Your note titles and contents, your settings, your imported AI models. Everything stays in the app\'s private area (/data/data/com.filestech.notes_tech), inaccessible to other apps by Android isolation guarantees.\n\nThe notes database is AES-256 encrypted (SQLCipher) with a key sealed by the Android Keystore — uninstalling erases this key and renders the database forever unreadable.'**
-  String get legalDataLocalBody;
-
-  /// No description provided for @legalSectionAiModels.
-  ///
-  /// In en, this message translates to:
-  /// **'Artificial intelligence models'**
-  String get legalSectionAiModels;
-
-  /// No description provided for @legalAiModelsBody.
-  ///
-  /// In en, this message translates to:
-  /// **'You download them yourself from the official sources:\n• Gemma 3 1B int4 — Google Kaggle\n• Whisper Base/Tiny — HuggingFace ggerganov/whisper.cpp\n• MiniLM-L6-v2 — bundled in the app\n\nNotes Tech verifies the SHA-256 cryptographic fingerprint of every model before loading. No model is sent to the publisher or to any third-party service.'**
-  String get legalAiModelsBody;
-
-  /// No description provided for @legalSectionPermissions.
-  ///
-  /// In en, this message translates to:
-  /// **'Android permissions'**
-  String get legalSectionPermissions;
-
-  /// No description provided for @legalPermissionsBody.
-  ///
-  /// In en, this message translates to:
-  /// **'• RECORD_AUDIO — requested at the first tap on the voice dictation mic button. Refusable, can be revoked at any time in the system settings.\n\nNo other permission. In particular:\n• No INTERNET\n• No ACCESS_NETWORK_STATE\n• No FOREGROUND_SERVICE\n• No POST_NOTIFICATIONS\n• No READ_EXTERNAL_STORAGE (uses the Storage Access Framework for file imports)'**
-  String get legalPermissionsBody;
-
-  /// No description provided for @legalSectionRights.
-  ///
-  /// In en, this message translates to:
-  /// **'Your rights'**
-  String get legalSectionRights;
-
-  /// No description provided for @legalRightsBody.
-  ///
-  /// In en, this message translates to:
-  /// **'You keep full control of your data.\n\n• Right of access: your notes are on your phone, viewable at any time in the app.\n• Right to erasure: uninstall the app. The Keystore key is destroyed, the notes become unreadable, nothing of your activity remains.\n• Right to portability: Markdown export available in Settings → Export my data. Format compatible with Obsidian, Logseq, Bear (standard YAML frontmatter).\n• Right to rectification: free editing in the app.'**
-  String get legalRightsBody;
-
-  /// No description provided for @legalSectionLicense.
-  ///
-  /// In en, this message translates to:
-  /// **'License'**
-  String get legalSectionLicense;
-
-  /// No description provided for @legalLicenseBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes Tech is published under the Apache License 2.0. The full source code can be consulted, modified and redistributed under the terms of that license:\n\nhttps://github.com/gitubpatrice/notes_tech\n\nThe sibling module files_tech_voice (Whisper dictation) is also under Apache 2.0:\nhttps://github.com/gitubpatrice/files_tech_voice'**
-  String get legalLicenseBody;
-
-  /// No description provided for @legalSectionContact.
-  ///
-  /// In en, this message translates to:
-  /// **'Contact'**
-  String get legalSectionContact;
-
-  /// No description provided for @legalContactBody.
-  ///
-  /// In en, this message translates to:
-  /// **'For any question, suggestion, bug report or data-related request:\n\ncontact@files-tech.com'**
-  String get legalContactBody;
-
   /// No description provided for @vaultPassCreateTitle.
   ///
   /// In en, this message translates to:
@@ -1471,18 +1081,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create a PIN vault'**
   String get vaultPinCreateTitle;
-
-  /// No description provided for @vaultPinCreateBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Choose a {min}-{max} digit PIN. The PIN is bound to this phone (Android Keystore) and auto-wipe triggers after {fails} failures.'**
-  String vaultPinCreateBody(int min, int max, int fails);
-
-  /// No description provided for @vaultPinField.
-  ///
-  /// In en, this message translates to:
-  /// **'PIN'**
-  String get vaultPinField;
 
   /// No description provided for @vaultPinConfirmField.
   ///
@@ -1586,29 +1184,11 @@ abstract class AppLocalizations {
   /// **'Faster. Auto-wipe after 5 failures. Device-bound security (Keystore).'**
   String get vaultModePinDesc;
 
-  /// No description provided for @panicTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Panic mode'**
-  String get panicTitle;
-
   /// No description provided for @panicConfirmTitle.
   ///
   /// In en, this message translates to:
   /// **'Permanently wipe all data?'**
   String get panicConfirmTitle;
-
-  /// No description provided for @panicConfirmBody.
-  ///
-  /// In en, this message translates to:
-  /// **'This action IRREVERSIBLY wipes:\n\n• all your notes (encrypted and clear)\n• the database encryption key\n• per-folder vaults (passphrases and PINs)\n• installed Gemma and Whisper models\n• settings\n\nNotes Tech restarts as on first launch.\n\nTo confirm, type the word “WIPE” below.'**
-  String get panicConfirmBody;
-
-  /// No description provided for @panicConfirmTypeHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Type WIPE to confirm'**
-  String get panicConfirmTypeHint;
 
   /// No description provided for @panicConfirmKeyword.
   ///
@@ -1634,12 +1214,6 @@ abstract class AppLocalizations {
   /// **'Please wait.'**
   String get panicProgressSubtitle;
 
-  /// No description provided for @panicAnnounceTriggered.
-  ///
-  /// In en, this message translates to:
-  /// **'Panic mode triggered'**
-  String get panicAnnounceTriggered;
-
   /// No description provided for @panicAnnounceDone.
   ///
   /// In en, this message translates to:
@@ -1657,12 +1231,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All data has been wiped. Notes Tech restarts as on first launch.'**
   String get panicCompleteBody;
-
-  /// No description provided for @panicCompleteRestart.
-  ///
-  /// In en, this message translates to:
-  /// **'Restart'**
-  String get panicCompleteRestart;
 
   /// No description provided for @panicCompleteClose.
   ///
@@ -1772,12 +1340,6 @@ abstract class AppLocalizations {
   /// **'Delete folder?'**
   String get folderDeleteTitle;
 
-  /// No description provided for @folderDeleteBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes from folder “{name}” will be moved to Inbox.'**
-  String folderDeleteBody(String name);
-
   /// No description provided for @folderDeleteChoiceBody.
   ///
   /// In en, this message translates to:
@@ -1808,42 +1370,6 @@ abstract class AppLocalizations {
   /// **'Deletion cancelled: {message}'**
   String folderDeleteCancelledError(String message);
 
-  /// No description provided for @folderEmptyName.
-  ///
-  /// In en, this message translates to:
-  /// **'Name cannot be empty.'**
-  String get folderEmptyName;
-
-  /// No description provided for @folderDuplicateName.
-  ///
-  /// In en, this message translates to:
-  /// **'A folder with that name already exists.'**
-  String get folderDuplicateName;
-
-  /// No description provided for @folderEnableVault.
-  ///
-  /// In en, this message translates to:
-  /// **'Enable a vault for this folder'**
-  String get folderEnableVault;
-
-  /// No description provided for @folderEnableVaultSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Locks notes with a passphrase or PIN.'**
-  String get folderEnableVaultSubtitle;
-
-  /// No description provided for @folderDisableVault.
-  ///
-  /// In en, this message translates to:
-  /// **'Disable vault'**
-  String get folderDisableVault;
-
-  /// No description provided for @folderDisableVaultBody.
-  ///
-  /// In en, this message translates to:
-  /// **'Notes from folder “{name}” will be decrypted and stored without a vault. Continue?'**
-  String folderDisableVaultBody(String name);
-
   /// No description provided for @folderConvertProgressTitle.
   ///
   /// In en, this message translates to:
@@ -1867,24 +1393,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New folder'**
   String get drawerNewFolder;
-
-  /// No description provided for @drawerLockAll.
-  ///
-  /// In en, this message translates to:
-  /// **'Lock all vaults'**
-  String get drawerLockAll;
-
-  /// No description provided for @drawerSettings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get drawerSettings;
-
-  /// No description provided for @drawerAbout.
-  ///
-  /// In en, this message translates to:
-  /// **'About'**
-  String get drawerAbout;
 
   /// No description provided for @drawerFolderOptions.
   ///
@@ -2018,12 +1526,6 @@ abstract class AppLocalizations {
   /// **'{done} / {total} notes'**
   String indexingBannerProgress(int done, int total);
 
-  /// No description provided for @indexingBannerDone.
-  ///
-  /// In en, this message translates to:
-  /// **'Indexing complete'**
-  String get indexingBannerDone;
-
   /// No description provided for @aiChatTitle.
   ///
   /// In en, this message translates to:
@@ -2035,18 +1537,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ask a question about your notes…'**
   String get aiChatHint;
-
-  /// No description provided for @aiChatPickModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Pick a Gemma .task model'**
-  String get aiChatPickModel;
-
-  /// No description provided for @aiChatNoModel.
-  ///
-  /// In en, this message translates to:
-  /// **'No Gemma model loaded'**
-  String get aiChatNoModel;
 
   /// No description provided for @aiChatLoadingModel.
   ///
@@ -2060,23 +1550,11 @@ abstract class AppLocalizations {
   /// **'Model ready'**
   String get aiChatModelLoaded;
 
-  /// No description provided for @aiChatGenerating.
-  ///
-  /// In en, this message translates to:
-  /// **'Generating…'**
-  String get aiChatGenerating;
-
   /// No description provided for @aiChatStop.
   ///
   /// In en, this message translates to:
   /// **'Stop'**
   String get aiChatStop;
-
-  /// No description provided for @aiChatNoNotes.
-  ///
-  /// In en, this message translates to:
-  /// **'You don\'t have any notes to query yet.'**
-  String get aiChatNoNotes;
 
   /// No description provided for @aiChatBubbleUser.
   ///
@@ -2089,18 +1567,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Assistant reply'**
   String get aiChatBubbleAssistant;
-
-  /// No description provided for @aiChatModelSize.
-  ///
-  /// In en, this message translates to:
-  /// **'{size} MB'**
-  String aiChatModelSize(int size);
-
-  /// No description provided for @aiChatModelHashOk.
-  ///
-  /// In en, this message translates to:
-  /// **'Model verified.'**
-  String get aiChatModelHashOk;
 
   /// No description provided for @aiChatModelHashMismatch.
   ///
@@ -2138,42 +1604,6 @@ abstract class AppLocalizations {
   /// **'Choose a Whisper model'**
   String get voiceSetupChooseModel;
 
-  /// No description provided for @voiceSetupModelTinyTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Whisper Tiny (39 MB)'**
-  String get voiceSetupModelTinyTitle;
-
-  /// No description provided for @voiceSetupModelTinySubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Lighter. Good for short, clear notes.'**
-  String get voiceSetupModelTinySubtitle;
-
-  /// No description provided for @voiceSetupModelBaseTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Whisper Base (57 MB) — recommended'**
-  String get voiceSetupModelBaseTitle;
-
-  /// No description provided for @voiceSetupModelBaseSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Good quality/size trade-off.'**
-  String get voiceSetupModelBaseSubtitle;
-
-  /// No description provided for @voiceSetupModelSmallTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Whisper Small (244 MB)'**
-  String get voiceSetupModelSmallTitle;
-
-  /// No description provided for @voiceSetupModelSmallSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'More accurate. Slower and heavier.'**
-  String get voiceSetupModelSmallSubtitle;
-
   /// No description provided for @voiceSetupDownload.
   ///
   /// In en, this message translates to:
@@ -2203,12 +1633,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install failed: {message}'**
   String voiceSetupInstallFail(String message);
-
-  /// No description provided for @voiceSetupHashMismatch.
-  ///
-  /// In en, this message translates to:
-  /// **'SHA-256 fingerprint does not match.'**
-  String get voiceSetupHashMismatch;
 
   /// No description provided for @voiceSetupRemove.
   ///
@@ -2287,12 +1711,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vault locked.'**
   String get errorVaultLocked;
-
-  /// No description provided for @errorNotePending.
-  ///
-  /// In en, this message translates to:
-  /// **'Save in progress, please retry.'**
-  String get errorNotePending;
 
   /// No description provided for @errorVoiceNoModelInstalled.
   ///
@@ -2479,18 +1897,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No model installed'**
   String get aiChatNotInstalledTitle;
-
-  /// No description provided for @aiChatNotInstalledSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Import a Gemma .task model to begin.'**
-  String get aiChatNotInstalledSubtitle;
-
-  /// No description provided for @aiChatImportModel.
-  ///
-  /// In en, this message translates to:
-  /// **'Import a model'**
-  String get aiChatImportModel;
 
   /// No description provided for @aiChatPickerDialogTitle.
   ///

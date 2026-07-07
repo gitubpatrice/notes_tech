@@ -21,9 +21,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commonClose => 'Fermer';
 
   @override
-  String get commonSave => 'Enregistrer';
-
-  @override
   String get commonDelete => 'Supprimer';
 
   @override
@@ -33,28 +30,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commonRetry => 'Réessayer';
 
   @override
-  String get commonContinue => 'Continuer';
-
-  @override
-  String get commonBack => 'Retour';
-
-  @override
-  String get commonImport => 'Importer';
-
-  @override
-  String get commonCopy => 'Copier';
-
-  @override
-  String get commonOpen => 'Ouvrir';
-
-  @override
   String get commonRename => 'Renommer';
-
-  @override
-  String get commonCreate => 'Créer';
-
-  @override
-  String get commonExport => 'Exporter';
 
   @override
   String get commonShare => 'Partager';
@@ -71,40 +47,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commonLoading => 'Chargement…';
 
   @override
-  String get commonYes => 'Oui';
-
-  @override
-  String get commonNo => 'Non';
-
-  @override
-  String get commonNone => 'Aucun';
-
-  @override
   String get commonValidate => 'Valider';
-
-  @override
-  String get commonUnlock => 'Déverrouiller';
-
-  @override
-  String get commonLock => 'Verrouiller';
-
-  @override
-  String get dateJustNow => 'à l\'instant';
-
-  @override
-  String dateMinutesAgo(int n) {
-    return 'il y a $n min';
-  }
-
-  @override
-  String dateHoursAgo(int n) {
-    return 'il y a $n h';
-  }
-
-  @override
-  String dateDaysAgo(int n) {
-    return 'il y a $n j';
-  }
 
   @override
   String get homeAllNotes => 'Toutes les notes';
@@ -116,13 +59,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeNewNote => 'Nouvelle note';
 
   @override
-  String get homeSearch => 'Rechercher';
-
-  @override
   String get homeSearchHint => 'Rechercher une note';
-
-  @override
-  String get homeMenu => 'Menu';
 
   @override
   String get homeNoNotes => 'Aucune note';
@@ -156,45 +93,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get homeAskAi => 'Demander à mes notes';
 
   @override
-  String homeFilterChip(String name) {
-    return 'Dossier : $name';
-  }
-
-  @override
-  String homeNoteCount(int n) {
-    String _temp0 = intl.Intl.pluralLogic(
-      n,
-      locale: localeName,
-      other: '$n notes',
-      one: '1 note',
-      zero: 'Aucune note',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String get homePin => 'Épingler';
-
-  @override
   String get homeUnpin => 'Désépingler';
 
   @override
-  String get homeFav => 'Favori';
-
-  @override
   String get homeUnfav => 'Retirer des favoris';
-
-  @override
-  String get homeArchive => 'Archiver';
-
-  @override
-  String get homeUnarchive => 'Désarchiver';
-
-  @override
-  String get homeMoveTo => 'Déplacer vers…';
-
-  @override
-  String get homeTrash => 'Mettre à la corbeille';
 
   @override
   String homeVaultLostBanner(int count) {
@@ -252,19 +154,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Supprimer définitivement toutes les notes de la corbeille ? Cette action est irréversible.';
 
   @override
-  String get homeRestore => 'Restaurer';
-
-  @override
-  String get homeNoteDeleted => 'Note supprimée';
-
-  @override
-  String get homeUndo => 'Annuler';
-
-  @override
   String get homeAnnounceVaultUnlocked => 'Coffre déverrouillé';
-
-  @override
-  String get homeAnnounceVaultLocked => 'Coffre verrouillé';
 
   @override
   String get noteUntitled => 'Sans titre';
@@ -280,9 +170,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get noteEditorSaving => 'Enregistrement…';
-
-  @override
-  String get noteEditorTooltipBack => 'Retour';
 
   @override
   String get noteEditorTooltipPin => 'Épingler la note';
@@ -309,27 +196,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get noteEditorMenuExport => 'Exporter en Markdown';
 
   @override
-  String get noteEditorMenuShare => 'Partager';
-
-  @override
-  String get noteEditorMenuArchive => 'Archiver';
-
-  @override
-  String get noteEditorMenuUnarchive => 'Désarchiver';
-
-  @override
   String get noteEditorMenuTrash => 'Mettre à la corbeille';
-
-  @override
-  String get noteEditorMenuDelete => 'Supprimer définitivement';
-
-  @override
-  String get noteEditorDeleteTitle => 'Supprimer cette note ?';
-
-  @override
-  String noteEditorDeleteBody(String title) {
-    return 'La note « $title » sera supprimée définitivement.';
-  }
 
   @override
   String get noteEditorBacklinks => 'Notes qui mentionnent celle-ci';
@@ -341,9 +208,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get noteEditorAnnounceSavedSuccess => 'Note enregistrée';
-
-  @override
-  String get noteEditorAnnounceVoiceDone => 'Dictée terminée, texte inséré';
 
   @override
   String get searchTitle => 'Rechercher';
@@ -358,9 +222,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get searchTryOther => 'Essayez un autre mot-clé.';
 
   @override
-  String get searchHeadingExact => 'Correspondances';
-
-  @override
   String get searchHeadingSemantic => 'Notes proches sémantiquement';
 
   @override
@@ -373,13 +234,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsSectionAppearance => 'Apparence';
 
   @override
-  String get settingsSectionAi => 'Intelligence artificielle';
-
-  @override
   String get settingsSectionSecurity => 'Sécurité';
-
-  @override
-  String get settingsSectionData => 'Données';
 
   @override
   String get settingsSectionAbout => 'À propos';
@@ -457,22 +312,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get settingsVaultAutoLockNever => 'Jamais';
 
   @override
-  String get settingsVaultAutoLockOnPause =>
-      'Quand l\'app passe en arrière-plan';
-
-  @override
   String get settingsAcceptUnknownGemmaHash =>
       'Accepter un modèle Gemma non vérifié';
 
   @override
   String get settingsAcceptUnknownGemmaHashSubtitle =>
       'Désactivé par défaut. Activez si vous importez une variante différente du modèle officiel (vérifiez le hash vous-même).';
-
-  @override
-  String get settingsManageGemma => 'Modèle IA Gemma';
-
-  @override
-  String get settingsManageVoice => 'Dictée vocale';
 
   @override
   String get settingsExportAll => 'Exporter toutes mes notes';
@@ -489,11 +334,6 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String settingsExportDonePartial(int count, int skipped) {
     return 'Export terminé : $count notes ($skipped ignorées dans des coffres verrouillés)';
-  }
-
-  @override
-  String exportSkippedVaultedSuffix(int n) {
-    return ' (coffres verrouillés ignorés : $n)';
   }
 
   @override
@@ -521,11 +361,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aboutTitle => 'À propos';
-
-  @override
-  String aboutVersion(String version) {
-    return 'Version $version';
-  }
 
   @override
   String get aboutTagline => 'Vos notes restent dans votre poche. L\'IA aussi.';
@@ -680,69 +515,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get legalTabTerms => 'Conditions';
 
   @override
-  String get legalSectionEditor => 'Éditeur';
-
-  @override
-  String get legalEditorBody =>
-      'Files Tech / Patrice Haltaya — éditeur indépendant.\nSite officiel : https://www.files-tech.com\nContact : contact@files-tech.com';
-
-  @override
-  String get legalSectionHosting => 'Hébergement';
-
-  @override
-  String get legalHostingBody =>
-      'Aucun hébergement. Notes Tech ne possède pas de serveur. L\'application n\'a pas la permission Android d\'accéder à Internet (déclaration tools:node=\"remove\" dans le manifeste).';
-
-  @override
-  String get legalSectionDataCollected => 'Données collectées';
-
-  @override
-  String get legalDataCollectedBody =>
-      'Aucune. Notes Tech ne collecte rien à distance — ni statistique d\'usage, ni identifiant publicitaire, ni adresse IP, ni crash reporter tiers (Firebase, Sentry, Crashlytics : absents).';
-
-  @override
-  String get legalSectionDataLocal => 'Données stockées localement';
-
-  @override
-  String get legalDataLocalBody =>
-      'Vos titres et contenus de notes, vos paramètres, vos modèles IA importés. Tout reste dans la zone privée de l\'application (/data/data/com.filestech.notes_tech), inaccessible aux autres applications par les garanties d\'isolation Android.\n\nLa base de notes est chiffrée AES-256 (SQLCipher) avec une clé scellée par l\'Android Keystore — la désinstallation efface cette clé et rend la base illisible à jamais.';
-
-  @override
-  String get legalSectionAiModels => 'Modèles d\'intelligence artificielle';
-
-  @override
-  String get legalAiModelsBody =>
-      'Vous les téléchargez vous-même depuis les sources officielles :\n• Gemma 3 1B int4 — Google Kaggle\n• Whisper Base/Tiny — HuggingFace ggerganov/whisper.cpp\n• MiniLM-L6-v2 — bundlé dans l\'application\n\nNotes Tech vérifie l\'empreinte cryptographique SHA-256 de chaque modèle avant chargement. Aucun modèle n\'est envoyé à l\'éditeur ni à un service tiers.';
-
-  @override
-  String get legalSectionPermissions => 'Permissions Android';
-
-  @override
-  String get legalPermissionsBody =>
-      '• RECORD_AUDIO — demandée au premier appui sur le bouton micro de la dictée vocale. Refusable, peut être révoquée à tout moment dans les paramètres système.\n\nAucune autre permission. Notamment :\n• Pas de INTERNET\n• Pas de ACCESS_NETWORK_STATE\n• Pas de FOREGROUND_SERVICE\n• Pas de POST_NOTIFICATIONS\n• Pas de READ_EXTERNAL_STORAGE (utilisation du Storage Access Framework pour l\'import de fichiers)';
-
-  @override
-  String get legalSectionRights => 'Vos droits';
-
-  @override
-  String get legalRightsBody =>
-      'Vous gardez la pleine maîtrise de vos données.\n\n• Droit d\'accès : vos notes sont sur votre téléphone, consultables à tout moment dans l\'app.\n• Droit à l\'effacement : désinstallez l\'application. La clé Keystore est détruite, les notes deviennent illisibles, plus rien ne subsiste de votre passage.\n• Droit à la portabilité : export Markdown disponible dans Réglages → Exporter mes données. Format compatible Obsidian, Logseq, Bear (frontmatter YAML standard).\n• Droit à la rectification : édition libre dans l\'app.';
-
-  @override
-  String get legalSectionLicense => 'Licence';
-
-  @override
-  String get legalLicenseBody =>
-      'Notes Tech est publié sous Apache License 2.0. Le code source intégral est consultable, modifiable et redistribuable selon les termes de cette licence :\n\nhttps://github.com/gitubpatrice/notes_tech\n\nLe module sibling files_tech_voice (dictée Whisper) est également sous Apache 2.0 :\nhttps://github.com/gitubpatrice/files_tech_voice';
-
-  @override
-  String get legalSectionContact => 'Contact';
-
-  @override
-  String get legalContactBody =>
-      'Pour toute question, suggestion, retour de bug ou demande liée à vos données :\n\ncontact@files-tech.com';
-
-  @override
   String get vaultPassCreateTitle => 'Créer un coffre';
 
   @override
@@ -795,14 +567,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get vaultPinCreateTitle => 'Créer un coffre avec un PIN';
-
-  @override
-  String vaultPinCreateBody(int min, int max, int fails) {
-    return 'Choisissez un PIN à $min-$max chiffres. Le PIN est lié à ce téléphone (Android Keystore) et l\'auto-wipe se déclenche après $fails échecs.';
-  }
-
-  @override
-  String get vaultPinField => 'PIN';
 
   @override
   String get vaultPinConfirmField => 'Confirmer le PIN';
@@ -869,17 +633,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Plus rapide. Auto-wipe après 5 échecs. Sécurité device-bound (Keystore).';
 
   @override
-  String get panicTitle => 'Mode panique';
-
-  @override
   String get panicConfirmTitle => 'Effacer définitivement toutes les données ?';
-
-  @override
-  String get panicConfirmBody =>
-      'Cette action efface IRRÉVERSIBLEMENT :\n\n• toutes vos notes (chiffrées et en clair)\n• la clé de chiffrement de la base\n• les coffres par dossier (passphrases et PIN)\n• les modèles Gemma et Whisper installés\n• les paramètres\n\nNotes Tech redémarre comme au premier lancement.\n\nPour confirmer, tapez le mot « EFFACER » ci-dessous.';
-
-  @override
-  String get panicConfirmTypeHint => 'Tapez EFFACER pour confirmer';
 
   @override
   String get panicConfirmKeyword => 'EFFACER';
@@ -894,9 +648,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get panicProgressSubtitle => 'Veuillez patienter.';
 
   @override
-  String get panicAnnounceTriggered => 'Mode panique déclenché';
-
-  @override
   String get panicAnnounceDone => 'Effacement terminé';
 
   @override
@@ -905,9 +656,6 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get panicCompleteBody =>
       'Toutes les données ont été effacées. Notes Tech redémarre comme au premier lancement.';
-
-  @override
-  String get panicCompleteRestart => 'Redémarrer';
 
   @override
   String get panicCompleteClose => 'Fermer l\'application';
@@ -972,11 +720,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get folderDeleteTitle => 'Supprimer le dossier ?';
 
   @override
-  String folderDeleteBody(String name) {
-    return 'Les notes du dossier « $name » seront déplacées dans la Boîte de réception.';
-  }
-
-  @override
   String folderDeleteChoiceBody(String name) {
     return 'Que faire des notes de « $name » ?';
   }
@@ -998,27 +741,6 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get folderEmptyName => 'Le nom ne peut pas être vide.';
-
-  @override
-  String get folderDuplicateName => 'Un dossier porte déjà ce nom.';
-
-  @override
-  String get folderEnableVault => 'Activer un coffre pour ce dossier';
-
-  @override
-  String get folderEnableVaultSubtitle =>
-      'Verrouille les notes par passphrase ou PIN.';
-
-  @override
-  String get folderDisableVault => 'Désactiver le coffre';
-
-  @override
-  String folderDisableVaultBody(String name) {
-    return 'Les notes du dossier « $name » seront déchiffrées et stockées sans coffre. Continuer ?';
-  }
-
-  @override
   String get folderConvertProgressTitle => 'Conversion du coffre…';
 
   @override
@@ -1030,15 +752,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get drawerNewFolder => 'Nouveau dossier';
-
-  @override
-  String get drawerLockAll => 'Verrouiller tous les coffres';
-
-  @override
-  String get drawerSettings => 'Réglages';
-
-  @override
-  String get drawerAbout => 'À propos';
 
   @override
   String get drawerFolderOptions => 'Options du dossier';
@@ -1120,19 +833,10 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
-  String get indexingBannerDone => 'Indexation terminée';
-
-  @override
   String get aiChatTitle => 'Demander à mes notes';
 
   @override
   String get aiChatHint => 'Posez une question sur vos notes…';
-
-  @override
-  String get aiChatPickModel => 'Choisir un modèle Gemma .task';
-
-  @override
-  String get aiChatNoModel => 'Aucun modèle Gemma chargé';
 
   @override
   String get aiChatLoadingModel => 'Chargement du modèle…';
@@ -1141,27 +845,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get aiChatModelLoaded => 'Modèle prêt';
 
   @override
-  String get aiChatGenerating => 'Génération en cours…';
-
-  @override
   String get aiChatStop => 'Arrêter';
-
-  @override
-  String get aiChatNoNotes => 'Vous n\'avez pas encore de notes à interroger.';
 
   @override
   String get aiChatBubbleUser => 'Votre question';
 
   @override
   String get aiChatBubbleAssistant => 'Réponse de l\'assistant';
-
-  @override
-  String aiChatModelSize(int size) {
-    return '$size Mo';
-  }
-
-  @override
-  String get aiChatModelHashOk => 'Modèle vérifié.';
 
   @override
   String get aiChatModelHashMismatch =>
@@ -1184,26 +874,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get voiceSetupChooseModel => 'Choisir un modèle Whisper';
 
   @override
-  String get voiceSetupModelTinyTitle => 'Whisper Tiny (39 Mo)';
-
-  @override
-  String get voiceSetupModelTinySubtitle =>
-      'Plus léger. Bon pour notes courtes claires.';
-
-  @override
-  String get voiceSetupModelBaseTitle => 'Whisper Base (57 Mo) — recommandé';
-
-  @override
-  String get voiceSetupModelBaseSubtitle => 'Bon compromis qualité/taille.';
-
-  @override
-  String get voiceSetupModelSmallTitle => 'Whisper Small (244 Mo)';
-
-  @override
-  String get voiceSetupModelSmallSubtitle =>
-      'Plus précis. Plus lent et plus lourd.';
-
-  @override
   String get voiceSetupDownload => 'Télécharger sur ce téléphone';
 
   @override
@@ -1221,9 +891,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String voiceSetupInstallFail(String message) {
     return 'Installation échouée : $message';
   }
-
-  @override
-  String get voiceSetupHashMismatch => 'Empreinte SHA-256 ne correspond pas.';
 
   @override
   String get voiceSetupRemove => 'Retirer le modèle installé';
@@ -1267,9 +934,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get errorVaultLocked => 'Coffre verrouillé.';
-
-  @override
-  String get errorNotePending => 'Sauvegarde en cours, réessayez.';
 
   @override
   String get errorVoiceNoModelInstalled =>
@@ -1379,13 +1043,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aiChatNotInstalledTitle => 'Aucun modèle installé';
-
-  @override
-  String get aiChatNotInstalledSubtitle =>
-      'Importez un modèle Gemma .task pour commencer.';
-
-  @override
-  String get aiChatImportModel => 'Importer un modèle';
 
   @override
   String get aiChatPickerDialogTitle => 'Choisir un modèle Gemma .task';

@@ -65,6 +65,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants.dart';
 import '../../data/db/database.dart';
 import '../ai/gemma_service.dart';
+import '../note_actions.dart';
 import '../secure_window_service.dart';
 import '../voice/voice_service.dart';
 import 'keystore_bridge.dart';
@@ -94,6 +95,11 @@ class PanicReport {
 enum PanicStep {
   forceSecureWindow,
   voiceCancel,
+
+  /// v1.1.5 — vide immédiatement le presse-papiers (une note copiée via
+  /// `NoteActions.copyMarkdown` y est en clair jusqu'à l'auto-clear 60 s).
+  /// Placé tôt, comme voiceCancel : coupe l'exposition immédiate.
+  clipboardClear,
   foldersLockAll,
   pinKeysWipe,
   kekDestroy,
@@ -198,6 +204,13 @@ class PanicService {
     await _runStep(report, PanicStep.voiceCancel, () async {
       await _voice.cancelRecording();
     });
+
+    // 1.2 (v1.1.5). Vide immédiatement le presse-papiers. Une note copiée
+    //     (NoteActions.copyMarkdown) y est en clair jusqu'à l'auto-clear
+    //     60 s ; en panique on n'attend pas ce délai. cancelAndClear efface
+    //     inconditionnellement (contrairement à l'auto-clear qui vérifie
+    //     l'ownership) + annule le timer + reset le snapshot. Best-effort.
+    await _runStep(report, PanicStep.clipboardClear, NoteActions.cancelAndClear);
 
     // 1.4 (v0.9.4). Verrouille TOUS les coffres par dossier déverrouillés
     //     en foreground : zeroize les `folder_kek` en RAM AVANT le wipe
