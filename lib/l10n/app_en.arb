@@ -171,6 +171,8 @@
   "settingsAboutSubtitle": "Privacy, licenses, support",
   "aboutTitle": "About",
   "aboutTagline": "Your notes stay in your pocket. The AI too.",
+  "aboutCheckUpdates": "Check for updates",
+  "aboutCheckUpdatesHint": "Opens the releases page on GitHub in your browser — the app itself never connects to the Internet.",
   "aboutSectionPrivacy": "Privacy",
   "aboutPrivacyCardTitle": "100% private — zero surveillance",
   "aboutPrivacy1": "No network connection — verifiable in the manifest",

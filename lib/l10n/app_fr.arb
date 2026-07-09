@@ -171,6 +171,8 @@
   "settingsAboutSubtitle": "Confidentialité, licences, support",
   "aboutTitle": "À propos",
   "aboutTagline": "Vos notes restent dans votre poche. L'IA aussi.",
+  "aboutCheckUpdates": "Vérifier les mises à jour",
+  "aboutCheckUpdatesHint": "Ouvre la page des versions sur GitHub dans votre navigateur — l'app ne se connecte jamais à Internet elle-même.",
   "aboutSectionPrivacy": "Confidentialité",
   "aboutPrivacyCardTitle": "100 % privé — zéro surveillance",
   "aboutPrivacy1": "Aucune connexion réseau — vérifiable dans le manifeste",

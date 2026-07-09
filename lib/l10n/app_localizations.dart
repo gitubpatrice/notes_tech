@@ -728,6 +728,18 @@ abstract class AppLocalizations {
   /// **'Your notes stay in your pocket. The AI too.'**
   String get aboutTagline;
 
+  /// No description provided for @aboutCheckUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get aboutCheckUpdates;
+
+  /// No description provided for @aboutCheckUpdatesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens the releases page on GitHub in your browser — the app itself never connects to the Internet.'**
+  String get aboutCheckUpdatesHint;
+
   /// No description provided for @aboutSectionPrivacy.
   ///
   /// In en, this message translates to:

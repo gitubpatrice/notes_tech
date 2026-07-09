@@ -1,6 +1,15 @@
 # Security policy — Notes Tech
 
-**Version current : v1.1.5 — Juillet 2026.**
+**Version current : v1.1.6 — Juillet 2026.**
+
+## v1.1.6 — Logo & réorganisation barre du haut (2026-07-09)
+
+Changement UI sans impact sécurité : logo damier dans l'AppBar, actions
+secondaires (Réglages / À propos) regroupées dans un overflow `⋮`, et bouton
+« Vérifier les mises à jour » dans À propos. Ce bouton **délègue au navigateur
+système** l'ouverture de la page GitHub releases (même pattern que le
+téléchargement des modèles voix) — **aucune permission INTERNET ajoutée** : la
+promesse zéro-réseau reste vérifiable dans le manifeste (`tools:node="remove"`).
 
 ## v1.1.5 — Audit expert post-v1.1.4 (2026-07-07)
 

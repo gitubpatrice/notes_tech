@@ -340,9 +340,49 @@ class _AppHeader extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          // Vérifier les mises à jour : Notes Tech n'a PAS la permission
+          // INTERNET (retirée dans le manifeste — cf. aboutPrivacy1). On ne
+          // fait donc AUCUN appel réseau depuis l'app : on délègue à l'OS
+          // l'ouverture de la page GitHub releases (même pattern que le
+          // téléchargement des modèles voix). La promesse zéro-Internet reste
+          // vérifiable dans le manifeste.
+          FilledButton.icon(
+            icon: const Icon(Icons.system_update_outlined, size: 18),
+            label: Text(t.aboutCheckUpdates),
+            onPressed: () => _openReleases(context),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              t.aboutCheckUpdatesHint,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+                fontSize: 11,
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  /// Ouvre la page des versions GitHub dans le navigateur système. Aucun
+  /// appel réseau depuis l'app (pas de permission INTERNET) — c'est le
+  /// navigateur qui charge la page. Repli presse-papiers si aucun navigateur.
+  Future<void> _openReleases(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final copiedMsg = AppLocalizations.of(context).aboutLinkCopied;
+    const url = 'https://github.com/gitubpatrice/notes_tech/releases/latest';
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (ok) return;
+    await Clipboard.setData(const ClipboardData(text: url));
+    messenger.showFloatingSnack(copiedMsg);
   }
 }
 

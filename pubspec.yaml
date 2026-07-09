@@ -1,7 +1,7 @@
 name: notes_tech
 description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, IA on-device (Gemma + Whisper) et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
-version: 1.1.5+46
+version: 1.1.6+47
 
 environment:
   sdk: ^3.11.5
@@ -105,6 +105,7 @@ flutter:
   generate: true
   assets:
     - assets/icon/app_icon.png
+    - assets/logo_damier.png
     - assets/models/all-MiniLM-L6-v2-quant.onnx
     - assets/models/tokenizer.json
     - assets/legal/

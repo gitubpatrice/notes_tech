@@ -301,7 +301,31 @@ class _HomeScreenState extends State<HomeScreen> {
         // nom est mis en cache via `_refreshCurrentFolderName`.
         title: Semantics(
           header: true,
-          child: Text(_currentFolderName ?? AppConstants.appName),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Signature Files Tech : logo damier à gauche du titre, affiché
+              // uniquement à la racine (le titre dynamique devient le nom du
+              // dossier quand un filtre est actif → pas de logo app dessus).
+              if (_currentFolderName == null) ...[
+                ExcludeSemantics(
+                  child: Image.asset(
+                    'assets/logo_damier.png',
+                    width: 26,
+                    height: 26,
+                    filterQuality: FilterQuality.high,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Flexible(
+                child: Text(
+                  _currentFolderName ?? AppConstants.appName,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           IconButton(
@@ -318,19 +342,37 @@ class _HomeScreenState extends State<HomeScreen> {
               MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
             ),
           ),
-          IconButton(
-            tooltip: t.settingsTitle,
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-          IconButton(
-            tooltip: t.aboutTitle,
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
-            ),
+          // Actions secondaires (rares) regroupées dans un overflow ⋮ pour
+          // libérer la place du titre : la barre porte déjà le drawer ☰, le
+          // logo damier et le titre. IA + Recherche (cœur de l'app) restent
+          // en accès direct ci-dessus.
+          PopupMenuButton<void>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: MaterialLocalizations.of(context).moreButtonTooltip,
+            itemBuilder: (context) => [
+              PopupMenuItem<void>(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                ),
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.settings_outlined),
+                  title: Text(t.settingsTitle),
+                ),
+              ),
+              PopupMenuItem<void>(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+                ),
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.info_outline),
+                  title: Text(t.aboutTitle),
+                ),
+              ),
+            ],
           ),
         ],
       ),

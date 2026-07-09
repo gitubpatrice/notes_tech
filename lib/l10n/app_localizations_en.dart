@@ -363,6 +363,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutTagline => 'Your notes stay in your pocket. The AI too.';
 
   @override
+  String get aboutCheckUpdates => 'Check for updates';
+
+  @override
+  String get aboutCheckUpdatesHint =>
+      'Opens the releases page on GitHub in your browser — the app itself never connects to the Internet.';
+
+  @override
   String get aboutSectionPrivacy => 'Privacy';
 
   @override

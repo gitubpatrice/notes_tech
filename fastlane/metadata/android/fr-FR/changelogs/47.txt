@@ -1,0 +1,7 @@
+v1.1.6 — Logo & barre du haut
+
+Nouveau : le logo Notes Tech s'affiche à côté du titre, et un bouton « Vérifier les mises à jour » apparaît dans À propos. Il ouvre la page des versions dans votre navigateur — l'app elle-même ne se connecte jamais à Internet.
+
+Barre du haut allégée : Réglages et À propos passent dans le menu ⋮, laissant l'IA et la Recherche en accès direct.
+
+100 % local, zéro Internet.
