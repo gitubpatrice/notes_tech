@@ -170,6 +170,33 @@ void main() {
     });
   });
 
+  group('C5 — clés de tri persistées indépendantes de l\'obfuscation', () {
+    test('les 6 modes ont une clé littérale et stable', () {
+      final src = File('lib/services/settings_service.dart').readAsStringSync();
+      // Les commentaires sont retirés avant la recherche : ils citent
+      // justement le motif proscrit pour expliquer pourquoi il l'est.
+      final code = src
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      expect(
+        code.contains('mode.name'),
+        isFalse,
+        reason: 'Le build de release est obfusqué : un nom d\'enum n\'est pas '
+            'un contrat de sérialisation stable. Une préférence écrite par '
+            'une version et relue par une autre retomberait sur le défaut.',
+      );
+      for (final mode in NoteSortMode.values) {
+        expect(
+          src.contains("NoteSortMode.${mode.name}: '${mode.name}'"),
+          isTrue,
+          reason: 'Clé manquante pour ${mode.name} : la map doit couvrir '
+              'tout l\'enum, sinon `setSortMode` lève sur ce mode.',
+        );
+      }
+    });
+  });
+
   group('C4 — export ZIP : collisions de noms', () {
     final now = DateTime(2026, 8, 6);
 

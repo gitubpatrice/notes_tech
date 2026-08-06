@@ -496,10 +496,23 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         if (!mounted) return;
       }
       const exporter = NoteExportService();
-      final bytes = exporter.exportNoteAsBytes(exported, folder: folder);
+      // Jumeau de l'export ZIP : quand le contenu vient d'un coffre
+      // déverrouillé, le fichier porte le suffixe ` [unlocked]` et le
+      // frontmatter une mention d'origine. Le `.md` unitaire sortait le
+      // clair sans aucun de ces deux signaux — celui qui reçoit le fichier
+      // ne pouvait pas savoir qu'il tenait le contenu d'un coffre.
+      final fromVault = fresh.isLocked;
+      final bytes = exporter.exportNoteAsBytes(
+        exported,
+        folder: folder,
+        vaultMention: fromVault
+            ? t.exportNoteFromVault(folder?.name ?? fresh.folderId)
+            : null,
+      );
       final fileName = exporter.safeFileName(
         exported.title,
         fallbackId: exported.id,
+        unlockedVaultSuffix: fromVault,
       );
       final tmpDir = await getTemporaryDirectory();
       final file = File('${tmpDir.path}/$fileName');

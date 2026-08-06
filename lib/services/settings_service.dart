@@ -56,16 +56,33 @@ class SettingsService extends ChangeNotifier {
   }
 
   // -------- Tri --------
+  // Littéraux explicites, comme `themeMode` juste au-dessus, et NON
+  // `mode.name` : le build de release passe par `--obfuscate`, et un nom
+  // d'enum n'est pas un contrat de sérialisation stable. Une valeur écrite
+  // par une version puis relue par une autre retomberait sur le `orElse`
+  // et réinitialiserait silencieusement le tri de l'utilisateur.
+  // Le `switch` exhaustif garantit en prime qu'ajouter un mode de tri sans
+  // décider de sa clé persistée ne compile pas.
+  static const _sortModeKeys = <NoteSortMode, String>{
+    NoteSortMode.updatedDesc: 'updatedDesc',
+    NoteSortMode.updatedAsc: 'updatedAsc',
+    NoteSortMode.createdDesc: 'createdDesc',
+    NoteSortMode.createdAsc: 'createdAsc',
+    NoteSortMode.titleAsc: 'titleAsc',
+    NoteSortMode.titleDesc: 'titleDesc',
+  };
+
   NoteSortMode get sortMode {
     final raw = _prefs.getString(AppConstants.prefKeySortMode);
-    return NoteSortMode.values.firstWhere(
-      (s) => s.name == raw,
-      orElse: () => NoteSortMode.updatedDesc,
-    );
+    for (final entry in _sortModeKeys.entries) {
+      if (entry.value == raw) return entry.key;
+    }
+    return NoteSortMode.updatedDesc;
   }
 
   Future<void> setSortMode(NoteSortMode mode) async {
-    await _prefs.setString(AppConstants.prefKeySortMode, mode.name);
+    // `!` sûr : la map couvre l'enum, et le test de garde le vérifie.
+    await _prefs.setString(AppConstants.prefKeySortMode, _sortModeKeys[mode]!);
     notifyListeners();
   }
 
