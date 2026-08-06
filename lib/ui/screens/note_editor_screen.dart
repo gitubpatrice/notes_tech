@@ -453,10 +453,32 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (fresh == null || !mounted) return;
     final folder = await context.read<FoldersRepository>().get(fresh.folderId);
     if (!mounted) return;
+    // C1 — `_repo.get` rend la ligne DB BRUTE : pour une note de coffre,
+    // `content` est vide (le clair vit dans `encryptedContent`, cf.
+    // `FolderVaultService.encryptNote` qui persiste `content: ''`). Exporter
+    // `fresh` tel quel produisait un .md au frontmatter correct mais au CORPS
+    // VIDE — perte de données silencieuse. On redéchiffre en RAM, comme
+    // `_load` le fait à l'ouverture. Si l'auto-lock a fermé la session
+    // entre-temps, on abandonne l'export plutôt que d'écrire un fichier vide.
     try {
+      // Le déchiffrement est DANS le try : entre `isUnlocked` et
+      // `decryptNote` l'auto-lock peut fermer la session (course de quelques
+      // ms), et `decryptNote` lève alors `VaultLockedException`.
+      Note exported = fresh;
+      if (fresh.isLocked) {
+        if (!_vault.isUnlocked(fresh.folderId)) {
+          _showError(t.noteEditorErrorVaultRelockedDuringEdit);
+          return;
+        }
+        exported = await _vault.decryptNote(fresh);
+        if (!mounted) return;
+      }
       const exporter = NoteExportService();
-      final bytes = exporter.exportNoteAsBytes(fresh, folder: folder);
-      final fileName = exporter.safeFileName(fresh.title, fallbackId: fresh.id);
+      final bytes = exporter.exportNoteAsBytes(exported, folder: folder);
+      final fileName = exporter.safeFileName(
+        exported.title,
+        fallbackId: exported.id,
+      );
       final tmpDir = await getTemporaryDirectory();
       final file = File('${tmpDir.path}/$fileName');
       await file.writeAsBytes(bytes, flush: true);

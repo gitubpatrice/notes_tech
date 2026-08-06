@@ -333,13 +333,19 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              t.vaultPassDeriving,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-            ),
+            // L4 — ce libellé n'a de sens QUE pendant la dérivation Argon2id.
+            // Affiché en permanence, il annonçait un calcul en cours alors que
+            // la sheet était au repos (le bouton ci-dessus gère déjà l'état
+            // `_busy` avec son spinner + son label).
+            if (_busy) ...[
+              const SizedBox(height: 8),
+              Text(
+                t.vaultPassDeriving,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+              ),
+            ],
             const SizedBox(height: 8),
           ],
         ),
