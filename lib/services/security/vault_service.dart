@@ -62,11 +62,20 @@ class VaultService {
       const FlutterSecureStorage(aOptions: AndroidOptions(resetOnError: false));
 
   /// Récupère la KEK existante ou en génère une nouvelle au premier appel.
-  /// Retourne une **copie** : l'appelant peut wiper sans corrompre l'état
-  /// interne.
+  ///
+  /// Retourne une **copie propre à chaque appelant** : `wipe()` sur le
+  /// buffer reçu n'affecte personne d'autre.
+  ///
+  /// ⚠️ Ce n'était pas le cas malgré ce que promettait ce commentaire.
+  /// `_inflight` mémorise le *Future*, et tous les appelants concurrents
+  /// recevaient donc la MÊME instance `Uint8List` : le premier à faire
+  /// `VaultService.wipe(kek)` après avoir ouvert sa base remplissait de
+  /// zéros la clé que les autres tenaient encore. Le test « appels
+  /// parallèles » couvrait le non-doublement de génération, pas le
+  /// partage d'instance.
   Future<Uint8List> getOrCreateKek() async {
     final inflight = _inflight;
-    if (inflight != null) return inflight;
+    if (inflight != null) return Uint8List.fromList(await inflight);
     final completer = Completer<Uint8List>();
     _inflight = completer.future;
     try {
@@ -101,7 +110,7 @@ class VaultService {
     } finally {
       _inflight = null;
     }
-    return completer.future;
+    return Uint8List.fromList(await completer.future);
   }
 
   /// Détruit la KEK persistée. Action irréversible — toutes les données

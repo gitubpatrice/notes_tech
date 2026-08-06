@@ -95,12 +95,28 @@ class SemanticSearchService {
     final hits = <SemanticHit>[];
     for (final s in scored) {
       final note = byId[s.noteId];
-      if (note != null && !note.isTrashed) {
+      if (note != null && isEligibleHit(note)) {
         hits.add(SemanticHit(note: note, score: s.score));
       }
     }
     return hits;
   }
+
+  /// Filtre d'admission d'un résultat sémantique, appliqué au point
+  /// d'**ACCÈS** et pas seulement à l'affichage.
+  ///
+  /// - `isTrashed` : une note en corbeille n'est plus un résultat.
+  /// - `isLocked` : défense en profondeur. Une note de coffre ne doit
+  ///   JAMAIS remonter d'une recherche sémantique, même si un embedding
+  ///   calculé avant sa mise au coffre a survécu. Sans ce filtre, le
+  ///   vecteur résiduel transforme la barre de recherche en **oracle** sur
+  ///   le contenu du coffre : le seul classement renseigne l'attaquant,
+  ///   sans qu'aucun texte ne soit affiché, et sans passphrase.
+  ///   `FolderVaultService.purgePlaintextEmbedding` ferme la source ;
+  ///   ce filtre ferme l'usage. Les deux sont nécessaires : le premier
+  ///   dépend d'un appel que tout nouveau chemin de mise au coffre devra
+  ///   penser à faire, le second est inconditionnel.
+  static bool isEligibleHit(Note note) => !note.isTrashed && !note.isLocked;
 
   // ---------------------------------------------------------------------
 

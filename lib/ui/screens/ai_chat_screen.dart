@@ -718,10 +718,16 @@ class _SourcesRow extends StatelessWidget {
           ActionChip(
             label: Text(
               // v1.0.7 sécu M-02 — défense en profondeur : si une note
-              // verrouillée se retrouve dans les sources RAG (ne devrait
-              // jamais arriver car embeddings purgés au vault-isation,
-              // F1 v1.0.3), on masque son titre. La chip reste cliquable
-              // pour amener l'utilisateur à l'unlock sheet.
+              // verrouillée se retrouve dans les sources RAG, on masque son
+              // titre. La chip reste cliquable pour amener l'utilisateur à
+              // l'unlock sheet.
+              //
+              // ⚠️ Ce commentaire affirmait que le cas « ne devrait jamais
+              // arriver car embeddings purgés au vault-isation, F1 v1.0.3 ».
+              // C'était FAUX : seule la mise au coffre EN MASSE purgeait,
+              // le déplacement d'UNE note vers un coffre ne le faisait pas.
+              // Corrigé aux deux endroits, et `SemanticSearchService.search`
+              // filtre désormais `isLocked` au point d'accès.
               s.note.isLocked
                   ? t.noteCardLocked
                   : (s.note.title.isEmpty ? t.noteUntitled : s.note.title),

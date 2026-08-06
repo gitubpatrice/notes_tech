@@ -159,40 +159,57 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         // en clair dans la DB (invariant : jamais clair au repos pour
         // une note de coffre).
         if (_vault.isUnlocked(n.folderId)) {
-          final draft = n.copyWith(title: title, content: content);
-          final encrypted = await _vault.encryptNote(draft);
-          await _repo.save(encrypted);
-        } else {
-          // F11 v1.1.0 — Avant : « perte acceptée » sans signal UI, le
-          // user croyait l'auto-save infaillible. Désormais : on persiste
-          // l'id de la note dans un set `vault_lost_drafts` consulté au
-          // prochain boot pour afficher un banner « N notes vault ont
-          // perdu leurs dernières modifications (coffre verrouillé
-          // pendant la sauvegarde) ».
+          // `isUnlocked` est un ÉCHANTILLON : l'auto-lock peut fermer la
+          // session entre ce test et `encryptNote` (Argon2id n'est pas en
+          // jeu ici, mais le sweep tourne sur son propre timer). Sans ce
+          // catch dédié, la `VaultLockedException` partait dans le catch
+          // global du bas et la modification était perdue **en silence** —
+          // le bookkeeping F11 ne tournait pas, donc aucun banner au boot
+          // suivant. C'est précisément ce que F11 voulait supprimer.
           try {
-            final prefs = await SharedPreferences.getInstance();
-            final cur =
-                prefs.getStringList(AppConstants.prefKeyVaultLostDrafts) ??
-                const <String>[];
-            if (!cur.contains(n.id)) {
-              await prefs.setStringList(AppConstants.prefKeyVaultLostDrafts, [
-                ...cur,
-                n.id,
-              ]);
-            }
-          } catch (_) {
-            // Best-effort : si la persistance échoue, on retombe sur le
-            // silence pré-F11 — pas pire qu'avant.
+            final draft = n.copyWith(title: title, content: content);
+            final encrypted = await _vault.encryptNote(draft);
+            await _repo.save(encrypted);
+          } on VaultLockedException {
+            await _recordLostDraft(n.id);
           }
-          if (kDebugMode) {
-            debugPrint('flush save (dispose) skipped: vault locked');
-          }
+        } else {
+          await _recordLostDraft(n.id);
         }
       } else {
         await _repo.save(n.copyWith(title: title, content: content));
       }
     } catch (e) {
       if (kDebugMode) debugPrint('flush save (dispose) : $e');
+    }
+  }
+
+  /// F11 v1.1.0 — Avant : « perte acceptée » sans signal UI, l'utilisateur
+  /// croyait l'auto-save infaillible. Désormais on persiste l'id de la note
+  /// dans un set `vault_lost_drafts` consulté au prochain boot pour afficher
+  /// un banner « N notes de coffre ont perdu leurs dernières modifications
+  /// (coffre verrouillé pendant la sauvegarde) ».
+  ///
+  /// Appelé depuis les DEUX issues possibles : coffre déjà fermé au moment
+  /// du test, et coffre fermé pendant le chiffrement.
+  Future<void> _recordLostDraft(String noteId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cur =
+          prefs.getStringList(AppConstants.prefKeyVaultLostDrafts) ??
+          const <String>[];
+      if (!cur.contains(noteId)) {
+        await prefs.setStringList(AppConstants.prefKeyVaultLostDrafts, [
+          ...cur,
+          noteId,
+        ]);
+      }
+    } catch (_) {
+      // Best-effort : si la persistance échoue, on retombe sur le silence
+      // pré-F11 — pas pire qu'avant.
+    }
+    if (kDebugMode) {
+      debugPrint('flush save (dispose) skipped: vault locked');
     }
   }
 
@@ -296,10 +313,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   /// Idempotent : si une sauvegarde est déjà en vol, on attend la fin
   /// avant d'en lancer une autre. Évite tout double UPDATE concurrent.
+  ///
+  /// `while` et non `if` : avec un simple `if`, deux appelants bloqués sur
+  /// la MÊME sauvegarde en vol se réveillent ensemble à sa fin et partent
+  /// tous les deux en écriture — la sérialisation ne tenait que pour un
+  /// seul attendeur. Pour une note de coffre, cela signifiait deux
+  /// `encryptNote` concurrents sur la même ligne.
   Future<void> _saveNow() async {
-    final pending = _pendingSave;
-    if (pending != null) {
-      await pending;
+    while (_pendingSave != null) {
+      await _pendingSave;
     }
     final current = _note;
     if (current == null) return;
@@ -544,7 +566,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // L'auto-lock d'un coffre pendant cette mutation rendait le flush
     // invisible. Désormais : confirmation EXPLICITE via dialog destructif
     // (cs.errorContainer + Cancel autofocus) si on quitte un coffre.
-    final isVaultExit = n.encryptedContent != null && !targetFolder.isVault;
+    // ⚠️ Testait `n.encryptedContent != null` — condition TOUJOURS fausse :
+    // `_load` remplace `_note` par l'éphémère déchiffrée
+    // (`clearEncrypted: true`), donc `encryptedContent` est nul dès que la
+    // note est ouverte. Le dialog destructif « vous sortez cette note du
+    // coffre » ne s'affichait donc JAMAIS, et la note était réécrite en
+    // clair sans consentement explicite — exactement ce que le fix F1
+    // v1.1.0 voulait empêcher. `_wasLocked` est le signal survivant au
+    // déchiffrement.
+    final isVaultExit = _wasLocked && !targetFolder.isVault;
     if (isVaultExit) {
       final cs = Theme.of(context).colorScheme;
       final confirmed = await showDialog<bool>(
@@ -599,6 +629,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         _vault.touchActivity(targetId);
       }
       final saved = await _repo.save(candidate);
+      if (targetFolder.isVault) {
+        // Jumeau de `FolderVaultService.encryptAllNotesInFolder` : la mise
+        // au coffre en masse purgeait déjà l'embedding en clair, ce chemin
+        // unitaire ne le faisait PAS. Sans ça, la note restait retrouvable
+        // par la recherche sémantique, classée par la similarité de son
+        // contenu en clair, coffre verrouillé. Purge APRÈS le save : si
+        // l'écriture échoue, la note n'est pas au coffre et son embedding
+        // reste légitime.
+        await _vault.purgePlaintextEmbedding(saved.id);
+      }
       if (!mounted) return;
       setState(() {
         _wasLocked = targetFolder.isVault;
@@ -635,12 +675,58 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     String title = result.title;
     if (result.isCreate) {
       // Crée la note dans la même boîte que celle en cours.
-      final folderId = _note?.folderId ?? AppConstants.inboxFolderId;
-      final created = await _repo.create(folderId: folderId, title: title);
+      final created = await _createSibling(title);
+      if (created == null || !mounted) return;
       title = created.title;
     }
     _insertAtCursor('[[$title]]');
     _scheduleSave();
+  }
+
+  /// Crée une note « sœur » dans le dossier de la note courante, en
+  /// respectant l'invariant de coffre.
+  ///
+  /// ⚠️ Jumeau de `HomeScreen._createNote` : quand le dossier cible est un
+  /// coffre, la note fraîchement créée DOIT être chiffrée immédiatement,
+  /// avant d'être ouverte. Sans ça, elle naît avec `encryptedContent ==
+  /// null` ; l'éditeur qui l'ouvre évalue `isLocked` à faux, laisse
+  /// `_wasLocked` à faux, et TOUT ce que l'utilisateur tape ensuite est
+  /// auto-sauvegardé **en clair** dans un dossier coffre. Les deux chemins
+  /// de création de l'éditeur (lien fantôme et auto-complétion) passaient
+  /// à côté de cette garde que l'écran d'accueil applique depuis v0.8.
+  ///
+  /// Retourne `null` si la création doit être abandonnée — l'appelant ne
+  /// doit alors ni insérer de lien ni naviguer.
+  Future<Note?> _createSibling(String title) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme; // snack post-await
+    final t = AppLocalizations.of(context);
+    final foldersRepo = context.read<FoldersRepository>();
+    final folderId = _note?.folderId ?? AppConstants.inboxFolderId;
+    final folder = await foldersRepo.get(folderId);
+    if (!mounted) return null;
+
+    final created = await _repo.create(folderId: folderId, title: title);
+    if (folder == null || !folder.isVault) return created;
+
+    try {
+      final encrypted = await _vault.encryptNote(created);
+      await _repo.save(encrypted);
+      _vault.touchActivity(folderId);
+      return encrypted;
+    } catch (e) {
+      // Le coffre s'est refermé entre la création et le chiffrement. On
+      // SUPPRIME la note neuve plutôt que de laisser une ligne non
+      // chiffrée dans un dossier coffre — elle est vide, rien à perdre.
+      try {
+        await _repo.deletePermanently(created.id);
+      } catch (_) {
+        /* best-effort */
+      }
+      if (!mounted) return null;
+      messenger.showErrorSnack(t.homeVaultCreateError(e.toString()), cs);
+      return null;
+    }
   }
 
   /// Insère un texte transcrit par la voix au curseur. Ajoute un espace
@@ -688,12 +774,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// Lien fantôme tapé : on propose de créer la note cible avec ce titre,
   /// puis de l'ouvrir directement.
   Future<void> _createFromDangling(NoteLink link) async {
-    final folderId = _note?.folderId ?? AppConstants.inboxFolderId;
-    final created = await _repo.create(
-      folderId: folderId,
-      title: link.targetTitle,
-    );
-    if (!mounted) return;
+    // Passe par `_createSibling` : le lien fantôme créait la note SANS la
+    // chiffrer, même dans un coffre (cf. doc de `_createSibling`).
+    final created = await _createSibling(link.targetTitle);
+    if (created == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => NoteEditorScreen(noteId: created.id),

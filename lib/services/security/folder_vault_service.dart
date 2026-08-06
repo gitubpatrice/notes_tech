@@ -882,6 +882,32 @@ class FolderVaultService extends ChangeNotifier {
     );
   }
 
+  /// Supprime l'embedding **en clair** calculé avant la mise au coffre.
+  ///
+  /// Mettre une note au coffre sans ce geste laisse en base un vecteur
+  /// dérivé de son texte en clair : la recherche sémantique continue de
+  /// la faire remonter, classée par la similarité de ce contenu, alors
+  /// que la passphrase n'a pas été saisie.
+  ///
+  /// ⚠️ **Aucune passe d'indexation ne rattrape cet oubli.**
+  /// `IndexingService.deleteOrphans` ne vise que les notes supprimées, et
+  /// la boucle d'indexation fait `continue` sur les notes verrouillées
+  /// sans jamais toucher à leur ligne. L'embedding résiduel resterait
+  /// donc en base indéfiniment — d'où l'appel obligatoire ici, sur
+  /// **tous** les chemins de mise au coffre.
+  ///
+  /// Best-effort : un échec DB ne doit pas faire échouer le chiffrement
+  /// lui-même (la note est déjà protégée), mais il est remonté par le
+  /// booléen de retour pour que le caller puisse en tenir compte.
+  Future<bool> purgePlaintextEmbedding(String noteId) async {
+    try {
+      await _embeddings?.remove(noteId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Déchiffre une note verrouillée. Retourne une note éphémère avec
   /// `content` rempli, **non persistée** — l'UI s'en sert pour afficher
   /// puis la jette. La note persistée reste dans son état chiffré.
@@ -961,13 +987,10 @@ class FolderVaultService extends ChangeNotifier {
         final encrypted = await encryptNote(note);
         await _notes.save(encrypted);
         // F1 v1.0.3 — purge synchrone de l'embedding plaintext historique.
-        // Sans ça, fenêtre où une recherche sémantique peut retrouver le
-        // contenu encore indexé (jusqu'à passe d'indexation suivante).
-        try {
-          await _embeddings?.remove(note.id);
-        } catch (_) {
-          // Best-effort : la passe d'indexation finira par recalculer.
-        }
+        // Sans ça, la recherche sémantique continue de retrouver le
+        // contenu via son vecteur (cf. `purgePlaintextEmbedding` : aucune
+        // passe d'indexation ne le supprimerait ensuite).
+        await purgePlaintextEmbedding(note.id);
         ok++;
       } catch (_) {
         failed++;
@@ -978,10 +1001,42 @@ class FolderVaultService extends ChangeNotifier {
 
   // ── Auto-lock sweep ────────────────────────────────────────────────
 
+  /// Arme le sweep sur la deadline la **plus proche** parmi les sessions
+  /// ouvertes, et non sur `_autoLockAfter` en bloc.
+  ///
+  /// ⚠️ Le timer est unique et global, alors que chaque coffre a sa propre
+  /// date de dernière activité. Le réarmer systématiquement à
+  /// `_autoLockAfter` complet créait une **famine** : toute activité sur le
+  /// coffre B repoussait d'autant le seul réveil qui aurait pu verrouiller
+  /// le coffre A. Avec deux coffres ouverts et une activité régulière sur
+  /// l'un, l'autre ne se verrouillait jamais — la politique d'auto-lock
+  /// était contournée sans que rien ne le signale.
+  ///
+  /// Le sweep lui-même a toujours été correct (il compare la deadline
+  /// coffre par coffre) : c'est le MOMENT où il tournait qui était faux.
   void _scheduleAutoLockSweep() {
     _autoLockTimer?.cancel();
     if (_unlocked.isEmpty || _autoLockAfter <= Duration.zero) return;
-    _autoLockTimer = Timer(_autoLockAfter, _autoLockSweep);
+    final nowMs = _Session._monotonicMs;
+    final autoLockMs = _autoLockAfter.inMilliseconds;
+    var nextMs = autoLockMs;
+    for (final entry in _unlocked.entries) {
+      // Même exclusion que le sweep : une session dont l'unlock est en
+      // cours ne sera pas verrouillée. L'inclure ici produirait un délai
+      // négatif, donc un réveil immédiat qui ne ferait rien et se
+      // reprogrammerait aussitôt — une boucle serrée pendant toute la
+      // dérivation Argon2id.
+      if (_unlockInProgress.contains(entry.key)) continue;
+      final remaining =
+          autoLockMs - (nowMs - entry.value.lastActivityElapsedMs);
+      if (remaining < nextMs) nextMs = remaining;
+    }
+    // Plancher à 1 s : garde-fou contre tout réveil en rafale si une
+    // deadline est déjà dépassée au moment de la planification.
+    _autoLockTimer = Timer(
+      Duration(milliseconds: nextMs < 1000 ? 1000 : nextMs),
+      _autoLockSweep,
+    );
   }
 
   void _autoLockSweep() {
@@ -1056,18 +1111,36 @@ class FolderVaultService extends ChangeNotifier {
     // le `CircularProgressIndicator` du sheet `unlock` reste figé.
     // → On déporte dans un isolate via `compute()`. UI reste fluide,
     // l'utilisateur voit le spinner tourner.
-    return compute<_Argon2Job, Uint8List>(
-      _argon2WorkerEntry,
-      _Argon2Job(
-        // A8 v1.0.4 — passe une COPIE Uint8List wipable au worker.
-        passphraseBytes: Uint8List.fromList(utf8Bytes(passphrase)),
-        salt: salt,
-        memoryKb: AppConstants.vaultArgon2MemoryKb,
-        iterations: AppConstants.vaultArgon2Iterations,
-        parallelism: AppConstants.vaultArgon2Parallelism,
-        hashLength: AppConstants.vaultArgon2HashBytes,
-      ),
-    );
+    // A8 v1.0.4 — passe une COPIE Uint8List wipable au worker.
+    //
+    // Le worker efface bien SA copie, mais celle de l'isolate principal
+    // survivait jusqu'au passage du ramasse-miettes : `compute` sérialise
+    // le payload à l'envoi, plus personne ne s'en sert ensuite, et rien ne
+    // l'effaçait. On la garde donc en variable locale pour la wiper au
+    // retour. (`utf8Bytes` rend déjà un buffer neuf et modifiable — le
+    // `Uint8List.fromList` qui l'enveloppait ne faisait qu'une copie de
+    // plus, elle-même non effacée.)
+    //
+    // ⚠️ Portée réelle de ce geste : la `String passphrase` reste, elle,
+    // immuable et non effaçable en RAM tant que le GC ne l'a pas reprise.
+    // C'est une défense en profondeur sur le buffer, pas une garantie
+    // d'absence du secret en mémoire.
+    final passphraseBytes = utf8Bytes(passphrase);
+    try {
+      return await compute<_Argon2Job, Uint8List>(
+        _argon2WorkerEntry,
+        _Argon2Job(
+          passphraseBytes: passphraseBytes,
+          salt: salt,
+          memoryKb: AppConstants.vaultArgon2MemoryKb,
+          iterations: AppConstants.vaultArgon2Iterations,
+          parallelism: AppConstants.vaultArgon2Parallelism,
+          hashLength: AppConstants.vaultArgon2HashBytes,
+        ),
+      );
+    } finally {
+      _wipe(passphraseBytes);
+    }
   }
 
   /// Variante allégée pour le mode PIN (v0.9) : t=2, m=32MB. La sécurité
@@ -1079,17 +1152,24 @@ class FolderVaultService extends ChangeNotifier {
     required String pin,
     required Uint8List salt,
   }) async {
-    return compute<_Argon2Job, Uint8List>(
-      _argon2WorkerEntry,
-      _Argon2Job(
-        passphraseBytes: Uint8List.fromList(utf8Bytes(pin)),
-        salt: salt,
-        memoryKb: AppConstants.vaultPinArgon2MemoryKb,
-        iterations: AppConstants.vaultPinArgon2Iterations,
-        parallelism: AppConstants.vaultArgon2Parallelism,
-        hashLength: AppConstants.vaultArgon2HashBytes,
-      ),
-    );
+    // Même geste que `_deriveKekArgon2id` : la copie de l'isolate principal
+    // est effacée au retour (le jumeau PIN avait la même fuite).
+    final pinBytes = utf8Bytes(pin);
+    try {
+      return await compute<_Argon2Job, Uint8List>(
+        _argon2WorkerEntry,
+        _Argon2Job(
+          passphraseBytes: pinBytes,
+          salt: salt,
+          memoryKb: AppConstants.vaultPinArgon2MemoryKb,
+          iterations: AppConstants.vaultPinArgon2Iterations,
+          parallelism: AppConstants.vaultArgon2Parallelism,
+          hashLength: AppConstants.vaultArgon2HashBytes,
+        ),
+      );
+    } finally {
+      _wipe(pinBytes);
+    }
   }
 
   Future<Uint8List> _aesGcmEncrypt({

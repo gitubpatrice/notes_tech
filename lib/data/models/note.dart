@@ -42,8 +42,14 @@ class Note {
   ///   coffre invalide donc la déchiffrement).
   /// - L'index FTS5 sur `content` est vide → la note n'apparaît pas
   ///   en recherche plein-texte tant qu'elle est verrouillée (feature,
-  ///   pas un bug).
-  /// - Les embeddings sémantiques sont vides pour les mêmes raisons.
+  ///   pas un bug). Cette propriété-là est structurelle : l'index est
+  ///   maintenu par des TRIGGERS SQL sur la table `notes`, le `content`
+  ///   vidé se propage donc à l'écriture même.
+  /// - L'embedding sémantique, lui, n'est PAS vidé tout seul : il doit
+  ///   être supprimé explicitement par
+  ///   `FolderVaultService.purgePlaintextEmbedding` sur chaque chemin de
+  ///   mise au coffre, et `SemanticSearchService.isEligibleHit` refuse
+  ///   les notes verrouillées au cas où un vecteur aurait survécu.
   ///
   /// Le déverrouillage en RAM produit un `Note` éphémère avec `content`
   /// rempli, jamais persisté en clair.

@@ -216,6 +216,20 @@ class IndexingService {
       // potentiels logs natifs ONNX). Désormais : skip immédiat sans
       // jamais nourrir l'embedder.
       if (note.encryptedContent != null) {
+        // Auto-réparation : on ne se contente plus de sauter la note, on
+        // supprime tout embedding en clair qui aurait survécu à sa mise au
+        // coffre. `FolderVaultService.purgePlaintextEmbedding` le fait déjà
+        // au moment du chiffrement, mais c'est un geste que chaque chemin
+        // de mise au coffre doit penser à poser — et un échec DB transitoire
+        // le fait rater en silence. Ici, la passe d'indexation rattrape
+        // l'oubli à chaque tour, sans quoi le vecteur resterait en base
+        // indéfiniment (aucune autre passe ne vise les notes verrouillées).
+        // DELETE idempotent : no-op quand il n'y a rien à supprimer.
+        try {
+          await _embeddings.remove(note.id);
+        } catch (_) {
+          // Best-effort : réessayé à la passe suivante.
+        }
         done++;
         continue;
       }
@@ -241,6 +255,15 @@ class IndexingService {
         live = await _notes.get(note.id);
       }
       if (live == null || live.encryptedContent != null) {
+        // Mise au coffre PENDANT l'encodage : on jette le vecteur qu'on
+        // vient de calculer et on purge un éventuel vecteur antérieur.
+        if (live != null) {
+          try {
+            await _embeddings.remove(live.id);
+          } catch (_) {
+            /* best-effort, repris à la passe suivante */
+          }
+        }
         done++;
         continue;
       }

@@ -63,6 +63,36 @@ class ExportResult {
 class NoteExportService {
   const NoteExportService();
 
+  /// Noms de périphériques réservés Windows : un fichier OU un dossier qui
+  /// porte l'un d'eux fait échouer l'extraction du ZIP chez le
+  /// destinataire. Hissé au niveau de la classe parce que `safeFileName`
+  /// l'appliquait et que son jumeau `_safeFolderDirName` l'ignorait — un
+  /// dossier nommé « CON » suffisait à rendre l'archive inextractible.
+  static const Set<String> _kWindowsReserved = {
+    'CON',
+    'PRN',
+    'AUX',
+    'NUL',
+    'COM1',
+    'COM2',
+    'COM3',
+    'COM4',
+    'COM5',
+    'COM6',
+    'COM7',
+    'COM8',
+    'COM9',
+    'LPT1',
+    'LPT2',
+    'LPT3',
+    'LPT4',
+    'LPT5',
+    'LPT6',
+    'LPT7',
+    'LPT8',
+    'LPT9',
+  };
+
   /// Caractères de contrôle bidi/RTL et BOM, à filtrer dans tout nom de
   /// fichier ou de dossier exporté pour empêcher l'usurpation visuelle.
   /// Escapes Unicode obligatoires (sinon ces caractères, eux-mêmes
@@ -176,31 +206,7 @@ class NoteExportService {
     //    car on a déjà strippé les `/` plus haut.
     if (clean == '.' || clean == '..') clean = '';
     // 6. Garde-fou noms réservés Windows (case-insensitive).
-    const reserved = {
-      'CON',
-      'PRN',
-      'AUX',
-      'NUL',
-      'COM1',
-      'COM2',
-      'COM3',
-      'COM4',
-      'COM5',
-      'COM6',
-      'COM7',
-      'COM8',
-      'COM9',
-      'LPT1',
-      'LPT2',
-      'LPT3',
-      'LPT4',
-      'LPT5',
-      'LPT6',
-      'LPT7',
-      'LPT8',
-      'LPT9',
-    };
-    if (clean.isEmpty || reserved.contains(clean.toUpperCase())) {
+    if (clean.isEmpty || _kWindowsReserved.contains(clean.toUpperCase())) {
       clean = 'note-${fallbackId.replaceAll('-', '').substring(0, 8)}';
     }
     if (unlockedVaultSuffix) {
@@ -415,7 +421,10 @@ class NoteExportService {
     // chez les destinataires utilisant un dézippeur naïf (ZipSlip).
     clean = clean.replaceAll(_bidiPattern, '');
     clean = clean.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (clean.isEmpty || clean == '.' || clean == '..') {
+    if (clean.isEmpty ||
+        clean == '.' ||
+        clean == '..' ||
+        _kWindowsReserved.contains(clean.toUpperCase())) {
       clean = 'sans-dossier';
     }
     return clean;
@@ -433,8 +442,20 @@ class NoteExportService {
     if (count == 0) return path;
     // foo/bar.md → foo/bar-2.md (en gardant l'extension)
     final dot = path.lastIndexOf('.');
-    if (dot < 0) return '$path-${count + 1}';
-    return '${path.substring(0, dot)}-${count + 1}${path.substring(dot)}';
+    final stem = dot < 0 ? path : path.substring(0, dot);
+    final ext = dot < 0 ? '' : path.substring(dot);
+    // Le nom suffixé peut lui-même être DÉJÀ PRIS par une note qui
+    // s'appelle littéralement « Note-2 ». Sans cette boucle, exporter
+    // « Note », « Note-2 », « Note » produisait deux entrées `note-2.md`
+    // dans le ZIP : l'une écrasait l'autre au dézippage, silencieusement.
+    var n = count + 1;
+    var candidate = '$stem-$n$ext';
+    while (used.containsKey(candidate.toLowerCase())) {
+      n++;
+      candidate = '$stem-$n$ext';
+    }
+    used[candidate.toLowerCase()] = 1;
+    return candidate;
   }
 
   String _buildReadme(int noteCount, DateTime exportedAt) {
