@@ -77,6 +77,25 @@ class NotesDao {
     }
   }
 
+  /// Ids des notes qu'une recherche sémantique ne doit PAS renvoyer :
+  /// verrouillées (coffre fermé) ou en corbeille.
+  ///
+  /// Ne charge que la colonne `id` : le point d'appel a besoin d'écarter des
+  /// candidats AVANT de borner son top-K, et hydrater des notes entières pour
+  /// ça coûterait la lecture de toute la table à chaque frappe.
+  Future<Set<String>> listSemanticIneligibleIds() async {
+    try {
+      final rows = await _db.query(
+        'notes',
+        columns: ['id'],
+        where: 'trashed_at IS NOT NULL OR encrypted_content IS NOT NULL',
+      );
+      return {for (final r in rows) r['id'] as String};
+    } catch (e) {
+      throw DatabaseException('listSemanticIneligibleIds échoué', cause: e);
+    }
+  }
+
   /// Toutes les notes hors corbeille, archives incluses.
   /// Utilisé par l'indexeur d'embeddings.
   Future<List<Note>> listAllAlive() async {

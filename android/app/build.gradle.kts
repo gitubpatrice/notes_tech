@@ -61,9 +61,15 @@ android {
     // (cf. CI run `25856790750` v1.1.0 fail).
     //
     // Solution : on s'appuie uniquement sur la CLI `--split-per-abi` qui
-    // produit les 3 APKs par-ABI sans toucher au gradle. Pas d'APK
-    // universel (économie ~70 Mo upload GitHub Releases). Même hotfix
+    // produit les 3 APKs par-ABI sans toucher au gradle. Même hotfix
     // appliqué à Pass Tech v2.4.3 et Read Files Tech v2.13.1.
+    //
+    // Pas d'APK universel — et la vraie raison n'est pas l'économie d'upload :
+    // `--split-per-abi` applique l'offset de versionCode +1000×index de
+    // Flutter, un universel garderait le versionCode brut du pubspec. Publier
+    // les deux familles rend l'universel non installable par-dessus un split
+    // (downgrade refusé par Android). Le workflow `release.yml` ne publie donc
+    // que les 3 splits ; ne pas y réintroduire d'universel.
 
     // Taille de l'APK — `flutter_gemma` 0.14.x tire tout le bundle MediaPipe
     // GenAI, y compris des tâches que Notes Tech n'appelle jamais. Mesuré sur

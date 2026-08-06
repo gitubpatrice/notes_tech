@@ -78,10 +78,25 @@ class SemanticSearchService {
     final embeddings = await _ensureLoaded();
     if (embeddings.isEmpty) return const [];
 
+    // Écarte les candidats inéligibles AVANT de borner le top-K.
+    //
+    // Filtrer après la borne les laissait consommer les places : 4 vecteurs
+    // résiduels de notes verrouillées, ou 4 notes en corbeille, au-dessus
+    // d'une note ordinaire pertinente, et cette dernière n'était jamais
+    // hydratée ni renvoyée. Invisible côté utilisateur — la recherche rendait
+    // simplement moins de résultats que prévu, sans rien signaler. Le RAG,
+    // qui appelle avec une petite `limit`, était le plus exposé.
+    //
+    // Une seule requête sur la colonne `id`, à chaque recherche : l'état
+    // (verrouillé, en corbeille) change en dehors du cache d'embeddings, on
+    // ne peut donc pas le mémoriser avec lui.
+    final ineligible = await _notes.listSemanticIneligibleIds();
+
     // Top-K via liste triée bornée.
     final scored = <_Scored>[];
     for (final e in embeddings) {
       if (e.dim != queryVec.length) continue;
+      if (ineligible.contains(e.noteId)) continue;
       final score = VectorMath.cosineNormalized(queryVec, e.vector);
       if (!score.isFinite || score < minScore) continue;
       _insertTopK(scored, _Scored(e.noteId, score), limit);
@@ -104,6 +119,11 @@ class SemanticSearchService {
 
   /// Filtre d'admission d'un résultat sémantique, appliqué au point
   /// d'**ACCÈS** et pas seulement à l'affichage.
+  ///
+  /// Deuxième barrière : `search` écarte déjà ces notes avant de borner son
+  /// top-K (sinon elles consommeraient les places). Celle-ci rattrape le cas
+  /// où l'état change entre les deux requêtes — une note mise au coffre
+  /// pendant la frappe.
   ///
   /// - `isTrashed` : une note en corbeille n'est plus un résultat.
   /// - `isLocked` : défense en profondeur. Une note de coffre ne doit

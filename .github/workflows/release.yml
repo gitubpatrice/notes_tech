@@ -86,16 +86,17 @@ jobs:
           flutter build apk --release --split-per-abi
           --obfuscate --split-debug-info=build/symbols
 
-      # APK universel : c'est celui qu'on publie pour l'installation manuelle
-      # « je ne sais pas quel ABI j'ai ». Build séparé car `--split-per-abi`
-      # ne le produit pas. ⚠️ son versionCode est celui du pubspec, alors que
-      # les splits portent l'offset +1000×index de Flutter — un universel ne
-      # s'installe donc PAS par-dessus un split (downgrade refusé).
-      - name: Build APK release universel (signed)
-        working-directory: notes_tech
-        run: >
-          flutter build apk --release
-          --obfuscate --split-debug-info=build/symbols
+      # ⚠️ PAS d'APK universel, et ce n'est pas une économie de bande passante.
+      # Les deux familles ont des versionCode INCOMPATIBLES : `--split-per-abi`
+      # applique l'offset +1000×index de Flutter, l'universel garde le
+      # versionCode brut du pubspec. Publier les deux tendait un piège à
+      # l'utilisateur — la release lui conseillait l'universel « en cas de
+      # doute », et Android refusait l'installation en downgrade s'il avait
+      # déjà un split. Une seule famille, donc, et c'est celle des splits :
+      # leur versionCode est toujours supérieur à celui d'un universel de
+      # même version, la mise à jour depuis les releases ≤ v1.1.6 (universel
+      # seul) passe donc sans rupture. La transition est à sens unique :
+      # ne pas réintroduire d'universel plus tard.
 
       - name: Rename + SHA256
         id: sha
@@ -111,7 +112,6 @@ jobs:
             "app-arm64-v8a-release.apk:notes-tech-arm64-v8a-$V.apk"
             "app-armeabi-v7a-release.apk:notes-tech-armeabi-v7a-$V.apk"
             "app-x86_64-release.apk:notes-tech-x86_64-$V.apk"
-            "app-release.apk:notes-tech-universel-$V.apk"
           )
           BODY=""
           for ENTRY in "${APKS[@]}"; do
@@ -138,10 +138,10 @@ jobs:
           body: |
             ## Quel APK télécharger ?
 
-            - **`arm64-v8a`** : la quasi-totalité des téléphones récents.
-            - **`armeabi-v7a`** : appareils 32 bits anciens.
+            - **`arm64-v8a`** : la quasi-totalité des téléphones, dès 2016.
+              **En cas de doute, c'est celui-là.**
+            - **`armeabi-v7a`** : appareils 32 bits anciens, si l'arm64 est refusé.
             - **`x86_64`** : émulateurs.
-            - **`universel`** : en cas de doute (plus lourd, contient les 3 ABI).
 
             ## Vérification d'intégrité (SHA-256)
 
@@ -156,10 +156,9 @@ jobs:
 
             🤖 Build automatique via GitHub Actions (commit `${{ github.sha }}`)
           files: |
-            notes-tech-armeabi-v7a-${{ steps.version.outputs.VERSION }}.apk
             notes-tech-arm64-v8a-${{ steps.version.outputs.VERSION }}.apk
+            notes-tech-armeabi-v7a-${{ steps.version.outputs.VERSION }}.apk
             notes-tech-x86_64-${{ steps.version.outputs.VERSION }}.apk
-            notes-tech-universel-${{ steps.version.outputs.VERSION }}.apk
 
       - name: Cleanup
         if: always()

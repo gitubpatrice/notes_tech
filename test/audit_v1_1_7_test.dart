@@ -74,6 +74,24 @@ void main() {
       expect(SemanticSearchService.isEligibleHit(_note()), isTrue);
     });
 
+    test('les inéligibles sont écartés AVANT la borne du top-K', () {
+      final src = File(
+        'lib/services/semantic_search_service.dart',
+      ).readAsStringSync();
+      final filtre = src.indexOf('ineligible.contains(e.noteId)');
+      final borne = src.indexOf('_insertTopK(scored');
+      expect(filtre, greaterThan(0));
+      expect(borne, greaterThan(0));
+      expect(
+        filtre,
+        lessThan(borne),
+        reason: 'Filtrer après la borne laisse les inéligibles consommer les '
+            'places : 4 notes en corbeille ou de coffre au-dessus d\'une note '
+            'pertinente, et cette dernière n\'est jamais hydratée ni rendue. '
+            'Invisible — la recherche rend juste moins de résultats.',
+      );
+    });
+
     test('verrouillée ET en corbeille reste rejetée', () {
       final both = _note(
         encrypted: Uint8List.fromList(List.filled(40, 7)),
