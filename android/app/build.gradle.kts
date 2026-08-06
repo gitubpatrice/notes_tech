@@ -65,6 +65,44 @@ android {
     // universel (économie ~70 Mo upload GitHub Releases). Même hotfix
     // appliqué à Pass Tech v2.4.3 et Read Files Tech v2.13.1.
 
+    // Taille de l'APK — `flutter_gemma` 0.14.x tire tout le bundle MediaPipe
+    // GenAI, y compris des tâches que Notes Tech n'appelle jamais. Mesuré sur
+    // v1.1.6 : APK universel publié à 347 Mo, split arm64-v8a à 220 Mo, pour
+    // une app de prise de notes.
+    //
+    // Ce qu'on retire et pourquoi c'est sûr ici :
+    //   - `*_embedding_model_jni` (gemma, gecko) : les embeddings de Notes
+    //     Tech viennent d'ONNX Runtime + MiniLM, embarqué séparément.
+    //   - `*_vision_*`, `imagegenerator_gpu` : tâches vision et génération
+    //     d'images, aucune surface dans l'app (permission caméra absente).
+    //   - `text_chunker_jni` : le découpage RAG est fait par `RagService`.
+    //   - `sqlite_vector_store_jni` : les vecteurs vivent dans notre propre
+    //     table, pas dans le store MediaPipe.
+    //   - `LiteRtWebGpuAccelerator` : back-end WebGPU, sans objet sur Android.
+    //
+    // ⚠️ `libLiteRtLm.so`, `libllm_inference_engine_jni.so` et
+    // `libLiteRtGpuAccelerator.so` sont CONSERVÉS : c'est le moteur
+    // d'inférence Gemma lui-même. Ne pas les ajouter à cette liste.
+    //
+    // ⚠️ Toute exclusion est un pari sur ce que MediaPipe charge en `dlopen`
+    // à l'exécution. Vérifier sur appareil après chaque bump de
+    // `flutter_gemma` : ouvrir le chat IA, charger un modèle, envoyer un
+    // message. Un `UnsatisfiedLinkError` au logcat = remettre la lib.
+    packaging {
+        jniLibs {
+            excludes += setOf(
+                "**/libgemma_embedding_model_jni.so",
+                "**/libgecko_embedding_model_jni.so",
+                "**/libmediapipe_tasks_vision_jni.so",
+                "**/libmediapipe_tasks_vision_image_generator_jni.so",
+                "**/libimagegenerator_gpu.so",
+                "**/libtext_chunker_jni.so",
+                "**/libsqlite_vector_store_jni.so",
+                "**/libLiteRtWebGpuAccelerator.so"
+            )
+        }
+    }
+
     bundle {
         abi {
             enableSplit = true

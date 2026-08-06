@@ -61,28 +61,29 @@ class SettingsService extends ChangeNotifier {
   // d'enum n'est pas un contrat de sérialisation stable. Une valeur écrite
   // par une version puis relue par une autre retomberait sur le `orElse`
   // et réinitialiserait silencieusement le tri de l'utilisateur.
-  // Le `switch` exhaustif garantit en prime qu'ajouter un mode de tri sans
-  // décider de sa clé persistée ne compile pas.
-  static const _sortModeKeys = <NoteSortMode, String>{
-    NoteSortMode.updatedDesc: 'updatedDesc',
-    NoteSortMode.updatedAsc: 'updatedAsc',
-    NoteSortMode.createdDesc: 'createdDesc',
-    NoteSortMode.createdAsc: 'createdAsc',
-    NoteSortMode.titleAsc: 'titleAsc',
-    NoteSortMode.titleDesc: 'titleDesc',
+  // `switch` exhaustif et non une Map : ajouter un mode de tri sans décider
+  // de sa clé persistée doit casser À LA COMPILATION. Une Map aurait rendu
+  // le même service en apparence, mais l'oubli n'aurait explosé qu'à
+  // l'exécution, sur un `!` null-check, au premier changement de tri.
+  static String _sortModeKey(NoteSortMode mode) => switch (mode) {
+    NoteSortMode.updatedDesc => 'updatedDesc',
+    NoteSortMode.updatedAsc => 'updatedAsc',
+    NoteSortMode.createdDesc => 'createdDesc',
+    NoteSortMode.createdAsc => 'createdAsc',
+    NoteSortMode.titleAsc => 'titleAsc',
+    NoteSortMode.titleDesc => 'titleDesc',
   };
 
   NoteSortMode get sortMode {
     final raw = _prefs.getString(AppConstants.prefKeySortMode);
-    for (final entry in _sortModeKeys.entries) {
-      if (entry.value == raw) return entry.key;
+    for (final mode in NoteSortMode.values) {
+      if (_sortModeKey(mode) == raw) return mode;
     }
     return NoteSortMode.updatedDesc;
   }
 
   Future<void> setSortMode(NoteSortMode mode) async {
-    // `!` sûr : la map couvre l'enum, et le test de garde le vérifie.
-    await _prefs.setString(AppConstants.prefKeySortMode, _sortModeKeys[mode]!);
+    await _prefs.setString(AppConstants.prefKeySortMode, _sortModeKey(mode));
     notifyListeners();
   }
 

@@ -188,10 +188,11 @@ void main() {
       );
       for (final mode in NoteSortMode.values) {
         expect(
-          src.contains("NoteSortMode.${mode.name}: '${mode.name}'"),
+          code.contains("NoteSortMode.${mode.name} => '${mode.name}'"),
           isTrue,
-          reason: 'Clé manquante pour ${mode.name} : la map doit couvrir '
-              'tout l\'enum, sinon `setSortMode` lève sur ce mode.',
+          reason: 'Clé manquante pour ${mode.name}. Le `switch` exhaustif '
+              'doit couvrir tout l\'enum — un oubli casse à la compilation, '
+              'pas au premier changement de tri sur le téléphone.',
         );
       }
     });
