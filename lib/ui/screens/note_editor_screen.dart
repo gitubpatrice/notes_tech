@@ -354,6 +354,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           if (!mounted) return;
           _savingNotifier.value = false;
           _showError(t.noteEditorErrorVaultRelockedDuringEdit);
+          _closeOnVaultLock();
           return;
         }
         toSave = await vault.encryptNote(toSave);
@@ -423,12 +424,39 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// (jamais de clair au repos) et affiche un SnackBar. On ne pop PAS
   /// dans ce cas — l'utilisateur doit voir l'avertissement, sinon il
   /// croit avoir sauvegardé alors que ses modifs sont perdues.
+  /// Referme l'éditeur et efface le clair de la RAM quand le coffre s'est
+  /// reverrouillé pendant l'édition.
+  ///
+  /// ⚠️ CE GESTE PERD LES MODIFICATIONS NON ENREGISTRÉES, et c'est assumé :
+  /// elles n'étaient de toute façon plus enregistrables. Sans clé en RAM,
+  /// rien ne peut être chiffré, et les écrire en clair serait exactement la
+  /// fuite que le coffre existe pour empêcher.
+  ///
+  /// Avant, l'écran restait ouvert « pour que l'utilisateur lise le message ».
+  /// Le contenu déchiffré restait donc affiché, éditable et en mémoire, alors
+  /// que le coffre était cryptographiquement fermé — un téléphone posé sur
+  /// une table montrait le contenu d'un coffre verrouillé. Relevé en CRITIQUE
+  /// par une relecture externe (Gemini 3.1 Pro).
+  ///
+  /// Le message reste visible : `ScaffoldMessenger` vit au-dessus de la route
+  /// qu'on dépile.
+  void _closeOnVaultLock() {
+    _autosave.cancel();
+    _titleCtrl.clear();
+    _contentCtrl.clear();
+    _note = null;
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    if (nav.canPop()) nav.pop();
+  }
+
   Future<void> _doneEditing() async {
     await _flushSave();
     if (!mounted) return;
     if (_wasLocked && !_vault.isUnlocked(_note?.folderId ?? '')) {
-      // Save abandonnée — laisse l'éditeur ouvert pour que l'user lise
-      // le SnackBar « Coffre re-verrouillé » et décide quoi faire.
+      // Save abandonnée : le coffre s'est refermé. On ne laisse pas l'écran
+      // ouvert sur du clair — voir `_closeOnVaultLock`.
+      _closeOnVaultLock();
       return;
     }
     // v1.1.4 (B2) — feedback haptique sur le "Terminé" explicite.
@@ -527,15 +555,28 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           text: 'Note exportée depuis Notes Tech',
         );
       } finally {
-        // Cleanup best-effort du tmp : Android purge cache/tmp à
-        // intervalles, mais on évite l'accumulation entre deux purges.
-        // Le sheet de partage a déjà reçu le contenu (Intent EXTRA_STREAM
-        // copie ou tient une URI ouverte) avant qu'on supprime ici.
-        try {
-          if (await file.exists()) await file.delete();
-        } catch (_) {
-          /* best-effort */
-        }
+        // ⚠️ SUPPRESSION DIFFÉRÉE, PAS IMMÉDIATE.
+        //
+        // `shareXFiles` rend la main quand la feuille de partage se ferme —
+        // pas quand l'application destinataire a fini de LIRE le fichier.
+        // Un client mail ou une messagerie ouvre l'URI quelques instants
+        // après ; supprimer sur-le-champ faisait échouer le partage de façon
+        // aléatoire, selon la vitesse de l'appareil. Relevé par une relecture
+        // externe (Gemini 3.1 Pro).
+        //
+        // 30 s laissent largement le temps au destinataire, et le fichier ne
+        // survit pas : le boot purge `exports/` et le mode panique aussi.
+        // Fire-and-forget : on ne fait pas attendre l'utilisateur pour un
+        // ménage.
+        unawaited(
+          Future<void>.delayed(const Duration(seconds: 30), () async {
+            try {
+              if (await file.exists()) await file.delete();
+            } catch (_) {
+              /* best-effort — le boot suivant purge */
+            }
+          }),
+        );
       }
     } catch (e) {
       if (!mounted) return;

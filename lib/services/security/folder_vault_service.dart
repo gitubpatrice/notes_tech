@@ -966,6 +966,18 @@ class FolderVaultService extends ChangeNotifier {
   /// Best-effort et silencieux : un échec sur une note n'empêche ni les
   /// autres ni le déverrouillage. Retourne le nombre de notes reprotégées,
   /// pour diagnostic.
+  /// Relance la reprotection sans attendre la prochaine ouverture de session.
+  ///
+  /// Sert au rattrapage IMMÉDIAT d'une conversion partielle : quand
+  /// `encryptAllNotesInFolder` laisse des notes en clair, le dossier est déjà
+  /// marqué coffre et l'utilisateur le croit protégé. Attendre le prochain
+  /// déverrouillage pour réparer, c'est laisser du clair au repos entre-temps.
+  ///
+  /// Ne réussit que si la session est ouverte — c'est le cas juste après une
+  /// conversion. Retourne le nombre de notes reprotégées.
+  Future<int> retryProtectPlaintextNotes(String folderId) =>
+      _reprotectPlaintextNotes(folderId);
+
   Future<int> _reprotectPlaintextNotes(String folderId) async {
     var repaired = 0;
     try {

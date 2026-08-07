@@ -140,6 +140,16 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           );
           if (res == null || !mounted) return; // déverrouillage annulé
           if (res.failed > 0) {
+            // RESCELLER CE QUI A DÉJÀ ÉTÉ DÉCHIFFRÉ avant d'abandonner.
+            // `decryptAllNotesInFolder` écrit en clair note par note ; si
+            // elle s'arrête en chemin, la suppression est annulée mais la
+            // première moitié du coffre est déjà lisible au repos, dans un
+            // dossier qui s'affiche toujours comme protégé. La session est
+            // encore ouverte ici : on répare tout de suite plutôt que
+            // d'attendre le prochain déverrouillage. Relevé par une relecture
+            // externe (Gemini 3.1 Pro).
+            await vault.retryProtectPlaintextNotes(folder.id);
+            if (!mounted) return;
             // Contraste WCAG AA via le helper canonique.
             messenger.showErrorSnack(
               t.folderDeleteDecryptFailed(res.failed),
@@ -161,7 +171,23 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // les notes du dossier, y compris archivées et en corbeille
       // (sinon le ON DELETE CASCADE qui suit les effacerait
       // définitivement, bypassant la rétention 30 jours).
-      await moveAllNotesToInbox(_notes, fromFolderId: folder.id);
+      // Le déplacement peut échouer APRÈS que tout a été déchiffré : le
+      // coffre est alors intégralement en clair au repos, dans un dossier
+      // encore marqué coffre, et l'exception remontait sans rien réparer.
+      // Même geste que ci-dessus, tant que la session tient.
+      try {
+        await moveAllNotesToInbox(_notes, fromFolderId: folder.id);
+      } catch (e) {
+        if (folder.isVault) {
+          await vault.retryProtectPlaintextNotes(folder.id);
+        }
+        if (!mounted) return;
+        messenger.showErrorSnack(
+          t.folderDeleteCancelledError(e.toString()),
+          cs,
+        );
+        return;
+      }
     }
     if (!mounted) return;
     // Verrouille la session avant suppression — libère la folder_kek en
@@ -573,7 +599,24 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // Re-encrypte toutes les notes existantes du dossier — la session
       // est active suite au createVault, donc encryptAllNotesInFolder
       // peut accéder à la folder_kek.
-      final result = await vault.encryptAllNotesInFolder(updated.id);
+      var result = await vault.encryptAllNotesInFolder(updated.id);
+      // RATTRAPAGE IMMÉDIAT. Le dossier est déjà marqué coffre : laisser des
+      // notes en clair, c'est afficher une protection qui n'existe pas pour
+      // elles. La réparation tournait déjà, mais seulement à la PROCHAINE
+      // ouverture du coffre — donc du clair au repos entre-temps. La session
+      // est ouverte ici, juste après la conversion : on répare tout de suite.
+      // Relevé par une relecture externe (Gemini 3.1 Pro).
+      if (result.failed > 0) {
+        final reprotegees = await vault.retryProtectPlaintextNotes(updated.id);
+        if (reprotegees > 0) {
+          result = (
+            encrypted: result.encrypted + reprotegees,
+            failed: result.failed - reprotegees < 0
+                ? 0
+                : result.failed - reprotegees,
+          );
+        }
+      }
       if (!mounted) return;
       navigator.pop(); // ferme le dialog progress
       // Affichage HONNÊTE du résultat : si failed > 0, on alerte
