@@ -47,14 +47,22 @@ void main() {
     }
   }
 
-  /// Retour arrière par le Navigator, et NON `tester.pageBack()`.
+  /// Retour arrière par le bouton de l'AppBar.
   ///
-  /// `pageBack` cherche un bouton dont le tooltip vaut « Back » : sur une
-  /// application dont la locale est le français, ce tooltip est « Retour »
-  /// et le finder échoue. Le test signalerait alors un défaut de navigation
-  /// là où il n'y a qu'un problème de langue.
+  /// Deux approches écartées, et leurs échecs valent d'être notés :
+  ///   - `tester.pageBack()` cherche un tooltip « Back » ; l'application
+  ///     étant en français il vaut « Retour », et le finder échoue.
+  ///   - popper `find.byType(Navigator).first` dépend de l'arbre : selon que
+  ///     le splash de premier lancement est passé ou non, ce `.first` ne
+  ///     désigne pas le même Navigator, et on finit par vider la pile de
+  ///     routes — l'application se ferme et le test « ne complète pas »,
+  ///     sans la moindre exception pour l'expliquer.
+  /// `BackButton` est le widget que Material insère lui-même dans l'AppBar
+  /// dès qu'il y a une route à dépiler : c'est le geste de l'utilisateur.
   Future<void> back(WidgetTester tester) async {
-    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
+    final btn = find.byType(BackButton);
+    expect(btn, findsWidgets, reason: 'aucun bouton retour sur cet écran');
+    await tester.tap(btn.first);
     await settle(tester);
   }
 
