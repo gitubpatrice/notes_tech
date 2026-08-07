@@ -54,18 +54,38 @@ class _PassphraseTextFieldState extends State<PassphraseTextField> {
       // `autocorrect/enableSuggestions: false` qui peut être ignoré par
       // certains claviers Android).
       keyboardType: TextInputType.visiblePassword,
-      // Sélection et copie désactivées EN PERMANENCE.
+      // Sélection CONSERVÉE, mais COPIER et COUPER retirés du menu.
       //
-      // La condition était `!_hidden` : la copie redevenait possible dès que
-      // l'utilisateur appuyait sur l'œil pour relire sa saisie — c'est-à-dire
-      // au moment précis où le secret est le plus exposé. Un long-press →
-      // « Tout sélectionner » → Copier envoyait la passphrase au
+      // Deux erreurs successives ici, et la seconde était la mienne.
+      // D'abord `enableInteractiveSelection: !_hidden` : la copie redevenait
+      // possible dès que l'utilisateur appuyait sur l'œil pour relire sa
+      // saisie — au moment précis où le secret est le plus exposé. Un
+      // long-press → « Tout sélectionner » → Copier envoyait la passphrase au
       // presse-papiers, lisible par les gestionnaires tiers et par certains
-      // claviers. Relevé par une relecture externe (GPT-5.5).
+      // claviers.
+      // Puis, en corrigeant, `enableInteractiveSelection: false` — qui coupe
+      // AUSSI le collage et le repositionnement du curseur. Quelqu'un dont la
+      // passphrase vient d'un gestionnaire de mots de passe devait la retaper
+      // entièrement, à l'aveugle. Relevé par une relecture externe (GPT-5.5).
       //
-      // Le coût est nul : on ne copie pas une passphrase qu'on est en train
-      // de saisir, et le bouton œil sert à la RELIRE, pas à la manipuler.
-      enableInteractiveSelection: false,
+      // La bonne granularité est le menu : on garde coller, tout
+      // sélectionner et le curseur ; on retire copier et couper, les deux
+      // seuls gestes qui FONT SORTIR le secret du champ.
+      enableInteractiveSelection: true,
+      contextMenuBuilder: (context, editableTextState) {
+        final items = editableTextState.contextMenuButtonItems
+            .where(
+              (item) =>
+                  item.type != ContextMenuButtonType.copy &&
+                  item.type != ContextMenuButtonType.cut,
+            )
+            .toList();
+        if (items.isEmpty) return const SizedBox.shrink();
+        return AdaptiveTextSelectionToolbar.buttonItems(
+          anchors: editableTextState.contextMenuAnchors,
+          buttonItems: items,
+        );
+      },
       textInputAction: widget.textInputAction,
       onSubmitted: widget.onSubmitted,
       decoration: InputDecoration(
