@@ -28,15 +28,50 @@ class FoldersRepository {
   /// consulté à **chaque écriture de note** par la garde d'invariant de
   /// `NotesRepository` : sans lui, chaque frappe auto-sauvegardée paierait
   /// une requête de plus.
+  /// ⚠️ LA COURSE QUE CETTE VERSION FERME, parce qu'elle rendait la garde
+  /// d'invariant AVEUGLE.
+  ///
+  /// L'écriture était `_vaultIds ??= { for (final f in await ...) }`. Le `??=`
+  /// évalue sa partie droite, qui contient un `await` : pendant cette
+  /// suspension `_vaultIds` reste `null`. Si un coffre est créé dans cet
+  /// intervalle, `_emit()` remet le cache à `null` — sans effet, il l'est
+  /// déjà — puis l'`await` rend une liste ANTÉRIEURE à la création, et ce
+  /// jeu périmé devient le cache.
+  ///
+  /// Conséquence : `isVaultFolder` répondait `false` pour un coffre qui
+  /// venait d'être créé. La garde de `NotesRepository` laissait alors passer
+  /// les écritures en clair de ses notes — jusqu'au prochain événement qui
+  /// invalide le cache. C'est exactement le défaut que la garde existe pour
+  /// empêcher. Relevé en CRITIQUE par une relecture externe (Gemini 3.1 Pro).
+  ///
+  /// Le compteur de génération tranche : si une invalidation est survenue
+  /// pendant la lecture, le résultat n'est PAS mis en cache et la lecture est
+  /// refaite. Bornée à trois tours — au-delà, on répond sur la lecture la
+  /// plus fraîche sans rien cacher, ce qui reste correct et coûte seulement
+  /// une requête de plus.
   Future<bool> isVaultFolder(String id) async {
-    final cache = _vaultIds ??= {
-      for (final f in await _dao.listAll())
-        if (f.isVault) f.id,
-    };
-    return cache.contains(id);
+    final cache = _vaultIds;
+    if (cache != null) return cache.contains(id);
+    Set<String> frais = const <String>{};
+    for (var tour = 0; tour < 3; tour++) {
+      final generation = _vaultIdsGeneration;
+      frais = {
+        for (final f in await _dao.listAll())
+          if (f.isVault) f.id,
+      };
+      if (generation == _vaultIdsGeneration) {
+        _vaultIds = frais;
+        break;
+      }
+    }
+    return frais.contains(id);
   }
 
   Set<String>? _vaultIds;
+
+  /// Incrémenté à chaque invalidation. Sert uniquement à détecter qu'un
+  /// changement est survenu PENDANT une lecture asynchrone du cache.
+  int _vaultIdsGeneration = 0;
   Future<List<Folder>> listAll() => _dao.listAll();
   Future<List<Folder>> children(String? parentId) =>
       _dao.listChildren(parentId);
@@ -95,6 +130,8 @@ class FoldersRepository {
   void _emit() {
     // Invalide AVANT de notifier : un écouteur qui réagit à l'event et
     // interroge `isVaultFolder` dans la foulée doit lire l'état neuf.
+    // La génération signale en plus l'invalidation aux lectures EN COURS.
+    _vaultIdsGeneration++;
     _vaultIds = null;
     if (!_changes.isClosed) _changes.add(null);
   }

@@ -164,6 +164,19 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
             return;
           }
         } catch (e) {
+          // ⚠️ RESCELLER ICI AUSSI. Le rattrapage n'existait que sur le
+          // chemin « echec PARTIEL rapporte » (`res.failed > 0`). Si le
+          // service LEVE au milieu de sa boucle — erreur SQLite, memoire
+          // saturee — on sautait directement ici, et les notes deja
+          // dechiffrees restaient en clair au repos dans un dossier qui
+          // arbore toujours son cadenas. L'utilisateur croyait l'operation
+          // annulee proprement. Releve en CRITIQUE par une relecture externe
+          // (Gemini 3.1 Pro).
+          try {
+            await vault.retryProtectPlaintextNotes(folder.id);
+          } catch (_) {
+            /* la reprotection au prochain deverrouillage rattrapera */
+          }
           if (!mounted) return;
           messenger.showErrorSnack(
             t.folderDeleteCancelledError(e.toString()),
@@ -541,10 +554,13 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(t.commonCancel),
           ),
-          FilledButton.tonal(
-            style: FilledButton.styleFrom(
-              backgroundColor: cs.errorContainer,
-              foregroundColor: cs.onErrorContainer,
+          // Le contenu part en clair et ça ne se répare pas : ce bouton ne
+          // doit pas être le plus lourd du dialogue. Contourné, comme les
+          // trois autres actions destructives de l'application.
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: cs.error,
+              side: BorderSide(color: cs.error),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(t.folderRemoveVaultConfirm),
@@ -565,6 +581,14 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       if (res == null || !mounted) return; // déverrouillage annulé
       if (res.failed > 0) {
         // Le service n'a RIEN démoté : le dossier est toujours un coffre.
+        // Mais les notes déjà déchiffrées, elles, sont en clair au repos.
+        // Même rattrapage immédiat que sur la suppression de coffre.
+        try {
+          await vault.retryProtectPlaintextNotes(folder.id);
+        } catch (_) {
+          /* la reprotection au prochain déverrouillage rattrapera */
+        }
+        if (!mounted) return;
         // Le dire, sinon l'utilisateur croit l'opération faite.
         messenger.showErrorSnack(
           t.folderDeleteDecryptFailed(res.failed),
@@ -576,6 +600,15 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       unawaited(HapticFeedback.lightImpact());
       messenger.showSuccessSnack(t.folderRemoveVaultDone(res.decrypted), cs);
     } catch (e) {
+      // Le service peut LEVER au milieu de sa boucle de déchiffrement : les
+      // notes déjà traitées sont alors en clair, dans un dossier qui reste
+      // marqué coffre. Sans ce rattrapage, on sautait directement au message
+      // d'erreur en laissant du clair au repos.
+      try {
+        await vault.retryProtectPlaintextNotes(folder.id);
+      } catch (_) {
+        /* la reprotection au prochain déverrouillage rattrapera */
+      }
       if (!mounted) return;
       messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
     }

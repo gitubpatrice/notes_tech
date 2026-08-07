@@ -37,6 +37,11 @@ class NoteActions {
   /// copié entretemps).
   static String? _ownTextSnapshot;
 
+  /// Incrémentée à chaque purge du presse-papiers. Une copie dont la
+  /// génération a changé pendant son exécution ne doit plus rien écrire —
+  /// voir `_copySensitive`.
+  static int _generationPressePapiers = 0;
+
   /// Copie le contenu Markdown brut dans le presse-papier avec marquage
   /// "sensible" (Android 13+) + auto-clear 60 s.
   /// [fromVault] : la note vient d'un dossier coffre. Le repli non sécurisé
@@ -50,6 +55,7 @@ class NoteActions {
   /// sur `Clipboard.setData` standard si le channel n'est pas disponible
   /// (tests, plate-formes non supportées).
   Future<void> _copySensitive(String text, {bool refuserRepli = false}) async {
+    final generation = _generationPressePapiers;
     bool nativeOk = false;
     try {
       final r = await _channel.invokeMethod<bool>('copySensitive', {
@@ -59,6 +65,18 @@ class NoteActions {
     } catch (_) {
       nativeOk = false;
     }
+    // ⚠️ NE PAS RESSUSCITER LE TEXTE APRÈS UNE PURGE D'URGENCE.
+    //
+    // Scénario : l'utilisateur copie une note, l'appel natif est encore en
+    // vol, il déclenche le mode panique. `cancelAndClear()` vide le
+    // presse-papiers. Puis l'appel natif interrompu échoue, on tombe dans le
+    // repli, et le texte en clair est RÉINJECTÉ une fraction de seconde
+    // après la purge — exposé à toutes les applications. Relevé en CRITIQUE
+    // par une relecture externe (Gemini 3.1 Pro).
+    //
+    // La génération tranche : toute purge l'incrémente, et un repli dont la
+    // génération a changé est abandonné.
+    if (generation != _generationPressePapiers) return;
     if (!nativeOk) {
       // ⚠️ REPLI REFUSÉ POUR LE CONTENU D'UN COFFRE.
       //
@@ -105,6 +123,9 @@ class NoteActions {
 
   /// Force un clear immédiat (utilisé par PanicService).
   static Future<void> cancelAndClear() async {
+    // Invalide toute copie EN VOL avant même de vider : une copie qui se
+    // termine après nous ne doit pas réécrire ce qu'on efface.
+    _generationPressePapiers++;
     _clearTimer?.cancel();
     _clearTimer = null;
     _ownTextSnapshot = null;
