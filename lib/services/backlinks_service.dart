@@ -59,7 +59,7 @@ class BacklinksService {
   /// les frappes utilisateur pour que les backlinks remontent vite dans le
   /// panneau latéral. Cette valeur était volontairement plus courte que le
   /// debounce de 3 s de l'indexeur sémantique, qui espaçait des passes CPU
-  /// coûteuses ; cet indexeur a disparu en v1.1.7.
+  /// coûteuses ; cet indexeur a disparu en v2.0.0.
   ///
   /// `BacklinksService` est le seul SERVICE abonné à `NotesRepository.changes`
   /// — mais pas le seul abonné : `HomeScreen` et `NoteEditorScreen` y

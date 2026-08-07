@@ -109,7 +109,7 @@ enum PanicStep {
   /// Purge `<appSupport>/models/` — le dossier où vivaient le modèle Gemma
   /// importé par l'utilisateur et le cache MiniLM.
   ///
-  /// Renommée depuis `embedderWipe` en v1.1.7 : elle portait le nom d'un
+  /// Renommée depuis `embedderWipe` en v2.0.0 : elle portait le nom d'un
   /// composant supprimé, alors que son travail réel — effacer des fichiers
   /// hérités — lui a survécu.
   ///

@@ -1,6 +1,6 @@
 # Security policy — Notes Tech
 
-> **⚠️ État au 2026-08-07 — retrait de l'IA embarquée (v1.1.7).** Notes Tech
+> **⚠️ État au 2026-08-07 — retrait de l'IA embarquée (v2.0.0).** Notes Tech
 > n'embarque plus ni moteur d'inférence Gemma, ni recherche sémantique
 > (MiniLM / ONNX). Les entrées d'historique ci-dessous qui les mentionnent
 > décrivent des correctifs **réellement appliqués à l'époque** : elles sont
@@ -8,7 +8,51 @@
 > de le laisser dater. Seules les affirmations d'état courant ont été mises
 > à jour.
 
-**Version current : v1.1.6 — Juillet 2026.**
+**Version current : v2.0.0 — Août 2026.**
+
+## v2.0.0 — Retrait de l'IA + durcissement coffre/panique (2026-08-07)
+
+Retrait de la recherche sémantique (MiniLM/ONNX) et du Q&A Gemma. Surface
+d'attaque réduite d'autant : plus d'isolate d'inférence, plus de prompt
+injecté, plus de cache d'embeddings en clair à protéger. APK arm64
+~127 Mo → 26,9 Mo.
+
+### Failles corrigées
+
+- **Perte de données irréversible à la suppression d'un dossier coffre.**
+  `folders_drawer.dart` détruisait la clé Keystore PIN **avant** la ligne
+  en base. Si la suppression DB échouait ensuite, le dossier et ses notes
+  chiffrées restaient présents alors que la clé nécessaire au
+  déverrouillage avait disparu — coffre définitivement illisible. L'ordre
+  est inversé : base d'abord, clé ensuite, sous `try/catch`.
+- **Le mode panique mentait sur son résultat.** Trois étapes
+  (`_prefsClearWithWhitelist`, `_wipeExportsCache`, `_purgeTempDirectory`)
+  avalaient leurs échecs unitaires et l'écran final affichait « effacement
+  terminé » alors que des artefacts survivaient. Elles comptent désormais
+  leurs échecs et lèvent ; `_wipeExportsCache` purge en outre le répertoire
+  de cache en plus du temporaire. Le filtre `_estArtefactSensible` évite
+  l'écueil inverse — un fichier temporaire étranger à l'app ne doit pas
+  faire déclarer la panique incomplète.
+- **Titre d'une note de coffre écrit en clair.** Le scellement était porté
+  par l'appelant et non par la couche de persistance : tout chemin
+  d'écriture qui l'oubliait laissait le titre lisible dans la colonne.
+  `NotesRepository` refuse maintenant toute écriture en clair dans un
+  dossier coffre (`VaultPlaintextWriteException`) et scelle lui-même.
+- **Presse-papiers non purgé après copies successives.** La minuterie
+  d'effacement d'une copie pouvait remettre l'état à zéro alors qu'une
+  copie plus récente était en cours, laissant son contenu indéfiniment
+  dans le presse-papiers. Un jeton par copie ferme la course.
+- **Les migrations de schéma n'avaient jamais été exercées.** Les tests
+  créaient des bases neuves : `onCreate` posait le schéma courant et
+  `onUpgrade` n'était jamais appelé. `integration_test/db_migration_test.dart`
+  construit désormais de vraies bases héritées (v1, v5, v7) et vérifie la
+  migration réelle jusqu'en v9, dont la purge FTS d'une note verrouillée.
+
+### Vérification
+
+CI GitHub Actions verte de bout en bout pour la première fois : analyse,
+65 tests unitaires, build, et les 5 suites d'intégration sur émulateur
+API 30. Scan OSV des dépendances : aucune CVE.
 
 ## v1.1.6 — Logo & réorganisation barre du haut (2026-07-09)
 
@@ -262,7 +306,7 @@ Notes Tech v1.0 introduit plusieurs durcissements sécurité :
   rendu de markdown distant.
 - `ProGuard` rules complètes : `files_tech_voice`, `flutter_markdown`,
   sqflite. Les règles MediaPipe / ONNX / flutter_gemma sont devenues
-  sans objet avec le retrait de l'IA embarquée (v1.1.7).
+  sans objet avec le retrait de l'IA embarquée (v2.0.0).
 
 ## Reporting a vulnerability
 

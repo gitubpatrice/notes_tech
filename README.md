@@ -2,7 +2,7 @@
 
 > Vos notes restent dans votre poche. Chiffrées, et hors ligne.
 
-**v1.0.4 — Mai 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
+**v2.0.0 — Août 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
 
 Application Android Flutter de prise de notes Markdown chiffrées,
 **100 % locale, zéro permission Internet**. Interface bilingue **FR / EN**.
@@ -10,23 +10,36 @@ Coffres par dossier (passphrase Argon2id ou PIN Keystore-bound), recherche
 plein-texte FTS5, dictée vocale Whisper on-device, backlinks `[[note]]`,
 mode panique multi-step.
 
-## Quoi de neuf en v1.0.0
+## Quoi de neuf en v2.0.0
 
-- **i18n FR / EN complète** : 9 écrans + 14 widgets, sélecteur Langue
-  dans Réglages, locale système suivie par défaut.
-- **Sélecteur de thème** : Clair / Sombre / Système, persisté.
-- **Splits ABI** : APK livré ~1/3 plus léger par device (arm64-v8a,
-  armeabi-v7a, x86_64).
-- **Mode panique whitelist** : `db_encrypted_v1` et `secure_window_enabled`
-  préservés pour cohérence du redémarrage (conformément à PRIVACY.md).
-- **A11y P0** : annonces TalkBack et `Semantics` complets sur le pavé PIN,
-  la sauvegarde et les overlays de dictée.
-- **Helpers UI extraits** : `PassphraseTextField`, `VaultWarningBanner`,
-  `BlockingProgressDialog` (factorisation cross-écrans).
-- **Mentions légales** : page rendue depuis `assets/legal/PRIVACY.{fr,en}.md`
-  et `TERMS.{fr,en}.md` via `flutter_markdown`.
-- **Performance** : `Selector` ciblé sur `themeMode + locale`,
-  `MediaQuery.sizeOf` dans les listes.
+**L'IA embarquée est retirée.** La recherche sémantique (MiniLM) et le
+Q&A « Demander à mes notes » (Gemma 3 1B) disparaissent. L'APK arm64
+passe de ~127 Mo à **26,9 Mo**. La recherche reste plein-texte FTS5 +
+bm25 : rapide et exacte, mais elle ne devine pas les synonymes.
+
+Bump majeur et non mineur pour trois raisons :
+
+- l'app perd ses deux fonctions phares, ce qu'un `1.2.0` ne signalerait
+  pas à l'utilisateur ;
+- l'APK est divisé par près de cinq, visible dès l'installation ;
+- **la migration est à sens unique** : la base passe en schéma v9 et la
+  v1.1.6 publiée n'a pas de `onDowngrade`, donc réinstaller une 1.x ne
+  peut plus ouvrir la base.
+
+Cette version inaugure aussi les **APK splits par ABI sans universel**.
+Les deux familles ont des `versionCode` incompatibles — l'offset
+`+1000 × index` de Flutter place tout universel sous n'importe quel
+split de même version, et Android refusait alors l'installation en
+downgrade. Transition à sens unique : ne pas réintroduire d'universel.
+
+Corrections notables du même cycle :
+
+- supprimer un dossier détruisait la clé Keystore **avant** la base, ce
+  qui rendait un coffre définitivement illisible si la base échouait ;
+- le mode panique annonçait « effacement terminé » même en cas d'échec ;
+- **les migrations de schéma n'avaient jamais tourné** — les tests
+  créaient des bases neuves, donc `onUpgrade` n'était jamais appelé ;
+- le titre d'une note de coffre pouvait partir en clair.
 
 Pour penseurs, thérapeutes, étudiants, chercheurs, écrivains et
 journalistes qui veulent prendre des notes sensibles ou denses sans
@@ -169,12 +182,15 @@ la procédure de signalement de faille.
 
 ## Installation
 
-Ce dépôt **n'a pas de pipeline de release CI automatique**. Deux options :
+Deux options :
 
-1. **Build local** (recommandé pour audit) — voir section suivante.
-2. **APK release manuelle** : récupérer le dernier `.apk` publié sur
-   [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases)
-   (v1.0.0), vérifier la signature, side-loader.
+1. **APK publiée** : récupérer le split correspondant à votre appareil
+   sur [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases)
+   — `arm64-v8a` couvre la quasi-totalité des téléphones depuis 2016 —
+   vérifier le SHA-256 publié dans les notes de release, side-loader.
+   Ces APK sont construites et signées par GitHub Actions
+   (`.github/workflows/release.yml`), déclenchées au push d'un tag `v*`.
+2. **Build local** (recommandé pour audit) — voir section suivante.
 
 Pas de Play Store : distribution side-load uniquement (cohérent avec la
 promesse de confidentialité — aucun compte requis pour installer).
@@ -203,7 +219,7 @@ keyPassword=...
 
 APK release arm64 : **~27 Mo** (SQLCipher + Whisper.cpp — le modèle de
 dictée est téléchargé séparément, non bundlé). L'IA embarquée a été retirée
-en v1.1.7 : elle pesait 100 Mo pour une fonctionnalité que presque personne
+en v2.0.0 : elle pesait 100 Mo pour une fonctionnalité que presque personne
 ne pouvait atteindre sans permission Internet.
 
 Pré-requis :

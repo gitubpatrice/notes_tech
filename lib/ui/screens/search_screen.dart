@@ -1,6 +1,6 @@
 /// Recherche plein-texte (FTS5).
 ///
-/// Mode unique depuis v1.1.7. L'écran portait un sélecteur
+/// Mode unique depuis v2.0.0. L'écran portait un sélecteur
 /// `Mots exacts` / `Similaires` et un compteur de notes indexées : les deux
 /// ont disparu avec la recherche sémantique.
 library;

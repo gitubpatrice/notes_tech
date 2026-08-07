@@ -52,7 +52,7 @@ Future<void> main() async {
   // a été tué pendant un share sheet précédent). Best-effort, fire-and-forget.
   unawaited(_purgeExportsCache());
 
-  // v1.1.7 — récupère l'espace laissé par l'IA retirée. Une seule fois.
+  // v2.0.0 — récupère l'espace laissé par l'IA retirée. Une seule fois.
   unawaited(_purgeOrphanModelsOnce());
 
   // VaultService injecté avant tout accès DB : `AppDatabase` réutilisera
@@ -196,7 +196,7 @@ Future<void> main() async {
 }
 
 /// Supprime, UNE SEULE FOIS, les modèles devenus orphelins avec le retrait
-/// de l'IA embarquée (v1.1.7).
+/// de l'IA embarquée (v2.0.0).
 ///
 /// Un utilisateur qui avait importé Gemma garde sinon **jusqu'à 530 Mo** dans
 /// le stockage privé de l'application : un fichier que plus aucun code ne lit,

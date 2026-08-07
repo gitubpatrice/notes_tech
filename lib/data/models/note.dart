@@ -56,7 +56,7 @@ class Note {
   /// Il n'existe plus d'autre dérivé du texte en clair à purger. La
   /// recherche sémantique en produisait un — un vecteur calculé sur le
   /// contenu déchiffré, qui survivait à la mise au coffre s'il n'était pas
-  /// supprimé explicitement. Elle a été retirée en v1.1.7, et la migration
+  /// supprimé explicitement. Elle a été retirée en v2.0.0, et la migration
   /// de schéma v8 a supprimé la table qui les stockait.
   ///
   /// Le déverrouillage en RAM produit un `Note` éphémère avec `content`

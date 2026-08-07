@@ -2,7 +2,7 @@
 ///
 /// Ce dossier contenait le `.task` Gemma importé à la main par l'utilisateur
 /// et le cache MiniLM. Plus aucun code ne l'alimente depuis le retrait de l'IA
-/// en v1.1.7, mais un utilisateur qui met à jour depuis une version ≤ 1.1.6 en
+/// en v2.0.0, mais un utilisateur qui met à jour depuis une version ≤ 1.1.6 en
 /// a toujours le contenu : **jusqu'à 530 Mo** qu'il ne voit pas, qu'aucun
 /// écran ne mentionne, et qu'il ne peut effacer qu'en vidant les données de
 /// l'application — ce qui détruirait aussi ses notes.

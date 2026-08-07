@@ -24,9 +24,9 @@ class AppConstants {
   // (compteur tentatives PIN, auto-wipe à 5).
   // v6 (1.0.3) : F2 — triggers FTS5 réécrits pour ne plus indexer
   // `title`/`tags` sur notes verrouillées (`encrypted_content IS NOT NULL`).
-  // v7 (1.1.7) : `notes.enc_v` — version du format de `encrypted_content`
+  // v7 (2.0.0) : `notes.enc_v` — version du format de `encrypted_content`
   // (1 = contenu seul, 2 = titre + contenu).
-  // v8 (1.1.7) : DROP `note_embeddings` — retrait de la recherche
+  // v8 (2.0.0) : DROP `note_embeddings` — retrait de la recherche
   // sémantique. Ces vecteurs étaient dérivés du texte EN CLAIR des notes.
   static const int dbVersion = 9;
 
@@ -145,7 +145,7 @@ class AppConstants {
   /// d'une éventuelle DB en clair vers une DB chiffrée par la KEK du vault.
   static const String prefKeyDbEncryptedV1 = 'db_encrypted_v1';
 
-  /// Purge unique des modèles orphelins laissés par l'IA embarquée (v1.1.7).
+  /// Purge unique des modèles orphelins laissés par l'IA embarquée (v2.0.0).
   /// Voir `_purgeOrphanModelsOnce` dans `main.dart`.
   static const String prefKeyOrphanModelsPurged = 'orphan_models_purged_v1';
 

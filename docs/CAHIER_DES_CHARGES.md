@@ -21,7 +21,7 @@ qu'elle existe, et il faut le savoir avant de le lire.*
 Les deux fonctions présentées ici comme « le cœur du produit » — la recherche
 sémantique par embeddings MiniLM (§1) et le Q&A Gemma 3 1B (§2) — ont bien été
 livrées, en v0.2 et v0.3 conformément à la feuille de route. Elles ont été
-**retirées en v1.1.7**.
+**retirées en v2.0.0**.
 
 La raison est mesurable : elles pesaient **100 Mo sur les 127 Mo de l'APK**,
 soit près de 80 % du poids livré à *tous* les utilisateurs, pour une
