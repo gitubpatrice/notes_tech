@@ -4,7 +4,7 @@ Notes Tech: 100% local Markdown note-taking, encrypted at-rest.
 • INTERNET permission explicitly removed via manifest merger (tools:node="remove" on android.permission.INTERNET and ACCESS_NETWORK_STATE) — verifiable post-merge with `aapt dump permissions app.apk`
 • No account, no telemetry, no tracker, no advertising
 • SQLCipher AES-256 database + Android Keystore-sealed key (hardware-backed)
-• Multi-step panic mode: wipes key + DB + models in seconds
+• Multi-step panic mode: wipes key + DB + dictation model in seconds
 
 <b>Per-folder vaults</b>
 • Argon2id RFC 9106 passphrase (m=64MB, t=3) or Keystore-bound PIN

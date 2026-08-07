@@ -4,7 +4,7 @@ Notes Tech : prise de notes Markdown 100 % locale et chiffrée at-rest.
 • Permission INTERNET retirée explicitement via le manifest merger (tools:node="remove" sur android.permission.INTERNET et ACCESS_NETWORK_STATE) — vérifiable post-merge avec `aapt dump permissions app.apk`
 • Aucun compte, aucune télémétrie, aucun tracker, aucune publicité
 • Base SQLCipher AES-256 + clé scellée Android Keystore (hardware-backed)
-• Mode panique multi-step : efface clé + DB + modèles en quelques secondes
+• Mode panique multi-step : efface clé + DB + modèle de dictée en quelques secondes
 
 <b>Coffres par dossier</b>
 • Passphrase Argon2id RFC 9106 (m=64MB, t=3) ou PIN Keystore-bound
