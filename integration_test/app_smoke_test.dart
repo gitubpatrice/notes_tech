@@ -80,6 +80,33 @@ void main() {
     fail('jamais apparu : $quoi');
   }
 
+  /// Attend [finder], laisse l'animation d'ouverture se terminer, puis tape.
+  ///
+  /// ⚠️ NE PAS remplacer par `waitFor` + `tap` : `waitFor` rend la main dès
+  /// que le widget EXISTE dans l'arbre, or un `PopupMenu` en cours
+  /// d'ouverture est enveloppé dans un `IgnorePointer`. Le widget est là,
+  /// visible, mesurable — et aucun pointeur ne l'atteint. Le `tap()` part
+  /// alors dans le vide, sans exception, et le test échoue bien plus loin,
+  /// sur l'écran suivant qui n'apparaît jamais.
+  ///
+  /// Constaté sur `Icons.info_outline`, systématiquement. Le même défaut
+  /// existait depuis le début sur `Icons.settings_outlined` : il gagnait la
+  /// course par chance. C'est exactement la forme d'instabilité qui avait
+  /// fait retirer ce fichier.
+  ///
+  /// 500 ms : l'ouverture d'un menu Material dure 300 ms.
+  Future<void> waitThenTap(
+    WidgetTester tester,
+    Finder finder,
+    String quoi,
+  ) async {
+    await waitFor(tester, finder, quoi);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.tap(finder.first);
+  }
+
   testWidgets('parcours des écrans touchés par le retrait de l\'IA', (
     tester,
   ) async {
@@ -116,8 +143,7 @@ void main() {
 
     // ── Réglages ───────────────────────────────────────────────────────
     await tester.tap(find.byIcon(Icons.more_vert).first);
-    await waitFor(tester, find.byIcon(Icons.settings_outlined), 'menu');
-    await tester.tap(find.byIcon(Icons.settings_outlined).first);
+    await waitThenTap(tester, find.byIcon(Icons.settings_outlined), 'menu');
     await waitFor(tester, find.byType(BackButton), 'écran de réglages');
     expect(
       tester.takeException(),
@@ -133,6 +159,28 @@ void main() {
         reason:
             'Les réglages affichent encore « $mot » : un libellé a '
             'survécu au retrait et ment à l\'utilisateur.',
+      );
+    }
+
+    // ── À propos ───────────────────────────────────────────────────────
+    // Cet écran manquait au parcours, et ça s'est vu : il a continué de
+    // créditer « Source du modèle Gemma 3 1B » avec un lien vers Kaggle
+    // pendant tout le retrait de l'IA. Un écran de licences qui crédite un
+    // composant absent est une affirmation fausse affichée à l'utilisateur,
+    // pas une coquille de commentaire.
+    await tester.tap(find.byType(BackButton).first);
+    await waitFor(tester, find.byIcon(Icons.more_vert), 'retour à l\'accueil');
+    await tester.tap(find.byIcon(Icons.more_vert).first);
+    await waitThenTap(tester, find.byIcon(Icons.info_outline), 'menu');
+    await waitFor(tester, find.byType(BackButton), 'écran à propos');
+    expect(tester.takeException(), isNull);
+    for (final mot in ['Gemma', 'Kaggle', 'sémantique']) {
+      expect(
+        find.textContaining(mot, findRichText: true),
+        findsNothing,
+        reason:
+            'L\'écran à propos mentionne encore « $mot » alors que '
+            'l\'application ne contient plus rien de tel.',
       );
     }
 
