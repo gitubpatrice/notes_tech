@@ -3,6 +3,8 @@
 /// Aucun couplage UI. Les exceptions remontent en `DatabaseException`.
 library;
 
+import 'dart:typed_data';
+
 import 'package:sqflite_sqlcipher/sqflite.dart' hide DatabaseException;
 
 import '../../core/exceptions.dart';
@@ -96,24 +98,33 @@ class NotesDao {
     }
   }
 
-  /// TOUT le contenu d'un dossier : archivées ET en corbeille comprises.
+  /// Notes d'un dossier dont le contenu est EN CLAIR dans la colonne
+  /// `content` — donc exposé au repos si le dossier est un coffre.
   ///
-  /// `listByFolder` filtre `trashed_at IS NULL`, ce qui convient à l'UI mais
-  /// pas aux gestes de sécurité : une note de coffre laissée en clair puis
-  /// jetée reste 30 jours dans la corbeille, et c'est précisément là qu'on
-  /// doit aller la rechercher pour la reprotéger.
-  Future<List<Note>> listEverythingInFolder(String folderId) async {
+  /// Le critère est **l'exposition elle-même** (`content` non vide), pas
+  /// l'absence de blob : une ligne portant à la fois un `encrypted_content`
+  /// et un `content` non vide serait tout aussi lisible, et un test sur
+  /// `isLocked` la laisserait passer.
+  ///
+  /// Volontairement SANS filtre sur `trashed_at` : une note de coffre
+  /// laissée en clair puis jetée séjourne 30 jours dans la corbeille, et
+  /// c'est l'endroit où il serait le plus grave de l'oublier.
+  ///
+  /// Requête étroite à dessein — elle tourne à CHAQUE ouverture de coffre et
+  /// ne doit rien coûter dans le cas normal, où elle ne ramène aucune ligne.
+  /// Charger tout le dossier ici ferait payer à chaque déverrouillage la
+  /// lecture de toutes les notes, blobs compris.
+  Future<List<Note>> listPlaintextInFolder(String folderId) async {
     try {
       final rows = await _db.query(
         'notes',
-        where: 'folder_id = ?',
+        where: "folder_id = ? AND content IS NOT NULL AND content <> ''",
         whereArgs: [folderId],
-        orderBy: 'updated_at DESC',
       );
       return rows.map(Note.fromRow).toList(growable: false);
     } catch (e) {
       throw DatabaseException(
-        'listEverythingInFolder($folderId) échoué',
+        'listPlaintextInFolder($folderId) échoué',
         cause: e,
       );
     }
@@ -250,6 +261,38 @@ class NotesDao {
       rethrow;
     } catch (e) {
       throw DatabaseException('updateFlags($id) échoué', cause: e);
+    }
+  }
+
+  /// Réécrit le couple (`content`, `encrypted_content`) **sans toucher à
+  /// `updated_at`**.
+  ///
+  /// Réservé aux réparations d'arrière-plan. Une réparation ne doit pas
+  /// modifier une métadonnée que l'utilisateur voit : passer par `save()`
+  /// remettrait `updated_at` à maintenant, et les notes reprotégées
+  /// remonteraient en tête de la liste « modifiées récemment » à chaque
+  /// ouverture du coffre. Une réparation silencieuse qui réordonne l'écran
+  /// n'est pas silencieuse.
+  ///
+  /// Sûr vis-à-vis de l'invariant du coffre par construction : l'appelant
+  /// fournit le blob, et le seul usage écrit `content: ''`.
+  Future<void> replaceContentPayload({
+    required String id,
+    required String content,
+    required Uint8List? encryptedContent,
+  }) async {
+    try {
+      final rows = await _db.update(
+        'notes',
+        {'content': content, 'encrypted_content': encryptedContent},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (rows == 0) throw NoteNotFoundException(id);
+    } on NoteNotFoundException {
+      rethrow;
+    } catch (e) {
+      throw DatabaseException('replaceContentPayload($id) échoué', cause: e);
     }
   }
 

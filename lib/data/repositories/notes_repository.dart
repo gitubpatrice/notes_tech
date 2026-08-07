@@ -10,6 +10,7 @@
 library;
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:uuid/uuid.dart';
 
@@ -61,8 +62,24 @@ class NotesRepository {
   Future<Set<String>> listSemanticIneligibleIds() =>
       _dao.listSemanticIneligibleIds();
 
-  Future<List<Note>> listEverythingInFolder(String folderId) =>
-      _dao.listEverythingInFolder(folderId);
+  Future<List<Note>> listPlaintextInFolder(String folderId) =>
+      _dao.listPlaintextInFolder(folderId);
+
+  /// Réparation d'arrière-plan uniquement — voir
+  /// `NotesDao.replaceContentPayload`. Ne passe volontairement ni par la
+  /// garde d'invariant (le blob est fourni par l'appelant, donc l'écriture
+  /// est chiffrée par construction) ni par `updatedAt` (une réparation ne
+  /// doit pas réordonner la liste de l'utilisateur) ni par le stream de
+  /// changements (l'appelant purge lui-même l'embedding concerné).
+  Future<void> replaceContentPayload({
+    required String id,
+    required String content,
+    required Uint8List? encryptedContent,
+  }) => _dao.replaceContentPayload(
+    id: id,
+    content: content,
+    encryptedContent: encryptedContent,
+  );
 
   Future<List<Note>> favorites() => _dao.listFavorites();
 

@@ -908,14 +908,27 @@ class FolderVaultService extends ChangeNotifier {
   Future<int> _reprotectPlaintextNotes(String folderId) async {
     var repaired = 0;
     try {
-      final notes = await _notes.listEverythingInFolder(folderId);
-      for (final note in notes) {
-        if (note.isLocked) continue; // déjà protégée
-        if (note.content.isEmpty) continue; // rien à protéger
+      // Requête étroite : dans le cas normal elle ne ramène RIEN, et
+      // l'ouverture du coffre ne paie qu'un SELECT. Charger tout le dossier
+      // ferait payer à chaque déverrouillage la lecture de toutes les notes.
+      final exposed = await _notes.listPlaintextInFolder(folderId);
+      for (final note in exposed) {
         try {
-          final encrypted = await encryptNote(note);
-          // `allowPlaintextInVault` inutile ici : on écrit du chiffré.
-          await _notes.save(encrypted);
+          // État mixte (un blob ET du clair) : le blob fait foi, il peut
+          // être plus récent que la colonne. On efface la colonne claire au
+          // lieu de la rechiffrer, ce qui écraserait le blob par un contenu
+          // potentiellement périmé. Sinon : on chiffre le clair.
+          final blob =
+              note.encryptedContent ??
+              (await encryptNote(note)).encryptedContent;
+          // Écriture ciblée qui ne touche PAS `updatedAt` : une réparation
+          // silencieuse ne doit pas faire remonter les notes en tête de la
+          // liste « modifiées récemment » à chaque ouverture du coffre.
+          await _notes.replaceContentPayload(
+            id: note.id,
+            content: '',
+            encryptedContent: blob,
+          );
           // Le contenu en clair a pu être indexé pendant qu'il était exposé.
           await purgePlaintextEmbedding(note.id);
           repaired++;

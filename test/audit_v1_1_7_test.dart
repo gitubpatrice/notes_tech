@@ -178,14 +178,29 @@ void main() {
         );
       });
 
-      test('la réparation balaie aussi la corbeille', () {
+      test('la réparation cible l\'exposition, corbeille comprise', () {
         expect(
-          src.contains('listEverythingInFolder('),
+          src.contains('listPlaintextInFolder('),
           isTrue,
           reason:
-              '`listByFolder` filtre `trashed_at IS NULL`. Une note laissée '
-              'en clair puis jetée séjourne 30 jours dans la corbeille — '
-              'l\'endroit où il serait le plus grave de l\'oublier.',
+              'Le critère doit être `content` non vide — l\'exposition '
+              'elle-même — et non `!isLocked` : une ligne portant à la fois '
+              'un blob et du clair serait tout aussi lisible et passerait '
+              'entre les mailles. La requête est en outre sans filtre sur '
+              '`trashed_at` : une note laissée en clair puis jetée séjourne '
+              '30 jours dans la corbeille.',
+        );
+      });
+
+      test('la réparation ne réordonne pas la liste de l\'utilisateur', () {
+        expect(
+          src.contains('replaceContentPayload('),
+          isTrue,
+          reason:
+              'Passer par `save()` remettrait `updatedAt` à maintenant : les '
+              'notes reprotégées remonteraient en tête de « modifiées '
+              'récemment » à chaque ouverture du coffre. Une réparation '
+              'silencieuse qui réordonne l\'écran n\'est pas silencieuse.',
         );
       });
 
