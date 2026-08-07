@@ -287,7 +287,7 @@
   "panicConfirmTitle": "Effacer définitivement toutes les données ?",
   "panicConfirmKeyword": "EFFACER",
   "panicConfirmYes": "Tout effacer",
-  "panicIncomplete": "Effacement INCOMPLET : {count} étape(s) ont échoué. Une partie de vos données n'a PAS été détruite. Réessayez avant de vous séparer de l'appareil.",
+  "panicIncomplete": "Effacement INCOMPLET : {count} étape(s) ont échoué. Une partie de vos données peut avoir survécu — vérifiez avant de vous séparer de l'appareil.",
   "@panicIncomplete": {
     "description": "Averti l'utilisateur que le mode panique n'a pas tout effacé",
     "placeholders": { "count": { "type": "int" } }

@@ -1097,7 +1097,7 @@ abstract class AppLocalizations {
   /// Warns the user that panic mode did not erase everything
   ///
   /// In en, this message translates to:
-  /// **'Wipe INCOMPLETE: {count} step(s) failed. Some of your data was NOT destroyed. Try again before parting with the device.'**
+  /// **'Wipe INCOMPLETE: {count} step(s) failed. Some of your data may have survived — check before parting with the device.'**
   String panicIncomplete(int count);
 
   /// No description provided for @panicProgress.

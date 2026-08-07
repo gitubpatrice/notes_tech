@@ -577,7 +577,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String panicIncomplete(int count) {
-    return 'Wipe INCOMPLETE: $count step(s) failed. Some of your data was NOT destroyed. Try again before parting with the device.';
+    return 'Wipe INCOMPLETE: $count step(s) failed. Some of your data may have survived — check before parting with the device.';
   }
 
   @override

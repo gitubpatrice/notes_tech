@@ -579,7 +579,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String panicIncomplete(int count) {
-    return 'Effacement INCOMPLET : $count étape(s) ont échoué. Une partie de vos données n\'a PAS été détruite. Réessayez avant de vous séparer de l\'appareil.';
+    return 'Effacement INCOMPLET : $count étape(s) ont échoué. Une partie de vos données peut avoir survécu — vérifiez avant de vous séparer de l\'appareil.';
   }
 
   @override

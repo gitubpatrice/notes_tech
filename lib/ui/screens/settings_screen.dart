@@ -536,9 +536,21 @@ class _ExportSectionState extends State<_ExportSection> {
         return;
       }
       try {
-        await Share.shareXFiles([
+        // Le RÉSULTAT du partage décide du sort du fichier. Différer 30 s
+        // sert à laisser l'application destinataire finir de LIRE ; si
+        // l'utilisateur a annulé, personne ne lira, et garder un ZIP de
+        // toutes les notes en clair 30 s de plus n'a aucune contrepartie.
+        // Relevé par une relecture externe (GPT-5.5).
+        final partage = await Share.shareXFiles([
           XFile(file.path, mimeType: 'application/zip'),
         ], subject: t.exportShareSubject(result.exportedCount));
+        if (partage.status != ShareResultStatus.success) {
+          try {
+            if (await file.exists()) await file.delete();
+          } catch (_) {
+            /* best-effort */
+          }
+        }
         if (!mounted) return;
         final message = result.skippedVaultedCount == 0
             ? t.settingsExportDone(result.exportedCount)
@@ -608,6 +620,9 @@ class _PanicSection extends StatefulWidget {
   State<_PanicSection> createState() => _PanicSectionState();
 }
 
+/// Nom de route du dialogue de progression de la panique — voir son usage.
+const String _kRoutePanicProgress = 'panic-progress';
+
 class _PanicSectionState extends State<_PanicSection> {
   bool _running = false;
 
@@ -633,6 +648,11 @@ class _PanicSectionState extends State<_PanicSection> {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
+        // Nommée pour pouvoir la dépiler SANS risque de fermer autre chose.
+        // Un `pop()` inconditionnel dépilerait la route courante, quelle
+        // qu'elle soit : si le dialogue avait déjà disparu, il fermerait les
+        // Réglages. Relevé par une relecture externe (GPT-5.5).
+        routeSettings: const RouteSettings(name: _kRoutePanicProgress),
         builder: (ctx) {
           final t = AppLocalizations.of(ctx);
           return BlockingProgressDialog(
@@ -662,7 +682,9 @@ class _PanicSectionState extends State<_PanicSection> {
     } catch (e) {
       erreur = e;
     }
-    navigator.pop(); // ferme le dialogue de progression, toujours
+    // `popUntil` s'arrête dès que la route du dessus n'est plus le dialogue :
+    // si celui-ci a déjà disparu, rien n'est dépilé.
+    navigator.popUntil((r) => r.settings.name != _kRoutePanicProgress);
 
     final echecs = rapport?.errors.length ?? 0;
     if (erreur != null || echecs > 0) {

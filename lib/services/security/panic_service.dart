@@ -61,6 +61,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
+import '../../core/exceptions.dart';
 import '../../data/db/database.dart';
 import '../legacy_model_files.dart';
 import '../note_actions.dart';
@@ -333,6 +334,7 @@ class PanicService {
   ///
   /// Relevé par une relecture externe (GPT-5.2) comme surface T1.
   Future<void> _wipeExportsCache() async {
+    var echecs = 0;
     for (final futureDir in <Future<Directory>>[
       getTemporaryDirectory(),
       getApplicationCacheDirectory(),
@@ -344,9 +346,16 @@ class PanicService {
           await exportsDir.delete(recursive: true);
         }
       } catch (_) {
-        // Best-effort, et indépendant d'un emplacement à l'autre : si l'un
-        // échoue, l'autre doit quand même être tenté.
+        // Indépendant d'un emplacement à l'autre : si l'un échoue, l'autre
+        // doit quand même être tenté. Mais on ne le tait pas — un ZIP
+        // d'export en clair qui survit doit apparaître dans le rapport.
+        echecs++;
       }
+    }
+    if (echecs > 0) {
+      throw DatabaseException(
+        "Cache d'exports non purgé ($echecs emplacement(s))",
+      );
     }
   }
 
@@ -376,30 +385,57 @@ class PanicService {
   /// Efface toutes les prefs sauf celles de [_panicPreservedKeys].
   /// Implémenté en boucle `remove` plutôt que `clear` pour respecter la
   /// whitelist. Best-effort : un échec sur une clé n'arrête pas la séquence.
+  /// ⚠️ LÈVE si une préférence résiste, et c'est le point.
+  ///
+  /// Chaque `remove` était enveloppé dans un `catch (_)` muet : l'étape
+  /// remontait « OK » vers `PanicReport` même quand rien n'avait été effacé.
+  /// L'écran de fin s'appuie désormais sur ce rapport pour décider s'il
+  /// annonce un effacement complet — un rapport optimiste redevient donc un
+  /// mensonge à l'utilisateur. Relevé en CRITIQUE par une relecture externe
+  /// (GPT-5.5) sur le correctif précédent.
+  ///
+  /// On continue malgré tout la boucle : une clé récalcitrante ne doit pas
+  /// empêcher d'effacer les suivantes. C'est à la FIN qu'on signale.
   Future<void> _prefsClearWithWhitelist() async {
     final keys = _prefs
         .getKeys()
         .where((k) => !_panicPreservedKeys.contains(k))
         .toList(growable: false);
+    var survivantes = 0;
     for (final k in keys) {
       try {
         await _prefs.remove(k);
       } catch (_) {
-        // Best-effort
+        survivantes++;
       }
+    }
+    if (survivantes > 0) {
+      throw DatabaseException(
+        'Préférences non effacées : $survivantes sur ${keys.length}',
+      );
     }
   }
 
+  /// ⚠️ LÈVE si une entrée résiste — même raison que
+  /// `_prefsClearWithWhitelist` : un ZIP d'export en clair verrouillé restait
+  /// sur le disque pendant que l'étape se déclarait réussie.
   Future<void> _purgeTempDirectory() async {
     final tmp = await getTemporaryDirectory();
     if (!await tmp.exists()) return;
+    final survivants = <String>[];
     await for (final entity in tmp.list()) {
       try {
         await entity.delete(recursive: true);
       } catch (_) {
-        // Best-effort, certains fichiers peuvent être tenus par d'autres
-        // processus système.
+        // Certains fichiers peuvent être tenus par un autre processus. On
+        // continue la boucle, mais on ne le tait pas.
+        survivants.add(entity.path.split('/').last);
       }
+    }
+    if (survivants.isNotEmpty) {
+      throw DatabaseException(
+        'Fichiers temporaires non effacés : ${survivants.join(', ')}',
+      );
     }
   }
 
