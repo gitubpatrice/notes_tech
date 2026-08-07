@@ -46,25 +46,43 @@ class FoldersRepository {
   ///
   /// Le compteur de génération tranche : si une invalidation est survenue
   /// pendant la lecture, le résultat n'est PAS mis en cache et la lecture est
-  /// refaite. Bornée à trois tours — au-delà, on répond sur la lecture la
-  /// plus fraîche sans rien cacher, ce qui reste correct et coûte seulement
-  /// une requête de plus.
+  /// refaite, bornée à trois tours.
+  ///
+  /// ⚠️ ET SI LES TROIS TOURS ÉCHOUENT, ON NE REND PAS LE DERNIER INSTANTANÉ.
+  /// Une première version le faisait, en le disant « correct ». C'était faux :
+  /// cet instantané est seulement le plus récent PARMI CEUX TENTÉS, pas
+  /// cohérent avec la génération courante. Il pouvait donc répondre `false`
+  /// pour un dossier devenu coffre — et la garde d'invariant laissait passer
+  /// l'écriture en clair, ce qu'elle existe précisément pour empêcher.
+  /// Relevé en CRITIQUE par une relecture externe (GPT-5.5) sur le correctif
+  /// de course lui-même.
+  ///
+  /// On retombe alors sur une lecture CIBLÉE du seul dossier concerné : une
+  /// ligne, donc une fenêtre de course négligeable, et une réponse qui
+  /// engage ce dossier-là. Si même elle échoue ou ne trouve rien, on répond
+  /// `true` — c'est-à-dire « traite-le comme un coffre » : le repli ferme,
+  /// au pire une écriture légitime est refusée bruyamment, jamais un secret
+  /// écrit en clair silencieusement.
   Future<bool> isVaultFolder(String id) async {
     final cache = _vaultIds;
     if (cache != null) return cache.contains(id);
-    Set<String> frais = const <String>{};
     for (var tour = 0; tour < 3; tour++) {
       final generation = _vaultIdsGeneration;
-      frais = {
+      final frais = {
         for (final f in await _dao.listAll())
           if (f.isVault) f.id,
       };
       if (generation == _vaultIdsGeneration) {
         _vaultIds = frais;
-        break;
+        return frais.contains(id);
       }
     }
-    return frais.contains(id);
+    try {
+      final folder = await _dao.findById(id);
+      return folder?.isVault ?? true;
+    } catch (_) {
+      return true;
+    }
   }
 
   Set<String>? _vaultIds;

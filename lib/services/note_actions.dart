@@ -76,7 +76,16 @@ class NoteActions {
     //
     // La génération tranche : toute purge l'incrémente, et un repli dont la
     // génération a changé est abandonné.
-    if (generation != _generationPressePapiers) return;
+    if (generation != _generationPressePapiers) {
+      // ⚠️ UN SIMPLE `return` NE SUFFIT PAS. Le handler natif a pu ECRIRE le
+      // presse-papiers AVANT que la purge d'urgence ne passe : dans ce cas le
+      // texte y est encore, sans instantané ni minuteur pour le retirer. La
+      // génération n'empêche que ce qui vient APRES l'`await`, pas l'effet de
+      // bord deja produit pendant. Relevé en CRITIQUE par une relecture
+      // externe (GPT-5.5) sur le correctif de génération lui-même.
+      await _viderSiCEstCeTexte(text);
+      return;
+    }
     if (!nativeOk) {
       // ⚠️ REPLI REFUSÉ POUR LE CONTENU D'UN COFFRE.
       //
@@ -98,9 +107,32 @@ class NoteActions {
       }
       await Clipboard.setData(ClipboardData(text: text));
     }
+    // Une purge a pu tomber pendant l'écriture de repli elle-même : armer un
+    // minuteur et un instantané après coup laisserait un état incohérent
+    // pendant 60 s — un instantané qui ne correspond plus au presse-papiers,
+    // et un minuteur armé après la purge.
+    if (generation != _generationPressePapiers) {
+      await _viderSiCEstCeTexte(text);
+      return;
+    }
     _ownTextSnapshot = text;
     _clearTimer?.cancel();
     _clearTimer = Timer(_autoClearAfter, _autoClearIfMine);
+  }
+
+  /// Vide le presse-papiers s'il contient encore [texte].
+  ///
+  /// Le test est indispensable : effacer sans regarder écraserait un secret
+  /// que l'utilisateur aurait copié entretemps depuis une autre application.
+  static Future<void> _viderSiCEstCeTexte(String texte) async {
+    try {
+      final courant = await Clipboard.getData(Clipboard.kTextPlain);
+      if (courant?.text == texte) {
+        await Clipboard.setData(const ClipboardData(text: ''));
+      }
+    } catch (_) {
+      /* best-effort */
+    }
   }
 
   /// Vide le clipboard SEULEMENT si la valeur courante est encore celle
