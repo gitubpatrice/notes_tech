@@ -96,6 +96,29 @@ class NotesDao {
     }
   }
 
+  /// TOUT le contenu d'un dossier : archivées ET en corbeille comprises.
+  ///
+  /// `listByFolder` filtre `trashed_at IS NULL`, ce qui convient à l'UI mais
+  /// pas aux gestes de sécurité : une note de coffre laissée en clair puis
+  /// jetée reste 30 jours dans la corbeille, et c'est précisément là qu'on
+  /// doit aller la rechercher pour la reprotéger.
+  Future<List<Note>> listEverythingInFolder(String folderId) async {
+    try {
+      final rows = await _db.query(
+        'notes',
+        where: 'folder_id = ?',
+        whereArgs: [folderId],
+        orderBy: 'updated_at DESC',
+      );
+      return rows.map(Note.fromRow).toList(growable: false);
+    } catch (e) {
+      throw DatabaseException(
+        'listEverythingInFolder($folderId) échoué',
+        cause: e,
+      );
+    }
+  }
+
   /// Toutes les notes hors corbeille, archives incluses.
   /// Utilisé par l'indexeur d'embeddings.
   Future<List<Note>> listAllAlive() async {

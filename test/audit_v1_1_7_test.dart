@@ -85,7 +85,8 @@ void main() {
       expect(
         filtre,
         lessThan(borne),
-        reason: 'Filtrer après la borne laisse les inéligibles consommer les '
+        reason:
+            'Filtrer après la borne laisse les inéligibles consommer les '
             'places : 4 notes en corbeille ou de coffre au-dessus d\'une note '
             'pertinente, et cette dernière n\'est jamais hydratée ni rendue. '
             'Invisible — la recherche rend juste moins de résultats.',
@@ -114,7 +115,8 @@ void main() {
       expect(
         src.contains('Future<bool> purgePlaintextEmbedding('),
         isTrue,
-        reason: 'Le geste doit rester centralisé et appelable par les '
+        reason:
+            'Le geste doit rester centralisé et appelable par les '
             'chemins de mise au coffre.',
       );
     });
@@ -136,7 +138,8 @@ void main() {
       expect(
         src.contains('_vault.purgePlaintextEmbedding('),
         isTrue,
-        reason: 'C\'est le chemin qui manquait : sans cet appel, la note '
+        reason:
+            'C\'est le chemin qui manquait : sans cet appel, la note '
             'déplacée vers un coffre garde son vecteur en clair en base.',
       );
     });
@@ -146,12 +149,59 @@ void main() {
       expect(
         src.contains('_embeddings.remove('),
         isTrue,
-        reason: 'La passe doit purger le vecteur des notes verrouillées '
+        reason:
+            'La passe doit purger le vecteur des notes verrouillées '
             'qu\'elle rencontre, sinon un échec transitoire de la purge '
             'synchrone laisse le vecteur en base pour toujours.',
       );
     });
   });
+
+  group(
+    'C6 — réparation des notes laissées en clair par le bug d\'épinglage',
+    () {
+      final src = File(
+        'lib/services/security/folder_vault_service.dart',
+      ).readAsStringSync();
+
+      test('les DEUX chemins de déverrouillage réparent', () {
+        final appels = RegExp(
+          r'await _reprotectPlaintextNotes\(',
+        ).allMatches(src).length;
+        expect(
+          appels,
+          2,
+          reason:
+              'Un seul appel = un jumeau divergent de plus. Le coffre PIN '
+              'et le coffre passphrase doivent réparer tous les deux, sinon '
+              'les notes d\'un des deux types restent lisibles sans passphrase.',
+        );
+      });
+
+      test('la réparation balaie aussi la corbeille', () {
+        expect(
+          src.contains('listEverythingInFolder('),
+          isTrue,
+          reason:
+              '`listByFolder` filtre `trashed_at IS NULL`. Une note laissée '
+              'en clair puis jetée séjourne 30 jours dans la corbeille — '
+              'l\'endroit où il serait le plus grave de l\'oublier.',
+        );
+      });
+
+      test(
+        'la réparation purge l\'embedding calculé pendant l\'exposition',
+        () {
+          final debut = src.indexOf(
+            '_reprotectPlaintextNotes(String folderId)',
+          );
+          expect(debut, greaterThan(0));
+          final corps = src.substring(debut, debut + 1600);
+          expect(corps.contains('purgePlaintextEmbedding('), isTrue);
+        },
+      );
+    },
+  );
 
   group('C2 — l\'avertissement de sortie de coffre doit être atteignable', () {
     test('isVaultExit s\'appuie sur _wasLocked, pas sur encryptedContent', () {
@@ -161,7 +211,8 @@ void main() {
       expect(
         src.contains('isVaultExit = _wasLocked && !targetFolder.isVault'),
         isTrue,
-        reason: '`_note` est l\'éphémère DÉCHIFFRÉE dès `_load` '
+        reason:
+            '`_note` est l\'éphémère DÉCHIFFRÉE dès `_load` '
             '(`clearEncrypted: true`) : tester `encryptedContent != null` '
             'rendait la condition toujours fausse et le dialog destructif '
             'inatteignable.',
@@ -179,7 +230,8 @@ void main() {
       expect(
         rawCreates,
         1,
-        reason: 'Chaque `_repo.create` hors de `_createSibling` est un '
+        reason:
+            'Chaque `_repo.create` hors de `_createSibling` est un '
             'chemin qui crée une note NON chiffrée, y compris dans un '
             'dossier coffre : tout ce que l\'utilisateur y tape ensuite '
             'est auto-sauvegardé en clair.',
@@ -200,7 +252,8 @@ void main() {
       expect(
         code.contains('mode.name'),
         isFalse,
-        reason: 'Le build de release est obfusqué : un nom d\'enum n\'est pas '
+        reason:
+            'Le build de release est obfusqué : un nom d\'enum n\'est pas '
             'un contrat de sérialisation stable. Une préférence écrite par '
             'une version et relue par une autre retomberait sur le défaut.',
       );
@@ -208,7 +261,8 @@ void main() {
         expect(
           code.contains("NoteSortMode.${mode.name} => '${mode.name}'"),
           isTrue,
-          reason: 'Clé manquante pour ${mode.name}. Le `switch` exhaustif '
+          reason:
+              'Clé manquante pour ${mode.name}. Le `switch` exhaustif '
               'doit couvrir tout l\'enum — un oubli casse à la compilation, '
               'pas au premier changement de tri sur le téléphone.',
         );
@@ -248,15 +302,19 @@ void main() {
         createdAt: now,
         updatedAt: now,
       );
-      final entries = zipEntries([
-        note('a', 'Note', 'f1'),
-        note('b', 'Note-2', 'f1'),
-        note('c', 'Note', 'f1'),
-      ], {'f1': folder});
+      final entries = zipEntries(
+        [
+          note('a', 'Note', 'f1'),
+          note('b', 'Note-2', 'f1'),
+          note('c', 'Note', 'f1'),
+        ],
+        {'f1': folder},
+      );
       expect(
         entries.toSet().length,
         3,
-        reason: 'Le suffixe de désambiguïsation pouvait retomber sur un nom '
+        reason:
+            'Le suffixe de désambiguïsation pouvait retomber sur un nom '
             'déjà pris : le ZIP contenait deux `Note-2.md` et le second '
             'écrasait le premier au dézippage, silencieusement.',
       );
@@ -274,7 +332,8 @@ void main() {
       expect(
         entries.single.startsWith('sans-dossier/'),
         isTrue,
-        reason: '`safeFileName` filtrait déjà les noms réservés Windows, '
+        reason:
+            '`safeFileName` filtrait déjà les noms réservés Windows, '
             'son jumeau `_safeFolderDirName` ne le faisait pas.',
       );
     });

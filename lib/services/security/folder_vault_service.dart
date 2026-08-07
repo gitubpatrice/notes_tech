@@ -526,6 +526,11 @@ class FolderVaultService extends ChangeNotifier {
 
       _unlocked[folder.id] = _Session(folderKek: kek, openedAt: DateTime.now());
       transferredToSession = true; // ownership transférée — ne pas wipe ici
+      // Réparation silencieuse des notes laissées en clair par le bug
+      // d'épinglage (≤ v1.1.6). La session vient d'être ouverte : c'est le
+      // seul instant où la KEK est disponible. Jumeau du chemin passphrase —
+      // les deux DOIVENT l'appeler.
+      await _reprotectPlaintextNotes(folder.id);
       _scheduleAutoLockSweep();
       notifyListeners();
     } finally {
@@ -819,6 +824,8 @@ class FolderVaultService extends ChangeNotifier {
         // F1 v1.0.9 — succès : reset compteur+lockout passphrase.
         _passFailCount.remove(folder.id);
         _passLockoutUntilMs.remove(folder.id);
+        // Jumeau du chemin PIN : même réparation silencieuse.
+        await _reprotectPlaintextNotes(folder.id);
         _scheduleAutoLockSweep();
         notifyListeners();
       } finally {
@@ -880,6 +887,50 @@ class FolderVaultService extends ChangeNotifier {
       encryptedContent: blob,
       updatedAt: DateTime.now(),
     );
+  }
+
+  /// Reprotège les notes d'un coffre qui se trouvent EN CLAIR en base.
+  ///
+  /// Jusqu'à la v1.1.6 incluse, épingler, mettre en favori ou jeter à la
+  /// corbeille une note de coffre ouverte réécrivait sa ligne entière depuis
+  /// l'éphémère déchiffrée : son contenu repartait en clair et son blob
+  /// chiffré était effacé. La note restait ensuite lisible sans passphrase,
+  /// indéfiniment, sans que rien ne le signale. Le défaut est fermé côté
+  /// écriture, mais les bases déjà abîmées ne se réparent pas toutes seules.
+  ///
+  /// Appelé à chaque ouverture de session, seul moment où la KEK du dossier
+  /// est disponible. Balaie AUSSI la corbeille : une note laissée en clair
+  /// puis jetée y séjourne 30 jours, et c'est le pire endroit où l'oublier.
+  ///
+  /// Best-effort et silencieux : un échec sur une note n'empêche ni les
+  /// autres ni le déverrouillage. Retourne le nombre de notes reprotégées,
+  /// pour diagnostic.
+  Future<int> _reprotectPlaintextNotes(String folderId) async {
+    var repaired = 0;
+    try {
+      final notes = await _notes.listEverythingInFolder(folderId);
+      for (final note in notes) {
+        if (note.isLocked) continue; // déjà protégée
+        if (note.content.isEmpty) continue; // rien à protéger
+        try {
+          final encrypted = await encryptNote(note);
+          // `allowPlaintextInVault` inutile ici : on écrit du chiffré.
+          await _notes.save(encrypted);
+          // Le contenu en clair a pu être indexé pendant qu'il était exposé.
+          await purgePlaintextEmbedding(note.id);
+          repaired++;
+        } catch (_) {
+          // Best-effort : retenté à la prochaine ouverture du coffre.
+        }
+      }
+    } catch (_) {
+      // Lecture impossible : ne jamais faire échouer un déverrouillage
+      // légitime pour une réparation d'arrière-plan.
+    }
+    if (repaired > 0 && kDebugMode) {
+      debugPrint('vault $folderId — $repaired note(s) reprotégée(s)');
+    }
+    return repaired;
   }
 
   /// Supprime l'embedding **en clair** calculé avant la mise au coffre.

@@ -61,6 +61,9 @@ class NotesRepository {
   Future<Set<String>> listSemanticIneligibleIds() =>
       _dao.listSemanticIneligibleIds();
 
+  Future<List<Note>> listEverythingInFolder(String folderId) =>
+      _dao.listEverythingInFolder(folderId);
+
   Future<List<Note>> favorites() => _dao.listFavorites();
 
   Future<List<Note>> trash() => _dao.listTrash();
