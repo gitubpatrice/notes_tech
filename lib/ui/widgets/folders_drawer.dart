@@ -131,16 +131,14 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // elles deviendraient illisibles à jamais. On les déchiffre AVANT
       // le move ; passphrase requise si le coffre est verrouillé.
       if (folder.isVault) {
-        if (!vault.isUnlocked(folder.id)) {
-          final ok = await showUnlockVaultAdaptive(
-            context: context,
-            folder: folder,
-          );
-          if (ok != true || !mounted) return;
-        }
         try {
-          final res = await vault.decryptAllNotesInFolder(folder.id);
-          if (!mounted) return;
+          // Même garde échantillonnée que le retrait de protection :
+          // `isUnlocked` peut être vrai au test et faux à l'appel.
+          final res = await _withVaultSession(
+            folder,
+            () => vault.decryptAllNotesInFolder(folder.id),
+          );
+          if (res == null || !mounted) return; // déverrouillage annulé
           if (res.failed > 0) {
             // Contraste WCAG AA via le helper canonique.
             messenger.showErrorSnack(
@@ -415,6 +413,45 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     }
   }
 
+  /// Exécute [action] en garantissant une session de coffre ouverte **au
+  /// moment de l'appel**, et non au moment du test.
+  ///
+  /// ⚠️ `isUnlocked` est un ÉCHANTILLON. Entre le test et l'appel, l'auto-lock
+  /// peut fermer la session : l'utilisateur confirme un dialogue à 14 min 59
+  /// d'inactivité, le sweep tire à 15 min, et l'opération lève
+  /// `VaultLockedException` — que la couche UI affichait en message brut, sans
+  /// rien proposer. Ici on redemande la passphrase et on réessaie UNE fois ;
+  /// un second échec remonte au caller, à lui de le dire proprement.
+  ///
+  /// Retourne `null` si l'utilisateur a annulé le déverrouillage.
+  ///
+  /// Utilisé par les DEUX chemins qui déchiffrent un coffre entier — retrait
+  /// de protection et suppression de dossier. Ils avaient la même course ;
+  /// n'en corriger qu'un aurait créé un jumeau divergent de plus.
+  Future<T?> _withVaultSession<T>(
+    Folder folder,
+    Future<T> Function() action,
+  ) async {
+    final vault = context.read<FolderVaultService>();
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (!vault.isUnlocked(folder.id)) {
+        final ok = await showUnlockVaultAdaptive(
+          context: context,
+          folder: folder,
+        );
+        if (ok != true || !mounted) return null;
+      }
+      try {
+        return await action();
+      } on VaultLockedException {
+        // Session fermée entre le test et l'appel. Au second échec, on
+        // laisse remonter : insister davantage masquerait un vrai problème.
+        if (!mounted || attempt == 1) rethrow;
+      }
+    }
+    return null;
+  }
+
   /// Retire la protection d'un coffre en conservant le dossier et ses notes.
   ///
   /// Même exigence de consentement que la sortie de coffre d'une note : le
@@ -453,19 +490,15 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     );
     if (confirmed != true || !mounted) return;
 
-    // La passphrase est la seule preuve que le demandeur a le droit de
-    // rendre ces notes lisibles. On la redemande si la session est fermée.
-    if (!vault.isUnlocked(folder.id)) {
-      final ok = await showUnlockVaultAdaptive(
-        context: context,
-        folder: folder,
-      );
-      if (ok != true || !mounted) return;
-    }
-
+    // La passphrase est la seule preuve que le demandeur a le droit de rendre
+    // ces notes lisibles. `_withVaultSession` la redemande si la session est
+    // fermée — y compris si l'auto-lock tire entre la confirmation et l'appel.
     try {
-      final res = await vault.removeVaultProtection(folder);
-      if (!mounted) return;
+      final res = await _withVaultSession(
+        folder,
+        () => vault.removeVaultProtection(folder),
+      );
+      if (res == null || !mounted) return; // déverrouillage annulé
       if (res.failed > 0) {
         // Le service n'a RIEN démoté : le dossier est toujours un coffre.
         // Le dire, sinon l'utilisateur croit l'opération faite.
