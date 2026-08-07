@@ -380,23 +380,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutNoticeStep1 =>
-      '1. Settings → Voice dictation → Enable voice dictation.';
+      'Settings → Voice dictation → Enable voice dictation.';
 
   @override
   String get aboutNoticeStep2 =>
-      '2. Choose a model (Whisper Base 57 MB recommended).';
+      'Choose a model (Whisper Base 57 MB recommended).';
 
   @override
   String get aboutNoticeStep3 =>
-      '3. Tap “Download to this phone” — the system browser downloads the .bin file to Downloads. Notes Tech still has no Internet permission: it\'s your browser that downloads, not the app.';
+      'Tap “Download to this phone” — the system browser downloads the .bin file to Downloads. Notes Tech still has no Internet permission: it\'s your browser that downloads, not the app.';
 
   @override
   String get aboutNoticeStep4 =>
-      '4. Tap “Select the .bin file” — the app verifies the cryptographic fingerprint then copies the model to its private area.';
+      'Tap “Select the .bin file” — the app verifies the cryptographic fingerprint then copies the model to its private area.';
 
   @override
   String get aboutNoticeStep5 =>
-      '5. In a note, tap the mic icon 🎤 in the top bar. Speak, then tap “Stop”. The transcribed text is inserted at the cursor.';
+      'In a note, tap the mic icon 🎤 in the top bar. Speak, then tap “Stop”. The transcribed text is inserted at the cursor.';
 
   @override
   String get aboutSectionLicenses => 'Sources, licenses and open code';
@@ -419,6 +419,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutSectionContact => 'Author & contact';
+
+  @override
+  String get aboutContactEmail => 'Email us';
 
   @override
   String get aboutContactQuestions => 'Questions, suggestions, feedback';

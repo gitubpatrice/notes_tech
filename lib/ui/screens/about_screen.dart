@@ -157,18 +157,22 @@ class AboutScreen extends StatelessWidget {
           // ── Contact ──────────────────────────────────────────────────────
           _SectionTitle(t.aboutSectionContact),
           const SizedBox(height: 8),
-          const Card(
+          Card(
             child: Column(
               children: [
-                _LinkTile(
+                const _LinkTile(
                   icon: Icons.public,
                   title: 'Files Tech',
                   subtitle: 'files-tech.com',
                   url: 'https://www.files-tech.com',
                 ),
+                // Le titre portait l'adresse, le sous-titre AUSSI : la tuile
+                // affichait deux fois la même chaîne. Le titre nomme
+                // désormais l'action, comme la tuile voisine qui nomme le
+                // site et donne son domaine dessous.
                 _LinkTile(
                   icon: Icons.mail_outline,
-                  title: 'contact@files-tech.com',
+                  title: t.aboutContactEmail,
                   subtitle: 'contact@files-tech.com',
                   url: 'mailto:contact@files-tech.com',
                 ),

@@ -755,31 +755,31 @@ abstract class AppLocalizations {
   /// No description provided for @aboutNoticeStep1.
   ///
   /// In en, this message translates to:
-  /// **'1. Settings → Voice dictation → Enable voice dictation.'**
+  /// **'Settings → Voice dictation → Enable voice dictation.'**
   String get aboutNoticeStep1;
 
   /// No description provided for @aboutNoticeStep2.
   ///
   /// In en, this message translates to:
-  /// **'2. Choose a model (Whisper Base 57 MB recommended).'**
+  /// **'Choose a model (Whisper Base 57 MB recommended).'**
   String get aboutNoticeStep2;
 
   /// No description provided for @aboutNoticeStep3.
   ///
   /// In en, this message translates to:
-  /// **'3. Tap “Download to this phone” — the system browser downloads the .bin file to Downloads. Notes Tech still has no Internet permission: it\'s your browser that downloads, not the app.'**
+  /// **'Tap “Download to this phone” — the system browser downloads the .bin file to Downloads. Notes Tech still has no Internet permission: it\'s your browser that downloads, not the app.'**
   String get aboutNoticeStep3;
 
   /// No description provided for @aboutNoticeStep4.
   ///
   /// In en, this message translates to:
-  /// **'4. Tap “Select the .bin file” — the app verifies the cryptographic fingerprint then copies the model to its private area.'**
+  /// **'Tap “Select the .bin file” — the app verifies the cryptographic fingerprint then copies the model to its private area.'**
   String get aboutNoticeStep4;
 
   /// No description provided for @aboutNoticeStep5.
   ///
   /// In en, this message translates to:
-  /// **'5. In a note, tap the mic icon 🎤 in the top bar. Speak, then tap “Stop”. The transcribed text is inserted at the cursor.'**
+  /// **'In a note, tap the mic icon 🎤 in the top bar. Speak, then tap “Stop”. The transcribed text is inserted at the cursor.'**
   String get aboutNoticeStep5;
 
   /// No description provided for @aboutSectionLicenses.
@@ -823,6 +823,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Author & contact'**
   String get aboutSectionContact;
+
+  /// No description provided for @aboutContactEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Email us'**
+  String get aboutContactEmail;
 
   /// No description provided for @aboutContactQuestions.
   ///

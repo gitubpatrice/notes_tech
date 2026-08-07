@@ -382,23 +382,23 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aboutNoticeStep1 =>
-      '1. Réglages → Dictée vocale → Activer la dictée vocale.';
+      'Réglages → Dictée vocale → Activer la dictée vocale.';
 
   @override
   String get aboutNoticeStep2 =>
-      '2. Choisissez un modèle (Whisper Base 57 Mo recommandé).';
+      'Choisissez un modèle (Whisper Base 57 Mo recommandé).';
 
   @override
   String get aboutNoticeStep3 =>
-      '3. Tapez « Télécharger sur ce téléphone » — le navigateur système télécharge le fichier .bin dans Téléchargements. Notes Tech reste sans permission Internet : c\'est votre navigateur qui télécharge, pas l\'app.';
+      'Tapez « Télécharger sur ce téléphone » — le navigateur système télécharge le fichier .bin dans Téléchargements. Notes Tech reste sans permission Internet : c\'est votre navigateur qui télécharge, pas l\'app.';
 
   @override
   String get aboutNoticeStep4 =>
-      '4. Tapez « Sélectionner le fichier .bin » — l\'app vérifie l\'empreinte cryptographique puis copie le modèle dans sa zone privée.';
+      'Tapez « Sélectionner le fichier .bin » — l\'app vérifie l\'empreinte cryptographique puis copie le modèle dans sa zone privée.';
 
   @override
   String get aboutNoticeStep5 =>
-      '5. Dans une note, tapez l\'icône micro 🎤 dans la barre du haut. Parlez, puis tapez « Arrêter ». Le texte transcrit s\'insère au curseur.';
+      'Dans une note, tapez l\'icône micro 🎤 dans la barre du haut. Parlez, puis tapez « Arrêter ». Le texte transcrit s\'insère au curseur.';
 
   @override
   String get aboutSectionLicenses => 'Sources, licences et code ouvert';
@@ -421,6 +421,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get aboutSectionContact => 'Auteur & contact';
+
+  @override
+  String get aboutContactEmail => 'Nous écrire';
 
   @override
   String get aboutContactQuestions => 'Questions, suggestions, retours';
