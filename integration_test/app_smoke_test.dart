@@ -152,12 +152,20 @@ void main() {
           'Les réglages lisaient `EmbedderCoordinator` pour afficher '
           'l\'erreur d\'embedder, et `GemmaService` pour la section modèle.',
     );
+    // ⚠️ PORTÉE RÉELLE DE CE CONTRÔLE, plus étroite qu'elle n'en a l'air.
+    // Il ne voit que les widgets CONSTRUITS : les sections hors écran d'un
+    // `ListView` ne le sont jamais, et la langue testée est celle de
+    // l'appareil. Il ne prouve donc pas « aucune mention nulle part ».
+    // Cette garantie-là vit dans `test/l10n_parity_test.dart`, qui balaie
+    // les chaînes des DEUX langues sans appareil. Signalé par une relecture
+    // externe (GPT-5.2) ; le contrôle reste ici comme second filet, pas
+    // comme preuve.
     for (final mot in ['Gemma', 'sémantique', 'Semantic']) {
       expect(
         find.textContaining(mot, findRichText: true),
         findsNothing,
         reason:
-            'Les réglages affichent encore « $mot » : un libellé a '
+            'Les réglages affichent « $mot » à l\'écran : un libellé a '
             'survécu au retrait et ment à l\'utilisateur.',
       );
     }

@@ -19,6 +19,18 @@
 // de mémoire — y compris les triggers FTS d'origine, ceux qui indexaient
 // `title` et `tags` sans masquage.
 //
+// CE QUI N'EST PAS COUVERT, et il faut le dire plutôt que de laisser croire
+// le contraire. Une relecture externe (GPT-5.2) a relevé que « base héritée
+// fidèle » en promet plus que ce qui est fait :
+//   - Le fichier de départ est une base SQLCipher MODERNE dont on a remis le
+//     schéma à celui d'époque. Un vrai fichier v1 pouvait être EN CLAIR, et
+//     le chemin `_ensureEncrypted` → `sqlcipher_export` → rename qui le
+//     chiffre n'est exercé par aucun test.
+//   - Aucun état de crash n'est simulé : pas de sidecar `-wal` non
+//     checkpointé au moment de la montée de version.
+// Ce qui EST couvert, et qui ne l'était pas du tout : la chaîne `_onUpgrade`
+// elle-même, déclenchée par sqflite, sur des données réelles.
+//
 // 🔴 Appareil de TEST uniquement, `-d <deviceId>` obligatoire :
 //
 //    flutter test integration_test/db_migration_test.dart -d 22dbb7390a057ece
@@ -490,6 +502,161 @@ void main() {
           'Les lignes FTS écrites sous le régime v1 doivent rester '
           'interrogeables : v6 remplace les triggers, pas l\'index.',
     );
+  });
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 2 bis. v5 → v8 : le palier v6 sur ce qui l'a MOTIVÉ — une note verrouillée
+  // ═════════════════════════════════════════════════════════════════════
+
+  testWidgets('v5 → v8 : le titre d\'une note verrouillée sort de l\'index', (
+    _,
+  ) async {
+    // Pourquoi ce test existe, en plus du v1 → v8 : une relecture externe
+    // (GPT-5.2) a relevé que le chemin v1 → v8 ne crée AUCUNE note
+    // verrouillée — et pour cause, la colonne `encrypted_content` n'existe
+    // qu'à partir de v4. Les étapes 3 et 4 de `_migrateToV6`, qui purgent
+    // puis réinjectent les lignes FTS des notes verrouillées, ne
+    // s'exécutaient donc sur rien. C'est le code le plus risqué de toute la
+    // chaîne, et c'était le seul non exercé.
+    //
+    // Ce que v6 répare, et que ce test mesure vraiment : sous le régime v5,
+    // les triggers indexaient `title` et `tags` en clair même pour une note
+    // de coffre. Une recherche plein texte sur le titre faisait donc remonter
+    // une note verrouillée, coffre fermé. Vider `content` au verrouillage ne
+    // suffisait pas.
+    const file = 'migration_v5_test.db';
+    var db = await openFresh(file);
+
+    await stripSchema(db);
+    await buildSchemaV1(db);
+    // Deltas v3, v4 et v5, repris à l'identique de `database.dart`. Les
+    // triggers restent ceux de v1 — c'est v6 qui les réécrit, et c'est
+    // précisément l'état d'une base v5 sur le téléphone d'un utilisateur.
+    await db.execute('''
+      CREATE TABLE note_links (
+        source_id          TEXT NOT NULL,
+        target_id          TEXT,
+        target_title       TEXT NOT NULL,
+        target_title_norm  TEXT NOT NULL,
+        position           INTEGER NOT NULL,
+        FOREIGN KEY (source_id) REFERENCES notes(id) ON DELETE CASCADE,
+        FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE SET NULL
+      );
+    ''');
+    for (final sql in const [
+      'ALTER TABLE folders ADD COLUMN vault_salt BLOB;',
+      'ALTER TABLE folders ADD COLUMN vault_kek_wrapped BLOB;',
+      'ALTER TABLE folders ADD COLUMN vault_iv BLOB;',
+      'ALTER TABLE folders ADD COLUMN vault_verifier BLOB;',
+      'ALTER TABLE notes ADD COLUMN encrypted_content BLOB;',
+      'ALTER TABLE folders ADD COLUMN vault_mode TEXT;',
+      'ALTER TABLE folders ADD COLUMN vault_pin_blob BLOB;',
+      'ALTER TABLE folders ADD COLUMN vault_pin_iv BLOB;',
+      'ALTER TABLE folders ADD COLUMN vault_attempts INTEGER NOT NULL DEFAULT 0;',
+    ]) {
+      await db.execute(sql);
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.insert('folders', {
+      'id': 'coffre5',
+      'name': 'Coffre',
+      'created_at': now,
+      'updated_at': now,
+      'vault_salt': Uint8List.fromList(List<int>.filled(16, 5)),
+      'vault_mode': 'passphrase',
+    });
+    // La note verrouillée. Son titre part en clair dans la colonne ET, sous
+    // le régime v5, dans l'index FTS — c'est la fuite que v6 ferme. Le mot
+    // est volontairement unique pour qu'un MATCH ne puisse pas le trouver
+    // par accident ailleurs.
+    await db.insert('notes', {
+      'id': 'n-verrouillee',
+      'title': 'Ordonnance zzyxwvut',
+      'content': '',
+      'encrypted_content': Uint8List.fromList(List<int>.filled(48, 9)),
+      'folder_id': 'coffre5',
+      'tags': 'confidentiel',
+      'created_at': now,
+      'updated_at': now,
+    });
+    await db.insert('notes', {
+      'id': 'n-ouverte',
+      'title': 'Courses qqwerty',
+      'content': 'Pain, sel.',
+      'folder_id': 'inbox',
+      'tags': '',
+      'created_at': now,
+      'updated_at': now,
+    });
+
+    // Sous v5, le titre verrouillé EST indexé. Si ce n'était pas vrai, le
+    // test ne prouverait rien : il faut que la fuite existe avant migration
+    // pour que sa disparition après ait un sens.
+    final avant = await db.rawQuery(
+      "SELECT rowid FROM notes_fts WHERE notes_fts MATCH 'zzyxwvut';",
+    );
+    expect(
+      avant,
+      isNotEmpty,
+      reason:
+          'La préparation ne reproduit pas le régime v5 : si le titre n\'est '
+          'pas indexé AVANT, la migration n\'a rien à réparer et le test '
+          'passerait au vert sans rien démontrer.',
+    );
+
+    await db.execute('PRAGMA user_version = 5;');
+
+    // ── LA migration ──────────────────────────────────────────────────
+    db = await reopen(file);
+    expect(await userVersion(db), 8);
+
+    // Le cœur du test — comportemental, pas textuel. Vérifier que le SQL du
+    // trigger CONTIENT « encrypted_content » ne prouve pas qu'il masque
+    // quoi que ce soit : la chaîne pourrait être dans un commentaire ou un
+    // `CASE` mal écrit. Ici on interroge l'index.
+    final apres = await db.rawQuery(
+      "SELECT rowid FROM notes_fts WHERE notes_fts MATCH 'zzyxwvut';",
+    );
+    expect(
+      apres,
+      isEmpty,
+      reason:
+          'Le titre d\'une note VERROUILLÉE remonte encore en recherche '
+          'plein texte. Coffre fermé, une recherche sur « Ordonnance » '
+          'révélerait son existence et son intitulé.',
+    );
+
+    final ouverte = await db.rawQuery(
+      'SELECT n.id FROM notes_fts f JOIN notes n ON n.rowid = f.rowid '
+      "WHERE notes_fts MATCH 'qqwerty';",
+    );
+    expect(
+      ouverte.map((r) => r['id']),
+      contains('n-ouverte'),
+      reason:
+          'v6 a purgé plus que les notes verrouillées : une note ordinaire '
+          'a perdu son indexation au passage.',
+    );
+
+    // Le blob et le dossier coffre traversent intacts.
+    final verrouillee = await db.query(
+      'notes',
+      where: 'id = ?',
+      whereArgs: ['n-verrouillee'],
+    );
+    expect(verrouillee, hasLength(1));
+    expect(verrouillee.first['encrypted_content'], hasLength(48));
+    expect(
+      verrouillee.first['enc_v'],
+      1,
+      reason:
+          'v7 doit étiqueter les blobs hérités en format 1 : contenu seul, '
+          'titre encore en clair dans la colonne.',
+    );
+
+    await AppDatabase.instance.close();
+    await deleteDbFile(file);
   });
 
   // ═════════════════════════════════════════════════════════════════════

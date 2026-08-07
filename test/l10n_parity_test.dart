@@ -121,4 +121,51 @@ void main() {
     }
     expect(_placeholders(fr, 'folderDeleteVaultChoiceBody'), {'name'});
   });
+
+  test('aucune chaîne visible ne mentionne l\'IA retirée', () {
+    // Pourquoi cette garde vit ICI et pas dans le test de fumée sur appareil.
+    //
+    // Le test de fumée vérifiait l'absence de « Gemma » avec
+    // `expect(find.textContaining(...), findsNothing)` sur l'écran affiché.
+    // Une relecture externe (GPT-5.2) a signalé que l'assertion pouvait
+    // réussir avant que l'écran ait fini de se construire. En vérifiant,
+    // c'était pire : les sections hors écran d'un `ListView` ne sont JAMAIS
+    // construites, donc l'absence n'était prouvée que sur la portion visible
+    // d'un écran, sur les deux écrans parcourus, dans la seule langue active.
+    //
+    // Ici la garantie porte sur les 480 chaînes des deux langues, sans
+    // appareil, en quelques millisecondes. C'est la bonne couche : ce qu'on
+    // veut interdire, c'est qu'un LIBELLÉ mente — pas qu'un pixel s'affiche.
+    //
+    // `Semantics` est exclu : c'est le nom du widget d'accessibilité Flutter,
+    // homonyme malheureux, présent dans des libellés légitimes.
+    const interdits = [
+      'gemma',
+      'minilm',
+      'embedding',
+      'sémantique',
+      'semantic search',
+      'recherche par similarité',
+      'similarity search',
+    ];
+    final fautes = <String>[];
+    for (final entry in [('fr', fr), ('en', en)]) {
+      final langue = entry.$1;
+      for (final cle in _messageKeys(entry.$2)) {
+        final valeur = (entry.$2[cle] as String).toLowerCase();
+        for (final mot in interdits) {
+          if (valeur.contains(mot)) fautes.add('$langue/$cle → « $mot »');
+        }
+      }
+    }
+    expect(
+      fautes,
+      isEmpty,
+      reason:
+          'Ces libellés promettent à l\'utilisateur une fonctionnalité qui '
+          'n\'existe plus. L\'écran « À propos » a ainsi crédité « Source du '
+          'modèle Gemma 3 1B » pendant tout le retrait de l\'IA, avec un lien '
+          'vers Kaggle, sans que rien ne le signale.',
+    );
+  });
 }
