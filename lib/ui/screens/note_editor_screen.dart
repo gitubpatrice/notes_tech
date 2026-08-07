@@ -272,7 +272,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
           final folder = await context.read<FoldersRepository>().get(
             note.folderId,
           );
-          if (folder == null || !mounted) {
+          // `!mounted` ne doit PAS mener a `setState` : l'ecran est deja
+          // demonte, et Flutter leve « setState() called after dispose() ».
+          // Les deux conditions etaient melangees dans le meme test.
+          if (!mounted) return;
+          if (folder == null) {
             setState(() {
               _loading = false;
               _error = t.noteEditorErrorVaultFolderMissing;
@@ -301,9 +305,13 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         resolved = await vault.decryptNote(note);
       }
 
+      // Le test de montage vient AVANT de toucher aux controleurs : le
+      // dechiffrement ci-dessus est un `await`, l'ecran peut avoir ete
+      // demonte entre-temps, et ecrire dans un `TextEditingController`
+      // dispose leve.
+      if (!mounted) return;
       _titleCtrl.text = resolved.title;
       _contentCtrl.text = resolved.content;
-      if (!mounted) return;
       setState(() {
         _note = resolved;
         _loading = false;
@@ -360,6 +368,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     while (_pendingSave != null) {
       await _pendingSave;
     }
+    // L'attente ci-dessus peut durer : l'ecran a pu etre demonte pendant
+    // qu'une sauvegarde concurrente se terminait. Sans ce test, on lisait
+    // des controleurs disposes et on ecrivait dans `_savingNotifier`.
+    if (!mounted) return;
     final current = _note;
     if (current == null) return;
     final title = _titleCtrl.text;
@@ -515,6 +527,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null) return;
     await _flushSave();
+    // `_flushSave` peut avoir REFERME l'ecran si le coffre s'est verrouille.
+    // Sans ce test on mettait la note a la corbeille puis on depilait une
+    // SECONDE route — celle d'en dessous. Meme motif que dans `_doneEditing`.
+    if (_fermeSurVerrouillage || !mounted) return;
     await _repo.moveToTrash(n);
     if (!mounted) return;
     Navigator.of(context).pop();
@@ -544,6 +560,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final t = AppLocalizations.of(context);
     // Flush avant export pour ne pas exporter une version stale du contenu.
     await _flushSave();
+    if (_fermeSurVerrouillage) return;
     final fresh = await _repo.get(n.id);
     if (fresh == null || !mounted) return;
     final folder = await context.read<FoldersRepository>().get(fresh.folderId);
@@ -864,7 +881,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (noteId == widget.noteId) return; // self-link, no-op
     // Flush avant de naviguer pour ne pas perdre les modifs.
     await _flushSave();
-    if (!mounted) return;
+    // Ne pas empiler une route sur un ecran qu'on vient de refermer.
+    if (_fermeSurVerrouillage || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => NoteEditorScreen(noteId: noteId)),
     );
