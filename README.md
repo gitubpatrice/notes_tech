@@ -19,8 +19,8 @@ mode panique multi-step.
   armeabi-v7a, x86_64).
 - **Mode panique whitelist** : `db_encrypted_v1` et `secure_window_enabled`
   préservés pour cohérence du redémarrage (conformément à PRIVACY.md).
-- **A11y P0** : streaming TalkBack + Semantics complets sur les bulles
-  le PIN pad, la sauvegarde.
+- **A11y P0** : annonces TalkBack et `Semantics` complets sur le pavé PIN,
+  la sauvegarde et les overlays de dictée.
 - **Helpers UI extraits** : `PassphraseTextField`, `VaultWarningBanner`,
   `BlockingProgressDialog` (factorisation cross-écrans).
 - **Mentions légales** : page rendue depuis `assets/legal/PRIVACY.{fr,en}.md`
@@ -223,24 +223,23 @@ lib/
 ├── app.dart                           # MaterialApp
 ├── core/                              # constants, exceptions, theme
 ├── data/
-│   ├── models/                        # Note, Folder, NoteEmbedding,
-│   │                                    NoteLink, NoteChangeEvent
+│   ├── models/                        # Note, Folder, NoteLink,
+│   │                                    NoteChangeEvent
 │   ├── db/                            # SQLite (FTS5 + sqlcipher), DAOs
 │   └── repositories/                  # façades + streams typés
 ├── services/
 │   ├── security/                      # VaultService (KEK Keystore +
 │   │                                    passphrase/PIN), PanicService
 │   ├── secure_window_service.dart     # FLAG_SECURE via MethodChannel
-│   ├── indexing_service.dart          # worker idempotent (hash diff)
-│   ├── semantic_search_service.dart   # top-K cosine, cache invalidé
-│   ├── backlinks_service.dart         # parsing [[]], reindex différé 2s
+│   ├── voice/                         # VoiceService (Whisper, sibling)
+│   ├── backlinks_service.dart         # parsing [[]], reindex différé
 │   ├── note_actions.dart              # actions UI réutilisables
 │   └── settings_service.dart
 ├── ui/
-│   ├── screens/                       # home, editor, search, ai_chat,
-│   │                                    settings, about, vault_unlock
+│   ├── screens/                       # home, editor, search, settings,
+│   │                                    about, vault_unlock
 │   └── widgets/                       # NoteCard, BacklinksPanel, ...
-└── utils/                             # debouncer, hash_utils, vector_math
+└── utils/                             # debouncer, text_utils, error_localize
 ```
 
 ## Stack

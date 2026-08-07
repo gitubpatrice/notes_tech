@@ -7,6 +7,54 @@
 
 ---
 
+## ⚠️ Ce document est la vision D'ORIGINE, pas l'application livrée
+
+*Note ajoutée le 2026-08-07. Le texte ci-dessous n'a pas été modifié : c'est
+la trace de ce qui a été voulu au départ, et l'effacer ferait perdre le
+pourquoi des décisions qui ont suivi. Mais il ne décrit pas Notes Tech telle
+qu'elle existe, et il faut le savoir avant de le lire.*
+
+**Pour l'état réel de l'application, la référence est le [README](../README.md).**
+
+### Ce qui a été construit puis RETIRÉ
+
+Les deux fonctions présentées ici comme « le cœur du produit » — la recherche
+sémantique par embeddings MiniLM (§1) et le Q&A Gemma 3 1B (§2) — ont bien été
+livrées, en v0.2 et v0.3 conformément à la feuille de route. Elles ont été
+**retirées en v1.1.7**.
+
+La raison est mesurable : elles pesaient **100 Mo sur les 127 Mo de l'APK**,
+soit près de 80 % du poids livré à *tous* les utilisateurs, pour une
+fonctionnalité que presque aucun ne pouvait atteindre — le modèle Gemma
+(~530 Mo) devait être téléchargé et importé à la main, l'application n'ayant
+pas la permission Internet. L'APK est passé à **26,9 Mo**. La migration de
+schéma v8 supprime au passage la table `note_embeddings` : ces vecteurs étaient
+dérivés du texte **en clair** des notes, les garder aurait laissé une empreinte
+du contenu d'une fonctionnalité disparue, y compris pour des notes mises au
+coffre depuis.
+
+Le slogan « Vos notes restent dans votre poche. L'IA aussi. » et le pitch
+« Obsidian + Notesnook + ChatGPT » (§ Pitch) ne valent donc plus.
+
+### Ce qui n'a jamais été construit
+
+Vérifié dans le code au 2026-08-07 : pas de graphe de connaissance, pas de tags
+générés (§4), pas de mode « Journal praticien » (§5), pas d'OCR ni d'import PDF
+(§6), pas de Markdown WYSIWYG hybride, LaTeX ou slash commands (§7), pas
+d'historique versionné (§9), pas d'imports Obsidian / Notesnook / Bear / Keep
+(§10), pas de pièces jointes ni de widget d'écran d'accueil (§ table stakes).
+
+### Ce qui a été tenu
+
+Le socle et les promesses non négociables (§ Principes) : 100 % hors ligne,
+zéro tracker, Apache 2.0, **aucune permission Internet dans le manifeste
+fusionné**, vault chiffré par dossier (Argon2id RFC 9106 + AES-256-GCM,
+passphrase ou PIN adossé au Keystore), mode panique, base SQLCipher, FTS5,
+backlinks `[[Titre]]`, corbeille 30 jours, dictée vocale Whisper locale,
+i18n FR/EN complète, splits ABI.
+
+---
+
 ## 🎯 Positionnement
 
 **"Vos notes restent dans votre poche. L'IA aussi."**
