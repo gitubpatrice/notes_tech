@@ -95,9 +95,15 @@ Future<void> main() async {
   final secureWindow = SecureWindowService();
   unawaited(secureWindow.setEnabled(settings.secureWindowEnabled));
 
-  // Couche données.
-  final notesRepo = NotesRepository(NotesDao(db));
+  // Couche données. `foldersRepo` est construit AVANT `notesRepo` : ce
+  // dernier lui délègue la garde d'invariant du coffre, qui refuse de
+  // persister le contenu en clair d'une note appartenant à un dossier
+  // coffre (cf. `VaultPlaintextWriteException`).
   final foldersRepo = FoldersRepository(FoldersDao(db));
+  final notesRepo = NotesRepository(
+    NotesDao(db),
+    isVaultFolder: foldersRepo.isVaultFolder,
+  );
   final embeddingsRepo = EmbeddingsRepository(EmbeddingsDao(db));
   final linksRepo = LinksRepository(LinksDao(db));
 

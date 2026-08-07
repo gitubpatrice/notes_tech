@@ -951,7 +951,11 @@ class FolderVaultService extends ChangeNotifier {
       if (!note.isLocked) continue;
       try {
         final decrypted = await decryptNote(note);
-        await _notes.save(decrypted);
+        // Seul contournement légitime de la garde d'invariant : ici on VEUT
+        // le clair au repos, parce que le coffre est sur le point d'être
+        // supprimé et que ses notes iraient sinon en boîte de réception sans
+        // la clé qui les déchiffrait.
+        await _notes.save(decrypted, allowPlaintextInVault: true);
         ok++;
       } catch (_) {
         failed++;

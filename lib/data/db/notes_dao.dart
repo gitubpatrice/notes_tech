@@ -192,6 +192,70 @@ class NotesDao {
     }
   }
 
+  /// Met à jour les seuls drapeaux de métadonnées d'une note.
+  ///
+  /// ⚠️ Ne JAMAIS repasser par [update] pour ça. `update` écrit la ligne
+  /// ENTIÈRE depuis `toRow()`, `content` et `encrypted_content` compris. Or
+  /// l'éditeur détient l'éphémère DÉCHIFFRÉE d'une note de coffre
+  /// (`content` rempli, `encryptedContent == null`) : épingler une telle
+  /// note réécrivait son contenu en clair et effaçait son blob chiffré —
+  /// la note perdait sa protection définitivement, sans le moindre signal,
+  /// sur un tap d'icône. Un `UPDATE` ciblé rend le geste sûr quel que soit
+  /// l'objet `Note` que l'appelant a sous la main.
+  Future<void> updateFlags({
+    required String id,
+    required DateTime updatedAt,
+    bool? pinned,
+    bool? favorite,
+    bool? archived,
+  }) async {
+    final values = <String, Object?>{
+      'updated_at': updatedAt.millisecondsSinceEpoch,
+      if (pinned != null) 'pinned': pinned ? 1 : 0,
+      if (favorite != null) 'favorite': favorite ? 1 : 0,
+      if (archived != null) 'archived': archived ? 1 : 0,
+    };
+    try {
+      final rows = await _db.update(
+        'notes',
+        values,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (rows == 0) throw NoteNotFoundException(id);
+    } on NoteNotFoundException {
+      rethrow;
+    } catch (e) {
+      throw DatabaseException('updateFlags($id) échoué', cause: e);
+    }
+  }
+
+  /// Met ou retire l'horodatage de corbeille, sans toucher au contenu.
+  /// Même raison que [updateFlags] : mettre à la corbeille une note de
+  /// coffre ouverte la déchiffrait au repos.
+  Future<void> setTrashedAt({
+    required String id,
+    required DateTime updatedAt,
+    DateTime? trashedAt,
+  }) async {
+    try {
+      final rows = await _db.update(
+        'notes',
+        {
+          'trashed_at': trashedAt?.millisecondsSinceEpoch,
+          'updated_at': updatedAt.millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (rows == 0) throw NoteNotFoundException(id);
+    } on NoteNotFoundException {
+      rethrow;
+    } catch (e) {
+      throw DatabaseException('setTrashedAt($id) échoué', cause: e);
+    }
+  }
+
   Future<void> deleteHard(String id) async {
     try {
       await _db.delete('notes', where: 'id = ?', whereArgs: [id]);

@@ -19,6 +19,25 @@ class FoldersRepository {
   void dispose() => _changes.close();
 
   Future<Folder?> get(String id) => _dao.findById(id);
+
+  /// `true` si [id] désigne un dossier coffre.
+  ///
+  /// Mémorisé, et invalidé par `_emit()` — donc à chaque création, rename,
+  /// suppression ou `update` de dossier, y compris l'activation d'un coffre
+  /// qui passe par `update`. Le cache existe parce que ce prédicat est
+  /// consulté à **chaque écriture de note** par la garde d'invariant de
+  /// `NotesRepository` : sans lui, chaque frappe auto-sauvegardée paierait
+  /// une requête de plus.
+  Future<bool> isVaultFolder(String id) async {
+    final cache =
+        _vaultIds ??= {
+          for (final f in await _dao.listAll())
+            if (f.isVault) f.id,
+        };
+    return cache.contains(id);
+  }
+
+  Set<String>? _vaultIds;
   Future<List<Folder>> listAll() => _dao.listAll();
   Future<List<Folder>> children(String? parentId) =>
       _dao.listChildren(parentId);
@@ -75,6 +94,9 @@ class FoldersRepository {
   }
 
   void _emit() {
+    // Invalide AVANT de notifier : un écouteur qui réagit à l'event et
+    // interroge `isVaultFolder` dans la foulée doit lire l'état neuf.
+    _vaultIds = null;
     if (!_changes.isClosed) _changes.add(null);
   }
 }

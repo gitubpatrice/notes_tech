@@ -99,6 +99,34 @@ class NoteNotFoundException extends NotesTechException {
     : super('Note introuvable : $noteId');
 }
 
+/// Tentative d'écrire le contenu EN CLAIR d'une note dans un dossier coffre.
+///
+/// Signale un **défaut de programmation**, pas une condition utilisateur :
+/// c'est pourquoi elle ne porte pas de `NotesErrorCode` localisé. L'invariant
+/// « une note d'un dossier coffre n'est jamais persistée en clair » était
+/// jusqu'ici réimplémenté par chaque appelant qui pensait à chiffrer ; il est
+/// désormais porté par `NotesRepository`, au point d'écriture, et cette
+/// exception est ce qui se produit quand un chemin l'oublie.
+///
+/// Le seul contournement légitime est `NotesRepository.save(...,
+/// allowPlaintextInVault: true)`, utilisé avant la suppression d'un coffre
+/// pour ne pas perdre les notes qu'il contient.
+class VaultPlaintextWriteException extends NotesTechException {
+  const VaultPlaintextWriteException({
+    required this.noteId,
+    required this.folderId,
+    required this.operation,
+  }) : super(
+         'Écriture en clair refusée : la note $noteId appartient au dossier '
+         'coffre $folderId (opération « $operation »). Chiffrer via '
+         'FolderVaultService.encryptNote avant de persister.',
+       );
+
+  final String noteId;
+  final String folderId;
+  final String operation;
+}
+
 class FolderNotFoundException extends NotesTechException {
   const FolderNotFoundException(String folderId)
     : super('Dossier introuvable : $folderId');

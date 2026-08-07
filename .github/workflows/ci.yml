@@ -1,10 +1,19 @@
 name: CI
 
+# ⚠️ Les branches de travail SONT couvertes, et ce n'est pas cosmétique :
+# tant que ce workflow ne ciblait que `main`, une branche `fix/**` pouvait
+# accumuler des dizaines de commits sans qu'aucun outil ne tourne — analyse,
+# tests et build ne se déclenchaient qu'à la fusion, c'est-à-dire trop tard.
+# `pull_request` sans filtre de branche cible couvre en prime les PR qui ne
+# visent pas `main`.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'fix/**'
+      - 'feat/**'
+      - 'chore/**'
   pull_request:
-    branches: [main]
 
 jobs:
   build:

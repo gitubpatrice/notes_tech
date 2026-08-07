@@ -4,11 +4,16 @@ name: Security Scan
 # Utilise les workflows réutilisables officiels de Google qui gèrent
 # correctement le SARIF + l'upload vers Security tab.
 
+# `pull_request` sans filtre de branche cible : une branche de travail est
+# scannée dès qu'elle est proposée à la fusion, y compris vers une autre
+# branche que `main`. Le `push` reste volontairement limité à `main` — le job
+# planifié pousse du SARIF dans l'onglet Security, et le faire à chaque commit
+# intermédiaire d'une branche noierait les vrais signaux. C'est `scan-pr` qui
+# couvre le travail en cours, avec un commentaire de diff plutôt qu'un upload.
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
   schedule:
     - cron: '0 6 * * 1'
 
