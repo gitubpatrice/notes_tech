@@ -65,6 +65,9 @@ class NotesRepository {
   Future<List<Note>> listPlaintextInFolder(String folderId) =>
       _dao.listPlaintextInFolder(folderId);
 
+  Future<List<Note>> listLegacyEncryptedInFolder(String folderId) =>
+      _dao.listLegacyEncryptedInFolder(folderId);
+
   /// Réparation d'arrière-plan uniquement — voir
   /// `NotesDao.replaceContentPayload`. Ne passe volontairement ni par la
   /// garde d'invariant (le blob est fourni par l'appelant, donc l'écriture
@@ -75,10 +78,14 @@ class NotesRepository {
     required String id,
     required String content,
     required Uint8List? encryptedContent,
+    String? title,
+    int? encVersion,
   }) => _dao.replaceContentPayload(
     id: id,
     content: content,
     encryptedContent: encryptedContent,
+    title: title,
+    encVersion: encVersion,
   );
 
   Future<List<Note>> favorites() => _dao.listFavorites();

@@ -164,17 +164,33 @@ void main() {
         'lib/services/security/folder_vault_service.dart',
       ).readAsStringSync();
 
-      test('les DEUX chemins de déverrouillage réparent', () {
+      test('les DEUX chemins de déverrouillage passent par le même point', () {
         final appels = RegExp(
-          r'await _reprotectPlaintextNotes\(',
+          r'await _onSessionOpened\(',
         ).allMatches(src).length;
         expect(
           appels,
           2,
           reason:
-              'Un seul appel = un jumeau divergent de plus. Le coffre PIN '
-              'et le coffre passphrase doivent réparer tous les deux, sinon '
-              'les notes d\'un des deux types restent lisibles sans passphrase.',
+              'Un seul appel = un jumeau divergent de plus. Le coffre PIN et '
+              'le coffre passphrase doivent faire les mêmes travaux à '
+              'l\'ouverture, sinon les notes de l\'un des deux types restent '
+              'exposées.',
+        );
+      });
+
+      test('le point d\'entrée fait réparation ET migration de format', () {
+        final debut = src.indexOf('_onSessionOpened(String folderId)');
+        expect(debut, greaterThan(0));
+        final corps = src.substring(debut, debut + 400);
+        expect(corps.contains('_reprotectPlaintextNotes('), isTrue);
+        expect(
+          corps.contains('_migrateLegacyEncryptedNotes('),
+          isTrue,
+          reason:
+              'Brancher un nouveau traitement sur un seul des deux '
+              'chemins de déverrouillage est exactement la façon dont un '
+              'jumeau divergent naît. Tout passe par ce point unique.',
         );
       });
 

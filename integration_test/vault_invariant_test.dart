@@ -216,6 +216,115 @@ void main() {
     );
   });
 
+  testWidgets('8. v2 : le titre n\'est plus en clair dans la base', (_) async {
+    final (_, note) = await vaultWithNote('titre-v2', 'contenu');
+
+    final row = await rawRow(note.id);
+    expect(
+      row['title'],
+      '',
+      reason:
+          'À partir du format v2 le titre vit DANS le blob. La colonne '
+          '`title` le laissait sinon lisible par qui obtient la clé de la '
+          'base — pas cherchable ni affiché, mais présent.',
+    );
+    expect(row['enc_v'], Note.kEncVersionTitleAndContent);
+    final blob = row['encrypted_content']! as Uint8List;
+    expect(String.fromCharCodes(blob), isNot(contains('titre-titre-v2')));
+  });
+
+  testWidgets('9. round-trip v2 : le titre revient intact', (_) async {
+    const titre = 'Relevé bancaire — août, éàü 漢字';
+    const corps = 'contenu associé';
+    final plain = await folders.create(name: 'coffre-rt2');
+    final v = await vault.createVault(folder: plain, passphrase: _kPass);
+    final created = await notes.create(folderId: v.id, title: 'provisoire');
+    final sealed = await vault.encryptNote(
+      created.copyWith(title: titre, content: corps),
+    );
+    await notes.save(sealed);
+
+    final relue = await notes.get(created.id);
+    expect(relue!.title, '', reason: 'rien en clair au repos');
+    final clear = await vault.decryptNote(relue);
+    expect(clear.title, titre);
+    expect(clear.content, corps);
+  });
+
+  testWidgets(
+    '10. MIGRATION v1 → v2 : une note héritée ne perd pas son titre',
+    (_) async {
+      const titre = 'Ancien titre en clair';
+      const corps = 'ancien contenu chiffré';
+      final plain = await folders.create(name: 'coffre-migration');
+      final v = await vault.createVault(folder: plain, passphrase: _kPass);
+      final created = await notes.create(folderId: v.id, title: titre);
+
+      // Note héritée AUTHENTIQUE : chiffrée avec la vraie clé du coffre, au
+      // format v1 — contenu dans le blob, titre en clair dans la colonne.
+      final legacy = await vault.encryptNoteLegacyV1(
+        created.copyWith(content: corps),
+      );
+      await notes.save(legacy);
+
+      final avant = await rawRow(created.id);
+      expect(avant['title'], titre, reason: 'l\'état hérité est bien en place');
+      expect(avant['enc_v'], Note.kEncVersionContentOnly);
+      final updatedAtAvant = avant['updated_at'];
+
+      // Le déverrouillage doit migrer.
+      vault.lock(v.id);
+      await vault.unlock(
+        folder: (await folders.get(v.id))!,
+        passphrase: _kPass,
+      );
+
+      final apres = await rawRow(created.id);
+      expect(apres['enc_v'], Note.kEncVersionTitleAndContent);
+      expect(apres['title'], '', reason: 'le titre a rejoint le blob');
+      expect(
+        apres['updated_at'],
+        updatedAtAvant,
+        reason:
+            'une migration d\'arrière-plan ne doit pas réordonner la '
+            'liste de l\'utilisateur',
+      );
+
+      // ET RIEN N'EST PERDU — c'est tout l'enjeu de ce test.
+      final relue = await notes.get(created.id);
+      final clear = await vault.decryptNote(relue!);
+      expect(clear.title, titre);
+      expect(clear.content, corps);
+    },
+  );
+
+  testWidgets('11. une note v1 reste lisible tant qu\'elle n\'a pas migré', (
+    _,
+  ) async {
+    const titre = 'Titre v1';
+    const corps = 'contenu v1';
+    final plain = await folders.create(name: 'coffre-v1-lisible');
+    final v = await vault.createVault(folder: plain, passphrase: _kPass);
+    final created = await notes.create(folderId: v.id, title: titre);
+    final legacy = await vault.encryptNoteLegacyV1(
+      created.copyWith(content: corps),
+    );
+    await notes.save(legacy);
+
+    // Sans passer par un déverrouillage : on relit directement en v1.
+    final relue = await notes.get(created.id);
+    expect(relue!.encVersion, Note.kEncVersionContentOnly);
+    final clear = await vault.decryptNote(relue);
+    expect(clear.content, corps);
+    expect(
+      clear.title,
+      titre,
+      reason:
+          'en v1 le titre vient de la colonne, pas du blob — la lecture '
+          'ne doit pas dépendre de la migration.',
+    );
+  });
+
   testWidgets('7. l\'index FTS5 ne contient pas le contenu du coffre', (
     _,
   ) async {

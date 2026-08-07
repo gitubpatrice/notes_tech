@@ -526,11 +526,9 @@ class FolderVaultService extends ChangeNotifier {
 
       _unlocked[folder.id] = _Session(folderKek: kek, openedAt: DateTime.now());
       transferredToSession = true; // ownership transférée — ne pas wipe ici
-      // Réparation silencieuse des notes laissées en clair par le bug
-      // d'épinglage (≤ v1.1.6). La session vient d'être ouverte : c'est le
-      // seul instant où la KEK est disponible. Jumeau du chemin passphrase —
-      // les deux DOIVENT l'appeler.
-      await _reprotectPlaintextNotes(folder.id);
+      // Travaux d'ouverture de session (réparation + migration de format).
+      // Jumeau du chemin passphrase — les deux DOIVENT l'appeler.
+      await _onSessionOpened(folder.id);
       _scheduleAutoLockSweep();
       notifyListeners();
     } finally {
@@ -824,8 +822,8 @@ class FolderVaultService extends ChangeNotifier {
         // F1 v1.0.9 — succès : reset compteur+lockout passphrase.
         _passFailCount.remove(folder.id);
         _passLockoutUntilMs.remove(folder.id);
-        // Jumeau du chemin PIN : même réparation silencieuse.
-        await _reprotectPlaintextNotes(folder.id);
+        // Jumeau du chemin PIN : mêmes travaux d'ouverture de session.
+        await _onSessionOpened(folder.id);
         _scheduleAutoLockSweep();
         notifyListeners();
       } finally {
@@ -874,7 +872,7 @@ class FolderVaultService extends ChangeNotifier {
     final ciphertext = await _aesGcmEncrypt(
       key: session.folderKek,
       iv: iv,
-      plaintext: utf8Bytes(note.content),
+      plaintext: _packTitleAndContent(note.title, note.content),
       aad: utf8Bytes(note.id),
     );
     // Format wire : iv(12) || ciphertext+tag(16). Aligne avec la
@@ -883,10 +881,63 @@ class FolderVaultService extends ChangeNotifier {
       ..setAll(0, iv)
       ..setAll(iv.length, ciphertext);
     return note.copyWith(
+      // v2 : le titre rejoint le contenu DANS le blob, et la colonne `title`
+      // est vidée. Elle restait sinon en clair dans la base — pas cherchable
+      // ni affichée (les triggers FTS la masquent, `note_card` affiche
+      // « Note verrouillée »), mais lisible par qui obtient la clé de la
+      // base. Le coffre protège désormais aussi les intitulés.
+      title: '',
       content: '',
       encryptedContent: blob,
+      encVersion: Note.kEncVersionTitleAndContent,
       updatedAt: DateTime.now(),
     );
+  }
+
+  /// Chiffre au FORMAT v1 — contenu seul dans le blob, titre laissé en clair
+  /// dans la colonne.
+  ///
+  /// Existe uniquement pour que les tests de migration puissent fabriquer une
+  /// note héritée **authentique**, chiffrée avec la vraie clé du coffre.
+  /// Sans ça, la migration v1 → v2 ne serait vérifiable que sur des données
+  /// simulées, c'est-à-dire pas vérifiée du tout : c'est précisément le
+  /// chemin où une erreur ferait perdre les titres des utilisateurs.
+  ///
+  /// ⚠️ Aucun chemin de production ne doit l'appeler. `encryptNote` produit
+  /// du v2 ; l'analyseur signale tout usage hors `test/`.
+  @visibleForTesting
+  Future<Note> encryptNoteLegacyV1(Note note) async {
+    final session = _requireSession(note.folderId);
+    final iv = _randomBytes(12);
+    final ciphertext = await _aesGcmEncrypt(
+      key: session.folderKek,
+      iv: iv,
+      plaintext: utf8Bytes(note.content),
+      aad: utf8Bytes(note.id),
+    );
+    final blob = Uint8List(iv.length + ciphertext.length)
+      ..setAll(0, iv)
+      ..setAll(iv.length, ciphertext);
+    return note.copyWith(
+      content: '',
+      encryptedContent: blob,
+      encVersion: Note.kEncVersionContentOnly,
+    );
+  }
+
+  /// Enveloppe v2 : `uint32 BE longueur du titre || titre UTF-8 || contenu`.
+  ///
+  /// Préfixe de longueur binaire plutôt que JSON : pas d'échappement, pas de
+  /// parseur dans le chemin crypto, et une frontière titre/contenu qui ne
+  /// dépend d'aucun caractère susceptible d'apparaître dans l'un ou l'autre.
+  static Uint8List _packTitleAndContent(String title, String content) {
+    final t = utf8Bytes(title);
+    final c = utf8Bytes(content);
+    final out = Uint8List(4 + t.length + c.length);
+    ByteData.view(out.buffer).setUint32(0, t.length, Endian.big);
+    out.setAll(4, t);
+    out.setAll(4 + t.length, c);
+    return out;
   }
 
   /// Reprotège les notes d'un coffre qui se trouvent EN CLAIR en base.
@@ -918,16 +969,18 @@ class FolderVaultService extends ChangeNotifier {
           // être plus récent que la colonne. On efface la colonne claire au
           // lieu de la rechiffrer, ce qui écraserait le blob par un contenu
           // potentiellement périmé. Sinon : on chiffre le clair.
-          final blob =
-              note.encryptedContent ??
-              (await encryptNote(note)).encryptedContent;
+          final sealed = note.encryptedContent != null
+              ? note
+              : await encryptNote(note);
           // Écriture ciblée qui ne touche PAS `updatedAt` : une réparation
           // silencieuse ne doit pas faire remonter les notes en tête de la
           // liste « modifiées récemment » à chaque ouverture du coffre.
           await _notes.replaceContentPayload(
             id: note.id,
             content: '',
-            encryptedContent: blob,
+            encryptedContent: sealed.encryptedContent,
+            title: sealed.title,
+            encVersion: sealed.encVersion,
           );
           // Le contenu en clair a pu être indexé pendant qu'il était exposé.
           await purgePlaintextEmbedding(note.id);
@@ -944,6 +997,67 @@ class FolderVaultService extends ChangeNotifier {
       debugPrint('vault $folderId — $repaired note(s) reprotégée(s)');
     }
     return repaired;
+  }
+
+  /// Travaux d'arrière-plan à faire dès qu'une session s'ouvre — seul moment
+  /// où la clé du coffre existe.
+  ///
+  /// Point d'entrée UNIQUE, appelé par les deux chemins de déverrouillage.
+  /// Chaque geste ajouté ici l'est donc pour le coffre PIN comme pour le
+  /// coffre passphrase : c'est précisément le genre d'endroit où un jumeau
+  /// divergent naît, quand on branche un nouveau traitement sur un seul des
+  /// deux chemins.
+  ///
+  /// L'ordre compte : on reprotège d'abord ce qui est en clair (ces notes
+  /// ressortent directement en v2), puis on migre ce qui était déjà chiffré
+  /// au format v1.
+  Future<void> _onSessionOpened(String folderId) async {
+    await _reprotectPlaintextNotes(folderId);
+    await _migrateLegacyEncryptedNotes(folderId);
+  }
+
+  /// Fait passer les notes chiffrées d'un coffre du format v1 au format v2,
+  /// c'est-à-dire déplace leur titre de la colonne `title` vers le blob.
+  ///
+  /// Ne peut se faire qu'ici : déplacer le titre exige de déchiffrer puis de
+  /// rechiffrer, donc la clé, dont une migration de schéma ne dispose pas.
+  /// Une note dont le coffre n'est jamais rouvert garde donc son titre en
+  /// clair — c'est le prix d'une migration qui ne peut pas perdre de données.
+  ///
+  /// ⚠️ Le déchiffrement est fait AVANT toute écriture, et l'écriture est un
+  /// UPDATE unique qui pose ensemble le nouveau blob, le titre vidé et la
+  /// nouvelle version. Une interruption laisse donc la note intacte en v1,
+  /// jamais dans un état hybride où le titre serait perdu des deux côtés.
+  ///
+  /// Best-effort par note : une note dont le déchiffrement échoue est laissée
+  /// telle quelle plutôt que réécrite à partir de rien.
+  Future<int> _migrateLegacyEncryptedNotes(String folderId) async {
+    var migrated = 0;
+    try {
+      final legacy = await _notes.listLegacyEncryptedInFolder(folderId);
+      for (final note in legacy) {
+        try {
+          final clear = await decryptNote(note); // v1 → titre + contenu en RAM
+          final sealed = await encryptNote(clear); // v2 → titre dans le blob
+          await _notes.replaceContentPayload(
+            id: note.id,
+            content: '',
+            encryptedContent: sealed.encryptedContent,
+            title: '',
+            encVersion: Note.kEncVersionTitleAndContent,
+          );
+          migrated++;
+        } catch (_) {
+          // Best-effort : la note reste lisible en v1, on retentera.
+        }
+      }
+    } catch (_) {
+      // Ne jamais faire échouer un déverrouillage pour une migration.
+    }
+    if (migrated > 0 && kDebugMode) {
+      debugPrint('vault $folderId — $migrated titre(s) passé(s) en v2');
+    }
+    return migrated;
   }
 
   /// Supprime l'embedding **en clair** calculé avant la mise au coffre.
@@ -992,7 +1106,41 @@ class FolderVaultService extends ChangeNotifier {
       wrapped: ciphertext,
       aad: utf8Bytes(note.id),
     );
+    if (note.encVersion == Note.kEncVersionTitleAndContent) {
+      final (title, content) = _unpackTitleAndContent(plaintext);
+      return note.copyWith(
+        title: title,
+        content: content,
+        clearEncrypted: true,
+      );
+    }
+    // v1 : le blob ne porte que le contenu, le titre est déjà dans la note.
     return note.copyWith(content: utf8Decode(plaintext), clearEncrypted: true);
+  }
+
+  /// Inverse de `_packTitleAndContent`. Lève si l'enveloppe est incohérente
+  /// plutôt que de rendre un titre tronqué ou un contenu décalé.
+  static (String, String) _unpackTitleAndContent(Uint8List plaintext) {
+    if (plaintext.length < 4) {
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultEncryptedContentInvalid,
+      );
+    }
+    final titleLen = ByteData.view(
+      plaintext.buffer,
+      plaintext.offsetInBytes,
+      plaintext.length,
+    ).getUint32(0, Endian.big);
+    if (4 + titleLen > plaintext.length) {
+      throw const VaultValidationException.coded(
+        NotesErrorCode.vaultEncryptedContentInvalid,
+      );
+    }
+    final title = utf8Decode(
+      Uint8List.sublistView(plaintext, 4, 4 + titleLen),
+    );
+    final content = utf8Decode(Uint8List.sublistView(plaintext, 4 + titleLen));
+    return (title, content);
   }
 
   /// Déchiffre toutes les notes verrouillées du dossier coffre

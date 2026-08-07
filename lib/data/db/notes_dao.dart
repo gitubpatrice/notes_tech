@@ -130,6 +130,32 @@ class NotesDao {
     }
   }
 
+  /// Notes chiffrées d'un dossier restées au format v1 — celles dont le
+  /// titre est encore en clair dans la colonne `title`.
+  ///
+  /// Sert la migration vers le format v2, qui ne peut se faire qu'à
+  /// l'ouverture du coffre : déplacer le titre dans le blob exige la clé,
+  /// dont une migration de schéma ne dispose pas.
+  ///
+  /// Sans filtre sur `trashed_at`, comme `listPlaintextInFolder` : un titre
+  /// en clair dans la corbeille est exposé tout autant qu'ailleurs.
+  Future<List<Note>> listLegacyEncryptedInFolder(String folderId) async {
+    try {
+      final rows = await _db.query(
+        'notes',
+        where:
+            'folder_id = ? AND encrypted_content IS NOT NULL AND enc_v = ?',
+        whereArgs: [folderId, Note.kEncVersionContentOnly],
+      );
+      return rows.map(Note.fromRow).toList(growable: false);
+    } catch (e) {
+      throw DatabaseException(
+        'listLegacyEncryptedInFolder($folderId) échoué',
+        cause: e,
+      );
+    }
+  }
+
   /// Toutes les notes hors corbeille, archives incluses.
   /// Utilisé par l'indexeur d'embeddings.
   Future<List<Note>> listAllAlive() async {
@@ -280,11 +306,22 @@ class NotesDao {
     required String id,
     required String content,
     required Uint8List? encryptedContent,
+    String? title,
+    int? encVersion,
   }) async {
     try {
       final rows = await _db.update(
         'notes',
-        {'content': content, 'encrypted_content': encryptedContent},
+        {
+          'content': content,
+          'encrypted_content': encryptedContent,
+          // Le titre suit le contenu dans le blob à partir du format v2 : la
+          // colonne doit donc être vidée dans le MÊME UPDATE, sinon une
+          // interruption entre les deux laisserait un titre en clair face à
+          // un blob qui le contient déjà.
+          'title': ?title,
+          'enc_v': ?encVersion,
+        },
         where: 'id = ?',
         whereArgs: [id],
       );

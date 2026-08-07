@@ -24,7 +24,7 @@ class AppConstants {
   // (compteur tentatives PIN, auto-wipe à 5).
   // v6 (1.0.3) : F2 — triggers FTS5 réécrits pour ne plus indexer
   // `title`/`tags` sur notes verrouillées (`encrypted_content IS NOT NULL`).
-  static const int dbVersion = 6;
+  static const int dbVersion = 7;
 
   /// Identifiant du dossier "Boîte de réception" — racine indélébile de
   /// l'arborescence, créée au premier démarrage. Les notes orphelines

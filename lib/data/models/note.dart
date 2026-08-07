@@ -18,7 +18,14 @@ class Note {
     this.archived = false,
     this.trashedAt,
     this.encryptedContent,
+    this.encVersion = kEncVersionContentOnly,
   });
+
+  /// Blob = contenu seul. Le titre vit en clair dans la colonne `title`.
+  static const int kEncVersionContentOnly = 1;
+
+  /// Blob = titre ET contenu. La colonne `title` est vidée.
+  static const int kEncVersionTitleAndContent = 2;
 
   final String id;
   final String title;
@@ -55,6 +62,18 @@ class Note {
   /// rempli, jamais persisté en clair.
   final Uint8List? encryptedContent;
 
+  /// Version du format de [encryptedContent] — voir [kEncVersionContentOnly]
+  /// et [kEncVersionTitleAndContent].
+  ///
+  /// Portée par une colonne de schéma et non par un préfixe dans le blob :
+  /// un marqueur de version à l'intérieur du chiffré serait ambigu avec un
+  /// nonce commençant par la même valeur, et un contenu en clair peut
+  /// toujours imiter n'importe quelle enveloppe. La distinction doit venir
+  /// d'ailleurs que des octets qu'on cherche justement à interpréter.
+  ///
+  /// Sans objet pour une note non chiffrée : la valeur y reste à 1.
+  final int encVersion;
+
   bool get isTrashed => trashedAt != null;
 
   /// `true` si la note est verrouillée (contenu chiffré non déverrouillé).
@@ -81,6 +100,7 @@ class Note {
     DateTime? updatedAt,
     Uint8List? encryptedContent,
     bool clearEncrypted = false,
+    int? encVersion,
   }) {
     return Note(
       id: id,
@@ -97,6 +117,13 @@ class Note {
       encryptedContent: clearEncrypted
           ? null
           : (encryptedContent ?? this.encryptedContent),
+      // Une note qu'on déchiffre en RAM redevient une note ordinaire : son
+      // format de blob n'a plus de sens et doit repartir de la valeur
+      // neutre, sans quoi un `copyWith(clearEncrypted: true)` laisserait
+      // traîner un « 2 » qui ferait relire un titre inexistant.
+      encVersion: clearEncrypted
+          ? kEncVersionContentOnly
+          : (encVersion ?? this.encVersion),
     );
   }
 
@@ -113,6 +140,7 @@ class Note {
     'created_at': createdAt.millisecondsSinceEpoch,
     'updated_at': updatedAt.millisecondsSinceEpoch,
     'encrypted_content': encryptedContent,
+    'enc_v': encVersion,
   };
 
   factory Note.fromRow(Map<String, Object?> row) {
@@ -139,6 +167,13 @@ class Note {
         (row['updated_at'] as int?) ?? 0,
       ),
       encryptedContent: _asBytes(row['encrypted_content']),
+      // Repli sur 1 et non sur 2 : une ligne écrite avant la migration v7,
+      // ou par un chemin qui aurait oublié la colonne, est en format
+      // « contenu seul ». Se tromper dans ce sens fait au pire relire un
+      // titre déjà présent ; l'inverse ferait interpréter un contenu comme
+      // une enveloppe titre+contenu et rendrait la note illisible.
+      encVersion:
+          (row['enc_v'] as int?) ?? Note.kEncVersionContentOnly,
     );
   }
 
