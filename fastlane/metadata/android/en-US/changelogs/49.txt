@@ -1,0 +1,11 @@
+Fix: the PIN pad moved under your finger.
+
+The vault sheet is anchored to the bottom of the screen, so anything
+appearing above the pad shifted it: an error message moved the keys by
+40 dp, and stepping to the confirmation of a new PIN dropped them by more
+than a full key height. Taps were delivered, but landed in the gap
+between keys.
+
+The pad now keeps a fixed position, whatever is displayed above it.
+
+Fixed on both vault creation and vault unlock.
