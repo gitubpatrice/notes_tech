@@ -1,4 +1,4 @@
-Notes Tech: 100% local Markdown note-taking, encrypted at-rest, with on-device AI.
+Notes Tech: 100% local Markdown note-taking, encrypted at-rest.
 
 <b>Radical privacy</b>
 • INTERNET permission explicitly removed via manifest merger (tools:node="remove" on android.permission.INTERNET and ACCESS_NETWORK_STATE) — verifiable post-merge with `aapt dump permissions app.apk`
@@ -12,12 +12,10 @@ Notes Tech: 100% local Markdown note-taking, encrypted at-rest, with on-device A
 • PIN auto-wipe after 5 failures (device-bound Keystore)
 • Configurable auto-lock (5 min to never)
 
-<b>100% on-device AI</b>
-• "Ask my notes" Q&A via Gemma 3 1B int4 (MediaPipe LLM)
-• Quantized MiniLM-L6-v2 semantic search (optional)
-• Whisper voice dictation (.bin model imported manually)
+<b>On-device voice dictation</b>
+• Local Whisper (.bin model imported manually)
 • SHA-256 verified at import and before every load
-• Gemma ↔ Whisper RAM coordination (anti-OOM on 4 GB devices)
+• Audio never persisted — wiped after transcription
 
 <b>Editing</b>
 • Raw Markdown, 500ms debounced autosave

@@ -13,8 +13,7 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 - **Your Markdown notes**: generated and kept exclusively on your phone, in a SQLite database encrypted by **SQLCipher** with a unique key generated locally (32-byte KEK) stored in the **Android Keystore** via `flutter_secure_storage`.
 - **Per-folder vaults**: each vault you enable uses a distinct **passphrase** or **PIN**, derived through **Argon2id RFC 9106** (m=64MB, t=3 for passphrase; lighter for PIN, compensated by device-bound Keystore sealing). Locked note content is encrypted with **AES-256-GCM**, AAD bound to `note_id`.
 - **Backlinks `[[Title]]`**: local inverted index, never transmitted.
-- **Semantic search embeddings**: vectors computed locally (light encoder or optional quantized MiniLM-L6-v2), stored as BLOB in the same encrypted database.
-- **AI models (Gemma `.task`, Whisper `.bin`)**: downloaded by your **system browser** from Kaggle / HuggingFace (Notes Tech merely fires an `ACTION_VIEW` intent), then imported manually. Notes Tech has no Internet permission and downloads nothing itself.
+- **Voice dictation model (Whisper `.bin`)**: downloaded by your **system browser** from HuggingFace (Notes Tech merely fires an `ACTION_VIEW` intent), then imported manually. Notes Tech has no Internet permission and downloads nothing itself.
 - **Audio captured during dictation**: transcribed and **immediately wiped**. Never persisted.
 - **Settings (theme, sort, dictation enabled, vault auto-lock)**: stored in clear in local preferences (no sensitive data).
 
@@ -39,7 +38,7 @@ The **Settings → Panic mode** menu wipes in bulk and atomically:
 - the SQLCipher KEK (unrecoverable),
 - the Keystore keys associated with PIN vaults,
 - the per-folder vaults (passphrases and PINs),
-- the Gemma and Whisper models installed in the sandbox,
+- the Whisper model installed in the sandbox,
 - the preferences (except `db_encrypted_v1` and `secure_window_enabled` kept for restart consistency).
 
 The wipe is atomic and resumable: if a crash occurs mid-wipe, the next start completes the remaining steps (`vault_wipe_pending_*`).
@@ -55,12 +54,11 @@ All data being strictly local, the GDPR applies between you and your phone. You 
 
 **None.** Notes Tech uses no third-party service at runtime.
 
-### AI models
+### Voice dictation model
 
-- **Gemma 3 1B int4** (~530 MB): Google's Gemma license. See https://ai.google.dev/gemma/terms
 - **Whisper** (`.bin` models from `ggerganov/whisper.cpp`): MIT license.
 
-The files you load stay on your phone. Notes Tech merely runs them locally (MediaPipe LLM Inference for Gemma, whisper.cpp via `files_tech_voice` for dictation).
+The file you load stays on your phone. Notes Tech merely runs it locally (whisper.cpp via `files_tech_voice`).
 
 ### Contact
 

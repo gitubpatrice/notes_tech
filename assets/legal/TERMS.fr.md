@@ -8,12 +8,11 @@ Notes Tech est un logiciel libre publié sous **licence Apache 2.0**. Vous pouve
 
 ## Usage
 
-L'application est fournie **telle quelle, sans garantie d'aucune sorte**. Les fonctionnalités IA (questions/réponses sur vos notes via Gemma, dictée Whisper) sont assistées par intelligence artificielle qui peut produire des erreurs, des informations inexactes, ou des transcriptions imparfaites. Vous restez seul responsable du contenu et de l'usage que vous faites des suggestions générées.
+L'application est fournie **telle quelle, sans garantie d'aucune sorte**. La dictée vocale repose sur un modèle de reconnaissance automatique de la parole, qui peut produire des transcriptions imparfaites. Vous restez seul responsable du contenu de vos notes.
 
 ## Limitations
 
 - Notes Tech ne se substitue **en aucun cas** à un avis médical, juridique, financier ou professionnel.
-- Le modèle Gemma peut **halluciner** (inventer des faits avec assurance) ; vérifiez toujours les réponses critiques.
 - Whisper peut transcrire incorrectement, surtout en environnement bruyant ou avec des termes techniques spécialisés.
 - Les performances dépendent de votre matériel et du modèle chargé.
 
@@ -25,10 +24,9 @@ De même, **oublier la passphrase d'un coffre rend ses notes illisibles à jamai
 
 Pour les coffres en mode **PIN**, **5 échecs successifs déclenchent un auto-wipe** (suppression de la clé Keystore). Aligné sur le comportement standard d'un écran de verrouillage Android.
 
-## Modèles d'IA
+## Modèle de dictée vocale
 
 L'application est compatible avec :
-- **Gemma 3 1B int4** au format MediaPipe `.task` — licence Gemma de Google : https://ai.google.dev/gemma/terms
 - **Whisper** modèles GGML `.bin` — licence MIT, source `ggerganov/whisper.cpp`
 
 Vous êtes responsable du respect de ces licences.

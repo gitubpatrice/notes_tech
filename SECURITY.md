@@ -1,5 +1,13 @@
 # Security policy — Notes Tech
 
+> **⚠️ État au 2026-08-07 — retrait de l'IA embarquée (v1.1.7).** Notes Tech
+> n'embarque plus ni moteur d'inférence Gemma, ni recherche sémantique
+> (MiniLM / ONNX). Les entrées d'historique ci-dessous qui les mentionnent
+> décrivent des correctifs **réellement appliqués à l'époque** : elles sont
+> conservées telles quelles, réécrire un journal de sécurité serait pire que
+> de le laisser dater. Seules les affirmations d'état courant ont été mises
+> à jour.
+
 **Version current : v1.1.6 — Juillet 2026.**
 
 ## v1.1.6 — Logo & réorganisation barre du haut (2026-07-09)
@@ -253,7 +261,8 @@ Notes Tech v1.0 introduit plusieurs durcissements sécurité :
 - `flutter_markdown` cantonné aux pages légales locales (assets), aucun
   rendu de markdown distant.
 - `ProGuard` rules complètes : `files_tech_voice`, `flutter_markdown`,
-  MediaPipe, ONNX, sqflite, flutter_gemma.
+  sqflite. Les règles MediaPipe / ONNX / flutter_gemma sont devenues
+  sans objet avec le retrait de l'IA embarquée (v1.1.7).
 
 ## Reporting a vulnerability
 
@@ -348,10 +357,10 @@ throws does not abort the next ones) :
 3. **`pinKeysWipe`** — `deleteKeysWithPrefix("vault_pin_")` (Kotlin)
 4. **`kekDestroy`** — destroy the master Keystore key (DB instantly
    unreadable)
-5. Background workers paused (coordinator / indexing / backlinks)
+5. Background workers paused (backlinks)
 6. **`dbWipe`** — overwrite SQLCipher header (16 MiB cap) + delete
    `.db`, `.db-wal`, `.db-shm`
-7. Whisper / Gemma model files deleted, all prefs cleared, tmp purged
+7. Whisper model file deleted, all prefs cleared, tmp purged
 
 ### Accepted limits
 - Forensic recovery from a physical memory dump of an unlocked, rooted

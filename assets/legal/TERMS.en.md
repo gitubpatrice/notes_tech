@@ -8,12 +8,11 @@ Notes Tech is free software published under the **Apache 2.0 license**. You may 
 
 ## Usage
 
-The app is provided **as is, without warranty of any kind**. The AI features (questions/answers on your notes via Gemma, Whisper dictation) are powered by AI that may produce errors, inaccurate information, or imperfect transcriptions. You alone remain responsible for the content and the use you make of the generated suggestions.
+The app is provided **as is, without warranty of any kind**. Voice dictation relies on an automatic speech recognition model, which may produce imperfect transcriptions. You alone remain responsible for the content of your notes.
 
 ## Limitations
 
 - Notes Tech is **in no case** a substitute for medical, legal, financial or professional advice.
-- The Gemma model may **hallucinate** (invent facts with confidence); always verify critical answers.
 - Whisper may transcribe incorrectly, especially in noisy environments or with specialized technical terms.
 - Performance depends on your hardware and the loaded model.
 
@@ -25,10 +24,9 @@ Likewise, **forgetting a vault passphrase makes its notes unreadable forever**: 
 
 For **PIN** vaults, **5 successive failures trigger an auto-wipe** (Keystore key deletion). Aligned with the standard Android lock screen behaviour.
 
-## AI models
+## Voice dictation model
 
 The app is compatible with:
-- **Gemma 3 1B int4** in MediaPipe `.task` format — Google's Gemma license: https://ai.google.dev/gemma/terms
 - **Whisper** GGML `.bin` models — MIT license, source `ggerganov/whisper.cpp`
 
 You are responsible for complying with those licenses.

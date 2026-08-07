@@ -30,27 +30,22 @@ par les garanties d'isolation Android) :
 
 - Titres et contenus de vos notes
 - Vos paramètres (thème, tri, dossier actif, etc.)
-- Modèles IA importés par vous (Gemma, Whisper)
-- Embeddings sémantiques de vos notes (dérivés du contenu, ne sortent
-  jamais de l'appareil)
+- Le modèle de dictée vocale importé par vous (Whisper)
 
 La base de notes est **chiffrée AES-256** (SQLCipher) avec une clé
 maître scellée par l'**Android Keystore** (hardware-backed sur
 téléphones modernes). La désinstallation efface cette clé : sans elle,
 la base devient cryptographiquement illisible.
 
-## 3. Modèles d'intelligence artificielle
+## 3. Dictée vocale
 
-Toutes les inférences (Q&A Gemma, dictée Whisper, embeddings
-sémantiques) tournent **100 % localement sur votre téléphone**. Aucun
-texte, aucun audio, aucun embedding ne quitte l'appareil.
+La transcription tourne **100 % localement sur votre téléphone**. Aucun
+texte et aucun audio ne quitte l'appareil ; l'audio capturé est effacé
+après transcription et n'est jamais persisté.
 
-Vous téléchargez vous-même les gros modèles depuis les sources
-officielles :
+Vous téléchargez vous-même le modèle depuis la source officielle :
 
-- **Gemma 3 1B int4** — Google Kaggle (licence Gemma)
 - **Whisper Base / Tiny** — HuggingFace ggerganov/whisper.cpp (MIT)
-- **MiniLM-L6-v2 quantifié** — bundlé dans l'APK (~22 Mo, MIT)
 
 Notes Tech vérifie l'empreinte cryptographique SHA-256 de chaque
 modèle avant chargement. Aucun modèle n'est envoyé à l'éditeur ni à un

@@ -1,13 +1,13 @@
 # Notes Tech
 
-> Vos notes restent dans votre poche. L'IA aussi.
+> Vos notes restent dans votre poche. Chiffrées, et hors ligne.
 
 **v1.0.4 — Mai 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
 
 Application Android Flutter de prise de notes Markdown chiffrées,
 **100 % locale, zéro permission Internet**. Interface bilingue **FR / EN**.
 Coffres par dossier (passphrase Argon2id ou PIN Keystore-bound), recherche
-sémantique on-device, Q&A Gemma 3 1B, dictée Whisper, backlinks `[[note]]`,
+plein-texte FTS5, dictée vocale Whisper on-device, backlinks `[[note]]`,
 mode panique multi-step.
 
 ## Quoi de neuf en v1.0.0
@@ -20,20 +20,21 @@ mode panique multi-step.
 - **Mode panique whitelist** : `db_encrypted_v1` et `secure_window_enabled`
   préservés pour cohérence du redémarrage (conformément à PRIVACY.md).
 - **A11y P0** : streaming TalkBack + Semantics complets sur les bulles
-  Q&A, le PIN pad, la sauvegarde.
+  le PIN pad, la sauvegarde.
 - **Helpers UI extraits** : `PassphraseTextField`, `VaultWarningBanner`,
   `BlockingProgressDialog` (factorisation cross-écrans).
 - **Mentions légales** : page rendue depuis `assets/legal/PRIVACY.{fr,en}.md`
   et `TERMS.{fr,en}.md` via `flutter_markdown`.
 - **Performance** : `Selector` ciblé sur `themeMode + locale`,
-  `MediaQuery.sizeOf` dans les bulles Q&A, scroll Gemma throttlé 80 ms.
+  `MediaQuery.sizeOf` dans les listes.
 
 Pour penseurs, thérapeutes, étudiants, chercheurs, écrivains et
 journalistes qui veulent prendre des notes sensibles ou denses sans
 qu'elles ne quittent jamais leur téléphone.
 
 **Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
-l'IA tourne dans le téléphone, pas sur un serveur.**
+aucune permission Internet — l'application est techniquement incapable
+d'envoyer quoi que ce soit, et c'est vérifiable dans son manifeste.**
 
 ---
 
@@ -50,7 +51,7 @@ l'IA tourne dans le téléphone, pas sur un serveur.**
 - Open source Apache 2.0, code intégral vérifiable.
 - `allowBackup=false` + `dataExtractionRules` complet (pas
   d'exfiltration via Smart Switch ou Android Backup).
-- Modèles ML (Gemma, Whisper) importés via SAF — jamais bundlés,
+- Modèle Whisper importé via SAF — jamais bundlé,
   jamais téléchargés en réseau par l'app.
 
 ---
@@ -77,19 +78,6 @@ l'IA tourne dans le téléphone, pas sur un serveur.**
 
 ### Recherche
 - **FTS5** instantané (tokenizer `unicode61`, diacritiques normalisés).
-- **Recherche sémantique on-device** *(opt-in)* via
-  `all-MiniLM-L6-v2-quant.onnx` (~22 Mo, bundlé) — trouve des notes
-  proches par le sens, cross-langue FR/EN.
-- Repli automatique sur encodeur n-grammes local si MiniLM est désactivé.
-
-### Q&A « Demander à mes notes »
-- **Gemma 3 1B int4** (~530 Mo, importé via SAF), inférence MediaPipe.
-- **RAG** : top-K sémantique injecté dans un prompt durci (délimiteurs
-  `<note>` + sanitisation anti-injection).
-- Streaming token-par-token, conversation effaçable, **aucun envoi
-  réseau**.
-- Vérification SHA-256 obligatoire à l'import (rejet d'un `.task` non
-  vérifié, override explicite réservé aux utilisateurs avertis).
 
 ### Dictée vocale Whisper
 - **Whisper on-device** via le module sibling `files_tech_voice`.
@@ -97,7 +85,6 @@ l'IA tourne dans le téléphone, pas sur un serveur.**
   SAF (téléchargement par le navigateur système, pas par l'app).
 - Vérification SHA-256 systématique avant chargement, cache TTL 30 j.
 - Audio jamais persisté (tmp + delete dans tous les chemins).
-- **MlMemoryGuard** : mutex sériel Gemma ↔ Whisper anti-OOM sur 4 Go RAM.
 
 ### Backlinks
 - Liens `[[Titre]]`, auto-complétion, panneau Mentions / liens sortants.
@@ -126,7 +113,7 @@ l'IA tourne dans le téléphone, pas sur un serveur.**
      instantanément illisible)
   6. Pause des background workers
   7. **`dbWipe`** — écrase header SQLCipher 16 Mo + delete + sidecars
-  8. Effacement Whisper, Gemma, préférences, tmp
+  8. Effacement Whisper, préférences, tmp
 
 ### FLAG_SECURE
 - Activé par défaut : pas de capture d'écran ni d'aperçu dans les apps
@@ -214,8 +201,10 @@ keyAlias=...
 keyPassword=...
 ```
 
-APK release arm64 : ~327 Mo (MiniLM ONNX bundlé, runtimes ML, SQLCipher
-— Gemma et Whisper téléchargés séparément, non bundlés).
+APK release arm64 : **~27 Mo** (SQLCipher + Whisper.cpp — le modèle de
+dictée est téléchargé séparément, non bundlé). L'IA embarquée a été retirée
+en v1.1.7 : elle pesait 100 Mo pour une fonctionnalité que presque personne
+ne pouvait atteindre sans permission Internet.
 
 Pré-requis :
 - Flutter 3.x (Dart `^3.11.5`)
@@ -239,14 +228,10 @@ lib/
 │   ├── db/                            # SQLite (FTS5 + sqlcipher), DAOs
 │   └── repositories/                  # façades + streams typés
 ├── services/
-│   ├── embedding/                     # EmbeddingProvider, LocalEmbedder,
-│   │                                    MiniLmEmbedder, BertTokenizer
-│   ├── ai/                            # GemmaService (SHA-256), RagService
 │   ├── security/                      # VaultService (KEK Keystore +
 │   │                                    passphrase/PIN), PanicService
 │   ├── secure_window_service.dart     # FLAG_SECURE via MethodChannel
 │   ├── indexing_service.dart          # worker idempotent (hash diff)
-│   ├── embedder_coordinator.dart      # swap Local ↔ MiniLM à chaud
 │   ├── semantic_search_service.dart   # top-K cosine, cache invalidé
 │   ├── backlinks_service.dart         # parsing [[]], reindex différé 2s
 │   ├── note_actions.dart              # actions UI réutilisables
@@ -265,8 +250,6 @@ lib/
 - `flutter_secure_storage` (KEK scellée AndroidKeystore)
 - `cryptography` (Argon2id RFC 9106 + AES-GCM, Dart pur)
 - `crypto` (SHA-256 streaming pour vérification modèles)
-- `onnxruntime` (MiniLM L6 v2 quantifié)
-- `flutter_gemma` (Gemma 3 1B int4)
 - `files_tech_voice` (sibling, Whisper STT)
 - `provider`, `shared_preferences`, `archive`, `share_plus`,
   `url_launcher`

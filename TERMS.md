@@ -35,25 +35,20 @@ Vous êtes le seul propriétaire et responsable de vos notes. Voir
 `PRIVACY.md` pour le détail du traitement (résumé : aucune donnée ne
 quitte votre téléphone, aucun serveur n'est impliqué).
 
-## 5. Modèles d'intelligence artificielle
+## 5. Modèle de dictée vocale
 
-Les modèles ML (Gemma, Whisper, MiniLM) sont **importés par vous**
-depuis les sources officielles. Vous êtes soumis aux licences de ces
-modèles :
+Le modèle Whisper est **importé par vous** depuis la source officielle.
+Vous êtes soumis à sa licence :
 
-- **Gemma 3** — licence Gemma de Google (consultable sur Kaggle).
 - **Whisper** — MIT (OpenAI / Georgi Gerganov).
-- **MiniLM-L6-v2** — MIT (Microsoft).
 
-Notes Tech ne redistribue aucun de ces modèles.
+Notes Tech ne redistribue pas ce modèle.
 
 ## 6. Limitations techniques
 
-- **APK ~327 Mo** : plusieurs runtimes ML embarqués (SQLCipher,
-  ONNX Runtime, MediaPipe, Whisper.cpp, MiniLM bundlé). Ce n'est pas
-  une app légère.
-- **Modèles séparés** : à télécharger soi-même (~700 Mo cumulés pour
-  Gemma + Whisper). Compromis pour rester offline.
+- **Modèle de dictée séparé** : à télécharger soi-même (~57 Mo pour
+  Whisper Base). Compromis pour rester hors ligne — l'application n'a
+  pas la permission Internet et ne peut rien télécharger elle-même.
 - **Pas de synchronisation entre appareils** : volontaire (offline-
   first). Utilisez l'export Markdown pour partager entre vos appareils
   manuellement.

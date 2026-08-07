@@ -14,8 +14,6 @@ sur pub.dev pour chaque paquet ou via `flutter pub deps --no-dev`.
 | `sqflite_sqlcipher` | ^3.1.0 | MIT | Base SQLite chiffrée AES-256 |
 | `path` / `path_provider` | ^1.9 / ^2.1 | BSD-3-Clause | Résolution chemins |
 | `shared_preferences` | ^2.3.2 | BSD-3-Clause | Préférences utilisateur |
-| `onnxruntime` | ^1.4.1 | MIT | Inférence MiniLM-L6-v2 |
-| `flutter_gemma` | ^0.14.5 | MIT | Inférence Gemma via MediaPipe |
 | `file_picker` | ^10.3.3 | MIT | Import SAF (modèles, .bin) |
 | `uuid` | ^4.5.1 | MIT | IDs notes / dossiers |
 | `intl` | ^0.19.0 | BSD-3-Clause | Formatage dates FR |
@@ -36,16 +34,14 @@ Ce module dépend lui-même de :
 - `record` (MIT) — capture audio PCM 16 kHz
 - `permission_handler` (MIT) — permission RECORD_AUDIO
 
-## Modèles ML (NON bundlés sauf MiniLM)
+## Modèle de dictée vocale (NON bundlé)
 
-Vous téléchargez vous-même Gemma et Whisper depuis les sources
+Vous téléchargez vous-même le modèle Whisper depuis la source
 officielles. Notes Tech ne les redistribue pas.
 
 | Modèle | Source | Licence |
 |---|---|---|
-| `gemma3-1b-it-int4.task` (~530 Mo) | https://www.kaggle.com/models/google/gemma-3 | Gemma Terms of Use |
 | `ggml-base-q5_1.bin` (~57 Mo) | https://huggingface.co/ggerganov/whisper.cpp | MIT |
-| `all-MiniLM-L6-v2-quant.onnx` (~22 Mo, **bundlé**) | Microsoft / Sentence-Transformers | MIT (Apache 2.0 dépendant) |
 
 ---
 

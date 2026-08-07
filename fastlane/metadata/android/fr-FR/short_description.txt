@@ -1,1 +1,1 @@
-Notes Markdown chiffrées, IA on-device, 100% local. Aucune permission Internet.
+Notes Markdown chiffrées, 100 % local. Aucune permission Internet.
