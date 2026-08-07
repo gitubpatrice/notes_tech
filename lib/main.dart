@@ -27,7 +27,6 @@ import 'data/repositories/links_repository.dart';
 import 'data/repositories/notes_repository.dart';
 import 'services/backlinks_service.dart';
 import 'services/first_launch_flag.dart';
-import 'services/ml/ml_memory_guard.dart';
 import 'services/secure_window_service.dart';
 import 'services/security/folder_vault_service.dart';
 import 'services/security/panic_service.dart';
@@ -99,13 +98,7 @@ Future<void> main() async {
   // Le bootstrap retrouve un éventuel modèle déjà installé et purge les
   // WAV temp orphelins d'un crash précédent.
   final voicePrefs = await SharedPreferences.getInstance();
-  // Arbitrage RAM des modèles lourds sur téléphones 4 Go (POCO C75, S9).
-  // Depuis le retrait de l'IA, Whisper est le SEUL consommateur : le garde
-  // ne libère plus rien en face, il sérialise juste les chargements.
-  // Forward reference via closure pour éviter la dépendance circulaire.
-  late final VoiceService voice;
-  final mlGuard = MlMemoryGuard(evictVoice: () async => voice.unloadEngine());
-  voice = VoiceService(prefs: voicePrefs, mlGuard: mlGuard);
+  final voice = VoiceService(prefs: voicePrefs);
   unawaited(voice.bootstrap());
 
   // Mode panique (v0.7) — orchestrateur d'effacement irréversible. Tous

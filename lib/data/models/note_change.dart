@@ -1,6 +1,6 @@
 /// Événement émis par `NotesRepository.changes` à chaque écriture.
 ///
-/// Permet aux services en aval (indexation embeddings, backlinks) de cibler
+/// Permet aux services en aval (`BacklinksService`) de cibler
 /// la note réellement modifiée plutôt que de balayer toute la base — gain
 /// O(N) → O(1) sur grosse collection.
 library;

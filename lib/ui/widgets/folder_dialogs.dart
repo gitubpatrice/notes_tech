@@ -196,7 +196,8 @@ Future<FolderDeletionChoice?> confirmDeleteFolder({
 /// Implémentation batch (UPDATE atomique) plutôt qu'une boucle de
 /// `save()` : sur 100 notes l'ancienne version freezait l'UI 5-15 s sur
 /// S9 et émettait 100 events de réindexation. Le batch émet 1 seul
-/// event `bulk` que le coordinateur d'embeddings sait coalescer.
+/// event `bulk`, pour ne pas noyer les services en aval sous N
+/// notifications là où l'utilisateur n'a fait qu'une action.
 ///
 /// Prend [NotesRepository] explicitement (et non un BuildContext) :
 /// rend la fonction testable sans monter de Widget tree.

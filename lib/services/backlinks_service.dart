@@ -14,7 +14,7 @@
 ///    réconcilie l'état avec d'éventuelles incohérences.
 ///
 /// Sécurité / robustesse :
-///  - Cap sur la longueur du contenu parsé (= `noteContentIndexLimit`).
+///  - Cap sur la longueur du contenu parsé (= `noteContentBacklinksLimit`).
 ///  - Titre cible tronqué à 200 caractères.
 ///  - Toute exception est avalée et loguée (debug uniquement) : le
 ///    service ne crashera jamais l'app et exposera l'erreur via
@@ -55,11 +55,12 @@ class BacklinksService {
   static const int _maxLinksPerNote = 256;
 
   /// v1.1.4 (B5) — debounce court (500 ms) : on parse `[[...]]` par regex
-  /// pure (pas de coût ML), donc on peut suivre quasi temps réel les
-  /// frappes utilisateur pour que les backlinks remontent vite dans le
-  /// panneau latéral. Divergence INTENTIONNELLE avec
-  /// `IndexingService._writeDebounce = 3 s` (lui doit espacer les passes
-  /// MiniLM coûteuses CPU).
+  /// pure, sans aucun coût d'inférence, donc on peut suivre quasi temps réel
+  /// les frappes utilisateur pour que les backlinks remontent vite dans le
+  /// panneau latéral. Cette valeur était volontairement plus courte que le
+  /// debounce de 3 s de l'indexeur sémantique, qui espaçait des passes CPU
+  /// coûteuses ; cet indexeur a disparu en v1.1.7 et `BacklinksService` est
+  /// désormais le seul service réagissant aux écritures.
   static const Duration _writeDebounce = Duration(milliseconds: 500);
 
   /// Dernière erreur d'indexation, si pertinente pour l'UI.

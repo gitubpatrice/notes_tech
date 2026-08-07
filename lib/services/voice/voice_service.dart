@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/exceptions.dart';
-import '../ml/ml_memory_guard.dart';
 
 /// État unifié du service voix, exposé à l'UI via `Provider`.
 ///
@@ -53,11 +52,9 @@ enum VoiceServiceState {
 class VoiceService extends ChangeNotifier {
   VoiceService({
     required SharedPreferences prefs,
-    MlMemoryGuard? mlGuard,
     SpeechToText? stt,
     SttSession? session,
   }) : _prefs = prefs,
-       _mlGuard = mlGuard,
        _stt = stt ?? WhisperGgmlStt.instance,
        _session = session ?? SttSession(stt: stt ?? WhisperGgmlStt.instance);
 
@@ -82,7 +79,6 @@ class VoiceService extends ChangeNotifier {
   static const Duration _verifiedCacheTtl = Duration(hours: 24);
 
   final SharedPreferences _prefs;
-  final MlMemoryGuard? _mlGuard;
   final SpeechToText _stt;
   final SttSession _session;
 
@@ -288,10 +284,10 @@ class VoiceService extends ChangeNotifier {
     }
     try {
       if (!_stt.isInitialized) {
-        // Coordination RAM : libère Gemma si chargé (sur 4 Go RAM, charger
-        // les deux moteurs ML simultanément peut OOM). Sans guard configuré,
-        // on charge directement.
-        await _mlGuard?.requestVoice();
+        // Chargement paresseux : Whisper n'occupe la RAM qu'à partir de la
+        // première dictée de la session. Il est désormais le SEUL moteur ML
+        // de l'application — l'arbitrage RAM qui existait face à Gemma a été
+        // retiré avec lui, faute de second consommateur à évincer.
         await _stt.initialize(model);
       }
       await _session.start();
@@ -335,15 +331,6 @@ class VoiceService extends ChangeNotifier {
     await _session.cancel();
   }
 
-  /// Décharge le moteur Whisper sans toucher au fichier modèle. À appeler
-  /// par [MlMemoryGuard] quand un autre moteur ML (Gemma) demande la RAM.
-  /// Le modèle reste sur disque et sera rechargé lazy à la prochaine
-  /// transcription. Idempotent.
-  Future<void> unloadEngine() async {
-    await _stt.dispose();
-    _mlGuard?.releaseVoice();
-  }
-
   /// Ouvre la fiche de l'application dans les paramètres système Android,
   /// pour qu'un utilisateur ayant refusé "définitivement" la permission
   /// micro puisse la réactiver. Géré par le module sibling pour ne pas
@@ -356,10 +343,6 @@ class VoiceService extends ChangeNotifier {
     final model = _activeModel;
     if (model == null) return;
     await _stt.dispose();
-    // Libère le verrou côté MlMemoryGuard : sans ça, le guard pense que
-    // voix détient encore la RAM et un futur requestGemma déclencherait
-    // un evictVoice inutile (no-op mais pollution sémantique).
-    _mlGuard?.releaseVoice();
     await SttModelDownloader.instance.uninstall(model);
     await _prefs.remove(_kActiveModelIdKey);
     // Cache d'intégrité périmé puisque le fichier a disparu — on évite
@@ -382,13 +365,12 @@ class VoiceService extends ChangeNotifier {
   ///    vérification + pref `voice.activeModelId`.
   /// 3. `vault.destroyKek()` — détruit la clé maître (notes deviennent
   ///    illisibles à jamais).
-  /// 4. Wipe DB SQLCipher, embeddings, modèle Gemma.
+  /// 4. Wipe de la base SQLCipher.
   ///
   /// L'ordre est important : voir 1 avant 3 pour que les fichiers temp
   /// soient toujours lisibles au moment de la suppression.
   Future<void> wipeAll() async {
     await _stt.dispose();
-    _mlGuard?.releaseVoice();
     await SttModelDownloader.instance.uninstallAll();
     await SttModelDownloader.instance.purgeTempCaptures();
     await _prefs.remove(_kActiveModelIdKey);

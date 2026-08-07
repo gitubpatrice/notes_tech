@@ -1,4 +1,4 @@
-/// Recherche plein-texte (FTS5) ou par similarité (embeddings locaux).
+/// Recherche plein-texte (FTS5).
 ///
 /// Toggle utilisateur : `Mots exacts` / `Similaires`. La barre supérieure
 /// affiche un compteur du nombre de notes indexées en mode similarité.

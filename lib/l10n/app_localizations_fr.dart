@@ -413,9 +413,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get aboutLinkWhisper => 'Source des modèles Whisper (.bin)';
 
   @override
-  String get aboutLinkGemma => 'Source du modèle Gemma 3 1B';
-
-  @override
   String get aboutLicense =>
       'Apache License 2.0 — code source ouvert, vérifiable';
 
@@ -607,8 +604,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get panicCompleteBullet2 => 'Base de notes : effacée et écrasée';
 
   @override
-  String get panicCompleteBullet3 =>
-      'Modèles IA (Gemma, Whisper) : désinstallés';
+  String get panicCompleteBullet3 => 'Modèle de dictée vocale : désinstallé';
 
   @override
   String get panicCompleteBullet4 => 'Préférences : remises à zéro';
@@ -622,8 +618,7 @@ class AppLocalizationsFr extends AppLocalizations {
       'Toutes vos notes (chiffrement détruit + fichier écrasé)';
 
   @override
-  String get panicConfirmItem2 =>
-      'Tous les modèles IA installés (Gemma, Whisper)';
+  String get panicConfirmItem2 => 'Le modèle de dictée vocale installé';
 
   @override
   String get panicConfirmItem3 => 'Toutes les préférences et l\'historique';
@@ -1074,34 +1069,6 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get errorVaultWrapInvalid =>
       'Wrap chiffré invalide (tag GCM tronqué).';
-
-  @override
-  String get errorGemmaModelNotInstalled => 'Modèle Gemma non installé.';
-
-  @override
-  String get errorGemmaFileNotFound => 'Fichier source introuvable.';
-
-  @override
-  String get errorGemmaFileTooSmall =>
-      'Fichier trop petit — pas un modèle Gemma valide.';
-
-  @override
-  String get errorGemmaFileTooLarge =>
-      'Fichier trop gros — au-delà de la limite autorisée.';
-
-  @override
-  String get errorGemmaInitFailed => 'Échec d\'initialisation du modèle Gemma.';
-
-  @override
-  String get errorGemmaNotLoaded =>
-      'Modèle non chargé. Initialisation requise avant utilisation.';
-
-  @override
-  String get errorGemmaBusy => 'Une génération est déjà en cours.';
-
-  @override
-  String get errorGemmaHashMismatch =>
-      'Empreinte SHA-256 inattendue. Le fichier ne correspond pas au modèle officiel.';
 
   @override
   String get splashTagline => 'La protection maximale\npour vos notes.';

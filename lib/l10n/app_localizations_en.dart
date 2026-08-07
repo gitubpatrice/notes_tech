@@ -411,9 +411,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutLinkWhisper => 'Source of Whisper models (.bin)';
 
   @override
-  String get aboutLinkGemma => 'Source of the Gemma 3 1B model';
-
-  @override
   String get aboutLicense =>
       'Apache License 2.0 — open source code, verifiable';
 
@@ -605,7 +602,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get panicCompleteBullet2 => 'Notes database: wiped and overwritten';
 
   @override
-  String get panicCompleteBullet3 => 'AI models (Gemma, Whisper): uninstalled';
+  String get panicCompleteBullet3 => 'Voice dictation model: uninstalled';
 
   @override
   String get panicCompleteBullet4 => 'Preferences: reset';
@@ -619,7 +616,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'All your notes (encryption destroyed + file overwritten)';
 
   @override
-  String get panicConfirmItem2 => 'All installed AI models (Gemma, Whisper)';
+  String get panicConfirmItem2 => 'The installed voice dictation model';
 
   @override
   String get panicConfirmItem3 => 'All preferences and history';
@@ -1063,34 +1060,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errorVaultWrapInvalid =>
       'Encrypted wrap invalid (truncated GCM tag).';
-
-  @override
-  String get errorGemmaModelNotInstalled => 'Gemma model not installed.';
-
-  @override
-  String get errorGemmaFileNotFound => 'Source file not found.';
-
-  @override
-  String get errorGemmaFileTooSmall =>
-      'File too small — not a valid Gemma model.';
-
-  @override
-  String get errorGemmaFileTooLarge =>
-      'File too large — exceeds the allowed limit.';
-
-  @override
-  String get errorGemmaInitFailed => 'Failed to initialize the Gemma model.';
-
-  @override
-  String get errorGemmaNotLoaded =>
-      'Model not loaded. Warm-up required before use.';
-
-  @override
-  String get errorGemmaBusy => 'A generation is already in progress.';
-
-  @override
-  String get errorGemmaHashMismatch =>
-      'Unexpected SHA-256 fingerprint. File does not match the official model.';
 
   @override
   String get splashTagline => 'Maximum protection\nfor your notes.';

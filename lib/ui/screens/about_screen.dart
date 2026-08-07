@@ -131,12 +131,6 @@ class AboutScreen extends StatelessWidget {
                   subtitle: 'huggingface.co/ggerganov/whisper.cpp',
                   url: 'https://huggingface.co/ggerganov/whisper.cpp',
                 ),
-                _LinkTile(
-                  icon: Icons.code,
-                  title: t.aboutLinkGemma,
-                  subtitle: 'kaggle.com/models/google/gemma-3 → tfLite',
-                  url: 'https://www.kaggle.com/models/google/gemma-3/tfLite',
-                ),
               ],
             ),
           ),
@@ -459,12 +453,23 @@ class _Badge extends StatelessWidget {
           // U3 PDF Tech v1.12.4 : texte en `onSurface` (contraste WCAG AA)
           // au lieu de la `color` thématique (~2.5:1 sur color.withAlpha 0.12).
           // L'icône colorée conserve le signal visuel.
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
+          //
+          // `Flexible` : sans lui, le `Row` en `MainAxisSize.min` réclame la
+          // largeur intrinsèque du libellé et déborde. Constaté sur Galaxy S9
+          // (360 dp, police à 1.0) : « Apache License 2.0 — code source
+          // ouvert, vérifiable » débordait de 33 px, et le badge « Gratuit »
+          // de 49 px. En debug ce sont des rayures jaunes ; en release le
+          // texte est tronqué SANS que rien ne le signale. Ces libellés sont
+          // des phrases traduites — leur longueur n'est pas bornée, aucune
+          // largeur d'écran ne peut être supposée suffisante.
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
         ],

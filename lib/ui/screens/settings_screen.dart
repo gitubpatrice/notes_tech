@@ -321,7 +321,7 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
-/// Tuile d'avertissement affichée quand l'activation de MiniLM a échoué.
+/// Titre de section des réglages.
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.label);
   final String label;

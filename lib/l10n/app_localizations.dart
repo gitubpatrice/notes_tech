@@ -806,12 +806,6 @@ abstract class AppLocalizations {
   /// **'Source of Whisper models (.bin)'**
   String get aboutLinkWhisper;
 
-  /// No description provided for @aboutLinkGemma.
-  ///
-  /// In en, this message translates to:
-  /// **'Source of the Gemma 3 1B model'**
-  String get aboutLinkGemma;
-
   /// No description provided for @aboutLicense.
   ///
   /// In en, this message translates to:
@@ -1151,7 +1145,7 @@ abstract class AppLocalizations {
   /// No description provided for @panicCompleteBullet3.
   ///
   /// In en, this message translates to:
-  /// **'AI models (Gemma, Whisper): uninstalled'**
+  /// **'Voice dictation model: uninstalled'**
   String get panicCompleteBullet3;
 
   /// No description provided for @panicCompleteBullet4.
@@ -1175,7 +1169,7 @@ abstract class AppLocalizations {
   /// No description provided for @panicConfirmItem2.
   ///
   /// In en, this message translates to:
-  /// **'All installed AI models (Gemma, Whisper)'**
+  /// **'The installed voice dictation model'**
   String get panicConfirmItem2;
 
   /// No description provided for @panicConfirmItem3.
@@ -1933,54 +1927,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Encrypted wrap invalid (truncated GCM tag).'**
   String get errorVaultWrapInvalid;
-
-  /// No description provided for @errorGemmaModelNotInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'Gemma model not installed.'**
-  String get errorGemmaModelNotInstalled;
-
-  /// No description provided for @errorGemmaFileNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Source file not found.'**
-  String get errorGemmaFileNotFound;
-
-  /// No description provided for @errorGemmaFileTooSmall.
-  ///
-  /// In en, this message translates to:
-  /// **'File too small — not a valid Gemma model.'**
-  String get errorGemmaFileTooSmall;
-
-  /// No description provided for @errorGemmaFileTooLarge.
-  ///
-  /// In en, this message translates to:
-  /// **'File too large — exceeds the allowed limit.'**
-  String get errorGemmaFileTooLarge;
-
-  /// No description provided for @errorGemmaInitFailed.
-  ///
-  /// In en, this message translates to:
-  /// **'Failed to initialize the Gemma model.'**
-  String get errorGemmaInitFailed;
-
-  /// No description provided for @errorGemmaNotLoaded.
-  ///
-  /// In en, this message translates to:
-  /// **'Model not loaded. Warm-up required before use.'**
-  String get errorGemmaNotLoaded;
-
-  /// No description provided for @errorGemmaBusy.
-  ///
-  /// In en, this message translates to:
-  /// **'A generation is already in progress.'**
-  String get errorGemmaBusy;
-
-  /// No description provided for @errorGemmaHashMismatch.
-  ///
-  /// In en, this message translates to:
-  /// **'Unexpected SHA-256 fingerprint. File does not match the official model.'**
-  String get errorGemmaHashMismatch;
 
   /// Tagline shown under the title on the first-launch splash (Files Tech, mirror of Pass Tech).
   ///

@@ -179,11 +179,7 @@ class FolderVaultService extends ChangeNotifier {
   final FoldersRepository _folders;
   final NotesRepository _notes;
 
-  /// F1 v1.0.3 — purge synchrone des embeddings 384D au moment de la
-  /// vault-isation d'un dossier. Sans ça, les embeddings plaintext
-  /// historiques restent dans `note_embeddings` jusqu'à la prochaine
-  /// passe d'indexation (debounce 1s) — fenêtre où une recherche
-  /// sémantique peut retrouver le contenu encore indexé.
+  /// Pont vers l'AndroidKeystore — scellage des `folder_kek` en mode PIN.
   final KeystoreBridge _keystore;
   Duration _autoLockAfter;
 

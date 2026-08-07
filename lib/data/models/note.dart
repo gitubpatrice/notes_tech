@@ -52,11 +52,12 @@ class Note {
   ///   pas un bug). Cette propriété-là est structurelle : l'index est
   ///   maintenu par des TRIGGERS SQL sur la table `notes`, le `content`
   ///   vidé se propage donc à l'écriture même.
-  /// - L'embedding sémantique, lui, n'est PAS vidé tout seul : il doit
-  ///   être supprimé explicitement par
-  ///   `FolderVaultService.purgePlaintextEmbedding` sur chaque chemin de
-  ///   mise au coffre, et `SemanticSearchService.isEligibleHit` refuse
-  ///   les notes verrouillées au cas où un vecteur aurait survécu.
+  ///
+  /// Il n'existe plus d'autre dérivé du texte en clair à purger. La
+  /// recherche sémantique en produisait un — un vecteur calculé sur le
+  /// contenu déchiffré, qui survivait à la mise au coffre s'il n'était pas
+  /// supprimé explicitement. Elle a été retirée en v1.1.7, et la migration
+  /// de schéma v8 a supprimé la table qui les stockait.
   ///
   /// Le déverrouillage en RAM produit un `Note` éphémère avec `content`
   /// rempli, jamais persisté en clair.

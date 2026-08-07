@@ -18,22 +18,20 @@
 ///      récupération de secteurs marqués libres (TRIM/GC mitigent déjà
 ///      sur eMMC moderne, mais défense en profondeur).
 ///   4. Whisper : .bin + cache de vérification + WAV orphelins.
-///   5. Gemma : .task ~530 Mo + dispose du contexte natif (le plus
-///      long step, vient en dernier des effacements lourds — la KEK
-///      est déjà partie depuis 1-3 s).
-///   6. Préférences : tri, dossier actif, hash Gemma accepté, modèle
-///      voix actif… aucun reliquat d'usage.
+///   5. Fichiers de modèles hérités : `<appSupport>/models/`, résidu des
+///      versions ≤ 1.1.6 qui embarquaient une IA (jusqu'à 530 Mo).
+///   6. Préférences : tri, dossier actif, modèle voix actif… aucun
+///      reliquat d'usage.
 ///   7. Tmp : ZIPs d'export + autres résidus.
 ///
-/// **Pourquoi KEK avant les modèles ML lourds** : les uninstalls
-/// Gemma/Whisper peuvent prendre plusieurs secondes (delete + dispose
-/// natif). Si la panique est interrompue à ce moment, la garantie de
-/// sécurité MINIMALE (DB illisible) doit déjà être tenue. Le mode
-/// panique antérieur exécutait Gemma avant KEK — corrigé suite à
-/// l'audit (faille temporelle).
+/// **Pourquoi KEK avant les effacements lourds** : la désinstallation des
+/// modèles peut prendre plusieurs secondes (delete + dispose natif). Si la
+/// panique est interrompue à ce moment, la garantie de sécurité MINIMALE
+/// (DB illisible) doit déjà être tenue. Un ordre antérieur plaçait les
+/// modèles avant la KEK — corrigé suite à l'audit (faille temporelle).
 ///
-/// **Pause des background workers** (indexing, backlinks, embedder
-/// coordinator) : ces services écrivent dans la DB en réaction aux
+/// **Pause des background workers** (`BacklinksService`) : ces services
+/// écrivent dans la DB en réaction aux
 /// `notesRepo.changes`. Sans pause, une race fenêtrée peut écrire dans
 /// la DB pendant son écrasement → exceptions cosmétiques. Le caller
 /// peut fournir un [beforeDbWipe] qui dispose ces services proprement
@@ -109,6 +107,10 @@ enum PanicStep {
   /// Purge `<appSupport>/models/` — le dossier où vivaient le modèle Gemma
   /// importé par l'utilisateur et le cache MiniLM.
   ///
+  /// Renommée depuis `embedderWipe` en v1.1.7 : elle portait le nom d'un
+  /// composant supprimé, alors que son travail réel — effacer des fichiers
+  /// hérités — lui a survécu.
+  ///
   /// ⚠️ CONSERVÉE malgré le retrait de l'IA, et c'est délibéré : un
   /// utilisateur qui met à jour depuis une version ≤ 1.1.6 a encore ces
   /// fichiers sur son téléphone (jusqu'à 530 Mo pour Gemma). Le mode panique
@@ -116,7 +118,7 @@ enum PanicStep {
   /// SUPPRIMÉE : elle passait par un service qui n'existe plus, donc elle ne
   /// s'exécutait plus — une étape déclarée qui ne tourne jamais est un
   /// mensonge dans `PanicReport.steps`.
-  embedderWipe,
+  legacyModelsWipe,
   prefsClear,
 
   /// v1.1.4 — purge `cache/exports/` (sandbox cache, hors temp).
@@ -154,8 +156,7 @@ class PanicService {
   final KeystoreBridge _keystore;
 
   /// Hook injecté par `main.dart` pour disposer les background workers
-  /// (`EmbedderCoordinator`, `IndexingService`, `BacklinksService`)
-  /// AVANT que la DB soit écrasée. Sans ça, une écriture en vol dans
+  /// (`BacklinksService`) AVANT que la DB soit écrasée. Sans ça, une écriture en vol dans
   /// `notesRepo.changes` peut tomber sur une DB déjà fermée et lever
   /// une exception cosmétique.
   final Future<void> Function()? _beforeDbWipe;
@@ -254,8 +255,8 @@ class PanicService {
     //    garantie de sécurité minimale.
     await _runStep(report, PanicStep.kekDestroy, _vault.destroyKek);
 
-    // 3. Pause des background workers (EmbedderCoordinator, Indexing,
-    //    Backlinks) AVANT le wipe DB — sinon une écriture en vol via
+    // 3. Pause des background workers (BacklinksService) AVANT le wipe
+    //    DB — sinon une écriture en vol via
     //    notesRepo.changes peut tomber sur une DB fermée. Best-effort
     //    via callback injecté par main.dart.
     final hook = _beforeDbWipe;
@@ -272,14 +273,13 @@ class PanicService {
     // 5. Whisper : modèles + cache de vérification + WAV orphelins.
     await _runStep(report, PanicStep.voiceWipe, _voice.wipeAll);
 
-    // 6. Gemma : modèle .task (~530 Mo) + dispose du contexte natif.
-    //    Le plus long step — vient APRÈS la garantie de sécurité (la
-    //    KEK est partie depuis plusieurs steps).
-
-    // 6.b B6 v1.0.4 — wipe du cache MiniLM (`<appSupport>/models/`).
-    // Le modèle MiniLM est public mais l'app le copie dans son sandbox.
-    // Cohérence avec wipe Gemma + Whisper : zéro résidu ML post-panic.
-    await _runStep(report, PanicStep.embedderWipe, _wipeEmbedderCache);
+    // 6. Fichiers de modèles hérités (`<appSupport>/models/`) : le .task
+    //    Gemma importé et le cache MiniLM des versions ≤ 1.1.6. Plus aucun
+    //    code n'écrit dans ce dossier, mais un utilisateur qui met à jour
+    //    l'a toujours — jusqu'à 530 Mo. Zéro résidu de modèle post-panique.
+    //    Vient APRÈS la garantie de sécurité : la KEK est partie depuis
+    //    plusieurs steps.
+    await _runStep(report, PanicStep.legacyModelsWipe, _wipeLegacyModelFiles);
 
     // 7. Préférences : tri, dossier actif, modèle voix actif… aucun
     //    reliquat d'usage.
@@ -294,7 +294,7 @@ class PanicService {
     //     l'utilisateur reconfigure l'app.
     //
     // Tous les autres prefs (theme, locale, sort, vault_wipe_pending_*,
-    // vault_auto_lock_minutes, accept_unknown_gemma_hash, etc.) sont effacés.
+    // vault_auto_lock_minutes, etc.) sont effacés.
     // Les `vault_wipe_pending_*` doivent rester effacés — ce sont des flags
     // de reprise après crash qui n'ont plus de sens après wipe DB.
     await _runStep(report, PanicStep.prefsClear, _prefsClearWithWhitelist);
@@ -340,7 +340,7 @@ class PanicService {
     } catch (e) {
       // On capture mais on ne stoppe pas — chaque step est indépendant
       // et la garantie minimale (KEK destroy) doit aboutir même si un
-      // step antérieur échoue (ex. Gemma déjà désinstallé).
+      // step antérieur échoue (ex. modèle déjà désinstallé).
       report.recordFailure(step, e);
     }
   }
@@ -383,13 +383,15 @@ class PanicService {
   }
 
   /// Purge `<appSupport>/models/` : modèle Gemma importé et cache MiniLM,
-  /// résidus des versions ≤ 1.1.6. Cohérence avec `voiceWipe` — zéro résidu
-  /// de modèle après une panique. Best-effort.
+  /// résidus des versions ≤ 1.1.6. Ce dossier n'est plus alimenté par aucun
+  /// code — seul un utilisateur venu d'une version antérieure en a encore.
+  /// Cohérence avec `voiceWipe` : zéro résidu de modèle après une panique.
+  /// Best-effort.
   ///
   /// Le boot purge déjà ce dossier une fois (`_purgeOrphanModelsOnce` dans
   /// `main.dart`) ; ce double geste est voulu : la panique ne doit dépendre
   /// d'aucune purge antérieure ayant réussi.
-  Future<void> _wipeEmbedderCache() async {
+  Future<void> _wipeLegacyModelFiles() async {
     try {
       final dir = await getApplicationSupportDirectory();
       final modelsDir = Directory('${dir.path}/models');

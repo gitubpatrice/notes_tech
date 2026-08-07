@@ -49,22 +49,6 @@ extension NotesErrorLocalize on NotesErrorCode {
         return t.errorVaultEncryptedContentInvalid;
       case NotesErrorCode.vaultWrapInvalid:
         return t.errorVaultWrapInvalid;
-      case NotesErrorCode.gemmaModelNotInstalled:
-        return t.errorGemmaModelNotInstalled;
-      case NotesErrorCode.gemmaFileNotFound:
-        return t.errorGemmaFileNotFound;
-      case NotesErrorCode.gemmaFileTooSmall:
-        return t.errorGemmaFileTooSmall;
-      case NotesErrorCode.gemmaFileTooLarge:
-        return t.errorGemmaFileTooLarge;
-      case NotesErrorCode.gemmaInitFailed:
-        return t.errorGemmaInitFailed;
-      case NotesErrorCode.gemmaNotLoaded:
-        return t.errorGemmaNotLoaded;
-      case NotesErrorCode.gemmaBusy:
-        return t.errorGemmaBusy;
-      case NotesErrorCode.gemmaHashMismatch:
-        return t.errorGemmaHashMismatch;
       case NotesErrorCode.voiceNoModelInstalled:
         return t.errorVoiceNoModelInstalled;
       case NotesErrorCode.voiceStartCaptureFailed:

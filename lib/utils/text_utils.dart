@@ -1,4 +1,7 @@
-/// Utilitaires de normalisation de texte partagés entre tokenizer et embedder.
+/// Normalisation de texte pour la résolution des liens `[[Titre]]`.
+///
+/// Consommateur unique : `BacklinksService`, qui compare les titres de notes
+/// sans tenir compte de la casse ni des diacritiques.
 library;
 
 class TextUtils {

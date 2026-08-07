@@ -137,7 +137,7 @@ class NotesDao {
   }
 
   /// Toutes les notes hors corbeille, archives incluses.
-  /// Utilisé par l'indexeur d'embeddings.
+  /// Utilisé par `BacklinksService`, l'accueil et l'écran de réglages.
   Future<List<Note>> listAllAlive() async {
     try {
       final rows = await _db.query(

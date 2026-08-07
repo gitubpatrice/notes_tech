@@ -135,18 +135,10 @@ class AppConstants {
   static const Duration searchDebounce = Duration(milliseconds: 200);
   static const Duration autosaveDebounce = Duration(milliseconds: 500);
 
-  // Throttle d'indexation : laisse l'UI respirer entre chaque encodage.
-  // Calibré pour Samsung S24 (CPU MiniLM ~30-60 ms par note).
-  static const Duration indexingDelayLocal = Duration.zero;
-  static const Duration indexingDelayMiniLm = Duration(milliseconds: 80);
-
   // Préférences (clés SharedPreferences)
   static const String prefKeyThemeMode = 'theme_mode';
   static const String prefKeySortMode = 'note_sort_mode';
-  static const String prefKeySemanticSearchEnabled = 'semantic_search_enabled';
   static const String prefKeySecureWindowEnabled = 'secure_window_enabled';
-  static const String prefKeyAcceptUnknownGemmaHash =
-      'accept_unknown_gemma_hash';
 
   /// `true` une fois la migration vers la base SQLite chiffrée terminée.
   /// Absent / `false` ⇒ la prochaine ouverture déclenche la migration

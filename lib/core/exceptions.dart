@@ -45,15 +45,6 @@ enum NotesErrorCode {
   vaultLocked,
   vaultEncryptedContentInvalid,
   vaultWrapInvalid,
-  // Gemma
-  gemmaModelNotInstalled,
-  gemmaFileNotFound,
-  gemmaFileTooSmall,
-  gemmaFileTooLarge,
-  gemmaInitFailed,
-  gemmaNotLoaded,
-  gemmaBusy,
-  gemmaHashMismatch,
   // Voice (Whisper)
   voiceNoModelInstalled,
   voiceStartCaptureFailed,

@@ -55,8 +55,9 @@ class NotesRepository {
   }) =>
       _dao.listByFolder(folderId, sort: sort, includeArchived: includeArchived);
 
-  /// Toutes les notes vivantes (hors corbeille). Utilisé par l'indexation
-  /// d'embeddings — pas par l'UI.
+  /// Toutes les notes vivantes (hors corbeille). Balayage complet : réservé
+  /// aux consommateurs qui en ont réellement besoin (backlinks, statistiques
+  /// des réglages, accueil), jamais dans une boucle de rendu.
   Future<List<Note>> listAllAlive() => _dao.listAllAlive();
 
   Future<List<Note>> listPlaintextInFolder(String folderId) =>
@@ -70,7 +71,8 @@ class NotesRepository {
   /// garde d'invariant (le blob est fourni par l'appelant, donc l'écriture
   /// est chiffrée par construction) ni par `updatedAt` (une réparation ne
   /// doit pas réordonner la liste de l'utilisateur) ni par le stream de
-  /// changements (l'appelant purge lui-même l'embedding concerné).
+  /// changements (une réparation ne modifie pas le contenu vu par
+  /// l'utilisateur, seulement sa représentation sur disque).
   Future<void> replaceContentPayload({
     required String id,
     required String content,
@@ -263,9 +265,9 @@ class NotesRepository {
   /// corbeille. Préserve la rétention 30 jours en évitant le
   /// `ON DELETE CASCADE` qui suivrait la suppression du dossier source.
   ///
-  /// Émet un seul `NoteChangeEvent.bulk` (déclenche réindexation MiniLM
-  /// + reload UI sans surcharger le coordinateur d'embeddings avec N
-  /// events successifs).
+  /// Émet un seul `NoteChangeEvent.bulk` : un événement par note noierait
+  /// `BacklinksService` et l'UI sous N notifications pour une seule action
+  /// utilisateur.
   Future<int> reassignFolder({
     required String fromFolderId,
     required String toFolderId,
