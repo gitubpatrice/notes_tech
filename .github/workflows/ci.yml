@@ -95,6 +95,11 @@ jobs:
   # à la proposition de fusion et sur `main`. C'est le compromis entre une
   # garde réelle et une CI que l'on finit par ignorer parce qu'elle est rouge
   # sans raison.
+  #
+  # Si ce job casse un jour : les 11 tests eux-mêmes ont été validés sur
+  # émulateur x86_64 API 30 en local le 2026-08-07 (14 s d'exécution), et sur
+  # Galaxy S9 arm64. Chercher donc du côté du runner — KVM, version de
+  # l'action, checkout des dépendances `path:` — avant de suspecter les tests.
   integration:
     name: Tests sur émulateur (coffre)
     runs-on: ubuntu-latest
