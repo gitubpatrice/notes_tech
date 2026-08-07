@@ -83,6 +83,33 @@ void main() {
     expect(vides, isEmpty);
   });
 
+  test('aucune chaîne traduite n\'est orpheline', () {
+    // Motif « chemin mort » de la méthode d'audit : une chaîne traduite que
+    // personne n'appelle est soit du poids mort, soit — bien pire — le
+    // vestige d'une fonctionnalité annoncée et devenue inatteignable. Sur ce
+    // portefeuille, une ressource orpheline a déjà signalé une fonctionnalité
+    // livrée mais non câblée.
+    final code = StringBuffer();
+    for (final f in Directory('lib').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      // Les fichiers générés de `lib/l10n/` déclarent toutes les clés : les
+      // inclure rendrait le test toujours vert.
+      if (f.path.replaceAll(r'\', '/').contains('lib/l10n/')) continue;
+      code.write(f.readAsStringSync());
+    }
+    final source = code.toString();
+    final orphelines = _messageKeys(fr).where((k) {
+      return !RegExp('[.\\b]${RegExp.escape(k)}\\b').hasMatch(source);
+    }).toList()..sort();
+    expect(
+      orphelines,
+      isEmpty,
+      reason:
+          'Ces clés sont traduites mais appelées nulle part. Soit le '
+          'code qui devait les utiliser manque, soit elles doivent partir.',
+    );
+  });
+
   test('le corps d\'avertissement du coffre existe dans les deux langues', () {
     // Garde ciblée : ce dialogue est la seule chose qui prévient l'utilisateur
     // que vider un coffre vers la Boîte de réception déchiffre TOUTES ses
