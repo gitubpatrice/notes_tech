@@ -37,13 +37,29 @@ class NoteActions {
   /// copié entretemps).
   static String? _ownTextSnapshot;
 
-  /// Incrémentée à chaque purge du presse-papiers. Une copie dont la
-  /// génération a changé pendant son exécution ne doit plus rien écrire —
-  /// voir `_copySensitive`.
-  static int _generationPressePapiers = 0;
+  /// Jeton de la dernière opération de presse-papiers, incrémenté par CHAQUE
+  /// copie ET par chaque purge.
+  ///
+  /// ⚠️ UN SEUL COMPTEUR POUR LES DEUX, et c'est le point. La version
+  /// précédente n'invalidait qu'aux purges : deux copies successives se
+  /// marchaient donc dessus. Une relecture externe (GPT-5.5) a décrit la
+  /// séquence exacte — la minuterie de la copie A se réveille, attend la
+  /// lecture du presse-papiers, l'utilisateur copie B pendant cette attente,
+  /// puis A reprend et remet l'état à zéro. La minuterie de B existe encore
+  /// mais son état a disparu : au réveil elle ne trouve plus rien à effacer,
+  /// et **le contenu de B reste indéfiniment dans le presse-papiers**.
+  ///
+  /// Avec un jeton commun, chaque opération sait si elle est encore la plus
+  /// récente. Une opération périmée ne touche plus à rien.
+  static int _jeton = 0;
 
-  /// Vrai si l'effacement automatique a déjà été réarmé une fois après un
-  /// échec. Borne la reprise à un seul tour — voir `_autoClearIfMine`.
+  /// Jeton de la copie qui détient l'état courant (`_ownTextSnapshot` et
+  /// `_clearTimer`). Une minuterie ne nettoie que si elle le possède encore.
+  static int _jetonProprietaire = 0;
+
+  /// Vrai si l'effacement automatique de la copie COURANTE a déjà été réarmé
+  /// une fois. Remis à zéro à chaque nouvelle copie — il était global, donc
+  /// une copie pouvait consommer le réessai de la suivante.
   static bool _reessaiAutoClear = false;
 
   /// Copie le contenu Markdown brut dans le presse-papier avec marquage
@@ -59,7 +75,9 @@ class NoteActions {
   /// sur `Clipboard.setData` standard si le channel n'est pas disponible
   /// (tests, plate-formes non supportées).
   Future<void> _copySensitive(String text, {bool refuserRepli = false}) async {
-    final generation = _generationPressePapiers;
+    // Chaque copie prend son propre jeton : elle saura si une autre copie ou
+    // une purge est passée pendant qu'elle attendait le canal natif.
+    final jeton = ++_jeton;
     bool nativeOk = false;
     try {
       final r = await _channel.invokeMethod<bool>('copySensitive', {
@@ -80,7 +98,7 @@ class NoteActions {
     //
     // La génération tranche : toute purge l'incrémente, et un repli dont la
     // génération a changé est abandonné.
-    if (generation != _generationPressePapiers) {
+    if (jeton != _jeton) {
       // ⚠️ UN SIMPLE `return` NE SUFFIT PAS. Le handler natif a pu ECRIRE le
       // presse-papiers AVANT que la purge d'urgence ne passe : dans ce cas le
       // texte y est encore, sans instantané ni minuteur pour le retirer. La
@@ -122,13 +140,16 @@ class NoteActions {
     // minuteur et un instantané après coup laisserait un état incohérent
     // pendant 60 s — un instantané qui ne correspond plus au presse-papiers,
     // et un minuteur armé après la purge.
-    if (generation != _generationPressePapiers) {
+    if (jeton != _jeton) {
       await _viderSiCEstCeTexte(text);
       return;
     }
+    // Cette copie est la plus récente : elle prend la propriété de l'état.
+    _jetonProprietaire = jeton;
     _ownTextSnapshot = text;
+    _reessaiAutoClear = false;
     _clearTimer?.cancel();
-    _clearTimer = Timer(_autoClearAfter, _autoClearIfMine);
+    _clearTimer = Timer(_autoClearAfter, () => _autoClearIfMine(jeton));
   }
 
   /// Vide le presse-papiers s'il contient encore [texte].
@@ -158,7 +179,10 @@ class NoteActions {
   /// Vide le clipboard SEULEMENT si la valeur courante est encore celle
   /// que l'on a posée — évite d'effacer un autre secret que l'utilisateur
   /// a copié entretemps depuis une autre app.
-  static Future<void> _autoClearIfMine() async {
+  static Future<void> _autoClearIfMine(int jeton) async {
+    // Minuterie périmée : une copie plus récente ou une purge est passée.
+    // Elle ne doit ni effacer, ni toucher à l'état de l'opération en cours.
+    if (jeton != _jetonProprietaire) return;
     final mine = _ownTextSnapshot;
     if (mine == null) return;
     // ⚠️ NE PAS OUBLIER LE TEXTE SI L'EFFACEMENT A ÉCHOUÉ.
@@ -178,10 +202,13 @@ class NoteActions {
       // indéfiniment ne ferait que maintenir le texte en mémoire ici.
       if (!_reessaiAutoClear) {
         _reessaiAutoClear = true;
-        _clearTimer = Timer(_autoClearAfter, _autoClearIfMine);
+        _clearTimer = Timer(_autoClearAfter, () => _autoClearIfMine(jeton));
         return;
       }
     }
+    // Re-vérifié APRÈS les `await` : une copie plus récente a pu prendre la
+    // main entretemps, et son état ne doit pas être efface par nous.
+    if (jeton != _jetonProprietaire) return;
     _reessaiAutoClear = false;
     _ownTextSnapshot = null;
     _clearTimer = null;
@@ -191,10 +218,16 @@ class NoteActions {
   static Future<void> cancelAndClear() async {
     // Invalide toute copie EN VOL avant même de vider : une copie qui se
     // termine après nous ne doit pas réécrire ce qu'on efface.
-    _generationPressePapiers++;
+    // Invalide toute copie EN VOL et toute minuterie armée.
+    final jeton = ++_jeton;
+    _jetonProprietaire = jeton;
     _clearTimer?.cancel();
     _clearTimer = null;
-    _ownTextSnapshot = null;
+    // ⚠️ L'INSTANTANE N'EST PAS OUBLIE TANT QUE LA PURGE N'A PAS ABOUTI.
+    // Il l'était d'emblée : si l'effacement échouait, plus rien ne savait
+    // quel texte retirer, et aucune minuterie ne repassait. Relevé par une
+    // relecture externe (GPT-5.5).
+    final aRetirer = _ownTextSnapshot;
     // ⚠️ LA PURGE D'URGENCE NE DOIT PAS AVALER SON PROPRE ÉCHEC.
     //
     // Elle attrapait tout en silence : si `setData('')` échouait — canal mort,
@@ -209,9 +242,15 @@ class NoteActions {
     for (var essai = 0; essai < 2; essai++) {
       try {
         await Clipboard.setData(const ClipboardData(text: ''));
+        _ownTextSnapshot = null;
         return;
       } catch (_) {
         if (essai == 1) {
+          // Échec confirmé : on garde de quoi réessayer plus tard, et on
+          // réarme une minuterie plutôt que d'abandonner le texte sur place.
+          _ownTextSnapshot = aRetirer;
+          _reessaiAutoClear = false;
+          _clearTimer = Timer(_autoClearAfter, () => _autoClearIfMine(jeton));
           throw const NotesTechException(
             'Presse-papiers non vidé : le contenu copié peut subsister.',
           );

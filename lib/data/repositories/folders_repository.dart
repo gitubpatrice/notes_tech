@@ -129,6 +129,9 @@ class FoldersRepository {
       createdAt: now,
       updatedAt: now,
     );
+    // Même raison que dans `update` : fermer la fenêtre entre la persistance
+    // et la notification.
+    _invalideCacheCoffres();
     await _dao.insert(folder);
     _emit();
     return folder;
@@ -140,12 +143,17 @@ class FoldersRepository {
       throw const ValidationException.coded(NotesErrorCode.folderNameRequired);
     }
     final updated = folder.copyWith(name: trimmed, updatedAt: DateTime.now());
+    // Le renommage ne touche pas au statut coffre, mais il invalide comme les
+    // autres : un chemin d'écriture qui oublie de le faire est exactement le
+    // genre de jumeau divergent qui rouvre la fenêtre.
+    _invalideCacheCoffres();
     await _dao.update(updated);
     _emit();
     return updated;
   }
 
   Future<void> delete(String id) async {
+    _invalideCacheCoffres();
     await _dao.delete(id);
     _emit();
   }
@@ -155,9 +163,30 @@ class FoldersRepository {
   /// Le caller est responsable de l'`updatedAt` (typiquement
   /// `folder.copyWith(updatedAt: DateTime.now())` avant appel).
   Future<Folder> update(Folder folder) async {
+    // ⚠️ INVALIDER AVANT D'ECRIRE, pas seulement apres.
+    //
+    // `_emit()` ne tournait qu'apres le `await` : entre le moment ou la base
+    // a persiste `isVault = true` et celui ou le cache est invalide, une
+    // sauvegarde de note concurrente lisait encore l'ancien cache et
+    // repondait « pas un coffre ». Elle ecrivait donc en clair dans un
+    // dossier devenu coffre. Fenetre etroite — un `await` — mais reelle, et
+    // c'est exactement ce que la garde existe pour empecher. Relevee par une
+    // relecture externe (GPT-5.5).
+    //
+    // Invalider des maintenant ferme la fenetre : toute lecture qui commence
+    // pendant l'ecriture verra une generation differente a son terme et ne
+    // mettra pas son resultat en cache.
+    _invalideCacheCoffres();
     await _dao.update(folder);
     _emit();
     return folder;
+  }
+
+  /// Invalide le cache des coffres sans notifier — utilise AVANT une ecriture
+  /// pour fermer la fenetre entre la persistance et la notification.
+  void _invalideCacheCoffres() {
+    _vaultIdsGeneration++;
+    _vaultIds = null;
   }
 
   void _emit() {
