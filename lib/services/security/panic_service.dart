@@ -317,20 +317,36 @@ class PanicService {
     return report;
   }
 
-  /// F7 v1.1.0 — purge `cache/exports/` (sandbox cache, hors temp).
-  /// Le dossier est créé par `settings_screen._exportAllNotes` pour
-  /// stocker les ZIP avant Share. Si le process meurt entre Share et
-  /// l'auto-purge boot (main.dart:69), un attaquant root peut lire le
-  /// plaintext exporté.
+  /// Purge le dossier `exports/` qui contient les ZIP en CLAIR produits
+  /// avant un partage (`settings_screen._exportAllNotes`). Si le process
+  /// meurt entre le Share et la purge du boot, un attaquant root lit le
+  /// contenu exporté.
+  ///
+  /// ⚠️ LES DEUX EMPLACEMENTS SONT PURGÉS, délibérément. L'export écrit
+  /// dans `getTemporaryDirectory()/exports/` ; cette méthode ne visait que
+  /// `getApplicationCacheDirectory()/exports/`, et son commentaire affirmait
+  /// même qu'il s'agissait d'un dossier « hors temp ». Sur Android les deux
+  /// résolvent en pratique vers `context.getCacheDir()`, mais s'en remettre
+  /// à cette équivalence est un pari : elle dépend de la version du plugin
+  /// `path_provider` et peut changer sans que rien ne le signale ici. Purger
+  /// les deux coûte un `exists()` de plus et supprime la question.
+  ///
+  /// Relevé par une relecture externe (GPT-5.2) comme surface T1.
   Future<void> _wipeExportsCache() async {
-    try {
-      final cacheDir = await getApplicationCacheDirectory();
-      final exportsDir = Directory('${cacheDir.path}/exports');
-      if (await exportsDir.exists()) {
-        await exportsDir.delete(recursive: true);
+    for (final futureDir in <Future<Directory>>[
+      getTemporaryDirectory(),
+      getApplicationCacheDirectory(),
+    ]) {
+      try {
+        final base = await futureDir;
+        final exportsDir = Directory('${base.path}/exports');
+        if (await exportsDir.exists()) {
+          await exportsDir.delete(recursive: true);
+        }
+      } catch (_) {
+        // Best-effort, et indépendant d'un emplacement à l'autre : si l'un
+        // échoue, l'autre doit quand même être tenté.
       }
-    } catch (_) {
-      // Best-effort (le boot suivant rejouera la purge si nécessaire).
     }
   }
 

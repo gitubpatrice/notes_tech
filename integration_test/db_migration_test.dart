@@ -236,7 +236,7 @@ void main() {
   ) async {
     expect(
       AppConstants.dbVersion,
-      8,
+      9,
       reason:
           'Le schéma a été bumpé sans que ces tests suivent. Ajouter un '
           'palier ici AVANT de livrer : une migration non testée est '
@@ -245,10 +245,10 @@ void main() {
   });
 
   // ═════════════════════════════════════════════════════════════════════
-  // 1. v7 → v8 : le retrait de l'IA sur une base qui contenait des vecteurs
+  // 1. v7 → v9 : le retrait de l'IA sur une base qui contenait des vecteurs
   // ═════════════════════════════════════════════════════════════════════
 
-  testWidgets('v7 → v8 : les embeddings partent, les notes restent', (_) async {
+  testWidgets('v7 → v9 : les embeddings partent, les notes restent', (_) async {
     const file = 'migration_v7_test.db';
     var db = await openFresh(file);
 
@@ -316,7 +316,7 @@ void main() {
 
     expect(
       await userVersion(db),
-      8,
+      9,
       reason: 'sqflite n\'a pas déclenché la montée de version',
     );
     expect(
@@ -376,10 +376,10 @@ void main() {
   });
 
   // ═════════════════════════════════════════════════════════════════════
-  // 2. v1 → v8 : la chaîne complète, sept paliers d'affilée
+  // 2. v1 → v9 : la chaîne complète, sept paliers d'affilée
   // ═════════════════════════════════════════════════════════════════════
 
-  testWidgets('v1 → v8 : la chaîne complète monte sans perdre de note', (
+  testWidgets('v1 → v9 : la chaîne complète monte sans perdre de note', (
     _,
   ) async {
     const file = 'migration_v1_test.db';
@@ -405,7 +405,7 @@ void main() {
     // ── LA chaîne ─────────────────────────────────────────────────────
     db = await reopen(file);
 
-    expect(await userVersion(db), 8);
+    expect(await userVersion(db), 9);
 
     final rows = await db.query(
       'notes',
@@ -467,7 +467,7 @@ void main() {
     expect(await objectExists(db, 'table', 'note_links'), isTrue);
 
     // v2 devenu no-op : la table d'embeddings ne doit jamais réapparaître
-    // sur le chemin v1 → v8.
+    // sur le chemin v1 → v9.
     expect(
       await objectExists(db, 'table', 'note_embeddings'),
       isFalse,
@@ -505,14 +505,14 @@ void main() {
   });
 
   // ═════════════════════════════════════════════════════════════════════
-  // 2 bis. v5 → v8 : le palier v6 sur ce qui l'a MOTIVÉ — une note verrouillée
+  // 2 bis. v5 → v9 : le palier v6 sur ce qui l'a MOTIVÉ — une note verrouillée
   // ═════════════════════════════════════════════════════════════════════
 
-  testWidgets('v5 → v8 : le titre d\'une note verrouillée sort de l\'index', (
+  testWidgets('v5 → v9 : le titre d\'une note verrouillée sort de l\'index', (
     _,
   ) async {
-    // Pourquoi ce test existe, en plus du v1 → v8 : une relecture externe
-    // (GPT-5.2) a relevé que le chemin v1 → v8 ne crée AUCUNE note
+    // Pourquoi ce test existe, en plus du v1 → v9 : une relecture externe
+    // (GPT-5.2) a relevé que le chemin v1 → v9 ne crée AUCUNE note
     // verrouillée — et pour cause, la colonne `encrypted_content` n'existe
     // qu'à partir de v4. Les étapes 3 et 4 de `_migrateToV6`, qui purgent
     // puis réinjectent les lignes FTS des notes verrouillées, ne
@@ -609,7 +609,7 @@ void main() {
 
     // ── LA migration ──────────────────────────────────────────────────
     db = await reopen(file);
-    expect(await userVersion(db), 8);
+    expect(await userVersion(db), 9);
 
     // Le cœur du test — comportemental, pas textuel. Vérifier que le SQL du
     // trigger CONTIENT « encrypted_content » ne prouve pas qu'il masque
@@ -663,7 +663,7 @@ void main() {
   // 3. Idempotence : rouvrir une base déjà à jour ne doit rien faire
   // ═════════════════════════════════════════════════════════════════════
 
-  testWidgets('v8 → v8 : une réouverture ne rejoue aucune migration', (
+  testWidgets('v9 → v9 : une réouverture ne rejoue aucune migration', (
     _,
   ) async {
     const file = 'migration_v8_test.db';
@@ -681,7 +681,7 @@ void main() {
 
     db = await reopen(file);
 
-    expect(await userVersion(db), 8);
+    expect(await userVersion(db), 9);
     final rows = await db.query(
       'notes',
       where: 'id = ?',

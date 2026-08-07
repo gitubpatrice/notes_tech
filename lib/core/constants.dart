@@ -28,7 +28,7 @@ class AppConstants {
   // (1 = contenu seul, 2 = titre + contenu).
   // v8 (1.1.7) : DROP `note_embeddings` — retrait de la recherche
   // sémantique. Ces vecteurs étaient dérivés du texte EN CLAIR des notes.
-  static const int dbVersion = 8;
+  static const int dbVersion = 9;
 
   /// Identifiant du dossier "Boîte de réception" — racine indélébile de
   /// l'arborescence, créée au premier démarrage. Les notes orphelines
