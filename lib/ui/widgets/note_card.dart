@@ -146,7 +146,23 @@ class NoteCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         _FolderChip(label: folderName!),
                       ],
-                      if (note.tags.isNotEmpty) ...[
+                      // ⚠️ LES TAGS SE TAISENT AUSSI QUAND LA NOTE EST
+                      // VERROUILLÉE. Ils s'affichaient sans condition : la
+                      // carte annonçait « Note verrouillée » et montrait,
+                      // juste en dessous, « #médical #avocat #divorce ». Le
+                      // titre et l'extrait étaient masqués, les tags non —
+                      // alors qu'ils disent souvent l'essentiel. Relevé par
+                      // une relecture externe (GPT-5.5).
+                      //
+                      // ⚠️ LIMITE CONNUE, à ne pas confondre avec ce
+                      // correctif : `FolderVaultService.encryptNote` vide
+                      // `title` et `content` mais PAS `tags`, qui restent
+                      // donc en clair dans la colonne. Les masquer ici ferme
+                      // la fuite par l'AFFICHAGE ; les faire entrer dans le
+                      // blob demanderait un format v3 et ferait perdre les
+                      // tags des notes déjà chiffrées. L'index FTS, lui, les
+                      // masque déjà via ses triggers.
+                      if (!locked && note.tags.isNotEmpty) ...[
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(

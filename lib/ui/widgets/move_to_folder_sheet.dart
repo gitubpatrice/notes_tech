@@ -101,9 +101,19 @@ class _MoveSheet extends StatelessWidget {
                         onTap: () => Navigator.of(context).pop(inbox.id),
                       ),
                       if (others.isNotEmpty) const Divider(height: 1),
+                      // Un dossier coffre est signalé par son icône. Déplacer
+                      // une note vers un coffre est LÉGITIME : depuis le
+                      // scellement au niveau du repository, la note est
+                      // chiffrée à l'écriture — et si le coffre est fermé,
+                      // l'écriture est refusée plutôt que persistée en clair.
+                      // Mais l'utilisateur doit voir où il envoie sa note :
+                      // la destination n'était pas distinguable d'un dossier
+                      // ordinaire. Relevé par une relecture externe (GPT-5.5).
                       ...others.map(
                         (f) => _FolderTile(
-                          icon: Icons.folder_outlined,
+                          icon: f.isVault
+                              ? Icons.lock_outline
+                              : Icons.folder_outlined,
                           name: f.name,
                           selected: currentFolderId == f.id,
                           onTap: () => Navigator.of(context).pop(f.id),
