@@ -1136,9 +1136,7 @@ class FolderVaultService extends ChangeNotifier {
         NotesErrorCode.vaultEncryptedContentInvalid,
       );
     }
-    final title = utf8Decode(
-      Uint8List.sublistView(plaintext, 4, 4 + titleLen),
-    );
+    final title = utf8Decode(Uint8List.sublistView(plaintext, 4, 4 + titleLen));
     final content = utf8Decode(Uint8List.sublistView(plaintext, 4 + titleLen));
     return (title, content);
   }
@@ -1152,6 +1150,59 @@ class FolderVaultService extends ChangeNotifier {
   ///
   /// Le coffre doit être déverrouillé. Lève [VaultLockedException]
   /// sinon. Best-effort par note avec bilan retourné.
+  /// Retire la protection d'un coffre **en conservant ses notes**.
+  ///
+  /// Il n'existait aucun moyen de faire ça : pour cesser de protéger un
+  /// dossier, il fallait le SUPPRIMER et déplacer son contenu vers la boîte
+  /// de réception. On perdait le dossier, son nom et son organisation pour
+  /// un changement d'avis sur le chiffrement.
+  ///
+  /// Exige une session ouverte — la passphrase est la seule preuve que le
+  /// demandeur a le droit de rendre ces notes lisibles.
+  ///
+  /// ⚠️ **ORDRE CRITIQUE.** Le dossier n'est démoté qu'APRÈS que toutes ses
+  /// notes ont été déchiffrées avec succès. Si une seule échoue, on
+  /// abandonne en laissant le coffre intact : démoter d'abord détruirait la
+  /// seule clé capable de relire les notes restées chiffrées, et les rendrait
+  /// définitivement illisibles. Le bilan est retourné au caller, qui DOIT
+  /// signaler `failed > 0` — sinon l'utilisateur croit son dossier converti
+  /// alors qu'il ne l'est pas.
+  Future<({int decrypted, int failed})> removeVaultProtection(
+    Folder folder,
+  ) async {
+    if (!folder.isVault) {
+      throw const VaultValidationException.coded(NotesErrorCode.vaultNotAVault);
+    }
+    // Lève `VaultLockedException` si la session n'est pas ouverte.
+    _requireSession(folder.id);
+
+    final result = await decryptAllNotesInFolder(folder.id);
+    if (result.failed > 0) {
+      // On ne touche à RIEN : le coffre reste un coffre, ses notes restent
+      // déchiffrables, et l'utilisateur peut réessayer.
+      return result;
+    }
+
+    final cleared = folder.copyWith(
+      clearVault: true,
+      updatedAt: DateTime.now(),
+    );
+    await _folders.update(cleared);
+    // Coffre PIN : la clé Keystore n'a plus d'objet, la laisser serait un
+    // orphelin dans le TEE.
+    if (folder.isPinVault) {
+      try {
+        await _keystore.deleteKey(_keystoreAlias(folder.id));
+      } catch (_) {
+        // Best-effort : sans le blob côté DB elle est inutile.
+      }
+    }
+    // Libère la folder_kek en RAM — elle ne protège plus rien.
+    lock(folder.id);
+    notifyListeners();
+    return result;
+  }
+
   Future<({int decrypted, int failed})> decryptAllNotesInFolder(
     String folderId,
   ) async {

@@ -1358,6 +1358,42 @@ abstract class AppLocalizations {
   /// **'What to do with notes from “{name}”?'**
   String folderDeleteChoiceBody(String name);
 
+  /// No description provided for @drawerRemoveVaultProtection.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove protection'**
+  String get drawerRemoveVaultProtection;
+
+  /// No description provided for @drawerRemoveVaultProtectionSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the folder, decrypt its notes'**
+  String get drawerRemoveVaultProtectionSubtitle;
+
+  /// No description provided for @folderRemoveVaultTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove vault protection?'**
+  String get folderRemoveVaultTitle;
+
+  /// No description provided for @folderRemoveVaultBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The notes in \"{name}\" will be decrypted and written to the database in the clear. The folder and its contents are kept, but they will no longer be protected by a passphrase. This cannot be undone: the notes will have existed unencrypted, even if you protect the folder again afterwards.'**
+  String folderRemoveVaultBody(String name);
+
+  /// No description provided for @folderRemoveVaultConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypt and remove'**
+  String get folderRemoveVaultConfirm;
+
+  /// No description provided for @folderRemoveVaultDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{n, plural, =1{1 note decrypted. This folder is no longer a vault.} other{{n} notes decrypted. This folder is no longer a vault.}}'**
+  String folderRemoveVaultDone(int n);
+
   /// No description provided for @folderDeleteVaultChoiceBody.
   ///
   /// In en, this message translates to:

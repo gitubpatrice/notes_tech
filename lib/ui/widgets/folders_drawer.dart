@@ -152,7 +152,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           }
         } catch (e) {
           if (!mounted) return;
-          messenger.showErrorSnack(t.folderDeleteCancelledError(e.toString()), cs);
+          messenger.showErrorSnack(
+            t.folderDeleteCancelledError(e.toString()),
+            cs,
+          );
           return;
         }
       }
@@ -306,9 +309,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
               onTap: () {
                 Navigator.of(context).pop(); // ferme le drawer
                 Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const TrashScreen(),
-                  ),
+                  MaterialPageRoute<void>(builder: (_) => const TrashScreen()),
                 );
               },
             ),
@@ -366,6 +367,22 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                 subtitle: Text(t.drawerLockNowSubtitle),
                 onTap: () => Navigator.of(ctx).pop(_FolderAction.lockNow),
               ),
+            // Retirer la protection SANS supprimer le dossier. Sans cette
+            // entrée, cesser de protéger un dossier obligeait à le SUPPRIMER
+            // et à déverser son contenu dans la boîte de réception — on
+            // perdait le dossier, son nom et son organisation pour un simple
+            // changement d'avis sur le chiffrement.
+            if (folder.isVault)
+              ListTile(
+                leading: Icon(Icons.lock_open, color: cs.error),
+                title: Text(
+                  t.drawerRemoveVaultProtection,
+                  style: TextStyle(color: cs.error),
+                ),
+                subtitle: Text(t.drawerRemoveVaultProtectionSubtitle),
+                onTap: () =>
+                    Navigator.of(ctx).pop(_FolderAction.removeVaultProtection),
+              ),
             ListTile(
               leading: Icon(
                 Icons.delete_outline,
@@ -385,6 +402,9 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     if (action == _FolderAction.rename) await _renameFolder(folder);
     if (action == _FolderAction.delete) await _deleteFolder(folder);
     if (action == _FolderAction.convertToVault) await _convertToVault(folder);
+    if (action == _FolderAction.removeVaultProtection) {
+      await _removeVaultProtection(folder);
+    }
     if (action == _FolderAction.lockNow) {
       if (!mounted) return;
       context.read<FolderVaultService>().lock(folder.id);
@@ -392,6 +412,75 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // déclenché par l'utilisateur, retour tactile court (lightImpact)
       // pour confirmer l'action. Aligné Pass Tech v2.4.4 U9 (lock).
       unawaited(HapticFeedback.lightImpact());
+    }
+  }
+
+  /// Retire la protection d'un coffre en conservant le dossier et ses notes.
+  ///
+  /// Même exigence de consentement que la sortie de coffre d'une note : le
+  /// contenu part en clair, et ça ne se répare pas. Le libellé est donc
+  /// calqué sur celui-là, avec les mêmes couleurs et le même autofocus sur
+  /// Annuler — un utilisateur ne doit pas rencontrer deux avertissements
+  /// différents pour la même conséquence.
+  Future<void> _removeVaultProtection(Folder folder) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
+    final vault = context.read<FolderVaultService>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.lock_open, color: cs.error, size: 28),
+        title: Text(t.folderRemoveVaultTitle),
+        content: Text(t.folderRemoveVaultBody(folder.name)),
+        actions: [
+          TextButton(
+            autofocus: true,
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(t.commonCancel),
+          ),
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              backgroundColor: cs.errorContainer,
+              foregroundColor: cs.onErrorContainer,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(t.folderRemoveVaultConfirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    // La passphrase est la seule preuve que le demandeur a le droit de
+    // rendre ces notes lisibles. On la redemande si la session est fermée.
+    if (!vault.isUnlocked(folder.id)) {
+      final ok = await showUnlockVaultAdaptive(
+        context: context,
+        folder: folder,
+      );
+      if (ok != true || !mounted) return;
+    }
+
+    try {
+      final res = await vault.removeVaultProtection(folder);
+      if (!mounted) return;
+      if (res.failed > 0) {
+        // Le service n'a RIEN démoté : le dossier est toujours un coffre.
+        // Le dire, sinon l'utilisateur croit l'opération faite.
+        messenger.showErrorSnack(
+          t.folderDeleteDecryptFailed(res.failed),
+          cs,
+          duration: const Duration(seconds: 8),
+        );
+        return;
+      }
+      unawaited(HapticFeedback.lightImpact());
+      messenger.showSuccessSnack(t.folderRemoveVaultDone(res.decrypted), cs);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
     }
   }
 
@@ -481,7 +570,13 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
   }
 }
 
-enum _FolderAction { rename, delete, convertToVault, lockNow }
+enum _FolderAction {
+  rename,
+  delete,
+  convertToVault,
+  lockNow,
+  removeVaultProtection,
+}
 
 class _DrawerTile extends StatelessWidget {
   const _DrawerTile({

@@ -325,6 +325,52 @@ void main() {
     );
   });
 
+  testWidgets('12. retirer la protection conserve le dossier ET les notes', (
+    _,
+  ) async {
+    const secret = 'contenu à conserver après retrait';
+    final (v, note) = await vaultWithNote('retrait', secret);
+
+    final res = await vault.removeVaultProtection(v);
+    expect(res.failed, 0);
+    expect(res.decrypted, 1);
+
+    // Le dossier existe toujours, avec son nom, et n'est plus un coffre.
+    final apresFolder = await folders.get(v.id);
+    expect(apresFolder, isNotNull, reason: 'le dossier doit être CONSERVÉ');
+    expect(apresFolder!.name, v.name);
+    expect(apresFolder.isVault, isFalse);
+
+    // La note est lisible en clair, contenu intact.
+    final row = await rawRow(note.id);
+    expect(row['encrypted_content'], isNull);
+    expect(row['content'], secret);
+    expect(await folders.isVaultFolder(v.id), isFalse);
+
+    // Et la session est refermée : la clé ne traîne plus en RAM.
+    expect(vault.isUnlocked(v.id), isFalse);
+  });
+
+  testWidgets('13. retirer la protection exige une session ouverte', (_) async {
+    final (v, note) = await vaultWithNote('retrait-verrou', 'secret');
+    vault.lock(v.id);
+
+    await expectLater(
+      vault.removeVaultProtection(v),
+      throwsA(isA<VaultLockedException>()),
+      reason:
+          'la passphrase est la seule preuve que le demandeur a le '
+          'droit de rendre ces notes lisibles.',
+    );
+
+    // ET RIEN N'A BOUGÉ : le coffre est intact, la note toujours chiffrée.
+    final apresFolder = await folders.get(v.id);
+    expect(apresFolder!.isVault, isTrue);
+    final row = await rawRow(note.id);
+    expect(row['encrypted_content'], isNotNull);
+    expect(row['content'], '');
+  });
+
   testWidgets('7. l\'index FTS5 ne contient pas le contenu du coffre', (
     _,
   ) async {

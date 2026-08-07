@@ -359,6 +359,26 @@
       }
     }
   },
+  "drawerRemoveVaultProtection": "Remove protection",
+  "drawerRemoveVaultProtectionSubtitle": "Keep the folder, decrypt its notes",
+  "folderRemoveVaultTitle": "Remove vault protection?",
+  "folderRemoveVaultBody": "The notes in \"{name}\" will be decrypted and written to the database in the clear. The folder and its contents are kept, but they will no longer be protected by a passphrase. This cannot be undone: the notes will have existed unencrypted, even if you protect the folder again afterwards.",
+  "@folderRemoveVaultBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "folderRemoveVaultConfirm": "Decrypt and remove",
+  "folderRemoveVaultDone": "{n, plural, =1{1 note decrypted. This folder is no longer a vault.} other{{n} notes decrypted. This folder is no longer a vault.}}",
+  "@folderRemoveVaultDone": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "folderDeleteVaultChoiceBody": "\"{name}\" is a vault. Moving its notes to the Inbox DECRYPTS every one of them and writes them to the database in the clear, with no passphrase protection. This cannot be undone: they will have existed unencrypted, even if you put them back into a vault afterwards.",
   "@folderDeleteVaultChoiceBody": {
     "placeholders": {

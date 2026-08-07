@@ -359,6 +359,26 @@
       }
     }
   },
+  "drawerRemoveVaultProtection": "Retirer la protection",
+  "drawerRemoveVaultProtectionSubtitle": "Garder le dossier, déchiffrer ses notes",
+  "folderRemoveVaultTitle": "Retirer la protection du coffre ?",
+  "folderRemoveVaultBody": "Les notes de « {name} » seront déchiffrées et écrites en clair dans la base. Le dossier et son contenu sont conservés, mais ils ne seront plus protégés par mot de passe. Action irréversible : les notes auront transité hors chiffrement, même si vous reprotégez le dossier ensuite.",
+  "@folderRemoveVaultBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "folderRemoveVaultConfirm": "Déchiffrer et retirer",
+  "folderRemoveVaultDone": "{n, plural, =1{1 note déchiffrée. Le dossier n''est plus un coffre.} other{{n} notes déchiffrées. Le dossier n''est plus un coffre.}}",
+  "@folderRemoveVaultDone": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "folderDeleteVaultChoiceBody": "« {name} » est un coffre. Déplacer ses notes vers la Boîte de réception les DÉCHIFFRE toutes et les écrit en clair dans la base, sans protection par mot de passe. Action irréversible : elles auront transité hors chiffrement, même si vous les remettez ensuite dans un coffre.",
   "@folderDeleteVaultChoiceBody": {
     "placeholders": {

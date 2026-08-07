@@ -732,6 +732,35 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get drawerRemoveVaultProtection => 'Retirer la protection';
+
+  @override
+  String get drawerRemoveVaultProtectionSubtitle =>
+      'Garder le dossier, déchiffrer ses notes';
+
+  @override
+  String get folderRemoveVaultTitle => 'Retirer la protection du coffre ?';
+
+  @override
+  String folderRemoveVaultBody(String name) {
+    return 'Les notes de « $name » seront déchiffrées et écrites en clair dans la base. Le dossier et son contenu sont conservés, mais ils ne seront plus protégés par mot de passe. Action irréversible : les notes auront transité hors chiffrement, même si vous reprotégez le dossier ensuite.';
+  }
+
+  @override
+  String get folderRemoveVaultConfirm => 'Déchiffrer et retirer';
+
+  @override
+  String folderRemoveVaultDone(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n notes déchiffrées. Le dossier n\'\'est plus un coffre.',
+      one: '1 note déchiffrée. Le dossier n\'\'est plus un coffre.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String folderDeleteVaultChoiceBody(String name) {
     return '« $name » est un coffre. Déplacer ses notes vers la Boîte de réception les DÉCHIFFRE toutes et les écrit en clair dans la base, sans protection par mot de passe. Action irréversible : elles auront transité hors chiffrement, même si vous les remettez ensuite dans un coffre.';
   }

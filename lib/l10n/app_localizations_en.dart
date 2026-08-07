@@ -725,6 +725,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get drawerRemoveVaultProtection => 'Remove protection';
+
+  @override
+  String get drawerRemoveVaultProtectionSubtitle =>
+      'Keep the folder, decrypt its notes';
+
+  @override
+  String get folderRemoveVaultTitle => 'Remove vault protection?';
+
+  @override
+  String folderRemoveVaultBody(String name) {
+    return 'The notes in \"$name\" will be decrypted and written to the database in the clear. The folder and its contents are kept, but they will no longer be protected by a passphrase. This cannot be undone: the notes will have existed unencrypted, even if you protect the folder again afterwards.';
+  }
+
+  @override
+  String get folderRemoveVaultConfirm => 'Decrypt and remove';
+
+  @override
+  String folderRemoveVaultDone(int n) {
+    String _temp0 = intl.Intl.pluralLogic(
+      n,
+      locale: localeName,
+      other: '$n notes decrypted. This folder is no longer a vault.',
+      one: '1 note decrypted. This folder is no longer a vault.',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String folderDeleteVaultChoiceBody(String name) {
     return '\"$name\" is a vault. Moving its notes to the Inbox DECRYPTS every one of them and writes them to the database in the clear, with no passphrase protection. This cannot be undone: they will have existed unencrypted, even if you put them back into a vault afterwards.';
   }
