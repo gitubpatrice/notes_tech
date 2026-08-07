@@ -319,6 +319,11 @@ class NotesDao {
           // colonne doit donc être vidée dans le MÊME UPDATE, sinon une
           // interruption entre les deux laisserait un titre en clair face à
           // un blob qui le contient déjà.
+          // `'clé': ?valeur` = entrée de map null-aware (Dart 3.9, lint
+          // `use_null_aware_elements`) : l'entrée est OMISE quand la valeur
+          // est nulle, ce qui donne bien un UPDATE partiel. Ce n'est pas une
+          // coquille — deux relecteurs automatiques l'ont pourtant signalée
+          // comme une erreur de compilation, d'où cette note.
           'title': ?title,
           'enc_v': ?encVersion,
         },
