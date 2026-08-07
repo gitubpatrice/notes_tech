@@ -133,10 +133,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final n = _note;
     if (n == null || !_wasLocked) return;
     if (_vault.isUnlocked(n.folderId)) return;
-    _showError(
-      AppLocalizations.of(context).noteEditorErrorVaultRelockedDuringEdit,
-    );
-    _closeOnVaultLock();
+    // ⚠️ DIFFÉRÉ D'UNE FRAME, et ce n'est pas de la superstition.
+    // `notifyListeners` peut tomber PENDANT la construction d'une frame —
+    // typiquement quand le balayage d'auto-lock verrouille alors qu'un autre
+    // écran se reconstruit. Dépiler une route à ce moment lève
+    // « setState() or markNeedsBuild() called during build ». On ferme donc
+    // à la frame suivante, quand l'arbre est stable.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _fermeSurVerrouillage) return;
+      _showError(
+        AppLocalizations.of(context).noteEditorErrorVaultRelockedDuringEdit,
+      );
+      _closeOnVaultLock();
+    });
   }
 
   @override
