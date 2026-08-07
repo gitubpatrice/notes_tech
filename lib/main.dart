@@ -125,6 +125,19 @@ Future<void> main() async {
   // v0.9 — reprend les auto-wipes de coffres PIN interrompus par un
   // crash ou un kill app entre les steps internes (delete Keystore →
   // delete locked notes → demote folder). Idempotent, fire-and-forget.
+  // Scellement des notes de coffre AVANT persistance. Câblé ici, et pas par
+  // le constructeur : `FolderVaultService` prend `notesRepo` en dépendance,
+  // l'injecter en retour créerait un cycle. Un rappel suffit, comme pour
+  // `isVaultFolder`.
+  //
+  // Ce câblage est ce qui empêche le TITRE d'une note de coffre d'atteindre
+  // la colonne `title` en clair — le cas de la note titrée au corps vide, que
+  // la garde seule ne pouvait pas refuser sans bloquer la création.
+  notesRepo.useVaultSealer(
+    isUnlocked: folderVault.isUnlocked,
+    seal: folderVault.encryptNote,
+  );
+
   unawaited(folderVault.resumePendingWipes());
 
   // PanicService instancié ICI car son hook `beforeDbWipe` capture

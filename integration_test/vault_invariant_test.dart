@@ -67,6 +67,11 @@ void main() {
     folders = FoldersRepository(FoldersDao(db));
     notes = NotesRepository(notesDao, isVaultFolder: folders.isVaultFolder);
     vault = FolderVaultService(folders: folders, notes: notes);
+    // Même câblage qu'en production (`main.dart`) : sans lui, le repository
+    // n'a aucun moyen de chiffrer et refuse toute écriture portant du clair
+    // dans un coffre. Le test monterait alors un graphe que l'application
+    // n'utilise pas.
+    notes.useVaultSealer(isUnlocked: vault.isUnlocked, seal: vault.encryptNote);
   });
 
   /// Lit la LIGNE BRUTE, sans passer par les repositories : c'est le seul
@@ -122,23 +127,67 @@ void main() {
     expect(row['trashed_at'], isNotNull);
   });
 
-  testWidgets('3. la garde refuse une écriture en clair dans un coffre', (
+  testWidgets('3. une écriture en clair dans un coffre ouvert est SCELLÉE', (
     _,
   ) async {
+    // Le contrat a changé, et en mieux. La garde REFUSAIT l'écriture ; elle
+    // ne pouvait donc pas refuser une note SANS CORPS — l'auto-save d'un
+    // titre seul, pendant la création, aurait levé sur un geste légitime. Le
+    // titre partait alors en clair dans la colonne `title`.
+    //
+    // Le repository ne décide plus si une écriture en clair est légitime : il
+    // scelle avant de persister. Une note de coffre ne peut plus atteindre le
+    // disque en clair, corps vide ou non.
     final (v, note) = await vaultWithNote('garde', 'secret');
 
-    await expectLater(
-      notes.save(
-        note.copyWith(content: 'écrit en clair', clearEncrypted: true),
+    final scellee = await notes.save(
+      note.copyWith(
+        title: 'Code PIN carte bleue',
+        content: 'écrit en clair',
+        clearEncrypted: true,
       ),
+    );
+
+    expect(
+      scellee.encryptedContent,
+      isNotNull,
+      reason: 'le repository a persisté sans sceller',
+    );
+
+    final row = await rawRow(note.id);
+    expect(row['encrypted_content'], isNotNull);
+    expect(
+      row['content'],
+      '',
+      reason: 'le contenu a atteint le disque en clair',
+    );
+    expect(
+      row['title'],
+      '',
+      reason:
+          "LE TITRE EST EN CLAIR DANS LA BASE. C'est exactement la fuite que "
+          'le scellement ferme : « Code PIN carte bleue » lisible par qui '
+          'ouvre le fichier, coffre fermé.',
+    );
+    expect(v.isVault, isTrue);
+  });
+
+  testWidgets("3 bis. coffre VERROUILLÉ : l'écriture est refusée", (_) async {
+    // L'autre face du scellement. Coffre fermé, aucune clé n'existe en RAM :
+    // rien ne peut être chiffré. Persister en clair serait précisément la
+    // fuite qu'on empêche — donc on lève. Cas réel : un auto-lock qui tombe
+    // pendant l'édition, suivi d'un auto-save.
+    final (_, note) = await vaultWithNote('garde-verrou', 'secret');
+    vault.lockAll();
+
+    await expectLater(
+      notes.save(note.copyWith(title: 'Sensible', clearEncrypted: true)),
       throwsA(isA<VaultPlaintextWriteException>()),
     );
 
-    // Et la base n'a pas bougé.
     final row = await rawRow(note.id);
-    expect(row['encrypted_content'], isNotNull);
     expect(row['content'], '');
-    expect(v.isVault, isTrue);
+    expect(row['title'], '');
   });
 
   testWidgets('4. round-trip réel : ce qui est chiffré se relit', (_) async {
@@ -258,12 +307,14 @@ void main() {
       const corps = 'ancien contenu chiffré';
       final plain = await folders.create(name: 'coffre-migration');
       final v = await vault.createVault(folder: plain, passphrase: _kPass);
-      final created = await notes.create(folderId: v.id, title: titre);
+      // Créée VIDE : depuis le scellement, `create` avec un titre produirait
+      // directement une note v2. Le titre est posé sur la copie v1 ci-dessous.
+      final created = await notes.create(folderId: v.id);
 
       // Note héritée AUTHENTIQUE : chiffrée avec la vraie clé du coffre, au
       // format v1 — contenu dans le blob, titre en clair dans la colonne.
       final legacy = await vault.encryptNoteLegacyV1(
-        created.copyWith(content: corps),
+        created.copyWith(title: titre, content: corps),
       );
       await notes.save(legacy);
 
@@ -305,9 +356,10 @@ void main() {
     const corps = 'contenu v1';
     final plain = await folders.create(name: 'coffre-v1-lisible');
     final v = await vault.createVault(folder: plain, passphrase: _kPass);
-    final created = await notes.create(folderId: v.id, title: titre);
+    // Créée VIDE : voir test 10, `create` avec un titre scelle en v2.
+    final created = await notes.create(folderId: v.id);
     final legacy = await vault.encryptNoteLegacyV1(
-      created.copyWith(content: corps),
+      created.copyWith(title: titre, content: corps),
     );
     await notes.save(legacy);
 

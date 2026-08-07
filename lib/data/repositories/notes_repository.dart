@@ -32,6 +32,64 @@ class NotesRepository {
 
   final NotesDao _dao;
   final Future<bool> Function(String folderId)? _isVaultFolder;
+
+  /// Scelle une note de coffre AVANT sa persistance. Câblé après
+  /// construction, jamais par le constructeur : `FolderVaultService` dépend
+  /// déjà de ce repository, l'injecter en retour créerait un cycle.
+  Future<Note> Function(Note note)? _sealVaultNote;
+
+  /// Dit si la session d'un coffre est ouverte — donc si une clé existe.
+  bool Function(String folderId)? _isVaultUnlocked;
+
+  /// Branche le scellement des notes de coffre. Appelé une fois, au
+  /// bootstrap, une fois `FolderVaultService` construit.
+  ///
+  /// Tant que ce câblage n'est pas fait, le repository se comporte comme
+  /// avant : la garde refuse le clair, mais rien ne chiffre à sa place.
+  void useVaultSealer({
+    required bool Function(String folderId) isUnlocked,
+    required Future<Note> Function(Note note) seal,
+  }) {
+    _isVaultUnlocked = isUnlocked;
+    _sealVaultNote = seal;
+  }
+
+  /// Chiffre la note si elle appartient à un coffre et porte encore du clair.
+  ///
+  /// C'EST LE POINT QUI FERME LA FUITE DU TITRE. La garde
+  /// `_guardVaultPlaintext` refuse le clair, mais elle ne pouvait pas refuser
+  /// une note SANS CORPS sans casser la création : l'éditeur crée la note,
+  /// l'utilisateur tape son titre, l'auto-save écrit avant que le corps
+  /// existe. Refuser cette écriture bloquait l'application ; la laisser
+  /// passer écrivait le titre en clair dans la colonne `title`.
+  ///
+  /// La sortie n'était ni l'un ni l'autre : au lieu de DÉCIDER si une
+  /// écriture en clair est légitime, on ne laisse plus jamais partir de clair.
+  /// La note est scellée ici, avant le DAO. L'auto-save d'un titre seul
+  /// aboutit donc à `title = ''`, `content = ''`, blob chiffré, format v2.
+  ///
+  /// Coffre VERROUILLÉ : aucune clé n'existe en RAM, donc rien ne peut être
+  /// chiffré. On lève plutôt que de persister — c'est le cas d'un auto-lock
+  /// qui tombe pendant l'édition, et écrire en clair y serait exactement la
+  /// fuite qu'on cherche à empêcher.
+  Future<Note> _sealIfVault(Note note, String operation) async {
+    if (note.encryptedContent != null) return note;
+    if (note.title.isEmpty && note.content.isEmpty) return note;
+    final isVault = _isVaultFolder;
+    if (isVault == null) return note;
+    if (!await isVault(note.folderId)) return note;
+    final seal = _sealVaultNote;
+    final unlocked = _isVaultUnlocked;
+    if (seal == null || unlocked == null || !unlocked(note.folderId)) {
+      throw VaultPlaintextWriteException(
+        noteId: note.id,
+        folderId: note.folderId,
+        operation: operation,
+      );
+    }
+    return seal(note);
+  }
+
   static const _uuid = Uuid();
   final _changes = StreamController<NoteChangeEvent>.broadcast();
 
@@ -169,16 +227,17 @@ class NotesRepository {
       createdAt: now,
       updatedAt: now,
     );
-    await _guardVaultPlaintext(note, 'create');
-    await _dao.insert(note);
+    final scellee = await _sealIfVault(note, 'create');
+    await _guardVaultPlaintext(scellee, 'create');
+    await _dao.insert(scellee);
     _emit(
       NoteChangeEvent(
         kind: NoteChangeKind.created,
-        id: note.id,
-        currentTitle: note.title,
+        id: scellee.id,
+        currentTitle: scellee.title,
       ),
     );
-    return note;
+    return scellee;
   }
 
   /// Sauvegarde idempotente : récupère le titre précédent pour permettre
@@ -191,9 +250,13 @@ class NotesRepository {
   /// déchiffrait. Tout nouvel usage de ce drapeau doit être justifié ici.
   Future<Note> save(Note note, {bool allowPlaintextInVault = false}) async {
     _validateTitle(note.title);
-    if (!allowPlaintextInVault) await _guardVaultPlaintext(note, 'save');
-    final previous = await _dao.findById(note.id);
-    final updated = note.copyWith(updatedAt: DateTime.now());
+    var aPersister = note;
+    if (!allowPlaintextInVault) {
+      aPersister = await _sealIfVault(note, 'save');
+      await _guardVaultPlaintext(aPersister, 'save');
+    }
+    final previous = await _dao.findById(aPersister.id);
+    final updated = aPersister.copyWith(updatedAt: DateTime.now());
     await _dao.update(updated);
     _emit(
       NoteChangeEvent(
