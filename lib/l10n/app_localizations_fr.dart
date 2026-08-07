@@ -207,7 +207,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String get searchTitle => 'Rechercher';
 
   @override
-  String get searchHint => 'Mot-clé, début de note, ou question…';
+  String get searchHint => 'Mot-clé, titre, ou contenu de note…';
 
   @override
   String get searchEmpty => 'Aucun résultat';

@@ -206,7 +206,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchTitle => 'Search';
 
   @override
-  String get searchHint => 'Keyword, note start, or question…';
+  String get searchHint => 'Keyword, title, or note content…';
 
   @override
   String get searchEmpty => 'No results';

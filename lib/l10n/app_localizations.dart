@@ -461,7 +461,7 @@ abstract class AppLocalizations {
   /// No description provided for @searchHint.
   ///
   /// In en, this message translates to:
-  /// **'Keyword, note start, or question…'**
+  /// **'Keyword, title, or note content…'**
   String get searchHint;
 
   /// No description provided for @searchEmpty.

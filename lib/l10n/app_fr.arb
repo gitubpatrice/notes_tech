@@ -88,7 +88,7 @@
   },
   "noteEditorAnnounceSavedSuccess": "Note enregistrée",
   "searchTitle": "Rechercher",
-  "searchHint": "Mot-clé, début de note, ou question…",
+  "searchHint": "Mot-clé, titre, ou contenu de note…",
   "searchEmpty": "Aucun résultat",
   "searchTryOther": "Essayez un autre mot-clé.",
   "searchClear": "Effacer la recherche",
