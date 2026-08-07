@@ -105,9 +105,17 @@ enum PanicStep {
   pauseBackgroundWork,
   dbWipe,
   voiceWipe,
-  gemmaUninstall,
 
-  /// B6 v1.0.4 — wipe du modèle MiniLM bundled (~25 Mo) + cache.
+  /// Purge `<appSupport>/models/` — le dossier où vivaient le modèle Gemma
+  /// importé par l'utilisateur et le cache MiniLM.
+  ///
+  /// ⚠️ CONSERVÉE malgré le retrait de l'IA, et c'est délibéré : un
+  /// utilisateur qui met à jour depuis une version ≤ 1.1.6 a encore ces
+  /// fichiers sur son téléphone (jusqu'à 530 Mo pour Gemma). Le mode panique
+  /// doit continuer de les effacer. L'étape `gemmaUninstall`, elle, a été
+  /// SUPPRIMÉE : elle passait par un service qui n'existe plus, donc elle ne
+  /// s'exécutait plus — une étape déclarée qui ne tourne jamais est un
+  /// mensonge dans `PanicReport.steps`.
   embedderWipe,
   prefsClear,
 
@@ -273,8 +281,8 @@ class PanicService {
     // Cohérence avec wipe Gemma + Whisper : zéro résidu ML post-panic.
     await _runStep(report, PanicStep.embedderWipe, _wipeEmbedderCache);
 
-    // 7. Préférences : tri, dossier actif, hash Gemma accepté, modèle
-    //    voix actif… aucun reliquat d'usage.
+    // 7. Préférences : tri, dossier actif, modèle voix actif… aucun
+    //    reliquat d'usage.
     //
     // **Whitelist** : on PRÉSERVE deux clés pour la cohérence du redémarrage,
     // conformément à PRIVACY.{fr,en}.md :
@@ -374,10 +382,13 @@ class PanicService {
     }
   }
 
-  /// B6 v1.0.4 — wipe du cache MiniLM (sandbox `<appSupport>/models/`).
-  /// Le modèle bundled est public, mais l'app le copie dans son sandbox.
-  /// Cohérence avec voiceWipe + gemmaUninstall : zéro résidu ML post-panic.
-  /// Best-effort (le modèle sera re-extrait des assets au prochain warmUp).
+  /// Purge `<appSupport>/models/` : modèle Gemma importé et cache MiniLM,
+  /// résidus des versions ≤ 1.1.6. Cohérence avec `voiceWipe` — zéro résidu
+  /// de modèle après une panique. Best-effort.
+  ///
+  /// Le boot purge déjà ce dossier une fois (`_purgeOrphanModelsOnce` dans
+  /// `main.dart`) ; ce double geste est voulu : la panique ne doit dépendre
+  /// d'aucune purge antérieure ayant réussi.
   Future<void> _wipeEmbedderCache() async {
     try {
       final dir = await getApplicationSupportDirectory();

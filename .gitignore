@@ -65,3 +65,7 @@ assets/models/*.task
 # Variables d'environnement (jamais commiter)
 .env
 .env.local
+
+# Artefacts de build Gradle — commites par erreur le 2026-08-07
+# (un `git add -A android/` les avait embarques).
+android/build/

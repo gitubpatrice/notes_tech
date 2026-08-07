@@ -153,6 +153,10 @@ class AppConstants {
   /// d'une éventuelle DB en clair vers une DB chiffrée par la KEK du vault.
   static const String prefKeyDbEncryptedV1 = 'db_encrypted_v1';
 
+  /// Purge unique des modèles orphelins laissés par l'IA embarquée (v1.1.7).
+  /// Voir `_purgeOrphanModelsOnce` dans `main.dart`.
+  static const String prefKeyOrphanModelsPurged = 'orphan_models_purged_v1';
+
   /// Locale forcée par l'utilisateur (`fr` / `en`) ou `system` pour suivre
   /// la locale du téléphone. v1.0 — i18n FR/EN.
   static const String prefKeyLocale = 'app_locale';

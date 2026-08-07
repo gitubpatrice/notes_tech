@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart' show Database;
 
 import 'app.dart';
+import 'core/constants.dart';
 import 'data/db/database.dart';
 import 'data/db/folders_dao.dart';
 import 'data/db/links_dao.dart';
@@ -50,6 +51,9 @@ Future<void> main() async {
   // F4 v1.0.3 — purge `cache/exports/` (résidu ZIP plaintext si le process
   // a été tué pendant un share sheet précédent). Best-effort, fire-and-forget.
   unawaited(_purgeExportsCache());
+
+  // v1.1.7 — récupère l'espace laissé par l'IA retirée. Une seule fois.
+  unawaited(_purgeOrphanModelsOnce());
 
   // VaultService injecté avant tout accès DB : `AppDatabase` réutilisera
   // la même instance (source de vérité unique pour la KEK, testable).
@@ -182,6 +186,40 @@ Future<void> main() async {
       child: NotesTechApp(showSplash: showSplash),
     ),
   );
+}
+
+/// Supprime, UNE SEULE FOIS, les modèles devenus orphelins avec le retrait
+/// de l'IA embarquée (v1.1.7).
+///
+/// Un utilisateur qui avait importé Gemma garde sinon **jusqu'à 530 Mo** dans
+/// le stockage privé de l'application : un fichier que plus aucun code ne lit,
+/// qu'il ne voit pas, et qu'il ne peut effacer qu'en vidant les données de
+/// l'app — ce qui détruirait aussi ses notes. L'application vient de passer
+/// de 127 à 27 Mo ; lui laisser un demi-gigaoctet de cadavre serait absurde.
+///
+/// ⚠️ Cible UNIQUEMENT `<appSupport>/models/`, qui ne contenait que le `.task`
+/// Gemma et le cache MiniLM. Le modèle de dictée vocale vit dans
+/// `<appSupport>/stt/` (cf. `files_tech_voice/stt_model_downloader.dart`) et
+/// n'est PAS touché — vérifié avant d'écrire cette fonction, parce que se
+/// tromper de dossier ici effacerait un modèle que l'utilisateur a dû
+/// télécharger et importer à la main.
+///
+/// Idempotent et gardé par une préférence : le coût au boot est une lecture
+/// de pref une fois la purge faite.
+Future<void> _purgeOrphanModelsOnce() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(AppConstants.prefKeyOrphanModelsPurged) ?? false) return;
+    final dir = await getApplicationSupportDirectory();
+    final models = Directory('${dir.path}/models');
+    if (await models.exists()) {
+      await models.delete(recursive: true);
+    }
+    await prefs.setBool(AppConstants.prefKeyOrphanModelsPurged, true);
+  } catch (_) {
+    // Best-effort : réessayé au prochain démarrage, le drapeau n'est posé
+    // qu'en cas de succès.
+  }
 }
 
 /// F4 v1.0.3 — purge `cache/exports/` au boot. Si le process a été tué

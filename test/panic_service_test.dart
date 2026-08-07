@@ -47,8 +47,9 @@ void main() {
         PanicStep.pauseBackgroundWork,
         PanicStep.dbWipe,
         PanicStep.voiceWipe,
-        PanicStep.gemmaUninstall,
-        // B6 v1.0.4 — embedderWipe wipe le cache MiniLM après Gemma.
+        // `embedderWipe` purge `<appSupport>/models/` : le modèle Gemma
+        // importé et le cache MiniLM, résidus des versions ≤ 1.1.6. L'étape
+        // `gemmaUninstall` a disparu avec le service qui la portait.
         PanicStep.embedderWipe,
         PanicStep.prefsClear,
         // v1.1.4 — exportsWipe distinct de tmpPurge (rapport panique sans
