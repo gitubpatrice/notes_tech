@@ -33,7 +33,7 @@ jobs:
 
   scan-pr:
     if: github.event_name == 'pull_request'
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.2.3"
+    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8"
     with:
       scan-args: |-
         --recursive
