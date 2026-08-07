@@ -42,6 +42,10 @@ class NoteActions {
   /// voir `_copySensitive`.
   static int _generationPressePapiers = 0;
 
+  /// Vrai si l'effacement automatique a déjà été réarmé une fois après un
+  /// échec. Borne la reprise à un seul tour — voir `_autoClearIfMine`.
+  static bool _reessaiAutoClear = false;
+
   /// Copie le contenu Markdown brut dans le presse-papier avec marquage
   /// "sensible" (Android 13+) + auto-clear 60 s.
   /// [fromVault] : la note vient d'un dossier coffre. Le repli non sécurisé
@@ -101,6 +105,13 @@ class NoteActions {
       // de plateforme manque casserait une fonction ordinaire sans rien
       // protéger de sensible.
       if (refuserRepli) {
+        // ⚠️ NETTOYER AVANT DE REFUSER. `nativeOk == false` ne prouve PAS que
+        // le natif n'a rien écrit : `setPrimaryClip` peut réussir puis le
+        // code natif échouer en posant les extras sensibles, ou rendre une
+        // erreur après coup. On annonçait « copie refusée » pendant que le
+        // texte était dans le presse-papiers, sans instantané ni minuteur
+        // pour l'en retirer. Relevé par une relecture externe (GPT-5.5).
+        await _viderSiCEstCeTexte(text);
         throw const NotesTechException(
           'Copie refusée : le presse-papiers sécurisé est indisponible.',
         );
@@ -122,8 +133,17 @@ class NoteActions {
 
   /// Vide le presse-papiers s'il contient encore [texte].
   ///
-  /// Le test est indispensable : effacer sans regarder écraserait un secret
-  /// que l'utilisateur aurait copié entretemps depuis une autre application.
+  /// Le test évite d'écraser un contenu DIFFÉRENT que l'utilisateur aurait
+  /// copié entretemps depuis une autre application.
+  ///
+  /// ⚠️ CE N'EST PAS UNE PREUVE DE PROPRIÉTÉ, et il ne faut pas le lire
+  /// comme tel. Deux cas restent : l'utilisateur a copié ailleurs la MÊME
+  /// valeur — on l'efface alors que ce n'est pas notre clip — et le
+  /// presse-papiers peut changer entre la lecture et l'écriture. L'API
+  /// Clipboard de Flutter n'expose ni propriétaire ni jeton : l'égalité de
+  /// texte est la meilleure heuristique disponible, pas une garantie.
+  /// Formulation corrigée après une relecture externe (GPT-5.5) qui a relevé
+  /// que le commentaire précédent promettait plus que le code ne tient.
   static Future<void> _viderSiCEstCeTexte(String texte) async {
     try {
       final courant = await Clipboard.getData(Clipboard.kTextPlain);
@@ -141,14 +161,28 @@ class NoteActions {
   static Future<void> _autoClearIfMine() async {
     final mine = _ownTextSnapshot;
     if (mine == null) return;
+    // ⚠️ NE PAS OUBLIER LE TEXTE SI L'EFFACEMENT A ÉCHOUÉ.
+    //
+    // L'instantané et le minuteur étaient remis à zéro dans tous les cas,
+    // même quand `setData('')` levait : le contenu restait alors dans le
+    // presse-papiers, et plus rien ne repassait jamais dessus. On réarme donc
+    // un tour plutôt que d'abandonner. Relevé par une relecture externe
+    // (GPT-5.5).
     try {
       final cur = await Clipboard.getData(Clipboard.kTextPlain);
       if (cur?.text == mine) {
         await Clipboard.setData(const ClipboardData(text: ''));
       }
     } catch (_) {
-      /* best-effort */
+      // Un seul réarmement : si le presse-papiers reste inaccessible, insister
+      // indéfiniment ne ferait que maintenir le texte en mémoire ici.
+      if (!_reessaiAutoClear) {
+        _reessaiAutoClear = true;
+        _clearTimer = Timer(_autoClearAfter, _autoClearIfMine);
+        return;
+      }
     }
+    _reessaiAutoClear = false;
     _ownTextSnapshot = null;
     _clearTimer = null;
   }
@@ -161,10 +195,28 @@ class NoteActions {
     _clearTimer?.cancel();
     _clearTimer = null;
     _ownTextSnapshot = null;
-    try {
-      await Clipboard.setData(const ClipboardData(text: ''));
-    } catch (_) {
-      /* best-effort */
+    // ⚠️ LA PURGE D'URGENCE NE DOIT PAS AVALER SON PROPRE ÉCHEC.
+    //
+    // Elle attrapait tout en silence : si `setData('')` échouait — canal mort,
+    // OS qui refuse, plugin indisponible — le contenu restait dans le
+    // presse-papiers, l'état interne était nettoyé, aucun minuteur ne
+    // repassait, et le mode panique enregistrait l'étape comme réussie.
+    // C'est le pire endroit pour un « best-effort » muet. Relevé par une
+    // relecture externe (GPT-5.5).
+    //
+    // Une seule reprise, puis on lève : `PanicService._runStep` enregistre
+    // l'échec, et l'écran de fin n'annonce plus un effacement complet.
+    for (var essai = 0; essai < 2; essai++) {
+      try {
+        await Clipboard.setData(const ClipboardData(text: ''));
+        return;
+      } catch (_) {
+        if (essai == 1) {
+          throw const NotesTechException(
+            'Presse-papiers non vidé : le contenu copié peut subsister.',
+          );
+        }
+      }
     }
   }
 }

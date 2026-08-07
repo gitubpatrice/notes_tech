@@ -57,12 +57,22 @@ class FoldersRepository {
   /// Relevé en CRITIQUE par une relecture externe (GPT-5.5) sur le correctif
   /// de course lui-même.
   ///
-  /// On retombe alors sur une lecture CIBLÉE du seul dossier concerné : une
-  /// ligne, donc une fenêtre de course négligeable, et une réponse qui
-  /// engage ce dossier-là. Si même elle échoue ou ne trouve rien, on répond
-  /// `true` — c'est-à-dire « traite-le comme un coffre » : le repli ferme,
-  /// au pire une écriture légitime est refusée bruyamment, jamais un secret
-  /// écrit en clair silencieusement.
+  /// On retombe alors sur une lecture CIBLÉE du seul dossier concerné —
+  /// elle aussi encadrée par la génération.
+  ///
+  /// ⚠️ « FENÊTRE DE COURSE NÉGLIGEABLE » N'EST PAS UNE PROPRIÉTÉ DE
+  /// SÉCURITÉ, et c'est ce que disait la version précédente de ce
+  /// commentaire pour justifier une lecture ciblée NON encadrée. Une requête
+  /// asynchrone ciblée peut rendre un résultat périmé exactement comme une
+  /// requête large : plus rarement, pas jamais. Et un `false` périmé ouvre la
+  /// garde. Relevé en CRITIQUE par une relecture externe (GPT-5.5) sur le
+  /// correctif précédent, qui corrigeait déjà une course.
+  ///
+  /// Dernier recours : `true`, c'est-à-dire « traite-le comme un coffre ».
+  /// Au pire une écriture légitime est refusée bruyamment ; jamais un secret
+  /// écrit en clair silencieusement. Un dossier introuvable tombe dans ce cas
+  /// — écrire une note dans un dossier qui n'existe plus n'est de toute façon
+  /// pas une opération valide.
   Future<bool> isVaultFolder(String id) async {
     final cache = _vaultIds;
     if (cache != null) return cache.contains(id);
@@ -78,7 +88,12 @@ class FoldersRepository {
       }
     }
     try {
+      final generation = _vaultIdsGeneration;
       final folder = await _dao.findById(id);
+      // Une invalidation pendant CETTE lecture la rend suspecte au même titre
+      // que les précédentes : on ne rend pas un `false` qu'on ne peut pas
+      // garantir.
+      if (generation != _vaultIdsGeneration) return true;
       return folder?.isVault ?? true;
     } catch (_) {
       return true;
