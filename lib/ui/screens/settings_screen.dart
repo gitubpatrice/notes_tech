@@ -435,7 +435,16 @@ class _VoiceSection extends StatelessWidget {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(t.commonCancel),
           ),
-          FilledButton.tonal(
+          // Le retrait du modèle oblige à retélécharger des dizaines de Mo.
+          // Il était en `FilledButton.tonal` face à un « Annuler » en simple
+          // `TextButton` : le geste dangereux était le plus visible, donc
+          // celui qu'on tape par réflexe. Contourné et en couleur d'erreur ;
+          // aucun bouton du dialogue n'est plus rempli.
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.error,
+              side: BorderSide(color: Theme.of(ctx).colorScheme.error),
+            ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(t.commonRemove),
           ),
@@ -513,7 +522,19 @@ class _ExportSectionState extends State<_ExportSection> {
       final file = File('${exportsDir.path}/notes-tech-export-$ts.zip');
       await file.writeAsBytes(zipBytes, flush: true);
 
-      if (!mounted) return;
+      // ⚠️ NE PAS SORTIR SANS SUPPRIMER. Ce fichier contient TOUTES les notes
+      // en clair. Le `return` sur `!mounted` se faisait AVANT le `finally` de
+      // suppression : quitter l'écran ou passer en arrière-plan pendant
+      // l'écriture laissait l'export complet sur le disque, définitivement.
+      // Relevé en CRITIQUE par une relecture externe (Gemini 3.1 Pro).
+      if (!mounted) {
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {
+          /* best-effort — le boot suivant purge `exports/` */
+        }
+        return;
+      }
       try {
         await Share.shareXFiles([
           XFile(file.path, mimeType: 'application/zip'),
@@ -533,11 +554,19 @@ class _ExportSectionState extends State<_ExportSection> {
               : const Duration(seconds: 6),
         );
       } finally {
-        try {
-          if (await file.exists()) await file.delete();
-        } catch (_) {
-          /* best-effort */
-        }
+        // Différé de 30 s, comme l'export unitaire : `shareXFiles` rend la
+        // main quand la feuille se ferme, pas quand l'application
+        // destinataire a fini de LIRE. Supprimer aussitôt faisait échouer le
+        // partage selon la vitesse de l'appareil.
+        unawaited(
+          Future<void>.delayed(const Duration(seconds: 30), () async {
+            try {
+              if (await file.exists()) await file.delete();
+            } catch (_) {
+              /* best-effort — le boot suivant purge */
+            }
+          }),
+        );
       }
     } catch (e) {
       if (!mounted) return;
@@ -590,6 +619,11 @@ class _PanicSectionState extends State<_PanicSection> {
 
     setState(() => _running = true);
     final navigator = Navigator.of(context);
+    // Capturés AVANT l'await, comme `navigator` : servent à annoncer un
+    // effacement INCOMPLET, cas où l'écran de succès ne doit pas s'afficher.
+    final messenger = ScaffoldMessenger.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final t = AppLocalizations.of(context);
     // U9 v1.1.0 — feedback haptique heavyImpact sur action irréversible
     // (panic = destruction du coffre + de la DB). Confirme tactilement
     // à l'utilisateur que l'action a démarré. Aligné Pass Tech U9.
@@ -609,13 +643,37 @@ class _PanicSectionState extends State<_PanicSection> {
       ),
     );
 
+    // ⚠️ NE JAMAIS ANNONCER UN EFFACEMENT QUI N'A PAS EU LIEU.
+    //
+    // Avant : l'exception était avalée en `best-effort` et l'écran de succès
+    // s'affichait quoi qu'il arrive. Quelqu'un qui déclenche une panique se
+    // sépare ensuite de son téléphone — lui dire que tout est détruit alors
+    // que des fichiers survivent est le pire mensonge que cette application
+    // puisse faire. Relevé en CRITIQUE par une relecture externe
+    // (Gemini 3.1 Pro).
+    //
+    // Le dialogue modal est aussi dépilé INCONDITIONNELLEMENT : il est
+    // `barrierDismissible: false`, et le `return` sur `!mounted` le laissait
+    // coincé au premier plan, application inutilisable sans force stop.
+    PanicReport? rapport;
+    Object? erreur;
     try {
-      await panic.trigger();
-    } catch (_) {
-      // best-effort
+      rapport = await panic.trigger();
+    } catch (e) {
+      erreur = e;
     }
-    if (!mounted) return;
-    navigator.pop();
+    navigator.pop(); // ferme le dialogue de progression, toujours
+
+    final echecs = rapport?.errors.length ?? 0;
+    if (erreur != null || echecs > 0) {
+      if (!mounted) return;
+      messenger.showErrorSnack(
+        t.panicIncomplete(echecs == 0 ? 1 : echecs),
+        cs,
+        duration: const Duration(seconds: 12),
+      );
+      return;
+    }
     await navigator.pushAndRemoveUntil<void>(
       MaterialPageRoute<void>(builder: (_) => const PanicCompleteScreen()),
       (_) => false,

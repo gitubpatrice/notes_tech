@@ -578,6 +578,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get panicConfirmYes => 'Tout effacer';
 
   @override
+  String panicIncomplete(int count) {
+    return 'Effacement INCOMPLET : $count étape(s) ont échoué. Une partie de vos données n\'a PAS été détruite. Réessayez avant de vous séparer de l\'appareil.';
+  }
+
+  @override
   String get panicProgress => 'Effacement en cours…';
 
   @override

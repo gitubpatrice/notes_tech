@@ -132,8 +132,13 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       // Pas de filtre dossier → toutes les notes vivantes.
       // Filtre dossier actif → notes du dossier seulement.
+      // Le tri choisi par l'utilisateur ne s'appliquait QUE dans un dossier :
+      // en vue « toutes les notes », `listAllAlive` ignorait `_activeSort` et
+      // retombait sur un tri chronologique. Deux chemins qui devaient se
+      // comporter pareil et divergeaient. Relevé par une relecture externe
+      // (Gemini 3.1 Pro).
       _future = _currentFolderId == null
-          ? _notes.listAllAlive()
+          ? _notes.listAllAlive(sort: _activeSort)
           : _notes.listByFolder(_currentFolderId!, sort: _activeSort);
     });
   }
@@ -231,6 +236,17 @@ class _HomeScreenState extends State<HomeScreen> {
         final encrypted = await vault.encryptNote(created);
         await _notes.save(encrypted);
       } catch (e) {
+        // ANNULE LA CRÉATION. Sans ça, une note NON chiffrée restait dans le
+        // coffre : l'invariant « toujours chiffré au repos » était rompu par
+        // le chemin même qui prétend l'établir. Elle est vide, donc rien ne
+        // fuit — mais elle reste une ligne incohérente que seul le prochain
+        // déverrouillage réparerait. Relevé par une relecture externe
+        // (Gemini 3.1 Pro).
+        try {
+          await _notes.deletePermanently(created.id);
+        } catch (_) {
+          /* best-effort : la reprotection au déverrouillage rattrapera */
+        }
         if (!mounted) return;
         messenger.showErrorSnack(t.homeVaultCreateError(e.toString()), cs);
         return;

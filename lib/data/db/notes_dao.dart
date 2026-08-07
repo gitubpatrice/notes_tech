@@ -138,12 +138,12 @@ class NotesDao {
 
   /// Toutes les notes hors corbeille, archives incluses.
   /// Utilisé par `BacklinksService`, l'accueil et l'écran de réglages.
-  Future<List<Note>> listAllAlive() async {
+  Future<List<Note>> listAllAlive({NoteSortMode? sort}) async {
     try {
       final rows = await _db.query(
         'notes',
         where: 'trashed_at IS NULL',
-        orderBy: 'updated_at DESC',
+        orderBy: sort?.sqlOrderBy ?? 'updated_at DESC',
       );
       return rows.map(Note.fromRow).toList(growable: false);
     } catch (e) {

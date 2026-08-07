@@ -141,7 +141,8 @@ class NotesRepository {
   /// Toutes les notes vivantes (hors corbeille). Balayage complet : réservé
   /// aux consommateurs qui en ont réellement besoin (backlinks, statistiques
   /// des réglages, accueil), jamais dans une boucle de rendu.
-  Future<List<Note>> listAllAlive() => _dao.listAllAlive();
+  Future<List<Note>> listAllAlive({NoteSortMode? sort}) =>
+      _dao.listAllAlive(sort: sort);
 
   Future<List<Note>> listPlaintextInFolder(String folderId) =>
       _dao.listPlaintextInFolder(folderId);

@@ -287,6 +287,11 @@
   "panicConfirmTitle": "Permanently wipe all data?",
   "panicConfirmKeyword": "WIPE",
   "panicConfirmYes": "Wipe everything",
+  "panicIncomplete": "Wipe INCOMPLETE: {count} step(s) failed. Some of your data was NOT destroyed. Try again before parting with the device.",
+  "@panicIncomplete": {
+    "description": "Warns the user that panic mode did not erase everything",
+    "placeholders": { "count": { "type": "int" } }
+  },
   "panicProgress": "Wiping…",
   "panicProgressSubtitle": "Please wait.",
   "panicAnnounceDone": "Wipe complete",
