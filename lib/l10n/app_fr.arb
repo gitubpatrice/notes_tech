@@ -359,8 +359,17 @@
       }
     }
   },
+  "folderDeleteVaultChoiceBody": "« {name} » est un coffre. Déplacer ses notes vers la Boîte de réception les DÉCHIFFRE toutes et les écrit en clair dans la base, sans protection par mot de passe. Action irréversible : elles auront transité hors chiffrement, même si vous les remettez ensuite dans un coffre.",
+  "@folderDeleteVaultChoiceBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "folderDeletePermanent": "Supprimer définitivement",
   "folderDeleteMoveToInbox": "Déplacer vers Boîte de réception",
+  "folderDeleteMoveToInboxVault": "Déchiffrer et déplacer",
   "folderDeleteDecryptFailed": "Déchiffrement impossible pour {n} note(s).",
   "@folderDeleteDecryptFailed": {
     "placeholders": {

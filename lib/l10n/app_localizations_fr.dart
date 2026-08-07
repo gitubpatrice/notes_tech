@@ -732,10 +732,18 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String folderDeleteVaultChoiceBody(String name) {
+    return '« $name » est un coffre. Déplacer ses notes vers la Boîte de réception les DÉCHIFFRE toutes et les écrit en clair dans la base, sans protection par mot de passe. Action irréversible : elles auront transité hors chiffrement, même si vous les remettez ensuite dans un coffre.';
+  }
+
+  @override
   String get folderDeletePermanent => 'Supprimer définitivement';
 
   @override
   String get folderDeleteMoveToInbox => 'Déplacer vers Boîte de réception';
+
+  @override
+  String get folderDeleteMoveToInboxVault => 'Déchiffrer et déplacer';
 
   @override
   String folderDeleteDecryptFailed(int n) {

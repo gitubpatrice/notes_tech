@@ -121,6 +121,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     final outcome = await confirmDeleteFolder(
       context: context,
       folderName: folder.name,
+      isVault: folder.isVault,
     );
     if (outcome == null || !mounted) return;
 

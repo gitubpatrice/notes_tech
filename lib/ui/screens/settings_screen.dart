@@ -1009,6 +1009,11 @@ class _GemmaModelSectionState extends State<_GemmaModelSection> {
         content: Text(t.gemmaUninstallConfirm),
         actions: [
           TextButton(
+            // Autofocus sur Annuler comme les autres dialogs destructifs.
+            // Celui-ci l'est particulièrement : l'app n'a pas la permission
+            // INTERNET, un modèle désinstallé doit être ré-importé à la main
+            // depuis un fichier de plusieurs Go.
+            autofocus: true,
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(t.commonCancel),
           ),

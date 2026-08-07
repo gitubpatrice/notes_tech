@@ -104,9 +104,22 @@ enum FolderDeletionChoice {
 ///   explicite « Supprimer DÉFINITIVEMENT le dossier et son contenu »
 ///   sans corbeille possible. L'utilisateur doit le viser.
 /// - Annuler reste prioritaire en haut de la pile (UX Material).
+/// [isVault] change la nature de l'avertissement, pas seulement son ton.
+///
+/// ⚠️ Pour un coffre, « Déplacer vers Boîte de réception » DÉCHIFFRE toutes
+/// les notes et les écrit en clair en base (`decryptAllNotesInFolder`). Le
+/// dialog demandait « Que faire des notes de X ? » sans le dire, et
+/// présentait ce choix en `FilledButton` — c'est-à-dire comme l'option sûre.
+/// L'action la plus destructrice pour la confidentialité était celle qui
+/// avait l'air la plus anodine.
+///
+/// Sortir UNE note d'un coffre, elle, était confirmée par un dialog explicite
+/// depuis la v1.1.0 (`noteEditorExitVaultBody`). Vider un coffre entier ne
+/// l'était pas : jumeau asymétrique, et du mauvais côté.
 Future<FolderDeletionChoice?> confirmDeleteFolder({
   required BuildContext context,
   required String folderName,
+  bool isVault = false,
 }) async {
   return showDialog<FolderDeletionChoice>(
     context: context,
@@ -114,12 +127,25 @@ Future<FolderDeletionChoice?> confirmDeleteFolder({
       final cs = Theme.of(ctx).colorScheme;
       final t = AppLocalizations.of(ctx);
       return AlertDialog(
-        icon: const ExcludeSemantics(child: Icon(Icons.delete_outline)),
+        icon: ExcludeSemantics(
+          child: Icon(
+            isVault ? Icons.lock_open : Icons.delete_outline,
+            color: isVault ? cs.error : null,
+          ),
+        ),
         title: Semantics(header: true, child: Text(t.folderDeleteTitle)),
-        content: Text(t.folderDeleteChoiceBody(folderName)),
+        content: Text(
+          isVault
+              ? t.folderDeleteVaultChoiceBody(folderName)
+              : t.folderDeleteChoiceBody(folderName),
+        ),
         actionsOverflowDirection: VerticalDirection.down,
         actions: [
           TextButton(
+            // Autofocus sur Annuler, comme les autres dialogs destructifs
+            // (corbeille, sortie de coffre) — c'était le seul à ne pas
+            // l'avoir, alors qu'il porte le choix le plus lourd.
+            autofocus: true,
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(t.commonCancel),
           ),
@@ -134,12 +160,27 @@ Future<FolderDeletionChoice?> confirmDeleteFolder({
               style: TextStyle(color: cs.error),
             ),
           ),
-          FilledButton.icon(
-            onPressed: () =>
-                Navigator.of(ctx).pop(FolderDeletionChoice.moveToInbox),
-            icon: const ExcludeSemantics(child: Icon(Icons.inbox_outlined)),
-            label: Text(t.folderDeleteMoveToInbox),
-          ),
+          // Pour un coffre, ce choix n'est PAS l'option sûre : il déchiffre
+          // tout. Il perd donc son statut de bouton par défaut et prend les
+          // couleurs d'avertissement, comme la sortie de coffre d'une note.
+          if (isVault)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.errorContainer,
+                foregroundColor: cs.onErrorContainer,
+              ),
+              onPressed: () =>
+                  Navigator.of(ctx).pop(FolderDeletionChoice.moveToInbox),
+              icon: const ExcludeSemantics(child: Icon(Icons.lock_open)),
+              label: Text(t.folderDeleteMoveToInboxVault),
+            )
+          else
+            FilledButton.icon(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(FolderDeletionChoice.moveToInbox),
+              icon: const ExcludeSemantics(child: Icon(Icons.inbox_outlined)),
+              label: Text(t.folderDeleteMoveToInbox),
+            ),
         ],
       );
     },

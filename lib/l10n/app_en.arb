@@ -359,8 +359,17 @@
       }
     }
   },
+  "folderDeleteVaultChoiceBody": "\"{name}\" is a vault. Moving its notes to the Inbox DECRYPTS every one of them and writes them to the database in the clear, with no passphrase protection. This cannot be undone: they will have existed unencrypted, even if you put them back into a vault afterwards.",
+  "@folderDeleteVaultChoiceBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "folderDeletePermanent": "Delete permanently",
   "folderDeleteMoveToInbox": "Move to Inbox",
+  "folderDeleteMoveToInboxVault": "Decrypt and move",
   "folderDeleteDecryptFailed": "Cannot decrypt {n} note(s).",
   "@folderDeleteDecryptFailed": {
     "placeholders": {

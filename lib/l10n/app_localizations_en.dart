@@ -725,10 +725,18 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String folderDeleteVaultChoiceBody(String name) {
+    return '\"$name\" is a vault. Moving its notes to the Inbox DECRYPTS every one of them and writes them to the database in the clear, with no passphrase protection. This cannot be undone: they will have existed unencrypted, even if you put them back into a vault afterwards.';
+  }
+
+  @override
   String get folderDeletePermanent => 'Delete permanently';
 
   @override
   String get folderDeleteMoveToInbox => 'Move to Inbox';
+
+  @override
+  String get folderDeleteMoveToInboxVault => 'Decrypt and move';
 
   @override
   String folderDeleteDecryptFailed(int n) {

@@ -1358,6 +1358,12 @@ abstract class AppLocalizations {
   /// **'What to do with notes from “{name}”?'**
   String folderDeleteChoiceBody(String name);
 
+  /// No description provided for @folderDeleteVaultChoiceBody.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{name}\" is a vault. Moving its notes to the Inbox DECRYPTS every one of them and writes them to the database in the clear, with no passphrase protection. This cannot be undone: they will have existed unencrypted, even if you put them back into a vault afterwards.'**
+  String folderDeleteVaultChoiceBody(String name);
+
   /// No description provided for @folderDeletePermanent.
   ///
   /// In en, this message translates to:
@@ -1369,6 +1375,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move to Inbox'**
   String get folderDeleteMoveToInbox;
+
+  /// No description provided for @folderDeleteMoveToInboxVault.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypt and move'**
+  String get folderDeleteMoveToInboxVault;
 
   /// No description provided for @folderDeleteDecryptFailed.
   ///
