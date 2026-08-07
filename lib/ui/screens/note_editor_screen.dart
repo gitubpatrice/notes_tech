@@ -556,6 +556,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // déclencher d'écriture en base.
     await NoteActions.instance.copyMarkdown(
       n.copyWith(title: _titleCtrl.text, content: _contentCtrl.text),
+      // `_wasLocked` dit que la note vient d'un coffre : le presse-papiers
+      // refusera le repli non sécurisé plutôt que de dégrader la protection.
+      fromVault: _wasLocked,
     );
     if (!mounted) return;
     context.showFloatingSnack(t.noteEditorCopiedToClipboard);

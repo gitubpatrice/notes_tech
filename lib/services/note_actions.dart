@@ -7,6 +7,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
+import '../core/exceptions.dart';
 import '../data/models/note.dart';
 
 class NoteActions {
@@ -38,15 +39,17 @@ class NoteActions {
 
   /// Copie le contenu Markdown brut dans le presse-papier avec marquage
   /// "sensible" (Android 13+) + auto-clear 60 s.
-  Future<void> copyMarkdown(Note note) async {
+  /// [fromVault] : la note vient d'un dossier coffre. Le repli non sécurisé
+  /// est alors REFUSÉ — voir `_copySensitive`.
+  Future<void> copyMarkdown(Note note, {bool fromVault = false}) async {
     final text = note.content;
-    await _copySensitive(text);
+    await _copySensitive(text, refuserRepli: fromVault);
   }
 
   /// Implémentation factorisable : tente le path natif sensitive, retombe
   /// sur `Clipboard.setData` standard si le channel n'est pas disponible
   /// (tests, plate-formes non supportées).
-  Future<void> _copySensitive(String text) async {
+  Future<void> _copySensitive(String text, {bool refuserRepli = false}) async {
     bool nativeOk = false;
     try {
       final r = await _channel.invokeMethod<bool>('copySensitive', {
@@ -57,6 +60,24 @@ class NoteActions {
       nativeOk = false;
     }
     if (!nativeOk) {
+      // ⚠️ REPLI REFUSÉ POUR LE CONTENU D'UN COFFRE.
+      //
+      // Le repli posait le texte dans le presse-papiers ORDINAIRE quand le
+      // canal natif échouait — donc sans le marqueur « sensible » d'Android
+      // 13+, qui empêche l'aperçu et signale aux gestionnaires de ne pas
+      // historiser. Pour du contenu de coffre, c'était un repli qui échoue du
+      // mauvais côté : en cas de problème, l'application dégradait la
+      // protection au lieu de refuser. Relevé par une relecture externe
+      // (GPT-5.5).
+      //
+      // Hors coffre, le repli reste : refuser toute copie parce qu'un canal
+      // de plateforme manque casserait une fonction ordinaire sans rien
+      // protéger de sensible.
+      if (refuserRepli) {
+        throw const NotesTechException(
+          'Copie refusée : le presse-papiers sécurisé est indisponible.',
+        );
+      }
       await Clipboard.setData(ClipboardData(text: text));
     }
     _ownTextSnapshot = text;

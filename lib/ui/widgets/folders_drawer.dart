@@ -94,6 +94,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     );
     if (name == null || !mounted) return;
     final folder = await _repo.create(name: name);
+    if (!mounted) return;
     widget.onSelect(folder.id);
     if (mounted) Navigator.of(context).pop(); // ferme le drawer
   }
@@ -148,7 +149,11 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
             // encore ouverte ici : on répare tout de suite plutôt que
             // d'attendre le prochain déverrouillage. Relevé par une relecture
             // externe (Gemini 3.1 Pro).
-            await vault.retryProtectPlaintextNotes(folder.id);
+            try {
+              await vault.retryProtectPlaintextNotes(folder.id);
+            } catch (_) {
+              /* meme raison qu'en dessous : ne pas masquer l'erreur */
+            }
             if (!mounted) return;
             // Contraste WCAG AA via le helper canonique.
             messenger.showErrorSnack(
@@ -179,7 +184,16 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
         await moveAllNotesToInbox(_notes, fromFolderId: folder.id);
       } catch (e) {
         if (folder.isVault) {
-          await vault.retryProtectPlaintextNotes(folder.id);
+          // Enveloppee : si la reparation leve a son tour, son exception
+          // REMPLACAIT celle du deplacement et court-circuitait le message
+          // destine a l'utilisateur — qui ne voyait donc RIEN alors que son
+          // coffre venait d'etre dechiffre. Releve par une relecture externe
+          // (GPT-5.5).
+          try {
+            await vault.retryProtectPlaintextNotes(folder.id);
+          } catch (_) {
+            /* la reprotection au prochain deverrouillage rattrapera */
+          }
         }
         if (!mounted) return;
         messenger.showErrorSnack(
@@ -194,13 +208,33 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     // RAM et évite qu'un futur dossier réutilisant l'id (improbable vu
     // l'UUID v4) hérite d'une session fantôme.
     if (folder.isVault) vault.lock(folder.id);
-    // Coffre PIN : supprime aussi la clé Keystore (alias = vault_pin_<id>)
-    // pour ne pas laisser d'orphelin dans le TEE/StrongBox.
-    if (folder.isPinVault) {
-      await vault.deletePinKey(folder.id);
-    }
+
+    // ⚠️ L'ORDRE EST INVERSE PAR RAPPORT A CE QU'IL ETAIT, et c'est le point.
+    //
+    // La cle Keystore etait supprimee AVANT le dossier. Si la suppression en
+    // base echouait ensuite — base verrouillee, stockage plein, erreur SQL —
+    // le dossier et ses notes CHIFFREES restaient, mais la cle qui permet de
+    // les ouvrir avait disparu. Le coffre devenait definitivement
+    // inaccessible : perte de donnees irreversible, sur une operation qui
+    // n'etait meme pas censee echouer. Releve en CRITIQUE par une relecture
+    // externe (GPT-5.5).
+    //
+    // Dans l'ordre actuel, un echec de la suppression en base laisse le
+    // coffre INTACT et ouvrable. Et si la suppression de la cle echoue apres,
+    // on laisse un alias orphelin dans le TEE — sans blob correspondant en
+    // base, il est inutile a qui que ce soit.
     await _repo.delete(folder.id);
+    if (folder.isPinVault) {
+      // Best-effort : le dossier est deja parti, un echec ici ne doit pas
+      // faire remonter une erreur sur une suppression qui a reussi.
+      try {
+        await vault.deletePinKey(folder.id);
+      } catch (_) {
+        /* alias orphelin dans le TEE, sans blob : inexploitable */
+      }
+    }
     // Si l'utilisateur regardait ce dossier, on retombe sur "Toutes".
+    if (!mounted) return;
     if (widget.currentFolderId == folder.id) {
       widget.onSelect(null);
     }
@@ -423,6 +457,10 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
         ),
       ),
     );
+    // La feuille est modale : l'ecran parent peut avoir ete demonte pendant
+    // qu'elle etait ouverte. Chacune des actions ci-dessous lit `context` des
+    // sa premiere ligne. Releve par une relecture externe (GPT-5.5).
+    if (!mounted) return;
     if (action == _FolderAction.rename) await _renameFolder(folder);
     if (action == _FolderAction.delete) await _deleteFolder(folder);
     if (action == _FolderAction.convertToVault) await _convertToVault(folder);
