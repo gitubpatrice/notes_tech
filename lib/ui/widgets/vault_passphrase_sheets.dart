@@ -83,6 +83,15 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet>
 
   @override
   void dispose() {
+    // ⚠️ VIDER AVANT DE DISPOSER. `dispose()` libère le contrôleur mais ne
+    // touche pas à la `String` qu'il détient : la passphrase restait
+    // référencée jusqu'au passage du ramasse-miettes, sur TOUS les chemins de
+    // sortie — succès, annulation, retour système. Dart n'offre pas de
+    // chaîne effaçable ; vider le contrôleur est ce qu'on peut faire, et
+    // c'est mieux que rien. Relevé en CRITIQUE par une relecture externe
+    // (GPT-5.5).
+    _pass1.clear();
+    _pass2.clear();
     _pass1.dispose();
     _pass2.dispose();
     super.dispose();
@@ -90,7 +99,12 @@ class _CreateVaultSheetState extends State<_CreateVaultSheet>
 
   void _submit() {
     if (!_canSubmit) return;
-    Navigator.of(context).pop(_pass1.text);
+    // La valeur est lue AVANT d'être effacée : l'appelant la reçoit, le
+    // champ ne la garde pas.
+    final saisie = _pass1.text;
+    _pass1.clear();
+    _pass2.clear();
+    Navigator.of(context).pop(saisie);
   }
 
   @override
@@ -217,6 +231,10 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
 
   @override
   void dispose() {
+    // Même raison que la feuille de création : vider avant de disposer, pour
+    // que la passphrase ne reste pas référencée après une annulation ou un
+    // retour système.
+    _passCtrl.clear();
     _passCtrl.dispose();
     super.dispose();
   }
@@ -254,8 +272,17 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = t.commonErrorWith(e.toString());
+        // ⚠️ PAS DE `e.toString()` SUR UN ÉCRAN DE DÉVERROUILLAGE. Une
+        // exception de couche basse peut porter un alias Keystore, un chemin
+        // de fichier, un détail de format — voire la valeur fautive. Le type
+        // suffit à diagnostiquer sans rien exposer. Relevé par une relecture
+        // externe (GPT-5.5).
+        _error = t.commonErrorWith(e.runtimeType.toString());
       });
+      // Le champ est vidé sur CE chemin aussi : jusqu'ici seule l'erreur de
+      // passphrase incorrecte le faisait, et une erreur technique laissait la
+      // saisie à l'écran et en mémoire.
+      _passCtrl.clear();
     }
   }
 

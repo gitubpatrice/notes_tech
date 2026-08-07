@@ -180,7 +180,14 @@ class _CreatePinSheet extends StatefulWidget {
 
 enum _CreateStep { first, confirm }
 
-class _CreatePinSheetState extends State<_CreatePinSheet> {
+class _CreatePinSheetState extends State<_CreatePinSheet>
+    with SecureWindowGuardMixin {
+  // ⚠️ `SecureWindowGuardMixin` MANQUAIT ICI alors que le déverrouillage
+  // l'avait — jumeau asymétrique. Pendant la création d'un PIN, l'écran
+  // était donc capturable : capture, enregistrement vidéo, vue « récents »
+  // ou mirroring. Les chiffres ne s'affichent qu'en points, mais le pavé
+  // est visible et les ondulations de tap trahissent la position des
+  // touches sur une vidéo. Relevé par une relecture externe (GPT-5.5).
   // ValueNotifiers : le pavé numérique ne dépend que de `_busyN` (toujours
   // false dans CreatePin, mais structure identique à Unlock pour
   // cohérence) — l'ajout d'un chiffre ne le rebuild PAS.
@@ -191,6 +198,12 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
 
   @override
   void dispose() {
+    // ⚠️ VIDER AVANT DE DISPOSER. Le PIN vivait dans `_entryN` et `_firstPin`
+    // jusqu'au ramasse-miettes, sur tous les chemins de sortie. Dart n'a pas
+    // de chaîne effaçable ; lâcher la référence est ce qu'on peut faire.
+    // Relevé en CRITIQUE par une relecture externe (GPT-5.5).
+    _entryN.value = '';
+    _firstPin = '';
     _entryN.dispose();
     _errorN.dispose();
     _stepN.dispose();
@@ -233,7 +246,12 @@ class _CreatePinSheetState extends State<_CreatePinSheet> {
       _stepN.value = _CreateStep.first;
       return;
     }
-    Navigator.of(context).pop(_firstPin);
+    // Lu AVANT effacement : l'appelant reçoit le PIN, le widget ne le garde
+    // pas le temps de l'animation de fermeture.
+    final pin = _firstPin;
+    _firstPin = '';
+    _entryN.value = '';
+    Navigator.of(context).pop(pin);
   }
 
   @override
@@ -368,6 +386,8 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
 
   @override
   void dispose() {
+    // Même raison que la feuille de création.
+    _entryN.value = '';
     _entryN.dispose();
     _errorN.dispose();
     _busyN.dispose();
@@ -417,6 +437,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
           TextDirection.ltr,
         ),
       );
+      _entryN.value = ''; // le PIN correct ne doit pas survivre au succès
       Navigator.of(context).pop(true);
     } on WrongPinException catch (e) {
       if (!mounted) return;
@@ -428,6 +449,9 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
       if (!mounted) return;
       _busyN.value = false;
       _wipedN.value = true;
+      // Le coffre vient d'être DÉTRUIT : garder le dernier PIN saisi n'a
+      // aucune utilité et c'est le pire moment pour le conserver.
+      _entryN.value = '';
       _errorN.value = t.vaultPinWiped;
       // A11y : annonce critique, l'utilisateur DOIT savoir que le coffre
       // a été détruit même s'il ne lit pas l'écran.
@@ -436,7 +460,11 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
     } catch (e) {
       if (!mounted) return;
       _busyN.value = false;
-      _errorN.value = t.commonErrorWith(e.toString());
+      _entryN.value = '';
+      // Pas d'exception brute sur un écran de déverrouillage : elle peut
+      // porter un alias Keystore, un chemin, un détail de format. Le type
+      // suffit à diagnostiquer sans rien exposer.
+      _errorN.value = t.commonErrorWith(e.runtimeType.toString());
     }
   }
 

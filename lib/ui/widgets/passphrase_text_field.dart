@@ -54,11 +54,18 @@ class _PassphraseTextFieldState extends State<PassphraseTextField> {
       // `autocorrect/enableSuggestions: false` qui peut être ignoré par
       // certains claviers Android).
       keyboardType: TextInputType.visiblePassword,
-      // U11 v1.0.9 — sélection/copie désactivée tant que masqué : empêche
-      // un long-press → "Tout sélectionner" → Copier qui exposerait la
-      // passphrase au clipboard (capté par les clipboard managers tiers
-      // sur Android 13-).
-      enableInteractiveSelection: !_hidden,
+      // Sélection et copie désactivées EN PERMANENCE.
+      //
+      // La condition était `!_hidden` : la copie redevenait possible dès que
+      // l'utilisateur appuyait sur l'œil pour relire sa saisie — c'est-à-dire
+      // au moment précis où le secret est le plus exposé. Un long-press →
+      // « Tout sélectionner » → Copier envoyait la passphrase au
+      // presse-papiers, lisible par les gestionnaires tiers et par certains
+      // claviers. Relevé par une relecture externe (GPT-5.5).
+      //
+      // Le coût est nul : on ne copie pas une passphrase qu'on est en train
+      // de saisir, et le bouton œil sert à la RELIRE, pas à la manipuler.
+      enableInteractiveSelection: false,
       textInputAction: widget.textInputAction,
       onSubmitted: widget.onSubmitted,
       decoration: InputDecoration(

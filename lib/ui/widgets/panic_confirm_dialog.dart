@@ -56,11 +56,20 @@ class _PanicDialogState extends State<_PanicDialog> {
   }
 
   void _onChanged() {
-    // Comparaison case-insensitive : `textCapitalization.characters`
-    // ne s'applique pas aux claviers physiques ni à certains IME
-    // tiers, et l'utilisateur sous stress peut taper le mot sans
-    // forcer la majuscule. Le geste reste délibéré (mot exact tapé).
-    final ok = _controller.text.trim().toUpperCase() == _keyword.toUpperCase();
+    // Comparaison insensible à la casse : `textCapitalization.characters` ne
+    // s'applique ni aux claviers physiques ni à certains IME tiers, et
+    // l'utilisateur sous stress peut taper le mot sans majuscule. Le geste
+    // reste délibéré — il faut avoir tapé le mot.
+    //
+    // ⚠️ GARDE SUR UN MOT-CLÉ VIDE. Sans elle, une localisation cassée
+    // renvoyant `''` rendait la comparaison vraie sur un champ VIDE : le
+    // bouton d'effacement irréversible se serait activé tout seul, sans que
+    // l'utilisateur ait rien tapé. Relevé par une relecture externe
+    // (GPT-5.5).
+    final saisi = _controller.text.trim();
+    final ok =
+        _keyword.trim().isNotEmpty &&
+        saisi.toUpperCase() == _keyword.trim().toUpperCase();
     if (ok != _canConfirm) setState(() => _canConfirm = ok);
   }
 
