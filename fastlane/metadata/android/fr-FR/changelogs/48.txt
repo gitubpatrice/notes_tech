@@ -1,0 +1,11 @@
+Version majeure : l'IA est retiree.
+
+La recherche semantique et le Q&A Gemma disparaissent. L'APK passe de 290 Mo a 27 Mo. La recherche reste plein-texte, instantanee.
+
+Coffres : le titre d'une note ne peut plus partir en clair ; supprimer un dossier purge la base avant la cle, plus de coffre illisible.
+
+Mode panique : ne declare plus l'effacement termine quand une etape a echoue.
+
+Presse-papiers : purge fiable apres plusieurs copies.
+
+Mise a jour irreversible : pas de retour a la 1.x.
