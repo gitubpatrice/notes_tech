@@ -82,3 +82,84 @@ jobs:
           path: notes_tech/build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 7
           if-no-files-found: ignore
+
+  # Tests SUR ÉMULATEUR — la chaîne de sécurité de cette app (SQLCipher,
+  # Keystore Android, Argon2id, triggers FTS5) ne s'instancie pas dans un
+  # `flutter test`. Le bug qui déchiffrait une note de coffre à l'épinglage
+  # écrivait dans la vraie base : aucun test pure-Dart ne pouvait le voir.
+  # Sans ce job, ces tests-là ne tournent que lancés à la main.
+  #
+  # Volontairement PAS sur les branches de travail : un émulateur coûte
+  # ~10-15 min et reste la source de flakiness la plus courante en CI. Le
+  # gate rapide (analyse + tests unitaires) tourne à chaque commit, celui-ci
+  # à la proposition de fusion et sur `main`. C'est le compromis entre une
+  # garde réelle et une CI que l'on finit par ignorer parce qu'elle est rouge
+  # sans raison.
+  integration:
+    name: Tests sur émulateur (coffre)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v6
+        with:
+          path: notes_tech
+
+      - name: Checkout files_tech_voice (path dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: gitubpatrice/files_tech_voice
+          path: files_tech_voice
+
+      - name: Checkout files_tech_core (path dependency)
+        uses: actions/checkout@v6
+        with:
+          repository: gitubpatrice/files_tech_core
+          path: files_tech_core
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: notes_tech
+        run: flutter pub get
+
+      # KVM : sans accélération matérielle l'émulateur démarre en plusieurs
+      # dizaines de minutes et finit en timeout.
+      - name: Activer KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # API 30 = même niveau que le gate instrumenté de SMS Tech, et au-dessus
+      # du minSdk 23 de l'app. `google_apis` et non `default` : le Keystore
+      # matériel simulé y est plus proche d'un appareil réel.
+      - name: Tests d'intégration sur émulateur API 30
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          working-directory: notes_tech
+          # Pas de `-d` ici, contrairement à la règle locale : le runner
+          # n'a qu'un seul appareil, l'émulateur que cette action vient de
+          # démarrer, et aucun téléphone réel n'y est branché. Sur un poste
+          # de développement, `-d` reste obligatoire — sans lui la commande
+          # vise TOUS les appareils connectés, et l'installation désinstalle
+          # l'app en cas de downgrade de versionCode.
+          script: flutter test integration_test
