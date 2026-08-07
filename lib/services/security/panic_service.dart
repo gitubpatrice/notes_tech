@@ -422,21 +422,43 @@ class PanicService {
   Future<void> _purgeTempDirectory() async {
     final tmp = await getTemporaryDirectory();
     if (!await tmp.exists()) return;
-    final survivants = <String>[];
+    final survivantsSensibles = <String>[];
     await for (final entity in tmp.list()) {
+      final nom = entity.path.split(RegExp(r'[\/]')).last;
       try {
         await entity.delete(recursive: true);
       } catch (_) {
         // Certains fichiers peuvent être tenus par un autre processus. On
-        // continue la boucle, mais on ne le tait pas.
-        survivants.add(entity.path.split('/').last);
+        // continue la boucle, mais on ne signale QUE ce qui nous appartient.
+        if (_estArtefactSensible(nom)) survivantsSensibles.add(nom);
       }
     }
-    if (survivants.isNotEmpty) {
+    if (survivantsSensibles.isNotEmpty) {
       throw DatabaseException(
-        'Fichiers temporaires non effacés : ${survivants.join(', ')}',
+        'Fichiers temporaires non effacés : ${survivantsSensibles.join(', ')}',
       );
     }
+  }
+
+  /// Dit si une entrée du dossier temporaire est un artefact de CETTE
+  /// application susceptible de contenir du contenu de note.
+  ///
+  /// ⚠️ SANS CE FILTRE, LE MODE PANIQUE SE DÉCLARERAIT TOUJOURS INCOMPLET.
+  /// `getTemporaryDirectory()` est partagé : plugins Flutter, composants
+  /// système et caches divers y écrivent, et certains tiennent leurs fichiers
+  /// ouverts. Faire échouer l'étape sur n'importe quel résidu transformait
+  /// l'avertissement « effacement incomplet » en alarme permanente — donc en
+  /// bruit qu'on apprend à ignorer, exactement au moment où il doit être cru.
+  /// Relevé par une relecture externe (GPT-5.5).
+  ///
+  /// Ce qui nous appartient : le dossier `exports/`, les ZIP d'export, les
+  /// `.md` d'export unitaire et les WAV de dictée.
+  static bool _estArtefactSensible(String nom) {
+    final n = nom.toLowerCase();
+    return n == 'exports' ||
+        n.endsWith('.zip') ||
+        n.endsWith('.md') ||
+        n.endsWith('.wav');
   }
 
   /// Purge `<appSupport>/models/` : modèle Gemma importé et cache MiniLM,

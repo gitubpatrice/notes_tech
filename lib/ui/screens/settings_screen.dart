@@ -544,7 +544,12 @@ class _ExportSectionState extends State<_ExportSection> {
         final partage = await Share.shareXFiles([
           XFile(file.path, mimeType: 'application/zip'),
         ], subject: t.exportShareSubject(result.exportedCount));
-        if (partage.status != ShareResultStatus.success) {
+        // ⚠️ SEULEMENT SUR UNE ANNULATION CERTAINE. `unavailable` ne veut pas
+        // dire « annulé » : il veut dire « la plateforme ne sait pas ». Le
+        // destinataire peut très bien avoir reçu l'URI et lire plus tard —
+        // supprimer sur ce statut cassait le partage. Relevé par une
+        // relecture externe (GPT-5.5).
+        if (partage.status == ShareResultStatus.dismissed) {
           try {
             if (await file.exists()) await file.delete();
           } catch (_) {
