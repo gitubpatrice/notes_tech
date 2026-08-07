@@ -307,11 +307,14 @@ class _HomeScreenState extends State<HomeScreen> {
               // dossier quand un filtre est actif → pas de logo app dessus).
               if (_currentFolderName == null) ...[
                 ExcludeSemantics(
-                  child: Image.asset(
-                    'assets/logo_damier.png',
-                    width: 26,
-                    height: 26,
-                    filterQuality: FilterQuality.high,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/logo_damier.png',
+                      width: 26,
+                      height: 26,
+                      filterQuality: FilterQuality.high,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
