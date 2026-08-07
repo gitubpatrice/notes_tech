@@ -338,7 +338,9 @@ class _SectionTitle extends StatelessWidget {
           style: theme.textTheme.titleMedium?.copyWith(
             color: theme.colorScheme.primary,
             fontWeight: FontWeight.w700,
-            fontSize: 17,
+            // 17 -> 15 : les titres de section pesaient plus lourd que le
+            // `titleMedium` du theme (16) qu'ils sont censes suivre.
+            fontSize: 15,
             letterSpacing: 0.3,
           ),
         ),

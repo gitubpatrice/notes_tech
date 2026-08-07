@@ -27,6 +27,7 @@ import 'data/repositories/links_repository.dart';
 import 'data/repositories/notes_repository.dart';
 import 'services/backlinks_service.dart';
 import 'services/first_launch_flag.dart';
+import 'services/legacy_model_files.dart';
 import 'services/secure_window_service.dart';
 import 'services/security/folder_vault_service.dart';
 import 'services/security/panic_service.dart';
@@ -203,15 +204,13 @@ Future<void> _purgeOrphanModelsOnce() async {
   try {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(AppConstants.prefKeyOrphanModelsPurged) ?? false) return;
-    final dir = await getApplicationSupportDirectory();
-    final models = Directory('${dir.path}/models');
-    if (await models.exists()) {
-      await models.delete(recursive: true);
+    // Le drapeau n'est posé qu'en cas de SUCCÈS : une I/O ratée doit être
+    // réessayée au démarrage suivant, pas oubliée.
+    if (await LegacyModelFiles.purge()) {
+      await prefs.setBool(AppConstants.prefKeyOrphanModelsPurged, true);
     }
-    await prefs.setBool(AppConstants.prefKeyOrphanModelsPurged, true);
   } catch (_) {
-    // Best-effort : réessayé au prochain démarrage, le drapeau n'est posé
-    // qu'en cas de succès.
+    // Best-effort — la lecture de préférence elle-même peut échouer.
   }
 }
 

@@ -59,8 +59,12 @@ class BacklinksService {
   /// les frappes utilisateur pour que les backlinks remontent vite dans le
   /// panneau latéral. Cette valeur était volontairement plus courte que le
   /// debounce de 3 s de l'indexeur sémantique, qui espaçait des passes CPU
-  /// coûteuses ; cet indexeur a disparu en v1.1.7 et `BacklinksService` est
-  /// désormais le seul service réagissant aux écritures.
+  /// coûteuses ; cet indexeur a disparu en v1.1.7.
+  ///
+  /// `BacklinksService` est le seul SERVICE abonné à `NotesRepository.changes`
+  /// — mais pas le seul abonné : `HomeScreen` et `NoteEditorScreen` y
+  /// écoutent aussi pour se rafraîchir. Un événement par note les noierait
+  /// tous les trois, d'où le `NoteChangeEvent.bulk` des écritures en lot.
   static const Duration _writeDebounce = Duration(milliseconds: 500);
 
   /// Dernière erreur d'indexation, si pertinente pour l'UI.

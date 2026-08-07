@@ -62,6 +62,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
 import '../../data/db/database.dart';
+import '../legacy_model_files.dart';
 import '../note_actions.dart';
 import '../secure_window_service.dart';
 import '../voice/voice_service.dart';
@@ -114,10 +115,14 @@ enum PanicStep {
   /// ⚠️ CONSERVÉE malgré le retrait de l'IA, et c'est délibéré : un
   /// utilisateur qui met à jour depuis une version ≤ 1.1.6 a encore ces
   /// fichiers sur son téléphone (jusqu'à 530 Mo pour Gemma). Le mode panique
-  /// doit continuer de les effacer. L'étape `gemmaUninstall`, elle, a été
-  /// SUPPRIMÉE : elle passait par un service qui n'existe plus, donc elle ne
-  /// s'exécutait plus — une étape déclarée qui ne tourne jamais est un
-  /// mensonge dans `PanicReport.steps`.
+  /// doit continuer de les effacer.
+  ///
+  /// ⚠️ À NE PAS CONFONDRE avec une AUTRE étape, `gemmaUninstall`, qui a bien
+  /// été supprimée, elle : elle passait par un service qui n'existe plus,
+  /// donc elle ne s'exécutait plus, et une étape déclarée qui ne tourne
+  /// jamais est un mensonge dans `PanicReport.steps`. Cette distinction a
+  /// déjà été mal lue une fois en relecture : ne pas supprimer l'étape
+  /// ci-dessous en croyant appliquer ce paragraphe.
   legacyModelsWipe,
   prefsClear,
 
@@ -392,14 +397,8 @@ class PanicService {
   /// `main.dart`) ; ce double geste est voulu : la panique ne doit dépendre
   /// d'aucune purge antérieure ayant réussi.
   Future<void> _wipeLegacyModelFiles() async {
-    try {
-      final dir = await getApplicationSupportDirectory();
-      final modelsDir = Directory('${dir.path}/models');
-      if (await modelsDir.exists()) {
-        await modelsDir.delete(recursive: true);
-      }
-    } catch (_) {
-      // Best-effort.
-    }
+    // Le retour est volontairement ignoré : `_runStep` enregistre déjà
+    // l'issue de l'étape, et la panique continue quoi qu'il arrive.
+    await LegacyModelFiles.purge();
   }
 }

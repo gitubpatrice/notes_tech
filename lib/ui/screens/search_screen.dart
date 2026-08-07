@@ -1,7 +1,8 @@
 /// Recherche plein-texte (FTS5).
 ///
-/// Toggle utilisateur : `Mots exacts` / `Similaires`. La barre supérieure
-/// affiche un compteur du nombre de notes indexées en mode similarité.
+/// Mode unique depuis v1.1.7. L'écran portait un sélecteur
+/// `Mots exacts` / `Similaires` et un compteur de notes indexées : les deux
+/// ont disparu avec la recherche sémantique.
 library;
 
 import 'dart:async';
