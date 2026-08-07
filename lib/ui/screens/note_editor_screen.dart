@@ -543,7 +543,20 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // U1 v1.1.0 — feedback haptique sur copy (selectionClick = action
     // utilisateur réussie). Aligné Pass Tech v2.4.4 U9 / AI Tech U4.
     await HapticFeedback.selectionClick();
-    await NoteActions.instance.copyMarkdown(n);
+    // ⚠️ COPIER CE QUI EST À L'ÉCRAN, PAS LA DERNIÈRE VERSION ENREGISTRÉE.
+    //
+    // `_note` porte l'état du dernier enregistrement. L'auto-save est
+    // débouncé à 500 ms : copier juste après avoir tapé rendait un texte
+    // amputé des derniers caractères — parfois du dernier mot, parfois de la
+    // dernière phrase si la frappe était continue. Silencieusement, puisque
+    // la copie « réussissait ».
+    //
+    // Les contrôleurs sont la seule source exacte de ce que l'utilisateur
+    // voit. On les lit directement : au caractère près, sans attendre ni
+    // déclencher d'écriture en base.
+    await NoteActions.instance.copyMarkdown(
+      n.copyWith(title: _titleCtrl.text, content: _contentCtrl.text),
+    );
     if (!mounted) return;
     context.showFloatingSnack(t.noteEditorCopiedToClipboard);
   }
