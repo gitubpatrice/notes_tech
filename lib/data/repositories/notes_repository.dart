@@ -72,9 +72,34 @@ class NotesRepository {
   /// chiffré. On lève plutôt que de persister — c'est le cas d'un auto-lock
   /// qui tombe pendant l'édition, et écrire en clair y serait exactement la
   /// fuite qu'on cherche à empêcher.
+  /// Dit si [note] transporte encore du texte lisible qu'un coffre devrait
+  /// protéger.
+  ///
+  /// ⚠️ LA PRÉSENCE D'UN BLOB NE SUFFIT PAS à conclure que tout est protégé,
+  /// et c'était le trou : `_sealIfVault` retournait dès
+  /// `encryptedContent != null`, donc une note portant un blob ET du clair
+  /// ajouté à côté traversait toutes les défenses. Relevé en CRITIQUE par une
+  /// relecture externe (Gemini 3.1 Pro) sur le correctif lui-même.
+  ///
+  /// Le test ne peut pas être « blob présent ⇒ rien en clair » : le format v1
+  /// est LÉGITIMEMENT un blob de contenu avec le titre en clair dans la
+  /// colonne. On distingue donc par le format :
+  ///   - `content` non vide à côté d'un blob : jamais légitime, quel que soit
+  ///     le format — le contenu est vidé au chiffrement ;
+  ///   - `title` non vide en format v2 : jamais légitime — le titre a rejoint
+  ///     le blob et la colonne doit être vide ;
+  ///   - `title` non vide en format v1 : normal, c'est l'état hérité.
+  bool _porteDuClair(Note note) {
+    if (note.encryptedContent == null) {
+      return note.title.isNotEmpty || note.content.isNotEmpty;
+    }
+    if (note.content.isNotEmpty) return true;
+    return note.encVersion == Note.kEncVersionTitleAndContent &&
+        note.title.isNotEmpty;
+  }
+
   Future<Note> _sealIfVault(Note note, String operation) async {
-    if (note.encryptedContent != null) return note;
-    if (note.title.isEmpty && note.content.isEmpty) return note;
+    if (!_porteDuClair(note)) return note;
     final isVault = _isVaultFolder;
     if (isVault == null) return note;
     if (!await isVault(note.folderId)) return note;
