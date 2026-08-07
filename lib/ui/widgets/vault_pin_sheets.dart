@@ -284,13 +284,13 @@ class _CreatePinSheetState extends State<_CreatePinSheet>
               ),
             ),
             const SizedBox(height: 12),
-            ValueListenableBuilder<_CreateStep>(
-              valueListenable: _stepN,
-              builder: (_, step, _) {
-                if (step != _CreateStep.first) return const SizedBox.shrink();
-                return VaultWarningBanner(message: t.vaultPinWarningWipe);
-              },
-            ),
+            // ⚠️ Bannière affichée aux DEUX étapes, volontairement. Elle ne
+            // l'était qu'à la première : en passant à la confirmation, elle
+            // disparaissait et faisait descendre tout le pavé de 70 à 90 dp,
+            // soit plus d'une hauteur de touche. L'utilisateur appuyait là où
+            // la touche venait de ne plus être. L'avertissement (auto-effacement
+            // à 5 tentatives) vaut de toute façon pour les deux étapes.
+            VaultWarningBanner(message: t.vaultPinWarningWipe),
             const SizedBox(height: 18),
             // Dots : reconstruits SEULS sur change de _entry — léger.
             ValueListenableBuilder<String>(
@@ -302,19 +302,19 @@ class _CreatePinSheetState extends State<_CreatePinSheet>
             ),
             ValueListenableBuilder<String?>(
               valueListenable: _errorN,
-              builder: (_, error, _) {
-                if (error == null) return const SizedBox(height: 12);
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text(
-                    error,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: cs.error),
-                  ),
-                );
-              },
+              builder: (_, error, _) => _MessageSlot(
+                child: error == null
+                    ? const SizedBox.shrink()
+                    : Text(
+                        error,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: cs.error),
+                      ),
+              ),
             ),
             // Pavé numérique : NE rebuild jamais sur saisie d'un chiffre
             // (ni le step ni le _busy ne change pendant la création).
@@ -516,15 +516,20 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
                 ),
               ),
             ),
-            // Spinner busy : feedback visuel immédiat dès _busyN=true,
-            // sans attendre le retour Argon2id+Keystore.
+            // ⚠️ Spinner ET erreur partagent UN SEUL emplacement à hauteur
+            // constante. Avant, c'étaient deux widgets qui grandissaient et
+            // rétrécissaient indépendamment — l'erreur partait même de
+            // `SizedBox.shrink()`, donc de zéro. Un PIN refusé faisait sauter
+            // le pavé d'une quarantaine de dp juste avant que l'utilisateur ne
+            // retape : c'est le geste le plus fréquent de l'app, et celui où
+            // le décalage se paie le plus cher.
+            // Les deux états sont exclusifs : `_onValidate` vide l'erreur
+            // avant de passer `_busyN` à vrai.
             ValueListenableBuilder<bool>(
               valueListenable: _busyN,
               builder: (_, busy, _) {
-                if (!busy) return const SizedBox(height: 12);
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12, bottom: 4),
-                  child: Center(
+                if (busy) {
+                  return _MessageSlot(
                     child: Semantics(
                       liveRegion: true,
                       label: t.vaultPassDeriving,
@@ -534,22 +539,22 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
-            ValueListenableBuilder<String?>(
-              valueListenable: _errorN,
-              builder: (_, error, _) {
-                if (error == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text(
-                    error,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: cs.error),
+                  );
+                }
+                return ValueListenableBuilder<String?>(
+                  valueListenable: _errorN,
+                  builder: (_, error, _) => _MessageSlot(
+                    child: error == null
+                        ? const SizedBox.shrink()
+                        : Text(
+                            error,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.copyWith(color: cs.error),
+                          ),
                   ),
                 );
               },
@@ -635,6 +640,35 @@ class _AlwaysFalseListenable extends ValueListenable<bool> {
 }
 
 const _AlwaysFalseListenable _kAlwaysFalse = _AlwaysFalseListenable();
+
+/// Hauteur RÉSERVÉE au message situé entre les points et le pavé.
+///
+/// ⚠️ Ne pas remplacer par une hauteur qui varie avec le contenu. Le panneau
+/// est ancré en bas (`mainAxisSize: min` dans une bottom sheet) : tout ce qui
+/// grandit au-dessus du pavé **déplace le pavé vers le haut**, et tout ce qui
+/// rétrécit le redescend. Un message d'erreur qui apparaît décalait les
+/// touches de 30 à 50 dp sous le doigt de l'utilisateur, alors que l'espace
+/// entre deux touches n'est que de 12 dp : l'appui suivant tombait dans le
+/// vide, ou sur la touche voisine. Signalé en test sur S24 FE le 2026-08-07
+/// — « on dirait que le clavier n'est pas tactile du tout ».
+///
+/// Suit `textScaler` : à 200 % d'agrandissement système, l'emplacement grandit
+/// aussi, sinon le message serait tronqué.
+double _messageSlotHeight(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(18) * 2 + 12;
+
+/// Emplacement à hauteur constante pour le message sous les points.
+/// Vide, en cours, ou en erreur : la hauteur ne change pas.
+class _MessageSlot extends StatelessWidget {
+  const _MessageSlot({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: _messageSlotHeight(context),
+    child: Center(child: child),
+  );
+}
 
 /// Suite de cercles vides/remplis indiquant la progression de saisie.
 class _DotsIndicator extends StatelessWidget {
