@@ -1,162 +1,24 @@
 // Tests garde pour l'audit Notes Tech du 2026-08-06.
 //
-// Invariant verrouillé ici : **le contenu d'une note de coffre ne doit pas
-// rester atteignable par la recherche sémantique.**
+// Ces gardes verrouillent des invariants du COFFRE que la suite d'origine ne
+// voyait pas. Deux d'entre elles portaient sur la recherche sémantique et ont
+// disparu avec elle lors du retrait de l'IA embarquée : ce qu'elles
+// protégeaient (un vecteur dérivé du clair survivant à la mise au coffre)
+// n'existe plus, puisqu'il n'y a plus de vecteurs du tout.
 //
-// Le défaut d'origine était un jumeau asymétrique. La mise au coffre EN
-// MASSE (`FolderVaultService.encryptAllNotesInFolder`) purgeait bien
-// l'embedding calculé sur le texte en clair. Le déplacement d'UNE note vers
-// un coffre, depuis l'éditeur, ne le faisait pas — et aucune passe
-// d'indexation ne rattrapait l'oubli (`deleteOrphans` ne vise que les notes
-// supprimées, et la boucle d'indexation fait `continue` sur les notes
-// verrouillées sans jamais toucher à leur ligne). Le vecteur en clair
-// survivait donc indéfiniment, et `SemanticSearchService.search` ne filtrait
-// que `isTrashed` : la note verrouillée remontait, classée par la similarité
-// de son contenu en clair, coffre fermé.
-//
-// Deux gardes indépendantes, testées séparément :
-//   1. la SOURCE  — purge de l'embedding sur tous les chemins de mise au
-//      coffre (garde à écrire, donc vérifiée au niveau source) ;
-//   2. l'USAGE    — `isEligibleHit` refuse inconditionnellement une note
-//      verrouillée (garde comportementale, testée directement).
-//
-// La garde 2 seule suffirait à fermer la fuite visible, mais laisserait un
-// vecteur dérivé du clair en base ; la garde 1 seule dépendrait du fait que
-// tout futur chemin de mise au coffre pense à appeler la purge. Les deux
-// sont donc nécessaires, et les deux sont verrouillées ici.
+// Ce qui reste porte sur des chemins toujours vivants : réparation des notes
+// laissées en clair, atteignabilité de l'avertissement de sortie de coffre,
+// chiffrement à la création, stabilité des clés de tri, collisions à l'export.
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:notes_tech/data/models/folder.dart';
 import 'package:notes_tech/data/models/note.dart';
 import 'package:notes_tech/services/export/note_export_service.dart';
-import 'package:notes_tech/services/semantic_search_service.dart';
-
-Note _note({Uint8List? encrypted, DateTime? trashedAt}) {
-  final now = DateTime(2026, 8, 6);
-  return Note(
-    id: 'n1',
-    title: 'Banque',
-    content: encrypted == null ? 'IBAN FR76 1234' : '',
-    folderId: 'f1',
-    createdAt: now,
-    updatedAt: now,
-    trashedAt: trashedAt,
-    encryptedContent: encrypted,
-  );
-}
 
 void main() {
-  group('C1 — usage : la recherche sémantique refuse les notes de coffre', () {
-    test('une note verrouillée est rejetée', () {
-      final locked = _note(encrypted: Uint8List.fromList(List.filled(40, 7)));
-      expect(locked.isLocked, isTrue);
-      expect(
-        SemanticSearchService.isEligibleHit(locked),
-        isFalse,
-        reason:
-            'Un embedding résiduel suffirait sinon à faire remonter la note, '
-            'classée par la similarité de son contenu en clair : le seul '
-            'classement est un oracle sur le contenu du coffre, sans qu\'aucun '
-            'texte ne soit affiché et sans passphrase saisie.',
-      );
-    });
-
-    test('une note en corbeille est rejetée', () {
-      final trashed = _note(trashedAt: DateTime(2026, 8, 1));
-      expect(SemanticSearchService.isEligibleHit(trashed), isFalse);
-    });
-
-    test('une note ordinaire est acceptée', () {
-      expect(SemanticSearchService.isEligibleHit(_note()), isTrue);
-    });
-
-    test('les inéligibles sont écartés AVANT la borne du top-K', () {
-      final src = File(
-        'lib/services/semantic_search_service.dart',
-      ).readAsStringSync();
-      final filtre = src.indexOf('ineligible.contains(e.noteId)');
-      final borne = src.indexOf('_insertTopK(scored');
-      expect(filtre, greaterThan(0));
-      expect(borne, greaterThan(0));
-      expect(
-        filtre,
-        lessThan(borne),
-        reason:
-            'Filtrer après la borne laisse les inéligibles consommer les '
-            'places : 4 notes en corbeille ou de coffre au-dessus d\'une note '
-            'pertinente, et cette dernière n\'est jamais hydratée ni rendue. '
-            'Invisible — la recherche rend juste moins de résultats.',
-      );
-    });
-
-    test('verrouillée ET en corbeille reste rejetée', () {
-      final both = _note(
-        encrypted: Uint8List.fromList(List.filled(40, 7)),
-        trashedAt: DateTime(2026, 8, 1),
-      );
-      expect(SemanticSearchService.isEligibleHit(both), isFalse);
-    });
-  });
-
-  group('C1 — source : purge de l\'embedding sur TOUS les chemins', () {
-    // Garde au niveau source, comme la drift detection de `appVersion` :
-    // l'appel se fait dans un `State` de widget et dans un service qui exige
-    // Keystore + SQLCipher, deux dépendances qu'un test pure-Dart ne peut pas
-    // instancier. Ce qu'on verrouille ici, c'est qu'un refactor ne puisse pas
-    // supprimer silencieusement l'un des deux appels.
-    String read(String path) => File(path).readAsStringSync();
-
-    test('FolderVaultService expose purgePlaintextEmbedding', () {
-      final src = read('lib/services/security/folder_vault_service.dart');
-      expect(
-        src.contains('Future<bool> purgePlaintextEmbedding('),
-        isTrue,
-        reason:
-            'Le geste doit rester centralisé et appelable par les '
-            'chemins de mise au coffre.',
-      );
-    });
-
-    test('la mise au coffre EN MASSE purge', () {
-      final src = read('lib/services/security/folder_vault_service.dart');
-      final start = src.indexOf('encryptAllNotesInFolder(');
-      expect(start, greaterThan(0));
-      final body = src.substring(start, start + 1400);
-      expect(
-        body.contains('purgePlaintextEmbedding('),
-        isTrue,
-        reason: 'Régression du fix F1 v1.0.3.',
-      );
-    });
-
-    test('le déplacement d\'UNE note vers un coffre purge aussi', () {
-      final src = read('lib/ui/screens/note_editor_screen.dart');
-      expect(
-        src.contains('_vault.purgePlaintextEmbedding('),
-        isTrue,
-        reason:
-            'C\'est le chemin qui manquait : sans cet appel, la note '
-            'déplacée vers un coffre garde son vecteur en clair en base.',
-      );
-    });
-
-    test('la passe d\'indexation répare les vecteurs orphelins', () {
-      final src = read('lib/services/indexing_service.dart');
-      expect(
-        src.contains('_embeddings.remove('),
-        isTrue,
-        reason:
-            'La passe doit purger le vecteur des notes verrouillées '
-            'qu\'elle rencontre, sinon un échec transitoire de la purge '
-            'synchrone laisse le vecteur en base pour toujours.',
-      );
-    });
-  });
-
   group(
     'C6 — réparation des notes laissées en clair par le bug d\'épinglage',
     () {
@@ -219,18 +81,6 @@ void main() {
               'silencieuse qui réordonne l\'écran n\'est pas silencieuse.',
         );
       });
-
-      test(
-        'la réparation purge l\'embedding calculé pendant l\'exposition',
-        () {
-          final debut = src.indexOf(
-            '_reprotectPlaintextNotes(String folderId)',
-          );
-          expect(debut, greaterThan(0));
-          final corps = src.substring(debut, debut + 1600);
-          expect(corps.contains('purgePlaintextEmbedding('), isTrue);
-        },
-      );
     },
   );
 

@@ -9,10 +9,12 @@
 //   - la requête de la liste principale, celle que l'utilisateur déclenche le
 //     plus souvent ;
 //   - la recherche plein-texte FTS5 ;
-//   - les DEUX requêtes que cet audit a ajoutées sur des chemins chauds
-//     (`listSemanticIneligibleIds` à chaque recherche sémantique,
-//     `listPlaintextInFolder` à chaque ouverture de coffre). J'ai affirmé
-//     qu'elles étaient négligeables : ici on vérifie.
+//   - la requête que cet audit a ajoutée sur un chemin chaud
+//     (`listPlaintextInFolder`, à chaque ouverture de coffre). J'ai affirmé
+//     qu'elle était négligeable : ici on vérifie.
+//
+// La mesure du filtre de recherche sémantique a disparu avec la
+// fonctionnalité — elle donnait 2 ms sur 1 000 notes.
 //
 // Les seuils sont larges à dessein. Ce test n'est pas là pour faire du
 // micro-tuning, mais pour détecter une RÉGRESSION d'ordre de grandeur — le
@@ -118,16 +120,6 @@ void main() {
           'La recherche se déclenche à la frappe : au-delà, chaque '
           'caractère tapé accumule du retard.',
     );
-  });
-
-  testWidgets('le filtre ajouté à la recherche sémantique est négligeable', (
-    _,
-  ) async {
-    // J'ai affirmé que cette requête « ne coûte rien » en l'ajoutant sur le
-    // chemin de chaque recherche sémantique. Vérification.
-    final ms = await medianMs(() => notesDao.listSemanticIneligibleIds());
-    debugPrint('PERF listSemanticIneligibleIds : $ms ms');
-    expect(ms, lessThan(150));
   });
 
   testWidgets('le balayage de réparation ne pèse pas sur le déverrouillage', (

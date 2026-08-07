@@ -13,15 +13,10 @@ import '../../core/constants.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
-import '../../services/indexing_service.dart';
-import '../../services/semantic_search_service.dart';
-import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/note_card.dart';
 import 'note_editor_screen.dart';
-
-enum _SearchMode { fts, semantic }
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -32,13 +27,9 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   late final NotesRepository _notes;
-  late final SemanticSearchService _semantic;
-  late final IndexingService _indexing;
-  late final StreamSubscription<void> _indexSub;
   final _ctrl = TextEditingController();
   final _debouncer = Debouncer(AppConstants.searchDebounce);
 
-  _SearchMode _mode = _SearchMode.fts;
   String _query = '';
   Future<List<Note>>? _future;
 
@@ -46,19 +37,10 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _notes = context.read<NotesRepository>();
-    _semantic = context.read<SemanticSearchService>();
-    _indexing = context.read<IndexingService>();
-    _indexSub = _indexing.changes.listen((_) {
-      _semantic.invalidateCache();
-      if (mounted && _mode == _SearchMode.semantic && _query.isNotEmpty) {
-        _runSearch();
-      }
-    });
   }
 
   @override
   void dispose() {
-    _indexSub.cancel();
     _debouncer.dispose();
     _ctrl.dispose();
     super.dispose();
@@ -72,58 +54,19 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
-  void _setMode(_SearchMode mode) {
-    if (mode == _mode) return;
-    setState(() => _mode = mode);
-    if (_query.isNotEmpty) _runSearch();
-  }
-
-  /// Si la recherche sémantique avancée est désactivée et que l'utilisateur
-  /// se trouvait sur cet onglet, on bascule en FTS pour ne pas exposer un
-  /// résultat dégradé issu de `LocalEmbedder` sans le signaler.
-  void _coerceModeForSettings(bool semanticEnabled) {
-    if (!mounted) return;
-    if (!semanticEnabled && _mode == _SearchMode.semantic) {
-      setState(() => _mode = _SearchMode.fts);
-      if (_query.isNotEmpty) _runSearch();
-    }
-  }
-
   void _runSearch() {
     if (_query.isEmpty) {
       setState(() => _future = null);
       return;
     }
-    setState(() {
-      _future = switch (_mode) {
-        _SearchMode.fts => _runFts(),
-        _SearchMode.semantic => _runSemantic(),
-      };
-    });
+    setState(() => _future = _runFts());
   }
 
   Future<List<Note>> _runFts() => _notes.search(_query);
 
-  Future<List<Note>> _runSemantic() async {
-    final hits = await _semantic.search(_query);
-    return hits.map((h) => h.note).toList(growable: false);
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final semanticEnabled = context
-        .watch<SettingsService>()
-        .semanticSearchEnabled;
-    // Garde-fou : si l'utilisateur désactive la recherche sémantique pendant
-    // qu'il était sur cet onglet, on rebascule en FTS proprement. On n'enfile
-    // le callback que si une coercition est nécessaire (évite un post-frame
-    // à chaque rebuild).
-    if (!semanticEnabled && _mode == _SearchMode.semantic) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _coerceModeForSettings(semanticEnabled);
-      });
-    }
     return Scaffold(
       appBar: AppBar(
         title: TextField(
@@ -144,32 +87,7 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            if (semanticEnabled)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                child: SegmentedButton<_SearchMode>(
-                  segments: [
-                    ButtonSegment(
-                      value: _SearchMode.fts,
-                      icon: const Icon(Icons.text_fields),
-                      label: Text(t.searchModeFts),
-                    ),
-                    ButtonSegment(
-                      value: _SearchMode.semantic,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: Text(t.searchModeSemantic),
-                    ),
-                  ],
-                  selected: {_mode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (s) => _setMode(s.first),
-                ),
-              ),
-            Expanded(child: _buildResults(t)),
-          ],
-        ),
+        child: Column(children: [Expanded(child: _buildResults(t))]),
       ),
     );
   }
@@ -178,11 +96,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final f = _future;
     if (f == null) {
       return EmptyState(
-        icon: _mode == _SearchMode.semantic ? Icons.auto_awesome : Icons.search,
+        icon: Icons.search,
         title: t.searchEmptyTitle,
-        subtitle: _mode == _SearchMode.semantic
-            ? t.searchEmptySubtitleSemantic
-            : t.searchEmptySubtitleFts,
+        subtitle: t.searchEmptySubtitleFts,
       );
     }
     return FutureBuilder<List<Note>>(

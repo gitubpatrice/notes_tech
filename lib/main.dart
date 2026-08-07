@@ -1,15 +1,8 @@
-/// Point d'entrée — initialisation parallèle puis injection de dépendances.
+/// Point d'entrée — initialisation puis injection de dépendances.
 ///
-/// Stratégie de démarrage :
-///   1. Bootstrap minimal (settings + DB + repos) → runApp avec LocalEmbedder.
-///   2. Si l'utilisateur a activé la recherche sémantique avancée
-///      dans les réglages, MiniLM est chargé en arrière-plan puis
-///      pris en relais à chaud (swap d'embedder + reindex incrémental).
-///   3. Le toggle peut être basculé à tout moment depuis Settings :
-///      le `_EmbedderCoordinator` réagit à la prefs et upgrade/downgrade
-///      sans relancer l'app.
-///
-/// Le 1er frame n'attend jamais ONNX ou MediaPipe.
+/// Bootstrap minimal : réglages, base chiffrée, repositories, puis
+/// `runApp`. Aucun modèle n'est chargé au démarrage — l'application ne
+/// dépend plus d'aucun moteur d'inférence.
 library;
 
 import 'dart:async';
@@ -17,7 +10,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -26,27 +18,19 @@ import 'package:sqflite_sqlcipher/sqflite.dart' show Database;
 
 import 'app.dart';
 import 'data/db/database.dart';
-import 'data/db/embeddings_dao.dart';
 import 'data/db/folders_dao.dart';
 import 'data/db/links_dao.dart';
 import 'data/db/notes_dao.dart';
-import 'data/repositories/embeddings_repository.dart';
 import 'data/repositories/folders_repository.dart';
 import 'data/repositories/links_repository.dart';
 import 'data/repositories/notes_repository.dart';
-import 'services/ai/gemma_service.dart';
 import 'services/backlinks_service.dart';
-import 'services/embedder_coordinator.dart';
-import 'services/embedding/embedding_provider.dart';
-import 'services/embedding/local_embedder.dart';
 import 'services/first_launch_flag.dart';
-import 'services/indexing_service.dart';
 import 'services/ml/ml_memory_guard.dart';
 import 'services/secure_window_service.dart';
 import 'services/security/folder_vault_service.dart';
 import 'services/security/panic_service.dart';
 import 'services/security/vault_service.dart';
-import 'services/semantic_search_service.dart';
 import 'services/settings_service.dart';
 import 'services/voice/voice_service.dart';
 
@@ -58,10 +42,6 @@ Future<void> main() async {
   // autre bootstrap) qui est éprouvé. Coût série assumé (~80-200 ms sur
   // S9 froid) — préférable à un risque de blocage de l'initialisation.
   //
-  // Voir [[feedback_flutter_gemma_initialize]] : `FlutterGemma.initialize()`
-  // DOIT être appelée AVANT toute opération flutter_gemma (install,
-  // getActiveModel, createModel). Aligné sur AI Tech main.dart:62.
-  await FlutterGemma.initialize();
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -104,27 +84,7 @@ Future<void> main() async {
     NotesDao(db),
     isVaultFolder: foldersRepo.isVaultFolder,
   );
-  final embeddingsRepo = EmbeddingsRepository(EmbeddingsDao(db));
   final linksRepo = LinksRepository(LinksDao(db));
-
-  // Démarrage immédiat avec l'encodeur léger.
-  const localEmbedder = LocalEmbedder();
-  final activeEmbedder = ValueNotifier<EmbeddingProvider>(localEmbedder);
-
-  final indexing = IndexingService(
-    notes: notesRepo,
-    embeddings: embeddingsRepo,
-    embedder: localEmbedder,
-  );
-  final semantic = SemanticSearchService(
-    notes: notesRepo,
-    embeddings: embeddingsRepo,
-    embedder: localEmbedder,
-    indexing: indexing,
-  );
-  // v1.0.7.1 hotfix — `FlutterGemma.initialize()` est désormais await
-  // strict en début de `main()` (rollback de la parallélisation M5).
-  final gemma = GemmaService();
 
   // Service de backlinks `[[Titre]]` — écoute les changements de notes
   // pour réindexer en arrière-plan (debounced).
@@ -135,16 +95,12 @@ Future<void> main() async {
   // Le bootstrap retrouve un éventuel modèle déjà installé et purge les
   // WAV temp orphelins d'un crash précédent.
   final voicePrefs = await SharedPreferences.getInstance();
-  // Coordination RAM Gemma ↔ Whisper sur téléphones 4 Go (POCO C75, S9).
-  // Forward references via closures pour éviter les dépendances circulaires
-  // entre VoiceService et GemmaService.
+  // Arbitrage RAM des modèles lourds sur téléphones 4 Go (POCO C75, S9).
+  // Depuis le retrait de l'IA, Whisper est le SEUL consommateur : le garde
+  // ne libère plus rien en face, il sérialise juste les chargements.
+  // Forward reference via closure pour éviter la dépendance circulaire.
   late final VoiceService voice;
-  final mlGuard = MlMemoryGuard(
-    evictGemma: () async {
-      if (gemma.isReady) await gemma.dispose();
-    },
-    evictVoice: () async => voice.unloadEngine(),
-  );
+  final mlGuard = MlMemoryGuard(evictVoice: () async => voice.unloadEngine());
   voice = VoiceService(prefs: voicePrefs, mlGuard: mlGuard);
   unawaited(voice.bootstrap());
 
@@ -153,26 +109,10 @@ Future<void> main() async {
   // pour rester testable. Pas de Singleton magique : un test peut créer
   // un PanicService avec des fakes.
   //
-  // `beforeDbWipe` ferme proprement les background workers (Embedder
-  // Coordinator, Indexing, Backlinks) AVANT que la DB soit écrasée :
-  // sans ça, une écriture en vol via `notesRepo.changes` pourrait
-  // tomber sur une DB fermée et lever une exception cosmétique.
+  // `beforeDbWipe` ferme proprement le worker de backlinks AVANT que la
+  // DB soit écrasée : sans ça, une écriture en vol via `notesRepo.changes`
+  // pourrait tomber sur une DB fermée et lever une exception cosmétique.
 
-  // Coordinateur d'embedder : observe le toggle settings et swap à chaud.
-  // Démarré AVANT `indexing.start()` pour qu'un toggle MiniLM=ON déjà
-  // persisté soit honoré dès la première passe d'indexation, sans
-  // qu'une passe locale soit lancée puis tuée par le swap (B4).
-  final coordinator = EmbedderCoordinator(
-    settings: settings,
-    indexing: indexing,
-    semantic: semantic,
-    activeEmbedder: activeEmbedder,
-    localEmbedder: localEmbedder,
-  )..start();
-
-  // L'indexation et l'indexation des liens démarrent ensuite, sans
-  // bloquer le 1er frame.
-  unawaited(indexing.start());
   unawaited(backlinks.start());
 
   // FolderVaultService (v0.8) — orchestrateur des coffres par dossier.
@@ -182,7 +122,6 @@ Future<void> main() async {
   final folderVault = FolderVaultService(
     folders: foldersRepo,
     notes: notesRepo,
-    embeddings: embeddingsRepo,
     autoLockAfter: Duration(minutes: settings.vaultAutoLockMinutes),
   );
   // v0.9 — reprend les auto-wipes de coffres PIN interrompus par un
@@ -195,27 +134,22 @@ Future<void> main() async {
   // wipe DB (cf. doc panic_service.dart).
   final panic = PanicService(
     voice: voice,
-    gemma: gemma,
     vault: vault,
     database: AppDatabase.instance,
     secureWindow: secureWindow,
     prefs: voicePrefs,
     lockAllFolders: () async => folderVault.lockAll(),
     beforeDbWipe: () async {
-      // Ordre : coordinator d'abord (libère les listeners de settings),
-      // puis indexing (annule le throttle pending), puis backlinks
-      // (ferme son StreamSubscription sur notesRepo.changes).
-      // Toutes les méthodes retournent Future<void>, on les attend en
-      // séquence : on veut que les services soient EFFECTIVEMENT
-      // arrêtés avant que `db.wipe()` ne ferme la base.
+      // `backlinks` ferme son StreamSubscription sur `notesRepo.changes`.
+      // On l'attend : le service doit être EFFECTIVEMENT arrêté avant que
+      // `db.wipe()` ne ferme la base, sinon une écriture en vol tomberait
+      // sur une base fermée.
       //
       // P3-2 : timeout par dispose pour ne JAMAIS bloquer la séquence
       // panique. 2 s c'est large pour un dispose normal (ms) ; au-delà,
       // on assume qu'un service est bloqué et on continue le wipe — le
       // mode panique doit aller au bout coûte que coûte.
       const timeout = Duration(seconds: 2);
-      await coordinator.dispose().timeout(timeout, onTimeout: () {});
-      await indexing.dispose().timeout(timeout, onTimeout: () {});
       await backlinks.dispose().timeout(timeout, onTimeout: () {});
     },
   );
@@ -233,43 +167,17 @@ Future<void> main() async {
         Provider<SecureWindowService>.value(value: secureWindow),
         Provider<NotesRepository>.value(value: notesRepo),
         Provider<FoldersRepository>.value(value: foldersRepo),
-        Provider<EmbeddingsRepository>.value(value: embeddingsRepo),
         Provider<LinksRepository>(
           create: (_) => linksRepo,
           dispose: (_, r) => r.dispose(),
-        ),
-        ChangeNotifierProvider<ValueNotifier<EmbeddingProvider>>.value(
-          value: activeEmbedder,
-        ),
-        Provider<IndexingService>(
-          create: (_) => indexing,
-          dispose: (_, s) => s.dispose(),
-        ),
-        Provider<SemanticSearchService>(
-          create: (_) => semantic,
-          dispose: (_, s) => s.dispose(),
-        ),
-        Provider<GemmaService>(
-          create: (_) => gemma,
-          dispose: (_, s) => s.dispose(),
         ),
         Provider<BacklinksService>(
           create: (_) => backlinks,
           dispose: (_, s) => s.dispose(),
         ),
-        Provider<EmbedderCoordinator>(
-          create: (_) => coordinator,
-          dispose: (_, c) => c.dispose(),
-        ),
         ChangeNotifierProvider<VoiceService>.value(value: voice),
         ChangeNotifierProvider<FolderVaultService>.value(value: folderVault),
-        Provider<MlMemoryGuard>.value(value: mlGuard),
         Provider<PanicService>.value(value: panic),
-        // Variante nullable pour les call sites optionnels (`context.read<
-        // MlMemoryGuard?>()?.requestGemma()` dans ai_chat_screen) — Provider
-        // résout le type non-nullable mais le call site accepte un null
-        // graceful si la valeur n'est pas dispo (test).
-        Provider<MlMemoryGuard?>.value(value: mlGuard),
       ],
       child: NotesTechApp(showSplash: showSplash),
     ),

@@ -90,11 +90,7 @@ extension SnackbarMessengerExt on ScaffoldMessengerState {
   /// `errorContainer`/`onErrorContainer` (contraste WCAG AA). Sans ce helper,
   /// les erreurs émises dans un `catch` post-await s'affichaient en style
   /// neutre (le contraste erreur annoncé n'était pas effectif).
-  void showErrorSnack(
-    String message,
-    ColorScheme cs, {
-    Duration? duration,
-  }) {
+  void showErrorSnack(String message, ColorScheme cs, {Duration? duration}) {
     showFloatingSnack(
       message,
       backgroundColor: cs.errorContainer,
@@ -105,11 +101,7 @@ extension SnackbarMessengerExt on ScaffoldMessengerState {
 
   /// v1.1.5 — pendant `ScaffoldMessengerState` de [SnackbarExt.showSuccessSnack].
   /// [cs] capturé avant l'`await`. Pose `primaryContainer`/`onPrimaryContainer`.
-  void showSuccessSnack(
-    String message,
-    ColorScheme cs, {
-    Duration? duration,
-  }) {
+  void showSuccessSnack(String message, ColorScheme cs, {Duration? duration}) {
     showFloatingSnack(
       message,
       backgroundColor: cs.primaryContainer,

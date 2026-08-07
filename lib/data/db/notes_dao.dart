@@ -79,25 +79,6 @@ class NotesDao {
     }
   }
 
-  /// Ids des notes qu'une recherche sémantique ne doit PAS renvoyer :
-  /// verrouillées (coffre fermé) ou en corbeille.
-  ///
-  /// Ne charge que la colonne `id` : le point d'appel a besoin d'écarter des
-  /// candidats AVANT de borner son top-K, et hydrater des notes entières pour
-  /// ça coûterait la lecture de toute la table à chaque frappe.
-  Future<Set<String>> listSemanticIneligibleIds() async {
-    try {
-      final rows = await _db.query(
-        'notes',
-        columns: ['id'],
-        where: 'trashed_at IS NOT NULL OR encrypted_content IS NOT NULL',
-      );
-      return {for (final r in rows) r['id'] as String};
-    } catch (e) {
-      throw DatabaseException('listSemanticIneligibleIds échoué', cause: e);
-    }
-  }
-
   /// Notes d'un dossier dont le contenu est EN CLAIR dans la colonne
   /// `content` — donc exposé au repos si le dossier est un coffre.
   ///
@@ -143,8 +124,7 @@ class NotesDao {
     try {
       final rows = await _db.query(
         'notes',
-        where:
-            'folder_id = ? AND encrypted_content IS NOT NULL AND enc_v = ?',
+        where: 'folder_id = ? AND encrypted_content IS NOT NULL AND enc_v = ?',
         whereArgs: [folderId, Note.kEncVersionContentOnly],
       );
       return rows.map(Note.fromRow).toList(growable: false);

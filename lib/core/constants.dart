@@ -24,7 +24,11 @@ class AppConstants {
   // (compteur tentatives PIN, auto-wipe à 5).
   // v6 (1.0.3) : F2 — triggers FTS5 réécrits pour ne plus indexer
   // `title`/`tags` sur notes verrouillées (`encrypted_content IS NOT NULL`).
-  static const int dbVersion = 7;
+  // v7 (1.1.7) : `notes.enc_v` — version du format de `encrypted_content`
+  // (1 = contenu seul, 2 = titre + contenu).
+  // v8 (1.1.7) : DROP `note_embeddings` — retrait de la recherche
+  // sémantique. Ces vecteurs étaient dérivés du texte EN CLAIR des notes.
+  static const int dbVersion = 8;
 
   /// Identifiant du dossier "Boîte de réception" — racine indélébile de
   /// l'arborescence, créée au premier démarrage. Les notes orphelines
@@ -105,38 +109,16 @@ class AppConstants {
   /// Valeurs spéciales : `0` = jamais, `-1` = au pause de l'app uniquement.
   static const String prefKeyVaultAutoLockMinutes = 'vault_auto_lock_minutes';
 
-  /// SHA-256 du modèle Gemma 3 1B int4 officiel (gemma3-1b-it-int4.task,
-  /// 554 661 243 octets, publié sur Kaggle/HuggingFace).
-  /// Vérifié à l'import pour garantir l'intégrité du modèle.
-  /// Si l'utilisateur souhaite importer une variante différente, il doit
-  /// activer le toggle `acceptUnknownGemmaHash` dans les réglages avancés.
-  static const String gemmaModelSha256 =
-      'e3d981c01aeaaac69a84ffa0d4be13281b3176731063f1bea1c9fe6887bd9dee';
-
-  // Recherche sémantique (la dim et le modelId réels sont portés par
-  // l'EmbeddingProvider actif — voir LocalEmbedder / MiniLmEmbedder).
-  static const int semanticSearchLimit = 50;
-
   // Limites métier
   static const int noteTitleMaxLength = 200;
   static const int searchResultsLimit = 100;
   static const int recentNotesLimit = 50;
   static const int trashRetentionDays = 30;
 
-  /// v1.1.4 — split du cap historique `noteContentIndexLimit = 200000`
-  /// en deux constantes contextuelles pour économiser la RAM sur les
-  /// devices low-end (cible F-Droid : POCO C75, 2 Go RAM).
+  /// v1.1.4 — cap du contenu scanné, hérité du split de
+  /// `noteContentIndexLimit = 200000`. Le volet « encodeur sémantique » a
+  /// disparu avec le retrait de l'IA ; seul le cap backlinks subsiste.
   ///
-  /// Borne haute du contenu d'une note transmis à l'**encodeur sémantique**
-  /// (MiniLM ONNX). MiniLM-L6-v2 a une fenêtre dure de 512 tokens (~2 ko
-  /// de texte utile) ; au-delà l'ONNX runtime tronque silencieusement.
-  /// Sérialiser 200 ko vers l'isolate worker était du gaspillage pur.
-  /// 8 ko = 4× la fenêtre réelle, marge de sécurité pour le préprocessing
-  /// (suppression Markdown, normalisation espaces). DoS-protection
-  /// préservée : un collage massif ne sérialise plus 200 ko vers le
-  /// worker, juste 8 ko.
-  static const int noteContentEmbeddingLimit = 8192; // ~8 ko
-
   /// Borne haute du contenu parsé par `BacklinksService` pour extraire
   /// les wikilinks `[[note]]`. La regex est déjà capée à 200 chars par
   /// match, mais on plafonne aussi le scan total pour ne pas walker des
@@ -145,9 +127,8 @@ class AppConstants {
   static const int noteContentBacklinksLimit = 50000; // ~50 ko
 
   /// @Deprecated v1.1.4 — gardé pour rétrocompatibilité d'éventuels
-  /// callers externes. Tous les usages internes ont migré vers les deux
-  /// constantes ci-dessus. À retirer en v1.2.0.
-  @Deprecated('Use noteContentEmbeddingLimit or noteContentBacklinksLimit')
+  /// callers externes. À retirer en v1.2.0.
+  @Deprecated('Use noteContentBacklinksLimit')
   static const int noteContentIndexLimit = noteContentBacklinksLimit;
 
   // Durées UI

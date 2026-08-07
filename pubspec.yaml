@@ -1,5 +1,5 @@
 name: notes_tech
-description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, IA on-device (Gemma + Whisper) et backlinks. 100 % local, zéro permission Internet."
+description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, dictée vocale on-device et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
 version: 1.1.6+47
 
@@ -26,9 +26,7 @@ dependencies:
   path_provider: ^2.1.4
   shared_preferences: ^2.3.2
 
-  # IA on-device
-  onnxruntime: ^1.4.1
-  flutter_gemma: ^0.14.5
+  # Import de fichiers (modèle de dictée vocale, import/export)
   file_picker: ^10.3.3
 
   # Utils
@@ -113,6 +111,4 @@ flutter:
   assets:
     - assets/icon/app_icon.png
     - assets/logo_damier.png
-    - assets/models/all-MiniLM-L6-v2-quant.onnx
-    - assets/models/tokenizer.json
     - assets/legal/

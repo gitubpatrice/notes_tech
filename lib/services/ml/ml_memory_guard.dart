@@ -31,11 +31,18 @@ class MlMemoryGuard {
   ///
   /// [evictVoice] : ferme le moteur Whisper (libère le `.bin` mappé en
   /// mémoire native). Idempotent.
+  /// [evictGemma] est OPTIONNEL depuis le retrait de l'IA embarquée : il
+  /// n'existe plus de second consommateur de RAM à libérer. Le paramètre est
+  /// conservé — et non supprimé — parce que la mécanique d'arbitrage reste
+  /// juste et servira telle quelle si un modèle lourd revient un jour. Par
+  /// défaut, libérer « l'autre » côté ne fait rien.
   MlMemoryGuard({
-    required Future<void> Function() evictGemma,
+    Future<void> Function()? evictGemma,
     required Future<void> Function() evictVoice,
-  }) : _evictGemma = evictGemma,
+  }) : _evictGemma = evictGemma ?? _noop,
        _evictVoice = evictVoice;
+
+  static Future<void> _noop() async {}
 
   final Future<void> Function() _evictGemma;
   final Future<void> Function() _evictVoice;

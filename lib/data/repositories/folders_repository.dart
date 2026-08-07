@@ -29,11 +29,10 @@ class FoldersRepository {
   /// `NotesRepository` : sans lui, chaque frappe auto-sauvegardée paierait
   /// une requête de plus.
   Future<bool> isVaultFolder(String id) async {
-    final cache =
-        _vaultIds ??= {
-          for (final f in await _dao.listAll())
-            if (f.isVault) f.id,
-        };
+    final cache = _vaultIds ??= {
+      for (final f in await _dao.listAll())
+        if (f.isVault) f.id,
+    };
     return cache.contains(id);
   }
 

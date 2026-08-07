@@ -63,7 +63,6 @@ import '../../core/constants.dart';
 import '../../core/exceptions.dart';
 import '../../data/models/folder.dart';
 import '../../data/models/note.dart';
-import '../../data/repositories/embeddings_repository.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import 'keystore_bridge.dart';
@@ -170,12 +169,10 @@ class FolderVaultService extends ChangeNotifier {
   FolderVaultService({
     required FoldersRepository folders,
     required NotesRepository notes,
-    EmbeddingsRepository? embeddings,
     Duration autoLockAfter = AppConstants.vaultDefaultAutoLock,
     KeystoreBridge? keystore,
   }) : _folders = folders,
        _notes = notes,
-       _embeddings = embeddings,
        _autoLockAfter = autoLockAfter,
        _keystore = keystore ?? KeystoreBridge();
 
@@ -187,7 +184,6 @@ class FolderVaultService extends ChangeNotifier {
   /// historiques restent dans `note_embeddings` jusqu'à la prochaine
   /// passe d'indexation (debounce 1s) — fenêtre où une recherche
   /// sémantique peut retrouver le contenu encore indexé.
-  final EmbeddingsRepository? _embeddings;
   final KeystoreBridge _keystore;
   Duration _autoLockAfter;
 
@@ -982,8 +978,6 @@ class FolderVaultService extends ChangeNotifier {
             title: sealed.title,
             encVersion: sealed.encVersion,
           );
-          // Le contenu en clair a pu être indexé pendant qu'il était exposé.
-          await purgePlaintextEmbedding(note.id);
           repaired++;
         } catch (_) {
           // Best-effort : retenté à la prochaine ouverture du coffre.
@@ -1058,32 +1052,6 @@ class FolderVaultService extends ChangeNotifier {
       debugPrint('vault $folderId — $migrated titre(s) passé(s) en v2');
     }
     return migrated;
-  }
-
-  /// Supprime l'embedding **en clair** calculé avant la mise au coffre.
-  ///
-  /// Mettre une note au coffre sans ce geste laisse en base un vecteur
-  /// dérivé de son texte en clair : la recherche sémantique continue de
-  /// la faire remonter, classée par la similarité de ce contenu, alors
-  /// que la passphrase n'a pas été saisie.
-  ///
-  /// ⚠️ **Aucune passe d'indexation ne rattrape cet oubli.**
-  /// `IndexingService.deleteOrphans` ne vise que les notes supprimées, et
-  /// la boucle d'indexation fait `continue` sur les notes verrouillées
-  /// sans jamais toucher à leur ligne. L'embedding résiduel resterait
-  /// donc en base indéfiniment — d'où l'appel obligatoire ici, sur
-  /// **tous** les chemins de mise au coffre.
-  ///
-  /// Best-effort : un échec DB ne doit pas faire échouer le chiffrement
-  /// lui-même (la note est déjà protégée), mais il est remonté par le
-  /// booléen de retour pour que le caller puisse en tenir compte.
-  Future<bool> purgePlaintextEmbedding(String noteId) async {
-    try {
-      await _embeddings?.remove(noteId);
-      return true;
-    } catch (_) {
-      return false;
-    }
   }
 
   /// Déchiffre une note verrouillée. Retourne une note éphémère avec
@@ -1237,10 +1205,9 @@ class FolderVaultService extends ChangeNotifier {
   /// protégé alors qu'une partie reste en clair.
   ///
   /// Pourquoi pas un rollback transactionnel global ? Parce que ça
-  /// nécessiterait d'inclure les events d'embedding et de backlinks
-  /// dans la même transaction SQL, ce qui n'est pas le design des
-  /// repositories. À la place, on remonte le bilan honnête et le
-  /// caller décide.
+  /// nécessiterait d'inclure les events de backlinks dans la même
+  /// transaction SQL, ce qui n'est pas le design des repositories. À la
+  /// place, on remonte le bilan honnête et le caller décide.
   Future<({int encrypted, int failed})> encryptAllNotesInFolder(
     String folderId,
   ) async {
@@ -1253,11 +1220,6 @@ class FolderVaultService extends ChangeNotifier {
       try {
         final encrypted = await encryptNote(note);
         await _notes.save(encrypted);
-        // F1 v1.0.3 — purge synchrone de l'embedding plaintext historique.
-        // Sans ça, la recherche sémantique continue de retrouver le
-        // contenu via son vecteur (cf. `purgePlaintextEmbedding` : aucune
-        // passe d'indexation ne le supprimerait ensuite).
-        await purgePlaintextEmbedding(note.id);
         ok++;
       } catch (_) {
         failed++;

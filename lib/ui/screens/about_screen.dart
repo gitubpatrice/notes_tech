@@ -9,13 +9,10 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants.dart';
 import '../../l10n/app_localizations.dart';
-import '../../services/embedding/embedding_provider.dart';
-import '../../services/indexing_service.dart';
 import '../../utils/snackbar_ext.dart';
 import 'mentions_legales_screen.dart';
 
@@ -78,39 +75,6 @@ class AboutScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // ── Moteur de recherche (dynamique) ──────────────────────────────
-          _SectionTitle(t.aboutSectionSearch),
-          const SizedBox(height: 8),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(14, 10, 14, 10),
-              child: _SearchEngineInfo(),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Q&A (questions / réponses) ───────────────────────────────────
-          _SectionTitle(t.aboutSectionQa),
-          const SizedBox(height: 8),
-          _FeatureRow(
-            icon: Icons.psychology_outlined,
-            color: cs.primary,
-            label: t.aboutQa1,
-          ),
-          _FeatureRow(
-            icon: Icons.shield_outlined,
-            color: cs.primary,
-            label: t.aboutQa2,
-          ),
-          _FeatureRow(
-            icon: Icons.flash_on_outlined,
-            color: cs.primary,
-            label: t.aboutQa3,
-          ),
-
-          const SizedBox(height: 24),
-
           // ── Voix (dictée locale Whisper) ─────────────────────────────────
           _SectionTitle(t.aboutSectionVoice),
           const SizedBox(height: 8),
@@ -128,11 +92,6 @@ class AboutScreen extends StatelessWidget {
             icon: Icons.delete_sweep_outlined,
             color: cs.primary,
             label: t.aboutVoice3,
-          ),
-          _FeatureRow(
-            icon: Icons.memory_outlined,
-            color: cs.primary,
-            label: t.aboutVoice4,
           ),
           const SizedBox(height: 12),
           _NoticeBox(
@@ -547,73 +506,6 @@ class _FeatureRow extends StatelessWidget {
 
 // ============================================================================
 // Moteur de recherche (dynamique provider) — préservé tel quel, juste enrobé
-// ============================================================================
-
-class _SearchEngineInfo extends StatelessWidget {
-  const _SearchEngineInfo();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context);
-    final embedderNotifier = context.watch<ValueNotifier<EmbeddingProvider>>();
-    final indexing = context.read<IndexingService>();
-    final embedder = embedderNotifier.value;
-    final isMiniLm = embedder.modelId.startsWith('minilm');
-    final label = isMiniLm
-        ? t.aboutSearchEngineMiniLm
-        : t.aboutSearchEngineLocal;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _InfoRow(
-          icon: isMiniLm ? Icons.auto_awesome : Icons.functions,
-          label: label,
-        ),
-        _InfoRow(icon: Icons.straighten, label: t.aboutSearchDim(embedder.dim)),
-        FutureBuilder<int>(
-          future: indexing.indexedCount(),
-          builder: (_, snap) {
-            final n = snap.data ?? 0;
-            return _InfoRow(
-              icon: Icons.inventory_2_outlined,
-              label: t.aboutSearchIndexed(n),
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ExcludeSemantics(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(icon, size: 18, color: theme.iconTheme.color),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================================
-// Notice box (mode d'emploi voix) — bloc à fond surfaceContainerHighest
 // ============================================================================
 
 class _NoticeBox extends StatelessWidget {

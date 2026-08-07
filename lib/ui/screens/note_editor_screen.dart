@@ -642,16 +642,6 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         _vault.touchActivity(targetId);
       }
       final saved = await _repo.save(candidate);
-      if (targetFolder.isVault) {
-        // Jumeau de `FolderVaultService.encryptAllNotesInFolder` : la mise
-        // au coffre en masse purgeait déjà l'embedding en clair, ce chemin
-        // unitaire ne le faisait PAS. Sans ça, la note restait retrouvable
-        // par la recherche sémantique, classée par la similarité de son
-        // contenu en clair, coffre verrouillé. Purge APRÈS le save : si
-        // l'écriture échoue, la note n'est pas au coffre et son embedding
-        // reste légitime.
-        await _vault.purgePlaintextEmbedding(saved.id);
-      }
       if (!mounted) return;
       setState(() {
         _wasLocked = targetFolder.isVault;

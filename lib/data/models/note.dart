@@ -172,8 +172,7 @@ class Note {
       // « contenu seul ». Se tromper dans ce sens fait au pire relire un
       // titre déjà présent ; l'inverse ferait interpréter un contenu comme
       // une enveloppe titre+contenu et rendrait la note illisible.
-      encVersion:
-          (row['enc_v'] as int?) ?? Note.kEncVersionContentOnly,
+      encVersion: (row['enc_v'] as int?) ?? Note.kEncVersionContentOnly,
     );
   }
 

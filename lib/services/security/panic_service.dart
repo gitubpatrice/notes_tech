@@ -64,7 +64,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/constants.dart';
 import '../../data/db/database.dart';
-import '../ai/gemma_service.dart';
 import '../note_actions.dart';
 import '../secure_window_service.dart';
 import '../voice/voice_service.dart';
@@ -123,7 +122,6 @@ enum PanicStep {
 class PanicService {
   PanicService({
     required VoiceService voice,
-    required GemmaService gemma,
     required VaultService vault,
     required AppDatabase database,
     required SecureWindowService secureWindow,
@@ -132,7 +130,6 @@ class PanicService {
     Future<void> Function()? lockAllFolders,
     KeystoreBridge? keystore,
   }) : _voice = voice,
-       _gemma = gemma,
        _vault = vault,
        _db = database,
        _secureWindow = secureWindow,
@@ -142,7 +139,6 @@ class PanicService {
        _keystore = keystore ?? KeystoreBridge();
 
   final VoiceService _voice;
-  final GemmaService _gemma;
   final VaultService _vault;
   final AppDatabase _db;
   final SecureWindowService _secureWindow;
@@ -210,7 +206,11 @@ class PanicService {
     //     60 s ; en panique on n'attend pas ce délai. cancelAndClear efface
     //     inconditionnellement (contrairement à l'auto-clear qui vérifie
     //     l'ownership) + annule le timer + reset le snapshot. Best-effort.
-    await _runStep(report, PanicStep.clipboardClear, NoteActions.cancelAndClear);
+    await _runStep(
+      report,
+      PanicStep.clipboardClear,
+      NoteActions.cancelAndClear,
+    );
 
     // 1.4 (v0.9.4). Verrouille TOUS les coffres par dossier déverrouillés
     //     en foreground : zeroize les `folder_kek` en RAM AVANT le wipe
@@ -267,7 +267,6 @@ class PanicService {
     // 6. Gemma : modèle .task (~530 Mo) + dispose du contexte natif.
     //    Le plus long step — vient APRÈS la garantie de sécurité (la
     //    KEK est partie depuis plusieurs steps).
-    await _runStep(report, PanicStep.gemmaUninstall, _gemma.uninstall);
 
     // 6.b B6 v1.0.4 — wipe du cache MiniLM (`<appSupport>/models/`).
     // Le modèle MiniLM est public mais l'app le copie dans son sandbox.

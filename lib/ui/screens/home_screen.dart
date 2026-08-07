@@ -21,11 +21,9 @@ import '../../utils/debouncer.dart';
 import '../../utils/snackbar_ext.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/folders_drawer.dart';
-import '../widgets/indexing_banner.dart';
 import '../widgets/note_card.dart';
 import '../widgets/vault_pin_sheets.dart';
 import 'about_screen.dart';
-import 'ai_chat_screen.dart';
 import 'note_editor_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
@@ -329,13 +327,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: t.homeAskAi,
-            icon: const Icon(Icons.psychology_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const AiChatScreen()),
-            ),
-          ),
-          IconButton(
             tooltip: t.searchTitle,
             icon: const Icon(Icons.travel_explore),
             onPressed: () => Navigator.of(context).push(
@@ -352,7 +343,9 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context) => [
               PopupMenuItem<void>(
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
                 ),
                 child: ListTile(
                   dense: true,
@@ -385,7 +378,6 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const IndexingBanner(),
             if (_vaultLostCount > 0)
               Material(
                 color: theme.colorScheme.errorContainer,

@@ -59,9 +59,6 @@ class NotesRepository {
   /// d'embeddings — pas par l'UI.
   Future<List<Note>> listAllAlive() => _dao.listAllAlive();
 
-  Future<Set<String>> listSemanticIneligibleIds() =>
-      _dao.listSemanticIneligibleIds();
-
   Future<List<Note>> listPlaintextInFolder(String folderId) =>
       _dao.listPlaintextInFolder(folderId);
 

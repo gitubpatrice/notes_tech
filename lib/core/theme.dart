@@ -64,7 +64,9 @@ class AppTheme {
     final primaryContainer = isDark
         ? AppColors.darkBlueContainer
         : const Color(0xFFD3E4FF);
-    final onPrimaryContainer = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final onPrimaryContainer = isDark
+        ? Colors.white
+        : AppColors.lightTextPrimary;
     final surfaceContainerHighest = isDark
         ? AppColors.darkSurface2
         : AppColors.lightSurface2;
