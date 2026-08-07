@@ -87,10 +87,16 @@ class _TrashScreenState extends State<TrashScreen> {
       for (final n in items) {
         await _notes.deletePermanently(n.id);
       }
-      await _reload();
       messenger.showSuccessSnack(t.trashDeletedForever, cs);
     } catch (e) {
       messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
+    } finally {
+      // RECHARGER MEME EN CAS D'ECHEC. Le rechargement etait a l'interieur du
+      // `try` : un echec a mi-parcours laissait l'ecran afficher des notes
+      // DEJA detruites definitivement, sans que l'utilisateur puisse savoir
+      // lesquelles avaient disparu et lesquelles restaient restaurables.
+      // Releve par une relecture externe (GPT-5.5).
+      await _reload();
     }
   }
 
@@ -112,10 +118,15 @@ class _TrashScreenState extends State<TrashScreen> {
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(t.commonCancel),
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: cs.errorContainer,
-              foregroundColor: cs.onErrorContainer,
+          // Suppression DEFINITIVE : ni corbeille, ni retour en arriere. Elle
+          // etait en `FilledButton` face a un « Annuler » en simple
+          // `TextButton` — le geste irreversible etait le bouton principal,
+          // celui qu'on tape par reflexe. Contourne, comme les deux autres
+          // dialogues destructifs de l'application.
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: cs.error,
+              side: BorderSide(color: cs.error),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(confirmLabel),

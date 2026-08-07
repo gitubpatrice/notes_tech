@@ -51,11 +51,27 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
   @override
   void dispose() {
     _ticker?.cancel();
+    // ⚠️ COUPER LE MICRO SI L'OVERLAY DISPARAIT SANS PASSER PAR SES BOUTONS.
+    // Seul le ticker etait annule. Une disparition venue d'ailleurs — coffre
+    // qui se verrouille et referme l'editeur, mode panique, depilage global —
+    // laissait la capture EN COURS : micro actif et WAV temporaire sur le
+    // disque, sans aucune interface pour les arreter. `cancel()` supprime le
+    // WAV, ce qui compte d'autant plus qu'il peut contenir le contenu dicte
+    // d'une note de coffre. Releve en CRITIQUE par une relecture externe
+    // (GPT-5.5).
+    //
+    // Fire-and-forget : `dispose` est synchrone. `cancelRecording` est
+    // idempotent — il sort immediatement si aucune capture n'est en cours.
+    unawaited(_voice.cancelRecording());
     super.dispose();
   }
 
+  /// Capture du service pour pouvoir couper la capture depuis `dispose`,
+  /// ou `context.read` n'est plus permis.
+  late final VoiceService _voice = context.read<VoiceService>();
+
   Future<void> _start() async {
-    final voice = context.read<VoiceService>();
+    final voice = _voice;
     try {
       await voice.startRecording();
     } on SttPermissionDenied catch (e) {
@@ -92,11 +108,15 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
   }
 
   Future<void> _cancel() async {
-    final voice = context.read<VoiceService>();
     final navigator = Navigator.of(context);
-    await voice.cancelRecording();
-    if (!mounted) return;
-    navigator.pop();
+    try {
+      await _voice.cancelRecording();
+    } finally {
+      // L'overlay se ferme MEME si l'annulation echoue : sinon une erreur
+      // d'arret du micro laissait l'utilisateur coince sur un ecran dont le
+      // seul bouton ne repond plus.
+      if (mounted) navigator.pop();
+    }
   }
 
   @override
