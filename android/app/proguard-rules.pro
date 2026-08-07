@@ -20,25 +20,11 @@
 # sqflite
 -keep class com.tekartik.sqflite.** { *; }
 
-# MediaPipe (flutter_gemma) — appels JNI vers les libs natives, classes
-# référencées dynamiquement, ne pas obfusquer/stripper.
--keep class com.google.mediapipe.** { *; }
--dontwarn com.google.mediapipe.**
--keep class com.google.protobuf.** { *; }
--dontwarn com.google.protobuf.**
-
-# flutter_gemma plugin
--keep class dev.flutterberlin.flutter_gemma.** { *; }
--dontwarn dev.flutterberlin.flutter_gemma.**
-
-# background_downloader (transitive de flutter_gemma — non utilisé mais
-# conservé pour éviter un crash si une classe est touchée par réflexion).
--keep class com.bbflight.background_downloader.** { *; }
--dontwarn com.bbflight.background_downloader.**
-
-# onnxruntime (recherche sémantique MiniLM)
--keep class ai.onnxruntime.** { *; }
--dontwarn ai.onnxruntime.**
+# ⚠️ Les règles MediaPipe / flutter_gemma / background_downloader /
+# onnxruntime ont été RETIRÉES avec l'IA embarquée (v1.1.7). Ces classes
+# n'existent plus dans le build : un `-keep` sans cible est silencieux, il
+# aurait survécu indéfiniment en donnant l'illusion d'une protection utile
+# et en masquant le jour où une vraie règle manquerait.
 
 # files_tech_voice (Whisper natif via JNI) — appels dynamiques, ne pas
 # stripper ni obfusquer.
