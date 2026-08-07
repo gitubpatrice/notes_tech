@@ -66,8 +66,25 @@ class NotesTechException implements Exception {
   /// un message brut. Tous les nouveaux throw-sites DOIVENT le fournir.
   final NotesErrorCode? code;
 
+  /// Inclut [cause] quand elle existe.
+  ///
+  /// Sans ça, une chaîne d'exceptions imbriquées perd sa racine : la couche
+  /// qui rattrape ne voit que le message de la couche du dessus. Constaté en
+  /// écrivant le test de migration en clair → chiffré — l'échec remontait en
+  /// « Ouverture base échouée », dont la cause était « Validation
+  /// post-migration échouée », dont la cause — la seule information utile,
+  /// l'erreur SQLCipher — était invisible.
+  ///
+  /// Sécurité : les constructeurs qui manipulent la KEK passent déjà leur
+  /// cause par `AppDatabase._scrubKey`, qui remplace toute clé hexadécimale
+  /// de 64 caractères. Rien de secret ne transite ici.
+  ///
+  /// Ce texte ne s'affiche jamais à l'utilisateur : l'UI localise via
+  /// [NotesErrorCode]. Il sert aux logs de debug et aux messages de test.
   @override
-  String toString() => '$runtimeType: $message';
+  String toString() => cause == null
+      ? '$runtimeType: $message'
+      : '$runtimeType: $message → $cause';
 }
 
 /// Exception générique typée par [NotesErrorCode], destinée aux nouveaux
