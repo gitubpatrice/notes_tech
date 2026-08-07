@@ -73,6 +73,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// persistance, gardant le modèle « toujours chiffré au repos ».
   bool _wasLocked = false;
 
+  /// Vrai dès que l'écran a été refermé pour cause de coffre verrouillé.
+  /// Rend `_closeOnVaultLock` idempotent — voir son commentaire.
+  bool _fermeSurVerrouillage = false;
+
   /// v1.0.7 UI I1 — force FLAG_SECURE pendant que le contenu d'une note
   /// déchiffrée vault est en RAM, même si l'utilisateur a désactivé la
   /// préférence globale. Refcount via [SecureWindowService] : on appelle
@@ -93,6 +97,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     super.initState();
     _repo = context.read<NotesRepository>();
     _vault = context.read<FolderVaultService>();
+    // Le correctif de fermeture n'etait branche que sur les chemins de
+    // SAUVEGARDE. Un utilisateur qui LIT sa note sans y toucher ne declenche
+    // aucun auto-save : l'auto-lock tombait, le coffre se fermait, et le clair
+    // restait affiche indefiniment. La fuite subsistait donc pour le cas le
+    // plus courant — lire une note et poser son telephone. Relevee par une
+    // relecture externe (GPT-5.5).
+    //
+    // `FolderVaultService` est un `ChangeNotifier` : on ecoute directement le
+    // verrouillage plutot que d'attendre une ecriture qui ne viendra pas.
+    _vault.addListener(_onVaultChanged);
     _load();
     // Si la note est supprimée/mise à la corbeille depuis un autre écran,
     // on désactive l'édition pour éviter de "ressusciter" la note via
@@ -112,8 +126,22 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     });
   }
 
+  /// Referme l'ecran des que le coffre de la note se verrouille, quelle
+  /// qu'en soit la cause : auto-lock, verrouillage manuel, mode panique.
+  void _onVaultChanged() {
+    if (_fermeSurVerrouillage) return;
+    final n = _note;
+    if (n == null || !_wasLocked) return;
+    if (_vault.isUnlocked(n.folderId)) return;
+    _showError(
+      AppLocalizations.of(context).noteEditorErrorVaultRelockedDuringEdit,
+    );
+    _closeOnVaultLock();
+  }
+
   @override
   void dispose() {
+    _vault.removeListener(_onVaultChanged);
     _changesSub?.cancel();
     _autosave.cancel();
     // Save final SEULEMENT si la note est encore valide.
@@ -441,6 +469,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   /// Le message reste visible : `ScaffoldMessenger` vit au-dessus de la route
   /// qu'on dépile.
   void _closeOnVaultLock() {
+    // ⚠️ IDEMPOTENT, et ce n'est pas du confort. `_doneEditing` appelle
+    // `_flushSave`, qui peut DEJA avoir referme l'ecran ici ; au retour,
+    // `_note` vaut null, `isUnlocked('')` repond faux, et la fermeture etait
+    // rejouee — un second `pop()` depilant la route PRECEDENTE. Exactement la
+    // regression « contrat change sans verifier les appelants ». Relevee par
+    // une relecture externe (GPT-5.5) sur ce correctif meme.
+    if (_fermeSurVerrouillage) return;
+    _fermeSurVerrouillage = true;
     _autosave.cancel();
     _titleCtrl.clear();
     _contentCtrl.clear();

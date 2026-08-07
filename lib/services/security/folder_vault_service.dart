@@ -973,8 +973,17 @@ class FolderVaultService extends ChangeNotifier {
   /// marqué coffre et l'utilisateur le croit protégé. Attendre le prochain
   /// déverrouillage pour réparer, c'est laisser du clair au repos entre-temps.
   ///
-  /// Ne réussit que si la session est ouverte — c'est le cas juste après une
-  /// conversion. Retourne le nombre de notes reprotégées.
+  /// ⚠️ NE REPARE RIEN SI LA SESSION S'EST REFERMEE, et il faut le savoir :
+  /// une opération longue peut dépasser le délai d'auto-lock, et c'est
+  /// justement l'une des causes d'échec qui amènent ici. Sans clé en RAM,
+  /// chaque note lève et le compteur retourne 0 — sans erreur, silencieusement.
+  /// Les appelants ne doivent donc PAS annoncer une réparation sur la foi de
+  /// cet appel : ils n'ajustent leur message qu'à partir du nombre réellement
+  /// reprotégé. Le rattrapage définitif reste la prochaine ouverture du
+  /// coffre, où `_onSessionOpened` repasse. Relevé par une relecture externe
+  /// (GPT-5.5).
+  ///
+  /// Retourne le nombre de notes effectivement reprotégées.
   Future<int> retryProtectPlaintextNotes(String folderId) =>
       _reprotectPlaintextNotes(folderId);
 
