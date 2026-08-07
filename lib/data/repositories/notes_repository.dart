@@ -115,12 +115,30 @@ class NotesRepository {
   /// sites d'appel qui devaient penser à `encryptNote` — il en manquait
   /// deux, et le défaut ne se voyait ni à la lecture ni à l'usage.
   ///
-  /// Trois sorties immédiates avant tout accès disque, pour que la garde ne
-  /// coûte rien sur le chemin chaud de l'auto-save :
+  /// Sorties immédiates avant tout accès disque, pour que la garde ne coûte
+  /// rien sur le chemin chaud de l'auto-save :
   ///   1. la note porte déjà un blob chiffré → rien à protéger ;
-  ///   2. son contenu est vide → rien à fuiter (cas de la note neuve, qui
-  ///      est créée puis chiffrée dans la foulée) ;
+  ///   2. titre ET contenu vides → rien à fuiter (note neuve, créée puis
+  ///      chiffrée dans la foulée) ;
   ///   3. aucun prédicat câblé → garde inerte (tests hors coffre).
+  ///
+  /// ⚠️ LE TITRE N'EST PAS GARDÉ ICI, et c'est une limite connue, pas un
+  /// oubli. Une relecture externe (Gemini 3.1 Pro) a signalé en CRITIQUE
+  /// qu'une note de coffre intitulée « Code PIN carte bleue » avec un corps
+  /// vide traverse cette garde, et que son titre part en clair dans la
+  /// colonne `title` — ce qui est exact depuis le format v2, où le titre
+  /// rejoint le contenu dans le blob chiffré.
+  ///
+  /// Étendre la garde au titre a été TENTÉ et REFUSÉ : elle casse le flux
+  /// normal de création. L'éditeur crée la note puis la chiffre ; l'utilisateur
+  /// tape son titre avant son corps, et l'auto-save intervient entre les deux.
+  /// La garde levait alors sur une écriture parfaitement légitime, et les
+  /// tests d'invariant du coffre viraient au rouge sur les trois premiers cas.
+  ///
+  /// La protection réelle du titre est ailleurs : `_reprotectPlaintextNotes`
+  /// repasse sur les notes en clair d'un coffre à chaque ouverture de session.
+  /// Fermer cette fenêtre proprement demande de chiffrer dès la création
+  /// plutôt que de rattraper après — c'est un chantier, pas une ligne.
   Future<void> _guardVaultPlaintext(Note note, String operation) async {
     if (note.encryptedContent != null) return;
     if (note.content.isEmpty) return;

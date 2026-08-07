@@ -515,6 +515,12 @@ class FolderVaultService extends ChangeNotifier {
       // Succès : reset compteur + ouvre session.
       working = working.copyWith(vaultAttempts: 0);
       await _folders.update(working);
+      // Jumeau du chemin passphrase, qui purge son lockout RAM sur succès.
+      // Il manquait ici : après un échec suivi d'une réussite, un
+      // verrouillage puis un déverrouillage immédiat se heurtait à une
+      // `VaultLockoutInProgressException` fantôme, héritée de l'échec
+      // précédent. Relevé par une relecture externe (Gemini 3.1 Pro).
+      _pinLockoutUntilMs.remove(folder.id);
 
       _unlocked[folder.id] = _Session(folderKek: kek, openedAt: DateTime.now());
       transferredToSession = true; // ownership transférée — ne pas wipe ici
@@ -702,10 +708,22 @@ class FolderVaultService extends ChangeNotifier {
         }
         await _autoWipePinVault(folder);
       } catch (_) {
-        // Best-effort : on retire quand même le flag pour ne pas
-        // boucler indéfiniment au prochain démarrage si la reprise
-        // échoue de manière permanente (ex. DB corrompue).
-        await prefs.remove(key);
+        // ⚠️ LE DRAPEAU EST CONSERVÉ, et c'est le geste inverse du précédent.
+        //
+        // Il était retiré ici « pour ne pas boucler indéfiniment ». C'était un
+        // repli qui échoue du mauvais côté : une exception transitoire — base
+        // verrouillée, Keystore indisponible au boot — suffisait à ANNULER
+        // DÉFINITIVEMENT un effacement de sécurité déclenché par cinq PIN
+        // faux. L'attaquant n'avait qu'à provoquer un crash au démarrage pour
+        // sauver le coffre qu'il venait de faire condamner.
+        //
+        // Le coût de le conserver est une tentative par démarrage, sur un
+        // chemin déjà best-effort et non bloquant. Le coût de le retirer est
+        // la perte de la garantie. Relevé indépendamment par GPT-5.2 et
+        // Gemini 3.1 Pro.
+        //
+        // Le seul retrait légitime reste celui du dossier déjà supprimé
+        // ci-dessus : là, il n'y a effectivement plus rien à effacer.
       }
     }
   }
