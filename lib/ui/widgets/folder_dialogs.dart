@@ -160,14 +160,23 @@ Future<FolderDeletionChoice?> confirmDeleteFolder({
               style: TextStyle(color: cs.error),
             ),
           ),
-          // Pour un coffre, ce choix n'est PAS l'option sûre : il déchiffre
-          // tout. Il perd donc son statut de bouton par défaut et prend les
-          // couleurs d'avertissement, comme la sortie de coffre d'une note.
+          // Pour un coffre, ce choix n'est PAS l'option sûre : il DÉCHIFFRE
+          // tout et déverse le contenu dans la boîte de réception.
+          //
+          // Il avait déjà perdu les couleurs du bouton par défaut, mais il
+          // restait un `FilledButton` — donc l'élément le plus lourd du
+          // dialogue, celui vers lequel va le pouce de quelqu'un de pressé.
+          // Changer la couleur sans changer le poids ne suffisait pas : une
+          // relecture externe (Gemini 3.1 Pro) l'a relevé comme « le gros
+          // bouton rouge qu'on tape pour confirmer une suppression », alors
+          // qu'il fait exactement l'inverse de ce qu'on croit confirmer.
+          // Il est désormais contourné : aucun bouton du dialogue n'est
+          // rempli, donc aucun ne réclame le geste.
           if (isVault)
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: cs.errorContainer,
-                foregroundColor: cs.onErrorContainer,
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: cs.error,
+                side: BorderSide(color: cs.error),
               ),
               onPressed: () =>
                   Navigator.of(ctx).pop(FolderDeletionChoice.moveToInbox),

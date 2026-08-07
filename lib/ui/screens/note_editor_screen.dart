@@ -712,6 +712,16 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     final created = await _repo.create(folderId: folderId, title: title);
     if (folder == null || !folder.isVault) return created;
 
+    // ⚠️ NE PAS RE-CHIFFRER UNE NOTE DÉJÀ SCELLÉE. Depuis que le repository
+    // scelle avant de persister, `create` dans un coffre revient déjà avec
+    // son blob, `title` et `content` vidés. La rechiffrer packerait deux
+    // chaînes VIDES et écraserait le blob : le titre serait perdu, sans la
+    // moindre erreur pour le signaler.
+    if (created.encryptedContent != null) {
+      _vault.touchActivity(folderId);
+      return created;
+    }
+
     try {
       final encrypted = await _vault.encryptNote(created);
       await _repo.save(encrypted);
