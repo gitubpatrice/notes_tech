@@ -50,13 +50,25 @@ dependencies:
   # v0.6 — Speech-to-Text on-device (Whisper) via package partagé sibling.
   # Pas de permission INTERNET ajoutée : l'utilisateur importe le modèle
   # .bin manuellement (cf. VoiceSetupScreen), même pattern que Gemma.
+  # Même raison que files_tech_core ci-dessous : un chemin relatif rend l'application
+  # incompilable hors de l'arborescence de développement.
   files_tech_voice:
-    path: ../files_tech_voice
+    git:
+      url: https://github.com/gitubpatrice/files_tech_voice.git
+      ref: dca1e1dadd97b8f5dff4351eabdff768fe8b05c3
 
   # v0.9.7 — Helpers crypto partagés (SecretBytes : randomBytes, wipe,
   # constantTimeEq) factorisés depuis pass_tech / read_files_tech.
+  # Dépendance git et non chemin relatif : `path: ../files_tech_core` ne résout que dans
+  # l'arborescence de développement. Hors de celle-ci — un clone du dépôt, la CI, le buildserver
+  # F-Droid — `pub get` échoue sur « could not find package files_tech_core ». L'application était
+  # donc incompilable par quiconque n'a pas les dépôts frères côte à côte, ce qui contredit le fait
+  # de publier les sources. Épinglé à un commit pour rester reproductible ; pass_tech procède ainsi
+  # depuis sa v2.6.0.
   files_tech_core:
-    path: ../files_tech_core
+    git:
+      url: https://github.com/gitubpatrice/files_tech_core.git
+      ref: 4a69aa89a7a7bf6791a03692ca2dbdbb7e66efae
 
   # v0.8 — Vault par dossier (Argon2id passphrase + AES-256-GCM par note).
   # Le package `cryptography` (Dart pur, pas de natif additionnel)
