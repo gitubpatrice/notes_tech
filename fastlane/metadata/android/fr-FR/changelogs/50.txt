@@ -1,0 +1,11 @@
+L'application se compile enfin depuis ses sources.
+
+Elle dependait de deux paquets internes par chemin relatif, ce qui ne
+fonctionne que la ou les depots voisins sont cote a cote. Ailleurs - un
+simple clone, une integration continue, un buildserver - la resolution
+echouait et l'application etait incompilable.
+
+Les deux paquets sont desormais tires depuis GitHub, epingles a un
+commit precis pour que le resultat reste reproductible.
+
+Rien ne change dans l'application elle-meme.

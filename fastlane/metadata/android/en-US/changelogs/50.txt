@@ -1,0 +1,11 @@
+The app can finally be built from its own sources.
+
+It depended on two internal packages by relative path, which only works
+on the machine where the sibling repositories sit side by side. Anywhere
+else - a plain clone, a CI run, a buildserver - resolution failed and the
+app could not be built at all.
+
+Both packages are now pulled from GitHub, pinned to an exact commit so
+the result stays reproducible.
+
+Nothing changes in the app itself.
