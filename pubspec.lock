@@ -196,16 +196,20 @@ packages:
   files_tech_core:
     dependency: "direct main"
     description:
-      path: "../files_tech_core"
-      relative: true
-    source: path
+      path: "."
+      ref: e631fc894a802477c7f9ebe6d34ec46a56dc88d5
+      resolved-ref: e631fc894a802477c7f9ebe6d34ec46a56dc88d5
+      url: "https://github.com/gitubpatrice/files_tech_core.git"
+    source: git
     version: "0.3.4"
   files_tech_voice:
     dependency: "direct main"
     description:
-      path: "../files_tech_voice"
-      relative: true
-    source: path
+      path: "."
+      ref: dca1e1dadd97b8f5dff4351eabdff768fe8b05c3
+      resolved-ref: dca1e1dadd97b8f5dff4351eabdff768fe8b05c3
+      url: "https://github.com/gitubpatrice/files_tech_voice.git"
+    source: git
     version: "0.1.0"
   fixnum:
     dependency: transitive
