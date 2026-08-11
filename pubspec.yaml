@@ -68,7 +68,7 @@ dependencies:
   files_tech_core:
     git:
       url: https://github.com/gitubpatrice/files_tech_core.git
-      ref: e631fc894a802477c7f9ebe6d34ec46a56dc88d5
+      ref: 9d6734474aaa7dfa2c1dd726d0dab1a349ebdd0e
 
   # v0.8 — Vault par dossier (Argon2id passphrase + AES-256-GCM par note).
   # Le package `cryptography` (Dart pur, pas de natif additionnel)
