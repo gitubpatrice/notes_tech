@@ -29,9 +29,8 @@ object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideKeystoreKekSource(
-        @ApplicationContext context: Context,
-    ): WritableKekSource = KeystoreSealedKekSource(context)
+    fun provideKeystoreKekSource(@ApplicationContext context: Context): WritableKekSource =
+        KeystoreSealedKekSource(context)
 
     /**
      * Ordre des sources de clé — il est **significatif**, pas décoratif.
@@ -48,19 +47,16 @@ object DatabaseModule {
      */
     @Provides
     @Singleton
-    fun provideKekRepository(
-        @ApplicationContext context: Context,
-        primary: WritableKekSource,
-    ): KekRepository = KekRepository(
-        sources = listOf(primary),
-        primary = primary,
-        // Passé en lambda et non évalué ici : l'existence du fichier doit être constatée au moment
-        // de l'acquisition, pas au moment où le graphe d'injection se construit.
-        databaseExists = { LegacyDatabaseLocation.databaseExists(context) },
-    )
+    fun provideKekRepository(@ApplicationContext context: Context, primary: WritableKekSource): KekRepository =
+        KekRepository(
+            sources = listOf(primary),
+            primary = primary,
+            // Passé en lambda et non évalué ici : l'existence du fichier doit être constatée au moment
+            // de l'acquisition, pas au moment où le graphe d'injection se construit.
+            databaseExists = { LegacyDatabaseLocation.databaseExists(context) },
+        )
 
     @Provides
     @Singleton
-    fun provideDatabaseFactory(kekRepository: KekRepository): NotesDatabaseFactory =
-        NotesDatabaseFactory(kekRepository)
+    fun provideDatabaseFactory(kekRepository: KekRepository): NotesDatabaseFactory = NotesDatabaseFactory(kekRepository)
 }

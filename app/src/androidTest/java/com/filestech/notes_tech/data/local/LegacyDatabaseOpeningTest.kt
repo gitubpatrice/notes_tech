@@ -325,8 +325,7 @@ class LegacyDatabaseOpeningTest {
     private fun tableExists(name: String): Boolean =
         rawQueryLong("SELECT count(*) FROM sqlite_master WHERE type='table' AND name=?", name) > 0
 
-    private fun rowIdOf(noteId: String): Long =
-        rawQueryLong("SELECT rowid FROM notes WHERE id = ?", noteId)
+    private fun rowIdOf(noteId: String): Long = rawQueryLong("SELECT rowid FROM notes WHERE id = ?", noteId)
 
     private fun linkCountFrom(noteId: String): Long =
         rawQueryLong("SELECT count(*) FROM note_links WHERE source_id = ?", noteId)
@@ -366,8 +365,7 @@ class LegacyDatabaseOpeningTest {
         override val name = "refus"
         override fun load(): ByteArray? = null
         override fun store(kek: ByteArray) = error("aucune écriture ne doit avoir lieu ici")
-        override fun replaceKeyAndStore(kek: ByteArray) =
-            error("aucune écriture ne doit avoir lieu ici")
+        override fun replaceKeyAndStore(kek: ByteArray) = error("aucune écriture ne doit avoir lieu ici")
     }
 
     private companion object {

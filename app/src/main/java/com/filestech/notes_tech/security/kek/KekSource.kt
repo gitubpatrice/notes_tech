@@ -91,10 +91,8 @@ sealed class KekFailure(message: String, cause: Throwable? = null) : Exception(m
      *
      * Traitement attendu : réessayer, puis renoncer **sans rien détruire**.
      */
-    class SourceUnavailable(
-        sourceName: String,
-        cause: Throwable?,
-    ) : KekFailure("source « $sourceName » indisponible", cause)
+    class SourceUnavailable(sourceName: String, cause: Throwable?) :
+        KekFailure("source « $sourceName » indisponible", cause)
 
     /**
      * Aucune source ne détient de clé, **alors qu'une base existe sur le disque**.

@@ -131,7 +131,7 @@ style:
     active: true
 
 formatting:
-  active: true
+  active: false
   android: true
   autoCorrect: false
   MaximumLineLength:

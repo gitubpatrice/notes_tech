@@ -45,9 +45,7 @@ import javax.crypto.spec.GCMParameterSpec
  * alors que le facteur d'authentification du produit est le verrouillage de coffre, pas l'ouverture
  * de l'application.
  */
-class KeystoreSealedKekSource(
-    private val context: Context,
-) : WritableKekSource {
+class KeystoreSealedKekSource(private val context: Context) : WritableKekSource {
 
     override val name: String get() = "keystore"
 

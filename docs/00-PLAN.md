@@ -49,19 +49,50 @@ Le plan attaque donc le point 1 **avant** d'écrire une seule ligne d'interface.
 Une phase n'est finie que quand son **critère de sortie** est atteint. Pas « le code est écrit » —
 le critère est toujours une preuve observable.
 
-### Phase 1 — Socle ⏳ en cours
+### Phase 1 — Socle ✅ close le 2026-08-13
 
 Squelette Gradle/Kotlin repris de `agenda_tech`, qui est le donneur le plus proche
 (Kotlin natif, Room + SQLCipher, zéro réseau, mono-module).
 
 - [x] Arborescence, wrapper Gradle, config detekt/ktlint
-- [ ] `libs.versions.toml`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`
-- [ ] Manifeste (sans `INTERNET`), `Application` Hilt, thème Material 3
-- [ ] CI reprise d'`agenda_tech` — **y compris le contrôle « zéro réseau »**, seul garde-fou
-      mécanique de la promesse publique
-- [ ] `version.properties` (source unique de version, comme Agenda Tech)
+- [x] `libs.versions.toml`, `build.gradle.kts`, `settings.gradle.kts`, `gradle.properties`
+- [x] Manifeste (sans `INTERNET`), `Application` Hilt, thème Material 3
+- [x] CI reprise d'`agenda_tech` — **y compris le contrôle « zéro réseau »**, éprouvé par trois
+      contrôles négatifs
+- [x] `version.properties` (source unique de version)
+- [x] Isolation `.next` (D-008) — le portage ne peut pas écraser l'application réelle
 
-**Critère de sortie** : `./gradlew assembleDebug detekt lintDebug` vert sur un projet vide.
+⚠️ **Écart assumé avec `agenda_tech`** : `minSdk 24` et non 26, `targetSdk 36` et non 35. Ces deux
+valeurs sont **relevées** sur le manifeste fusionné de la 2.0.3 publiée, pas choisies. Monter le
+plancher exclurait les utilisateurs Android 7 d'une mise à jour.
+
+**Critère de sortie atteint** : `assembleDebug`, `testDebugUnitTest`, `lintDebug`, `detekt` et
+`ktlintCheck` verts.
+
+### Phase 2 — Ouvrir la base héritée ✅ close le 2026-08-13
+
+- [x] Entités Room décalquées au caractère près
+- [x] `SqlCipherRawKey` — format `x'<64 hex>'` (D-004)
+- [x] Acquisition de la KEK, couches ① et ③ ; **couche ② conçue, pas écrite**
+- [x] `notes_fts`, ses 3 triggers et `note_links` créés hors du graphe Room
+- [x] Chemin de base `app_flutter/notes_tech.db` (D-003)
+- [x] DAO dossiers, notes, recherche FTS5, liens
+
+**Critère de sortie atteint** — mesuré, pas supposé :
+
+| Vérification | Résultat |
+|---|---|
+| Tests instrumentés sur Galaxy S9 (API 29) | **11**, 0 échec |
+| Tests JVM | **46**, 0 échec |
+| Schéma Room vs DDL hérité (comparaison mécanique) | aucune divergence |
+
+Deux de ces tests ont une valeur particulière parce qu'ils **peuvent échouer** : ouvrir la base
+avec les 32 octets bruts au lieu de `x'<hex>'` doit échouer, et une note verrouillée délibérément
+fuitée dans l'index ne doit **quand même** pas ressortir d'une recherche.
+
+⚠️ **Ce qui n'est PAS prouvé** : l'acquisition réelle de la KEK chez un utilisateur qui migre. La
+build isolée n'a accès ni aux préférences ni au Keystore de l'application d'origine. Cela ne se
+vérifie qu'à la bascule — cf. [06-ISOLATION-PENDANT-LE-CHANTIER.md](06-ISOLATION-PENDANT-LE-CHANTIER.md) §2.
 
 ### Phase 2 — Ouvrir la base héritée 🔴 point de risque n°1
 

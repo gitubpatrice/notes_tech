@@ -161,11 +161,9 @@ class KekRepositoryTest {
         }
     }
 
-    private class FakeWritableSource(
-        name: String,
-        kek: ByteArray?,
-        private val echoueEnEcriture: Boolean = false,
-    ) : FakeSource(name, kek), WritableKekSource {
+    private class FakeWritableSource(name: String, kek: ByteArray?, private val echoueEnEcriture: Boolean = false) :
+        FakeSource(name, kek),
+        WritableKekSource {
         var ecrituresNonDestructives = 0
             private set
         var remplacements = 0

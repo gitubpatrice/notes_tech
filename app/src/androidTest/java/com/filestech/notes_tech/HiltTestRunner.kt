@@ -16,9 +16,6 @@ import dagger.hilt.android.testing.HiltTestApplication
  * S9 de test — jamais sur le téléphone réel.
  */
 class HiltTestRunner : AndroidJUnitRunner() {
-    override fun newApplication(
-        cl: ClassLoader?,
-        className: String?,
-        context: Context?,
-    ): Application = super.newApplication(cl, HiltTestApplication::class.java.name, context)
+    override fun newApplication(cl: ClassLoader?, className: String?, context: Context?): Application =
+        super.newApplication(cl, HiltTestApplication::class.java.name, context)
 }

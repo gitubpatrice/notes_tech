@@ -210,7 +210,10 @@ object LegacyDatabaseFixture {
                 "vault_salt, vault_kek_wrapped, vault_iv, vault_verifier, vault_mode, " +
                 "vault_attempts) VALUES (?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, 'passphrase', 2)",
             arrayOf<Any?>(
-                Fixtures.FOLDER_VAULT, "Coffre", now, now,
+                Fixtures.FOLDER_VAULT,
+                "Coffre",
+                now,
+                now,
                 ByteArray(16) { it.toByte() },
                 ByteArray(60) { (it * 3).toByte() },
                 ByteArray(12) { (it + 1).toByte() },
@@ -223,8 +226,12 @@ object LegacyDatabaseFixture {
                 "favorite, archived, trashed_at, created_at, updated_at, enc_v) " +
                 "VALUES (?, ?, ?, NULL, ?, 'budget', 1, 0, 0, NULL, ?, ?, 1)",
             arrayOf<Any?>(
-                Fixtures.NOTE_PLAIN, Fixtures.PLAIN_TITLE, Fixtures.PLAIN_CONTENT,
-                Fixtures.FOLDER_WORK, now, now,
+                Fixtures.NOTE_PLAIN,
+                Fixtures.PLAIN_TITLE,
+                Fixtures.PLAIN_CONTENT,
+                Fixtures.FOLDER_WORK,
+                now,
+                now,
             ),
         )
         // Note VERROUILLÉE : `content` et `title` sont vidés en clair, tout est dans le blob.

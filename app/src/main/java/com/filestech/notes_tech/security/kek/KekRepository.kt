@@ -133,16 +133,14 @@ class KekRepository(
      * état qu'aucune autre source ne peut réparer, et le taire ferait passer pour une absence ce
      * qui est une corruption.
      */
-    private inline fun loadOrNull(
-        source: KekSource,
-        onFailure: (KekFailure.SourceUnavailable) -> Unit,
-    ): ByteArray? = try {
-        source.load()
-    } catch (e: KekFailure.SourceUnavailable) {
-        Timber.w(e, "source « %s » indisponible — on poursuit avec les suivantes", source.name)
-        onFailure(e)
-        null
-    }
+    private inline fun loadOrNull(source: KekSource, onFailure: (KekFailure.SourceUnavailable) -> Unit): ByteArray? =
+        try {
+            source.load()
+        } catch (e: KekFailure.SourceUnavailable) {
+            Timber.w(e, "source « %s » indisponible — on poursuit avec les suivantes", source.name)
+            onFailure(e)
+            null
+        }
 
     private fun validated(kek: ByteArray, sourceName: String): ByteArray {
         if (kek.size != SqlCipherRawKey.KEY_SIZE_BYTES) {

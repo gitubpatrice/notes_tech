@@ -48,11 +48,10 @@ class DatabaseProvider @Inject constructor(
      *   inaccessible. **La base sur le disque n'est jamais touchée** dans ce cas — l'échec est
      *   rejouable une fois la cause levée.
      */
-    suspend fun get(): NotesDatabase =
-        instance ?: mutex.withLock {
-            // Relecture sous verrou : un appelant a pu ouvrir pendant qu'on attendait.
-            instance ?: withContext(ioDispatcher) { factory.build(context) }.also { instance = it }
-        }
+    suspend fun get(): NotesDatabase = instance ?: mutex.withLock {
+        // Relecture sous verrou : un appelant a pu ouvrir pendant qu'on attendait.
+        instance ?: withContext(ioDispatcher) { factory.build(context) }.also { instance = it }
+    }
 
     /**
      * `true` si la base a déjà été ouverte. Ne déclenche **pas** l'ouverture.

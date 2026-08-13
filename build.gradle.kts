@@ -9,8 +9,10 @@ plugins {
 }
 
 allprojects {
-    apply(plugin = rootProject.libs.plugins.detekt.get().pluginId)
-    apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
+    val detektPlugin = rootProject.libs.plugins.detekt.get()
+    val ktlintPlugin = rootProject.libs.plugins.ktlint.get()
+    apply(plugin = detektPlugin.pluginId)
+    apply(plugin = ktlintPlugin.pluginId)
 
     detekt {
         config.setFrom(files("$rootDir/config/detekt/detekt.yml"))
@@ -19,6 +21,16 @@ allprojects {
         parallel = true
     }
 
+    // Le greffon `detekt-formatting` est présent mais son jeu de règles est **inactif**
+    // (`formatting.active: false` dans config/detekt/detekt.yml).
+    //
+    // Il est conservé parce que detekt valide son fichier de configuration contre les jeux de
+    // règles chargés : sans le greffon, la section `formatting:` devient « propriété inexistante »
+    // et la tâche échoue avant même d'analyser quoi que ce soit.
+    //
+    // Pourquoi l'avoir désactivé : il fait double emploi avec ktlint, et les deux exigeaient des
+    // mises en forme INCOMPATIBLES sur les mêmes fichiers. Un seul propriétaire du style — ktlint,
+    // configuré dans .editorconfig. detekt ne fait plus que du fond.
     dependencies {
         add("detektPlugins", rootProject.libs.detekt.formatting)
     }

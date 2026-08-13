@@ -35,11 +35,7 @@ import com.filestech.notes_tech.R
  * mène quelque part.
  */
 @Composable
-fun StartupFailureScreen(
-    reason: FailureReason,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun StartupFailureScreen(reason: FailureReason, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Column(
             modifier = Modifier

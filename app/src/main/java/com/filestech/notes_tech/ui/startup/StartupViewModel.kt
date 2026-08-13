@@ -45,9 +45,7 @@ enum class FailureReason {
 }
 
 @HiltViewModel
-class StartupViewModel @Inject constructor(
-    private val databaseProvider: DatabaseProvider,
-) : ViewModel() {
+class StartupViewModel @Inject constructor(private val databaseProvider: DatabaseProvider) : ViewModel() {
 
     private val _state = MutableStateFlow<StartupState>(StartupState.Opening)
     val state: StateFlow<StartupState> = _state.asStateFlow()
