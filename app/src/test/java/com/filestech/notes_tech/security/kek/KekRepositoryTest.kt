@@ -228,17 +228,47 @@ class KekRepositoryTest {
         assertThat(depot.acquire()).isEqualTo(attendue)
     }
 
+    /**
+     * 🔴 **Une clé secondaire n'est PAS recopiée si une source a échoué avant elle.**
+     *
+     * Le scénario fermé par cette condition : la source primaire est momentanément indisponible, une
+     * secondaire rend une clé bien formée, et la recopie écrase le scellé primaire — qui contenait
+     * peut-être une AUTRE clé.
+     *
+     * Une clé bien formée prouve qu'elle a 32 octets, pas qu'elle ouvre la base sur le disque.
+     * Relevé par une relecture externe (GPT-5.5, 2026-08-13).
+     */
+    @Test
+    @DisplayName("aucune recopie si une source a echoue pendant le parcours")
+    fun pasDePromotionApresUnEchec() {
+        val attendue = ByteArray(32) { (it * 7).toByte() }
+        val primaire = SourceEnregistreuse(detient = null, echoueALaLecture = true)
+        val secours = SourceSimple("secours", attendue)
+        val depot = KekRepository(listOf(primaire, secours), primaire, databaseExists = { true })
+
+        assertThat(depot.acquire()).isEqualTo(attendue)
+
+        // La clé est bien rendue — l'utilisateur ouvre ses notes — mais rien n'a été écrasé.
+        assertThat(primaire.stockee).isNull()
+    }
+
     private class SourceSimple(override val name: String, private val cle: ByteArray?) : KekSource {
         override fun load(): ByteArray? = cle?.copyOf()
     }
 
-    private class SourceEnregistreuse(private val detient: ByteArray?, private val echoueALEcriture: Boolean = false) :
-        WritableKekSource {
+    private class SourceEnregistreuse(
+        private val detient: ByteArray?,
+        private val echoueALEcriture: Boolean = false,
+        private val echoueALaLecture: Boolean = false,
+    ) : WritableKekSource {
         override val name = "primaire"
         var stockee: ByteArray? = null
         var remplacements = 0
 
-        override fun load(): ByteArray? = detient?.copyOf()
+        override fun load(): ByteArray? {
+            if (echoueALaLecture) throw KekFailure.SourceUnavailable(name, null)
+            return detient?.copyOf()
+        }
 
         override fun store(kek: ByteArray) {
             if (echoueALEcriture) throw KekFailure.SourceUnavailable(name, null)

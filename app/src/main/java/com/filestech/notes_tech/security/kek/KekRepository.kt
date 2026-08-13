@@ -119,7 +119,29 @@ class KekRepository(
             }
             if (kek != null) {
                 val cle = validated(kek, source.name)
-                if (source !== primary) promoteToPrimary(cle)
+                // 🔴 On ne recopie **que** si aucune source n'a échoué avant celle-ci.
+                //
+                // Le scénario que cette condition ferme, relevé par une relecture externe
+                // (GPT-5.5, 2026-08-13) :
+                //
+                //   1. la source primaire est momentanément indisponible — le parcours continue,
+                //      c'est voulu ;
+                //   2. une source secondaire rend une clé **bien formée** ;
+                //   3. la recopie écrase le scellé primaire, qui contenait peut-être une AUTRE clé.
+                //
+                // Une clé bien formée prouve qu'elle a 32 octets, **pas** qu'elle ouvre la base qui
+                // est sur le disque. Si les deux sources divergeaient, la recopie détruirait la
+                // dernière copie persistée de la bonne clé.
+                //
+                // Elles ne divergent pas aujourd'hui : la version Flutter écrit la même valeur des
+                // deux côtés et ne la fait jamais tourner. Mais rien dans ce code ne l'impose, et
+                // la conséquence d'une divergence future serait irréversible — le même
+                // raisonnement que pour les écritures de ligne entière (`docs/01-DECISIONS.md`
+                // D-010).
+                //
+                // La perte est nulle : sans recopie, la source secondaire sera relue au prochain
+                // démarrage.
+                if (source !== primary && firstFailure == null) promoteToPrimary(cle)
                 return cle
             }
         }

@@ -290,3 +290,75 @@ moment de le poser, pendant que le contrat est encore une intention plutôt qu'u
 
 `check(!carriesPlaintext(sealed))` annule la transaction. Un test avec un scelleur délibérément
 négligent le prouve.
+
+---
+
+## 18. 🔴 Le motif « échec lu comme absence » revient, et il a des jumeaux
+
+Le pire défaut possible de ce projet tient en une ligne :
+
+```kotlin
+val valeur = preferences[CLE] as? String ?: return null
+```
+
+`null` y signifie deux choses inconciliables : **la clé n'existe pas**, et **elle existe mais porte
+autre chose**. La seconde est une corruption. La lire comme une absence conduit `KekRepository` à
+conclure « aucune clé nulle part », puis à en générer une neuve si aucune base n'existe encore.
+
+Ce motif est apparu **deux fois le même jour**, dans deux fichiers voisins :
+
+| Fichier | États confondus avec l'absence |
+|---|---|
+| `FlutterSecureStorageKekSource` | valeur d'un type inattendu |
+| `KeystoreSealedKekSource` | type inattendu **et** scellé incomplet (un champ écrit, l'autre pas) |
+
+Le second est resté ouvert **deux heures après la correction du premier**, dans un fichier dont le
+commentaire explique pourquoi le motif est mortel.
+
+> **Corriger un motif quelque part, c'est s'engager à le chercher partout ailleurs.**
+>
+> C'est la troisième fois qu'un jumeau asymétrique se manifeste dans ce projet — après
+> `backlinks()` / `dangling()` (§16) et l'écriture pleine ligne notes / dossiers (§11).
+
+La forme correcte distingue **trois** états, jamais deux :
+
+```kotlin
+if (rien du tout) return null
+if (présent mais inutilisable) throw KekFailure.SourceUnavailable(...)
+// sinon : la valeur
+```
+
+---
+
+## 19. 🟠 Une valeur bien formée n'est pas une valeur juste
+
+`KekRepository` recopiait vers la source primaire toute clé trouvée ailleurs, dès qu'elle passait les
+contrôles de forme — 32 octets, hexadécimal valide, tag GCM validé.
+
+Ces contrôles prouvent que la valeur **est une clé**. Ils ne prouvent pas qu'elle **ouvre la base qui
+est sur le disque**.
+
+Si la source primaire était momentanément indisponible et qu'une source secondaire portait une clé
+différente, la recopie écrasait le scellé primaire — donc la dernière copie persistée de la bonne
+clé. Irréversible.
+
+Correctif : ne recopier que si **aucune source n'a échoué** pendant le parcours. Une source qui n'a
+pas pu être lue n'autorise plus à réécrire ce qu'elle contenait.
+
+**Le motif général** : avant d'écrire une valeur par-dessus une autre, se demander ce qui prouve que
+la nouvelle est meilleure. « Elle a le bon format » n'est pas une réponse.
+
+---
+
+## 20. 🟡 Une `String` contenant un secret ne peut pas être effacée
+
+`String(clearText, Charsets.UTF_8)` pour décoder une clé hexadécimale en laisse une copie **lisible
+et ineffaçable** dans le tas jusqu'au prochain ramasse-miettes. Les `String` Java sont immuables.
+
+`SecretBytes.fromHexAscii(ByteArray)` décode directement depuis les octets. L'appelant garde la
+maîtrise de l'effacement de son tableau.
+
+Corollaire moins évident, relevé sur le même fichier : `fromHex` remplissait son tableau de sortie au
+fur et à mesure et le laissait au ramasse-miettes si un caractère invalide survenait **vers la fin**.
+Le chemin d'erreur est celui qu'on regarde le moins ; c'est aussi celui où un secret à demi décodé
+traîne sans que personne ne l'ait voulu.

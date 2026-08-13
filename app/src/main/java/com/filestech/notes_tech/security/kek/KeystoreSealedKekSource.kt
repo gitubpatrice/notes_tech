@@ -8,7 +8,6 @@ import android.util.Base64
 import com.filestech.notes_tech.core.crypto.wipe
 import com.filestech.notes_tech.data.local.SqlCipherRawKey
 import timber.log.Timber
-import java.security.GeneralSecurityException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -67,7 +66,7 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
                 init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(GCM_TAG_BITS, scelle.nonce))
                 doFinal(scelle.ciphertext)
             }
-        } catch (e: GeneralSecurityException) {
+        } catch (e: Exception) {
             // Distinction essentielle (cf. KDoc de [KekSource]) : un échec de déchiffrement peut
             // venir d'un Keystore momentanément indisponible. On ne rend surtout pas `null`, qui
             // se lirait comme « aucune clé n'existe ».
@@ -92,9 +91,39 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
      * Constat remonté par la relecture externe (GPT-5.2, 2026-08-13), §4.2.
      */
     private fun readSealedValue(): SealedValue? {
-        val snapshot = prefs.all
-        val blob = snapshot[KEY_BLOB] as? String ?: return null
-        val nonce = snapshot[KEY_NONCE] as? String ?: return null
+        val snapshot = runCatching { prefs.all }
+            .getOrElse { cause -> throw KekFailure.SourceUnavailable(name, cause) }
+
+        val blob = snapshot[KEY_BLOB]
+        val nonce = snapshot[KEY_NONCE]
+
+        // Rien du tout : c'est la seule absence véritable.
+        if (blob == null && nonce == null) return null
+
+        // 🔴 Tout le reste est un scellé PRÉSENT mais inutilisable, et ce n'est pas une absence.
+        //
+        // Cette méthode écrivait `snapshot[KEY_BLOB] as? String ?: return null`, deux fois — le
+        // motif exact que `FlutterSecureStorageKekSource.readStoredValue` avait été corrigé pour
+        // éviter, quelques heures plus tôt. Le correctif avait fermé le trou d'un côté et laissé
+        // son jumeau ouvert de l'autre.
+        //
+        // Trois états s'y confondaient avec « je n'ai rien » : un couple incomplet — l'un des deux
+        // écrit, l'autre pas —, et une entrée d'un type inattendu. Aucun ne prouve l'absence de
+        // clé ; tous menaient à `generateAndPersist` si la base n'existait pas encore.
+        //
+        // Relevé en CRITIQUE, indépendamment, par les deux relectures externes du 2026-08-13.
+        if (blob == null || nonce == null) {
+            throw KekFailure.SourceUnavailable(
+                name,
+                IllegalStateException("scelle incomplet : blob=${blob != null} nonce=${nonce != null}"),
+            )
+        }
+        if (blob !is String || nonce !is String) {
+            throw KekFailure.SourceUnavailable(
+                name,
+                IllegalStateException("scelle present mais d'un type inattendu"),
+            )
+        }
         return SealedValue(ciphertext = decodeBase64(blob), nonce = decodeBase64(nonce))
     }
 
@@ -134,7 +163,7 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
                 .putString(KEY_NONCE, encodeBase64(iv))
                 .commit()
             if (!written) throw KekFailure.SourceUnavailable(name, null)
-        } catch (e: GeneralSecurityException) {
+        } catch (e: Exception) {
             throw KekFailure.SourceUnavailable(name, e)
         }
     }
@@ -150,13 +179,22 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
     @Synchronized
     override fun replaceKeyAndStore(kek: ByteArray) {
         try {
-            prefs.edit().remove(KEY_BLOB).remove(KEY_NONCE).commit()
+            // ⚠️ `commit()` et son résultat sont vérifiés : cet effacement précède la destruction
+            // de la clé Keystore. S'il échoue en silence, on détruit la clé en laissant un scellé
+            // qu'elle seule pouvait ouvrir — un état qu'aucune relecture ultérieure ne rattrape.
+            // Relevé par une relecture externe (GPT-5.5, 2026-08-13).
+            if (!prefs.edit().remove(KEY_BLOB).remove(KEY_NONCE).commit()) {
+                throw KekFailure.SourceUnavailable(
+                    name,
+                    IllegalStateException("effacement du scelle precedent refuse par les preferences"),
+                )
+            }
             val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
             if (ks.containsAlias(KEY_ALIAS)) {
                 Timber.w("clé de scellage préexistante supprimée — aucune base à protéger")
                 ks.deleteEntry(KEY_ALIAS)
             }
-        } catch (e: GeneralSecurityException) {
+        } catch (e: Exception) {
             throw KekFailure.SourceUnavailable(name, e)
         }
         store(kek)
@@ -165,7 +203,7 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
     private fun existingKey(): SecretKey? = try {
         val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         ks.getKey(KEY_ALIAS, null) as? SecretKey
-    } catch (e: GeneralSecurityException) {
+    } catch (e: Exception) {
         throw KekFailure.SourceUnavailable(name, e)
     }
 

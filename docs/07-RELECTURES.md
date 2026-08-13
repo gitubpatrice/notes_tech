@@ -473,3 +473,97 @@ changent.
 | Tests instrumentés sur Galaxy S9 (API 29) | **55**, 0 échec |
 | Tests JVM | **45**, 0 échec |
 | `ktlintCheck`, `detekt`, `lintDebug` | verts |
+
+---
+
+# R-007 — La couche KEK, relue par deux modèles indépendamment
+
+> 2026-08-13. Le seul lot du projet qui n'avait **eu aucune relecture externe**, alors que c'est le
+> plus critique : une erreur n'y produit pas un bug, elle détruit les notes.
+
+## Ce que j'ai trouvé seul, avant les relectures
+
+`FlutterSecureStorageKekSource` écrivait `snapshot[VALUE_KEY] as? String ?: return null`. Deux états
+s'y confondaient : « la clé n'existe pas » et « elle existe mais porte autre chose ».
+
+**Dans le fichier écrit pour rendre cette confusion impossible, et dont trente lignes de commentaire
+l'expliquent.** Trouvé en relisant avec le motif en tête, pas en écrivant.
+
+## Le même défaut avait un jumeau, que les deux relectures ont vu
+
+`KeystoreSealedKekSource.readSealedValue()` portait exactement le même motif — deux fois. Et il y
+ajoutait un troisième état confondu : le **scellé incomplet**, un des deux champs écrit et pas
+l'autre.
+
+Classé CRITIQUE par les deux modèles, indépendamment.
+
+⚠️ **La leçon est la répétition, pas le défaut.** J'avais corrigé ce motif deux heures plus tôt, dans
+un fichier voisin, en écrivant un commentaire qui explique pourquoi il est mortel. Le jumeau est
+resté ouvert. C'est la troisième fois que ce motif apparaît dans le projet — après `backlinks()` /
+`dangling()` et l'écriture pleine ligne notes / dossiers.
+
+> **Corriger un motif quelque part, c'est s'engager à le chercher partout ailleurs.**
+
+## Le constat que je n'avais pas vu, et qui n'est pas un défaut d'aujourd'hui
+
+GPT-5.5 : **la recopie vers la source primaire peut écraser la bonne clé.**
+
+1. la source primaire est momentanément indisponible — le parcours continue, c'est voulu ;
+2. une source secondaire rend une clé **bien formée** ;
+3. la recopie écrase le scellé primaire, qui contenait peut-être une **autre** clé.
+
+Une clé bien formée prouve qu'elle a 32 octets, **pas** qu'elle ouvre la base sur le disque.
+
+Les deux sources ne divergent pas aujourd'hui — la version Flutter écrit la même valeur des deux
+côtés et ne la fait jamais tourner. Mais rien dans le code ne l'impose et la conséquence serait
+irréversible. Même raisonnement que D-010 sur les dossiers : la fragilité est structurelle, pas
+actuelle.
+
+Correctif : **aucune recopie si une source a échoué pendant le parcours**. La perte est nulle — sans
+recopie, la source secondaire sera relue au démarrage suivant.
+
+## Les constats de mémoire, vus par les deux
+
+| Constat | Suite |
+|---|---|
+| `String(clearText)` laisse la clé hexadécimale **ineffaçable** dans le tas | `SecretBytes.fromHexAscii` décode depuis les octets, sans `String` |
+| `fromHex` laisse un tableau **partiellement rempli** sur le chemin d'erreur | effacé avant de relancer |
+| `.encoded` puis `SecretKeySpec` : deux copies de la clé AES | le `SecretKey` est utilisé tel quel |
+
+## Les constats d'homogénéité
+
+- `getSharedPreferences` hors du `runCatching` dans `unwrapStorageKey`, alors qu'il y était dans
+  `load` — encore une asymétrie, dans le même fichier ;
+- `catch (GeneralSecurityException)` trop étroit dans `KeystoreSealedKekSource` : le Keystore lève
+  aussi des `ProviderException` et des `IOException`, qui traversaient tout et faisaient planter au
+  lieu de passer par `SourceUnavailable` ;
+- le résultat de `commit()` ignoré avant la destruction d'une clé Keystore — si l'effacement échoue
+  en silence, on détruit la clé en laissant un scellé qu'elle seule pouvait ouvrir.
+
+## Deux constats écartés, après vérification
+
+**`existingKey() ?: return null` quand un scellé existe.** GPT-5.5 le voulait en
+`SourceUnavailable`. Refusé : quand l'OS a détruit la clé Keystore — changement d'écran de
+verrouillage —, le scellé est définitivement illisible, et la couche ② détient la **même** clé.
+Lever ici **refuserait un utilisateur parfaitement récupérable**. Rendre `null` le laisse passer à la
+source suivante, ce qui est exactement ce qu'on veut.
+
+**`@Synchronized` n'est pas un verrou global.** Exact, et GPT-5.5 disait ne pas pouvoir trancher
+sans connaître l'injection. `KekRepository` est `@Singleton` Hilt, l'application est mono-processus,
+et `DatabaseProvider` sérialise déjà l'unique appelant. Consigné plutôt que sur-conçu.
+
+## Mesures
+
+| Vérification | Résultat |
+|---|---|
+| Tests instrumentés sur Galaxy S9 (API 29) | **67**, 0 échec |
+| Tests JVM | **48**, 0 échec |
+| `ktlintCheck`, `detekt`, `lintDebug` | verts |
+
+## ⚠️ Ce que cette passe rappelle sur les relectures elles-mêmes
+
+Les deux premières exécutions ont rendu un rapport **vide** en sortant avec le code 0 : le répertoire
+courant était `notes_tech`, et les chemins relatifs pointaient dans le mauvais dépôt. Sans
+vérification de la taille du rapport, j'aurais conclu « aucun constat ».
+
+**Un rapport vide est un échec, jamais un satisfecit.**

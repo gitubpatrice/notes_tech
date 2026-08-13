@@ -7,10 +7,10 @@ import com.filestech.notes_tech.core.crypto.wipe
 import java.security.KeyStore
 import java.security.spec.MGF1ParameterSpec
 import javax.crypto.Cipher
+import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * Couche ② — lit la KEK **directement dans le stockage de `flutter_secure_storage`**.
@@ -74,12 +74,7 @@ class FlutterSecureStorageKekSource(
 
         requireExpectedAlgorithms(snapshot)
 
-        val aesKey = unwrapStorageKey()
-        return try {
-            decryptHexEncodedKek(encodedValue, aesKey)
-        } finally {
-            aesKey.wipe()
-        }
+        return decryptHexEncodedKek(encodedValue, unwrapStorageKey())
     }
 
     /**
@@ -150,12 +145,17 @@ class FlutterSecureStorageKekSource(
      * composant qui se présente comme du stockage sécurisé, mais c'est ce qu'il fait, et la lire
      * autrement ne déchiffrerait rien.
      */
-    private fun unwrapStorageKey(): ByteArray {
+    private fun unwrapStorageKey(): SecretKey {
         val alias = "$keyAliasBase$KEY_ALIAS_SUFFIX"
-        val keyPrefs = context.getSharedPreferences(KEY_STORAGE_PREFS, Context.MODE_PRIVATE)
 
-        val wrapped = runCatching { keyPrefs.getString(WRAPPED_KEY, null) }
-            .getOrElse { cause -> throw KekFailure.SourceUnavailable(name, cause) }
+        // ⚠️ L'ouverture du fichier est DANS le `runCatching`, comme dans `load`. Elle en était
+        // dehors, et c'était une asymétrie : sur un stockage verrouillé, l'exception brute serait
+        // sortie sans passer par `SourceUnavailable`, donc sans la nouvelle tentative de
+        // `KekRepository`. Relevé par deux relectures externes (2026-08-13).
+        val wrapped = runCatching {
+            context.getSharedPreferences(KEY_STORAGE_PREFS, Context.MODE_PRIVATE)
+                .getString(WRAPPED_KEY, null)
+        }.getOrElse { cause -> throw KekFailure.SourceUnavailable(name, cause) }
             ?: throw KekFailure.SourceUnavailable(
                 name,
                 IllegalStateException("valeur presente mais cle AES enveloppee absente"),
@@ -168,7 +168,22 @@ class FlutterSecureStorageKekSource(
             val cipher = Cipher.getInstance(RSA_TRANSFORMATION, KEYSTORE_RSA_PROVIDER)
             cipher.init(Cipher.UNWRAP_MODE, privateKey, oaepParameters())
             val unwrapped = cipher.unwrap(Base64.decode(wrapped, Base64.DEFAULT), AES, Cipher.SECRET_KEY)
-            unwrapped.encoded
+
+            // ⚠️ Le `SecretKey` est rendu tel quel, sans repasser par `.encoded`.
+            //
+            // `.encoded` matérialise les octets de la clé, qu'il faut ensuite recopier dans un
+            // `SecretKeySpec` pour s'en servir : deux copies de matériel secret pour un résultat
+            // identique. Aucune n'est effaçable de façon fiable une fois passée au fournisseur.
+            //
+            // Relevé par une relecture externe (GPT-5.5, 2026-08-13).
+            val secretKey = checkNotNull(unwrapped as? SecretKey) { "cle deballee d'un type inattendu" }
+
+            // La taille est **annoncée** par la bibliothèque (16 octets) ; la vérifier la rend
+            // constatée. Une divergence signalerait un format qu'on ne sait pas lire, pas une clé
+            // à essayer quand même.
+            val size = secretKey.encoded?.size
+            check(size == null || size == AES_KEY_SIZE) { "cle AES de taille inattendue : $size" }
+            secretKey
         } catch (cause: Exception) {
             // ⚠️ Aucun `return null` ici, et c'est le point le plus important du fichier. Un Keystore
             // momentanement indisponible, un appareil verrouille, une cle invalidee : rien de tout
@@ -193,10 +208,17 @@ class FlutterSecureStorageKekSource(
      * (`StorageCipherImplementationGCM.java:66-96`), puis décode les 64 caractères hexadécimaux que
      * Notes Tech y a écrits (`vault_service.dart:104`).
      */
-    private fun decryptHexEncodedKek(encodedValue: String, aesKey: ByteArray): ByteArray {
+    private fun decryptHexEncodedKek(encodedValue: String, aesKey: SecretKey): ByteArray {
         val clearText = decryptEnvelope(encodedValue, aesKey)
         return try {
-            parseHexKek(String(clearText, Charsets.UTF_8))
+            // ⚠️ **Aucune `String` n'est construite ici**, et c'est délibéré.
+            //
+            // Une `String` Java est immuable : on ne peut pas l'effacer. En construire une à partir
+            // du clair laisserait les 64 caractères hexadécimaux de la clé maître lisibles dans le
+            // tas jusqu'au prochain ramasse-miettes — exactement ce qu'un vidage mémoire ramasse.
+            //
+            // Relevé indépendamment par les deux relectures externes du 2026-08-13.
+            parseHexKek(clearText)
         } finally {
             clearText.wipe()
         }
@@ -206,7 +228,7 @@ class FlutterSecureStorageKekSource(
      * Ouvre l'enveloppe `IV (12) ‖ AES-GCM(ciphertext ‖ tag 128 bits)`
      * (`StorageCipherImplementationGCM.java:66-96`).
      */
-    private fun decryptEnvelope(encodedValue: String, aesKey: ByteArray): ByteArray {
+    private fun decryptEnvelope(encodedValue: String, aesKey: SecretKey): ByteArray {
         val envelope = try {
             Base64.decode(encodedValue, Base64.DEFAULT)
         } catch (cause: IllegalArgumentException) {
@@ -218,7 +240,7 @@ class FlutterSecureStorageKekSource(
             val cipher = Cipher.getInstance(AES_TRANSFORMATION)
             cipher.init(
                 Cipher.DECRYPT_MODE,
-                SecretKeySpec(aesKey, AES),
+                aesKey,
                 GCMParameterSpec(GCM_TAG_BITS, envelope, 0, IV_SIZE),
             )
             cipher.doFinal(envelope, IV_SIZE, envelope.size - IV_SIZE)
@@ -237,9 +259,9 @@ class FlutterSecureStorageKekSource(
      * [KekFailure.SourceUnavailable] : le déchiffrement a réussi, donc la clé de déchiffrement était
      * la bonne. Ce qui cloche est la **donnée**, et aucune autre source ne la réparera.
      */
-    private fun parseHexKek(hex: String): ByteArray {
+    private fun parseHexKek(hex: ByteArray): ByteArray {
         val kek = try {
-            SecretBytes.fromHex(hex)
+            SecretBytes.fromHexAscii(hex)
         } catch (cause: IllegalArgumentException) {
             throw KekFailure.MalformedKey(name, cause)
         }
@@ -300,6 +322,9 @@ class FlutterSecureStorageKekSource(
         private const val RSA_TRANSFORMATION = "RSA/ECB/OAEPPadding"
 
         private const val AES = "AES"
+
+        /** `StorageCipherImplementationGCM.java:18` — 16 octets, donc AES-128. */
+        private const val AES_KEY_SIZE = 16
         private const val AES_TRANSFORMATION = "AES/GCM/NoPadding"
 
         /** `StorageCipherImplementationGCM.java:99` */

@@ -58,13 +58,63 @@ object SecretBytes {
     fun fromHex(hex: String): ByteArray {
         require(hex.length % 2 == 0) { "chaîne hexadécimale de longueur impaire" }
         val out = ByteArray(hex.length / 2)
-        for (i in out.indices) {
-            val hi = Character.digit(hex[i * 2], HEX_RADIX)
-            val lo = Character.digit(hex[i * 2 + 1], HEX_RADIX)
-            require(hi >= 0 && lo >= 0) { "caractère non hexadécimal en position ${i * 2}" }
-            out[i] = ((hi shl 4) or lo).toByte()
+        try {
+            for (i in out.indices) {
+                out[i] =
+                    decodeByte(Character.digit(hex[i * 2], HEX_RADIX), Character.digit(hex[i * 2 + 1], HEX_RADIX), i)
+            }
+        } catch (e: IllegalArgumentException) {
+            // ⚠️ Le tableau est déjà partiellement rempli de vrais octets de la clé. Le laisser au
+            // ramasse-miettes sans l'effacer serait une fuite évitable, sur le chemin d'erreur
+            // précisément — celui qu'on regarde le moins.
+            //
+            // Relevé par une relecture externe (GPT-5.5, 2026-08-13).
+            out.wipe()
+            throw e
         }
         return out
+    }
+
+    /**
+     * Décode l'hexadécimal **depuis des octets ASCII**, sans jamais construire de `String`.
+     *
+     * ## ⚠️ Pourquoi cette variante existe, alors que [fromHex] fait la même chose
+     *
+     * Une `String` Java est **immuable** : on ne peut pas l'effacer. Passer par elle pour décoder la
+     * clé maître en laisse une copie lisible dans le tas jusqu'au prochain ramasse-miettes — c'est
+     * exactement ce qu'un vidage mémoire ramasse.
+     *
+     * L'appelant qui détient déjà les caractères sous forme d'octets — c'est le cas après un
+     * déchiffrement — doit donc utiliser cette version-ci. Il garde la maîtrise de l'effacement de
+     * son tableau d'entrée, ce que [fromHex] ne lui offre pas.
+     *
+     * Relevé indépendamment par deux relectures externes (Gemini 3.1 Pro et GPT-5.5, 2026-08-13).
+     */
+    fun fromHexAscii(hex: ByteArray): ByteArray {
+        require(hex.size % 2 == 0) { "séquence hexadécimale de longueur impaire" }
+        val out = ByteArray(hex.size / 2)
+        try {
+            for (i in out.indices) {
+                out[i] = decodeByte(hexDigit(hex[i * 2]), hexDigit(hex[i * 2 + 1]), i)
+            }
+        } catch (e: IllegalArgumentException) {
+            out.wipe()
+            throw e
+        }
+        return out
+    }
+
+    private fun decodeByte(hi: Int, lo: Int, index: Int): Byte {
+        require(hi >= 0 && lo >= 0) { "caractère non hexadécimal en position ${index * 2}" }
+        return ((hi shl 4) or lo).toByte()
+    }
+
+    /** `-1` si l'octet n'est pas un chiffre hexadécimal ASCII. Insensible à la casse, comme [fromHex]. */
+    private fun hexDigit(byte: Byte): Int = when (val code = byte.toInt() and 0xFF) {
+        in 0x30..0x39 -> code - 0x30 // '0'..'9'
+        in 0x61..0x66 -> code - 0x61 + 10 // 'a'..'f'
+        in 0x41..0x46 -> code - 0x41 + 10 // 'A'..'F'
+        else -> -1
     }
 
     /**
