@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.filestech.notes_tech.data.local.dao.FolderDao
 import com.filestech.notes_tech.data.local.dao.NoteDao
+import com.filestech.notes_tech.data.local.dao.NoteLinkDao
 import com.filestech.notes_tech.data.local.dao.NoteSearchDao
 import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.local.entity.NoteEntity
@@ -57,6 +58,12 @@ abstract class NotesDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
     abstract fun noteSearchDao(): NoteSearchDao
+
+    /**
+     * Lectures de `note_links` uniquement. Les écritures passent par [NoteLinkWriter] — la table
+     * est hors du graphe d'entités, donc Room ne peut pas générer son SQL d'écriture.
+     */
+    abstract fun noteLinkDao(): NoteLinkDao
 
     companion object {
         /**

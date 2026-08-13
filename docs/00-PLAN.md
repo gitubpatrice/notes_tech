@@ -109,11 +109,18 @@ Avant toute interface. Voir [02-SCHEMA-HERITE.md](02-SCHEMA-HERITE.md) et
 prouve la lecture des notes, des dossiers, des liens, et une réponse FTS5 non vide.
 Tant que ce test n'est pas vert, les phases 3+ sont bloquées.
 
-### Phase 3 — Domaine et données
+### Phase 3 — Domaine et données ⏳ entamée
 
+- [x] DAO dossiers, notes, recherche FTS5 (`@RawQuery(observedEntities = …)`), liens
+- [x] `NoteLinkWriter` — écritures de liens, hors graphe Room
 - [ ] 4 modèles de domaine (`Note`, `Folder`, `NoteLink`, `NoteChange`)
-- [ ] DAO + repositories, `Flow` Room en remplacement des streams `provider`
-- [ ] Recherche FTS5 via `@RawQuery(observedEntities = …)`
+- [ ] Repositories, `Flow` Room en remplacement des streams `provider`
+- [ ] `normalizeTitle` — **la même fonction** que côté Dart, sinon les liens ne s'apparient plus
+
+⚠️ Point relevé en écrivant `NoteLinkWriter` : la résolution des liens **ne peut pas se faire en
+SQL**. SQLite ne sait pas dépouiller les diacritiques, donc `lower(title)` rend `réunion` là où la
+normalisation rend `reunion`. La version Flutter apparie en mémoire
+(`backlinks_service.dart:327`), et cette table d'appariement **exclut les notes verrouillées**.
 
 **Critère de sortie** : tests JVM sur les repositories + le test instrumenté de la phase 2 étendu
 aux écritures (création, édition, corbeille, purge).
