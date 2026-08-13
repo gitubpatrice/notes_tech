@@ -265,6 +265,27 @@ Corrigé par deux refus explicites. La règle générale, elle, vaut pour tout c
 Relevé indépendamment par deux relectures externes, sur un lot que la passe précédente venait de
 déclarer exempt de fuite de clair.
 
+### ⚠️ Correction du 2026-08-13 : l'application publiée n'a PAS ce défaut
+
+Cette section affirmait qu'elle l'avait aussi. **C'était faux, et je ne l'avais pas vérifié.** Sa
+réassignation est bien le même `UPDATE` nu, mais ses appelants la protègent :
+
+| Cas | Ce qui l'empêche côté Flutter |
+|---|---|
+| destination = coffre | la destination est **codée en dur sur la boîte de réception** (`folder_dialogs.dart:223`) |
+| source = coffre | les notes sont **déchiffrées d'abord** (`folders_drawer.dart:134`), avec reprotection si ça casse en route |
+
+Le refus côté Kotlin reste justifié — une garde tenue par un appelant se perd au premier appelant
+suivant, et la placer dans la couche données la rend indépendante de l'interface. Mais le défaut
+était **le mien**, pas le leur.
+
+Deux leçons, et la seconde vaut pour toutes les relectures de ce projet :
+
+1. **Vérifier avant d'affirmer**, même quand le constat arrange le récit.
+2. **Une relecture externe qui n'a pas la source d'origine sous les yeux ne peut pas contredire une
+   affirmation sur elle.** Les deux modèles ont décrit correctement mon code ; c'est moi qui ai
+   ajouté, sans le vérifier, que l'original faisait pareil.
+
 ---
 
 ## 16. 🟠 Deux requêtes sur la même table, une seule gardée

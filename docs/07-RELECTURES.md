@@ -427,6 +427,12 @@ passe **ni** par le scellement, **ni** par la garde qui interdit de déplacer un
 Le second cas est **pire que la suppression qu'il prétend éviter** : supprimer un coffre avec ses
 notes est propre ; les « sauver » sans leur clé produit des blobs orphelins.
 
+> ⚠️ **Correction du 2026-08-13.** Ce compte rendu ajoutait que l'application publiée avait le
+> même défaut. **C'était faux, et non vérifié.** Sa destination est codée en dur sur la boîte de
+> réception, et vider un coffre y déchiffre tout d'abord. Le défaut était le mien seul. Les deux
+> relectures avaient décrit mon code correctement ; l'extrapolation à l'original venait de moi,
+> et aucune d'elles n'avait la source Flutter pour me contredire.
+
 ⚠️ **La leçon n'est pas « il fallait mieux relire ».** La première passe avait raison sur ce
 qu'elle avait examiné : tous les chemins d'**écriture de note** étaient sûrs. Le trou était dans un
 chemin d'**écriture de dossier**, qui déplace des notes sans les toucher une par une. Une conclusion

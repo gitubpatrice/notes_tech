@@ -151,9 +151,22 @@ class FoldersRepository @Inject constructor(private val databases: DatabaseProvi
      * Le second cas est pire que la suppression qu'il prétend éviter : supprimer le coffre avec ses
      * notes est propre, les garder sans leur clé produit des blobs orphelins que rien n'ouvrira.
      *
-     * L'application publiée a les deux trous — sa réassignation est le même `UPDATE` nu. Vider un
-     * coffre demande de déchiffrer d'abord, ce que seul le service de coffres saura faire (phase 4,
-     * équivalent de `FolderVaultService.decryptAllNotesInFolder`).
+     * ⚠️ **L'application publiée, elle, ne tombe dans aucun des deux** — vérifié le 2026-08-13,
+     * après avoir affirmé le contraire ici. Sa réassignation est bien le même `UPDATE` nu
+     * (`notes_dao.dart:365`), mais ses appelants la protègent :
+     *
+     * - la destination est **codée en dur sur la boîte de réception** (`folder_dialogs.dart:223`),
+     *   qui n'est jamais un coffre — le premier cas est donc inatteignable ;
+     * - vider un coffre **déchiffre tout d'abord** (`folders_drawer.dart:134-147`), avec deux
+     *   chemins de reprotection si le déchiffrement s'interrompt en route.
+     *
+     * La leçon n'est pas que le refus ci-dessus est inutile : la garde tenue par un appelant se perd
+     * au premier appelant suivant, et ce portage la place dans la base. Elle est que **je n'avais pas
+     * vérifié avant d'affirmer**, et qu'une relecture externe qui n'a pas la source d'origine sous les
+     * yeux ne pouvait pas me contredire.
+     *
+     * Côté Kotlin, vider un coffre demandera le service de coffres (phase 4, équivalent de
+     * `FolderVaultService.decryptAllNotesInFolder`).
      *
      * Relevé par la relecture **des correctifs** (Gemini 3.1 Pro, 2026-08-13) — le lot précédent
      * avait été déclaré exempt de fuite de clair, et celle-ci passait par un chemin que la revue
