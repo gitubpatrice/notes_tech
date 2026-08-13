@@ -1,6 +1,6 @@
 # Notes Tech — portage Flutter → Kotlin natif
 
-> **État** : phase 1 (socle) en cours. Dernière mise à jour : 2026-08-13.
+> **État** : phases 1 et 2 **closes**, phase 3 entamée. Dernière mise à jour : 2026-08-13.
 >
 > Ce fichier est le plan de référence. Il dit **où on en est** et **ce qui vient ensuite**.
 > Les décisions déjà prises sont dans [01-DECISIONS.md](01-DECISIONS.md) — ne pas les rediscuter ici.
@@ -82,8 +82,8 @@ plancher exclurait les utilisateurs Android 7 d'une mise à jour.
 
 | Vérification | Résultat |
 |---|---|
-| Tests instrumentés sur Galaxy S9 (API 29) | **11**, 0 échec |
-| Tests JVM | **46**, 0 échec |
+| Tests instrumentés sur Galaxy S9 (API 29) | **19**, 0 échec |
+| Tests JVM | **37**, 0 échec |
 | Schéma Room vs DDL hérité (comparaison mécanique) | aucune divergence |
 
 Deux de ces tests ont une valeur particulière parce qu'ils **peuvent échouer** : ouvrir la base
@@ -93,21 +93,6 @@ fuitée dans l'index ne doit **quand même** pas ressortir d'une recherche.
 ⚠️ **Ce qui n'est PAS prouvé** : l'acquisition réelle de la KEK chez un utilisateur qui migre. La
 build isolée n'a accès ni aux préférences ni au Keystore de l'application d'origine. Cela ne se
 vérifie qu'à la bascule — cf. [06-ISOLATION-PENDANT-LE-CHANTIER.md](06-ISOLATION-PENDANT-LE-CHANTIER.md) §2.
-
-### Phase 2 — Ouvrir la base héritée 🔴 point de risque n°1
-
-Avant toute interface. Voir [02-SCHEMA-HERITE.md](02-SCHEMA-HERITE.md) et
-[03-KEK-ACQUISITION.md](03-KEK-ACQUISITION.md).
-
-- [ ] Entités Room décalquées **au caractère près** sur le schéma sqflite
-- [ ] `SqlCipherRawKey` — format `x'<64 hex>'` (cf. décision D-004)
-- [ ] Acquisition de la KEK en 3 couches (native → secours → refus honnête)
-- [ ] `notes_fts` + 3 triggers créés hors du graphe Room, via `RoomDatabase.Callback`
-- [ ] Chemin de base : `app_flutter/notes_tech.db`, **pas** `databases/` (cf. D-003)
-
-**Critère de sortie** : un test instrumenté qui pousse une **vraie base 2.0.3** sur l'appareil et
-prouve la lecture des notes, des dossiers, des liens, et une réponse FTS5 non vide.
-Tant que ce test n'est pas vert, les phases 3+ sont bloquées.
 
 ### Phase 3 — Domaine et données ⏳ entamée
 

@@ -55,11 +55,11 @@ Au 2026-08-13 — mesuré, pas estimé :
 
 | | |
 |---|---|
-| Tests JVM | 46, 0 échec |
-| Tests instrumentés (Galaxy S9, API 29) | 11, 0 échec |
+| Tests JVM | 37, 0 échec |
+| Tests instrumentés (Galaxy S9, API 29) | 19, 0 échec |
 | Schéma Room vs DDL hérité | aucune divergence |
 | Permissions du manifeste fusionné release | aucune permission réseau |
-| Relectures externes indépendantes | 3 (Gemini 3.1 Pro, GPT-5.2 ×2) |
+| Relectures indépendantes | 4 — Gemini 3.1 Pro, GPT-5.2 ×2, audit `data-room` interne |
 
 Phases 1 et 2 closes. La suite est dans [docs/00-PLAN.md](docs/00-PLAN.md).
 

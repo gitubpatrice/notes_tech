@@ -13,8 +13,9 @@
 **Point de départ** : dossier `notes_files_tech` vide. Source : `notes_tech` en Flutter,
 version 2.0.3 publiée (versionCode 51), commit `7180a2c`.
 
-**Point d'arrivée** : socle complet, couche d'accès à la base héritée écrite, relue deux fois de
-l'extérieur, et **prouvée sur appareil**. Le critère de sortie de la phase 2 est atteint.
+**Point d'arrivée** : socle complet, couche d'accès à la base héritée écrite, relue **quatre fois**
+(trois relecteurs externes + un audit interne), et **prouvée sur appareil**. Le critère de sortie de
+la phase 2 est atteint.
 
 ### Ce qui a été établi avant d'écrire une ligne
 
@@ -48,8 +49,8 @@ l'acquisition de la KEK. Une build isolée verte ne prouve **pas** la migration.
 | Vérification | Résultat |
 |---|---|
 | Compilation `assembleDebug` | verte |
-| Tests JVM | **46**, 0 échec |
-| Tests instrumentés, Galaxy S9 (API 29) | **11**, 0 échec |
+| Tests JVM | **37**, 0 échec |
+| Tests instrumentés, Galaxy S9 (API 29) | **19**, 0 échec |
 | Schéma Room vs DDL hérité, comparaison mécanique | **aucune divergence** |
 | Manifeste fusionné release, permissions | aucune permission réseau |
 | Garde-fou « zéro réseau », contrôles négatifs | **3/3 échouent correctement** |
@@ -65,12 +66,23 @@ Deux contrôles ont une valeur particulière parce qu'ils **peuvent échouer** :
 - après avoir délibérément fait fuiter le titre d'une note verrouillée dans l'index, la recherche
   doit **quand même** ne rien rendre.
 
-### Relectures externes
+### Relectures
 
-Deux relecteurs indépendants sur le noyau (Gemini 3.1 Pro, GPT-5.2), un sur les DAO (GPT-5.2).
-Détail et tri dans [07-RELECTURES.md](07-RELECTURES.md).
+Quatre passes indépendantes : Gemini 3.1 Pro et GPT-5.2 sur le noyau, GPT-5.2 sur les DAO, puis un
+audit `data-room` interne. Détail et tri dans [07-RELECTURES.md](07-RELECTURES.md).
 
-**Bilan : 7 constats recevables, 6 corrigés, 1 réfuté par la mesure.**
+**Bilan : 12 constats recevables, 11 corrigés, 1 réfuté par la mesure.**
+
+⚠️ **La leçon la plus utile de la journée** : l'audit interne avait accès au **vrai code Flutter**,
+ce que les relecteurs externes n'avaient pas. Il a trouvé cinq écarts de **parité** — dont un
+critique — que personne d'autre ne pouvait voir, parce qu'ils sont invisibles à qui juge le code
+Kotlin dans l'absolu. Sur un portage, le relecteur qui a la source d'origine sous les yeux voit une
+classe de défauts entière que les autres manquent.
+
+Le plus grave de tous : le portage n'exposait qu'une écriture de ligne entière, par laquelle une
+note de coffre perd sa protection sur un tap d'épinglage. **L'incident avait déjà eu lieu dans
+l'application publiée**, Flutter l'avait corrigé par des écritures ciblées, et le portage n'avait
+repris que le chemin dangereux — l'avertissement s'était perdu en route.
 
 Le plus sérieux — deux KEK générées en parallèle à la première installation, la seconde écrasant la
 première, et une base chiffrée par une clé persistée nulle part — n'était **pas atteignable** au
@@ -80,7 +92,7 @@ suivant, sans que rien ne le signale.
 
 Un constat était **faux** : GPT soupçonnait `WHERE notes_fts MATCH ?` d'être une erreur de syntaxe,
 la table étant aliasée `f`. FTS5 expose une colonne cachée portant le nom de la table ; le nom
-résout comme colonne. Les 11 tests le prouvent sur SQLCipher réel. La « correction » aurait
+résout comme colonne. Les tests le prouvent sur SQLCipher réel. La « correction » aurait
 consisté à réécrire une requête qui fonctionne.
 
 ### Ce qui a résisté
@@ -107,7 +119,6 @@ déplacerait les données de chaque utilisateur.
 |---|---|
 | Couche ② de l'acquisition de la KEK (lecture `flutter_secure_storage`) | conçue et documentée, **pas écrite** |
 | Release passerelle 2.0.4 côté Flutter | **pas écrite** — contrat de format dans `KeystoreSealedKekSource` |
-| `NoteLinkWriter` (écritures des liens) | **pas écrit** |
 | Crypto des coffres (Argon2id, AES-GCM, Keystore) | phase 4 |
 | Interface Compose | phase 5, seul l'écran d'échec existe |
 | Dictée vocale (whisper.cpp en JNI) | phase 7, le lot le plus incertain |
