@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.repository
 
 import androidx.room.withTransaction
+import com.filestech.notes_tech.core.text.DartTextSemantics
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.NotesDatabase
 import com.filestech.notes_tech.data.local.OutgoingLink
@@ -122,7 +123,12 @@ class NotesRepository @Inject constructor(
     suspend fun suggestTitles(query: String, limit: Int = SUGGESTION_LIMIT, excludeId: String? = null): List<Note> {
         val needle = TitleNormalizer.normalize(query)
         if (needle.isEmpty()) return emptyList()
-        val escaped = escapeLike(query.trim().lowercase())
+        // ⚠️ `DartTextSemantics` et non `trim().lowercase()` de Kotlin. Ce pré-filtre alimente le
+        // `LIMIT` de la requête : une transformation différente de celle de Flutter ramène un jeu de
+        // candidats différent, donc des suggestions différentes pour la même saisie. Relevé par une
+        // relecture externe (GPT-5.2, 2026-08-13) — l'écart est petit, mais c'est précisément la
+        // classe d'écart que `DartTextSemantics` existe pour supprimer.
+        val escaped = escapeLike(DartTextSemantics.lowercase(DartTextSemantics.trim(query)))
         val candidates = databases.get().noteDao().findByTitleLike(
             pattern = "$escaped%",
             wordPattern = "% $escaped%",
@@ -143,11 +149,27 @@ class NotesRepository @Inject constructor(
     // ── Écritures ────────────────────────────────────────────────────────────
 
     /**
-     * Crée une note, scellée **avant** son insertion si son dossier est un coffre.
+     * Crée une note, scellée **avant** son insertion si elle porte du lisible et que son dossier est
+     * un coffre.
      *
      * L'ordre est tout : sceller puis insérer ne laisse aucun instant où le clair est sur le disque.
      * Insérer puis chiffrer laisserait cet instant, et un arrêt brutal entre les deux y figerait la
      * note en clair dans un coffre.
+     *
+     * ## ⚠️ Une note entièrement vide n'est **pas** scellée, et c'est nécessaire
+     *
+     * Sans titre ni contenu, il n'y a rien à protéger — et c'est ce qui permet à l'éditeur de créer
+     * la note **avant** que l'utilisateur ait tapé quoi que ce soit. Refuser cette écriture-là
+     * bloquerait la création dans un coffre ; l'application publiée fait le même choix, par la même
+     * sortie anticipée.
+     *
+     * La première frappe, elle, passe par le scellement : dès que le titre ou le contenu n'est plus
+     * vide, [carriesPlaintext] rend `true`.
+     *
+     * Il ne faut donc pas lire « toute écriture dans un coffre échoue tant que la phase 4 n'est pas
+     * livrée » mais « toute écriture **qui porte du lisible** ». Nuance relevée par une relecture
+     * externe (GPT-5.2, 2026-08-13), qui la présentait comme un contournement — c'en serait un si la
+     * note vide pouvait ensuite être écrite en clair, ce que [saveEdits] empêche.
      */
     suspend fun create(
         folderId: String,
@@ -397,7 +419,23 @@ class NotesRepository @Inject constructor(
     private suspend fun sealIfVault(note: Note): Note {
         if (!carriesPlaintext(note)) return note
         if (!folders.isVaultFolder(note.folderId)) return note
-        return sealer.seal(note)
+
+        val sealed = sealer.seal(note)
+        // 🔴 Le scelleur est vérifié, pas cru sur parole.
+        //
+        // Sans ce contrôle, un scelleur qui chiffrerait correctement mais oublierait de vider
+        // `content` — ou de vider `title` en format 2 — ferait insérer le blob ET le texte lisible
+        // dans la même ligne. La note paraîtrait protégée à l'écran et serait lisible au repos.
+        //
+        // La phase 4 n'est pas écrite : ce contrôle porte donc sur du code qui n'existe pas encore,
+        // et c'est exactement le moment de le poser. Signalé par une relecture externe (GPT-5.2,
+        // 2026-08-13) comme le défaut qui « explosera au moment où le vrai scelleur arrivera ».
+        //
+        // Le message ne cite que l'identifiant : une exception voyage dans les journaux.
+        check(!carriesPlaintext(sealed)) {
+            "scellement incomplet pour la note ${note.id} : la note rendue porte encore du lisible"
+        }
+        return sealed
     }
 
     /**

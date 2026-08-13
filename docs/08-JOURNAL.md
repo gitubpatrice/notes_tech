@@ -229,3 +229,25 @@ coffre définitivement illisibles. `FolderDao` n'a plus de `@Update` (D-010).
 | Release passerelle 2.0.4 côté Flutter | pas écrite |
 | Crypto des coffres | phase 4 — `VaultSealer` refuse tout en attendant, délibérément |
 | `excerpt`, `wordCount` et les libellés de tri | reportés en phase 5 avec l'écran qui les consomme |
+
+### Seconde passe de relecture, le même jour
+
+**Le lot venait d'être déclaré exempt de fuite de clair. La passe suivante en a trouvé une**, et les
+deux relecteurs l'ont trouvée indépendamment : `deleteKeepingNotes` réassignait les notes d'un
+dossier par un `UPDATE` en bloc, qui ne passe **ni** par le scellement, **ni** par la garde des
+notes verrouillées. Vider un dossier ordinaire vers un coffre y déposait des notes en clair ; vider
+un coffre ailleurs faisait survivre ses notes chiffrées à la clé supprimée avec le dossier.
+
+La première passe n'avait pas tort : tous les chemins d'écriture **de note** étaient sûrs. Le trou
+était dans un chemin d'écriture **de dossier**. Une conclusion de non-divulgation vaut pour la
+surface explorée, jamais au-delà — c'est le piège §15.
+
+GPT-5.5 a aussi trouvé le **jumeau asymétrique** `backlinks()` / `dangling()` : deux requêtes sur la
+même table, une gardée contre les sources verrouillées, l'autre non.
+
+Et il a posé la meilleure question de la journée, sans pouvoir y répondre : *les transactions
+imbriquées de `NoteLinkWriter` sont-elles vraiment atomiques ?* Toute la décision D-009 en dépendait
+et **rien ne l'avait vérifié**. Un test le mesure désormais. La réponse est oui — mais elle est
+vérifiée, et elle le restera si Room ou le pilote changent.
+
+Total de la phase : **13 défauts corrigés**, 55 tests instrumentés, 45 tests JVM.

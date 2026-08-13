@@ -121,14 +121,18 @@ normalisation rend `reunion`. La version Flutter apparie en mémoire
 
 | Vérification | Résultat |
 |---|---|
-| Tests instrumentés sur Galaxy S9 (API 29) | **48**, 0 échec |
+| Tests instrumentés sur Galaxy S9 (API 29) | **55**, 0 échec |
 | Tests JVM | **45**, 0 échec |
 | Schéma Room vs DDL hérité | aucune divergence |
 | Vecteurs de parité rejoués depuis le vrai Dart | 92, dont 2 divergences **assumées et listées** |
 
-Six de ces tests portent sur des défauts **réellement trouvés** pendant la phase : trois par les
-tests eux-mêmes, deux par une relecture externe, un en écrivant la couche domaine. Le détail est
-dans `07-RELECTURES.md`.
+Treize de ces tests portent sur des défauts **réellement trouvés** pendant la phase, dont sept
+par deux relectures externes indépendantes. Le détail est dans `07-RELECTURES.md`, R-005 et
+R-006.
+
+⚠️ **La seconde passe a trouvé une fuite de clair dans un lot que la première venait de
+déclarer exempt de fuite de clair.** Le trou n'était pas dans un chemin d'écriture de note mais
+dans une réassignation de dossier, qui déplace N notes sans en toucher aucune individuellement.
 
 ### Phase 4 — Coffres 🔴 point de risque n°2
 

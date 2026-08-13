@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.filestech.notes_tech.data.local.DatabaseProvider
@@ -593,10 +594,209 @@ class NotesRepositoryTest {
         assertThat(liens.observeBacklinks(verrouillee).first()).isEmpty()
     }
 
+    /**
+     * 🔴 Le trou par lequel du clair entrait dans un coffre.
+     *
+     * La réassignation en bloc est un `UPDATE` nu : elle ne passe pas par le scellement. Vider un
+     * dossier ordinaire **vers un coffre** y déposait des notes en clair, `encrypted_content` à
+     * `NULL`. Relevé par la relecture des correctifs, après que le lot initial eut été déclaré
+     * exempt de fuite de clair.
+     */
+    @Test
+    fun vider_un_dossier_vers_un_coffre_est_refuse(): Unit = runBlocking {
+        val source = dossiers.create("Ordinaire")
+        val note = notes.create(folderId = source.id, title = "En clair", content = "texte lisible")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { dossiers.deleteKeepingNotes(source.id, LegacyDatabaseFixture.Fixtures.FOLDER_VAULT) }
+        }
+
+        val relue = notes.find(note.id)!!
+        assertThat(relue.folderId).isEqualTo(source.id)
+        assertThat(relue.isLocked).isFalse()
+        assertThat(dossiers.find(source.id)).isNotNull()
+    }
+
+    /**
+     * 🔴 L'autre face du même trou : garder les notes d'un coffre en supprimant le coffre revient à
+     * garder des blobs dont on vient d'effacer la clé.
+     *
+     * C'est **pire** que la suppression qu'on croit éviter : supprimer le coffre avec ses notes est
+     * propre, les sauver sans leur clé produit des blobs que plus rien n'ouvrira.
+     */
+    @Test
+    fun vider_un_coffre_vers_un_dossier_ordinaire_est_refuse(): Unit = runBlocking {
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                dossiers.deleteKeepingNotes(
+                    LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+                    LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+                )
+            }
+        }
+
+        val verrouillee = notes.find(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!
+        assertThat(verrouillee.folderId).isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
+        assertThat(dossiers.find(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)).isNotNull()
+    }
+
+    /** L'auto-complétion ne doit jamais proposer le titre d'une note de coffre. */
+    @Test
+    fun l_auto_completion_ne_propose_pas_les_titres_de_coffre(): Unit = runBlocking {
+        // Une note de coffre au FORMAT 1 : son titre est légitimement en clair dans la colonne.
+        val db = provider.get()
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE notes SET title = ?, enc_v = 1 WHERE id = ?",
+            arrayOf<Any?>("Codes bancaires", LegacyDatabaseFixture.Fixtures.NOTE_LOCKED),
+        )
+
+        val suggestions = notes.suggestTitles("Codes")
+
+        assertThat(suggestions).isEmpty()
+    }
+
     @Test
     fun la_boite_de_reception_ne_se_supprime_pas(): Unit = runBlocking {
         assertThat(dossiers.delete(com.filestech.notes_tech.domain.model.Folder.INBOX_ID)).isFalse()
         assertThat(dossiers.find(com.filestech.notes_tech.domain.model.Folder.INBOX_ID)).isNotNull()
+    }
+
+    /**
+     * ⚠️ **Jumeau asymétrique** : deux requêtes lisaient `note_links`, une seule refusait les notes
+     * de coffre comme source.
+     *
+     * `target_title` est un titre écrit **dans le texte** d'une note. Si cette note est au coffre,
+     * son texte est censé être illisible ; la liste des liens fantomes en laissait pourtant filtrer
+     * un fragment. Relevé par une relecture externe.
+     */
+    @Test
+    fun les_liens_fantomes_d_une_note_de_coffre_ne_remontent_pas(): Unit = runBlocking {
+        // État hérité : une ligne de `note_links` dont la source est verrouillée. Elle ne peut pas
+        // être produite par ce portage, mais la base est partagée avec l'application Flutter et
+        // aucune migration ne la nettoie.
+        val db = provider.get()
+        db.linkWriter.replaceLinksOf(
+            LegacyDatabaseFixture.Fixtures.NOTE_LOCKED,
+            listOf(
+                com.filestech.notes_tech.data.local.OutgoingLink(
+                    targetId = null,
+                    targetTitle = "Nom cite dans le coffre",
+                    targetTitleNorm = "nom cite dans le coffre",
+                    position = 0,
+                ),
+            ),
+        )
+
+        val fantomes = liens.observeDangling().first()
+
+        assertThat(fantomes.map { it.targetTitle }).doesNotContain("Nom cite dans le coffre")
+        assertThat(fantomes.map { it.sourceId }).doesNotContain(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)
+    }
+
+    /**
+     * ⚠️ Un titre en clair sans corps, dans un coffre, doit être vu par la passe de réparation.
+     *
+     * L'application publiée ne teste que `content <> ''` et laisse donc passer une note intitulée
+     * « Codes de la carte bleue » au corps vide — limite que son propre code documente comme ouverte.
+     * Relevé par une relecture externe.
+     */
+    @Test
+    fun une_note_de_coffre_au_titre_en_clair_et_au_corps_vide_est_detectee(): Unit = runBlocking {
+        val db = provider.get()
+        db.openHelper.writableDatabase.execSQL(
+            "INSERT INTO notes (id, title, content, encrypted_content, folder_id, tags, pinned, " +
+                "favorite, archived, trashed_at, created_at, updated_at, enc_v) " +
+                "VALUES ('titre-seul', 'Codes de la carte bleue', '', NULL, ?, '', 0, 0, 0, NULL, 1, 1, 1)",
+            arrayOf<Any?>(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT),
+        )
+
+        val aReparer = db.noteDao().findPlaintextInFolder(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
+
+        assertThat(aReparer.map { it.id }).contains("titre-seul")
+        // Et le cas hérité légitime n'est PAS retenu : format 1, titre en clair, blob présent.
+        db.openHelper.writableDatabase.execSQL(
+            "UPDATE notes SET title = 'Titre legitime', enc_v = 1 WHERE id = ?",
+            arrayOf<Any?>(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED),
+        )
+        assertThat(db.noteDao().findPlaintextInFolder(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT).map { it.id })
+            .doesNotContain(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)
+    }
+
+    // ── L'hypothèse sur laquelle repose toute la conception ─────────────────
+
+    /**
+     * 🔴 **La question la plus importante de ce lot, et elle se mesure au lieu de se supposer.**
+     *
+     * `NoteLinkWriter` ouvre son propre `withTransaction` alors que l'appelant est déjà dans une
+     * transaction. Toute la décision D-009 — « écrire une note et ses liens est une seule
+     * opération » — repose sur le fait que cette imbrication n'est **pas** une seconde transaction
+     * qui pourrait être validée séparément.
+     *
+     * Si elle l'était, une exception levée après l'écriture des liens laisserait `note_links` écrite
+     * et `notes` annulée : exactement la divergence que D-009 prétend rendre impossible. Le tout
+     * sans le moindre signal.
+     *
+     * Signalé comme point à trancher par une relecture externe (GPT-5.2, 2026-08-13), qui notait
+     * justement qu'elle ne pouvait pas l'affirmer sans le mesurer. Ce test le mesure : il force une
+     * exception **après** l'écriture des liens et vérifie que les deux tables reviennent en arrière.
+     */
+    @Test
+    fun une_exception_apres_l_ecriture_des_liens_annule_aussi_les_liens(): Unit = runBlocking {
+        val note = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            title = "Source",
+            content = "Voir [[Réunion budget]].",
+        )
+        assertThat(liens.observeOutgoing(note.id).first()).hasSize(1)
+
+        val db = provider.get()
+        val explosion = RuntimeException("interruption volontaire apres l'ecriture des liens")
+        val leve = runCatching {
+            db.withTransaction {
+                db.linkWriter.replaceLinksOf(
+                    note.id,
+                    listOf(
+                        com.filestech.notes_tech.data.local.OutgoingLink(null, "Ajouté", "ajoute", 0),
+                        com.filestech.notes_tech.data.local.OutgoingLink(null, "Encore", "encore", 9),
+                    ),
+                )
+                db.noteWriteDao().updateTags(note.id, "marqueur", horloge.millis())
+                throw explosion
+            }
+        }.exceptionOrNull()
+
+        assertThat(leve).isSameInstanceAs(explosion)
+        // Les DEUX écritures sont annulées : celle qui passe par Room comme celle qui passe par
+        // `execSQL` dans une transaction imbriquée.
+        assertThat(liens.observeOutgoing(note.id).first().map { it.targetTitle })
+            .containsExactly("Réunion budget")
+        assertThat(notes.find(note.id)!!.tags).isEmpty()
+    }
+
+    /**
+     * 🔴 Un scelleur défaillant ne peut pas faire écrire du clair : le repository vérifie ce qu'il
+     * rend.
+     *
+     * La phase 4 n'existe pas encore, donc ce test porte sur du code à venir — c'est précisément le
+     * moment de poser le contrôle. Signalé par une relecture externe (GPT-5.2) comme le défaut qui
+     * « explosera au moment où le vrai scelleur arrivera ».
+     */
+    @Test
+    fun un_scelleur_qui_oublie_de_vider_le_clair_fait_echouer_l_ecriture(): Unit = runBlocking {
+        scelleur = ScelleurNegligent()
+        val avant = notes.countInFolder(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                notes.create(
+                    folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+                    title = "Code",
+                    content = "SECRET",
+                )
+            }
+        }
+
+        assertThat(notes.countInFolder(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)).isEqualTo(avant)
     }
 
     // ── Doubles de test ──────────────────────────────────────────────────────
@@ -630,6 +830,19 @@ class NotesRepositoryTest {
             content = "",
             encrypted = EncryptedBody("chiffre:${note.title}|${note.content}".toByteArray()),
             encVersion = format,
+        )
+    }
+
+    /**
+     * Un scelleur qui chiffre **mais oublie de vider le clair** — la faute la plus plausible d'une
+     * implémentation réelle, et la seule que le repository ne peut pas se permettre de laisser
+     * passer.
+     */
+    private class ScelleurNegligent : VaultSealer {
+        override suspend fun seal(note: Note): Note = note.copy(
+            encrypted = EncryptedBody("chiffre".toByteArray()),
+            encVersion = EncryptedFormat.TITLE_AND_CONTENT,
+            // `title` et `content` restent remplis : c'est tout l'objet du test.
         )
     }
 

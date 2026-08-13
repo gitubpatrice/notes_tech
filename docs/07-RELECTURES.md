@@ -398,3 +398,78 @@ autre chemin. Rendu explicite : une note verrouillée court-circuite la requête
 
 - Relecture GPT-5.2 : le service a rendu `503` deux fois. À relancer.
 - La couche ② de la KEK et la release passerelle 2.0.4 restent à écrire.
+
+
+---
+
+# R-006 — Phase 3, seconde passe : relecture DES correctifs, et GPT-5.5
+
+> 2026-08-13, après R-005. Deux relectures indépendantes sur le lot corrigé : Gemini 3.1 Pro sur
+> les correctifs eux-mêmes, GPT-5.5 sur l'ensemble.
+
+## Le constat qui justifie à lui seul cette seconde passe
+
+**Le lot venait d'être déclaré exempt de fuite de clair.** R-005 se terminait sur cette phrase, en
+citant la relecture externe :
+
+> « Aucun chemin permettant d'écrire le contenu d'un coffre en clair sur le disque n'a été trouvé. »
+
+La passe suivante en a trouvé un, et les **deux** relecteurs l'ont trouvé indépendamment.
+
+`FoldersRepository.deleteKeepingNotes` réassigne les notes par un `UPDATE` en bloc. Cet `UPDATE` ne
+passe **ni** par le scellement, **ni** par la garde qui interdit de déplacer une note verrouillée :
+
+| Cas | Ce qui se produisait |
+|---|---|
+| destination = coffre | des notes en clair entrent dans le coffre, `encrypted_content` à `NULL` |
+| source = coffre | ses notes chiffrées survivent à la clé, supprimée avec le dossier |
+
+Le second cas est **pire que la suppression qu'il prétend éviter** : supprimer un coffre avec ses
+notes est propre ; les « sauver » sans leur clé produit des blobs orphelins.
+
+⚠️ **La leçon n'est pas « il fallait mieux relire ».** La première passe avait raison sur ce
+qu'elle avait examiné : tous les chemins d'**écriture de note** étaient sûrs. Le trou était dans un
+chemin d'**écriture de dossier**, qui déplace des notes sans les toucher une par une. Une conclusion
+de non-divulgation vaut pour la surface explorée, jamais au-delà.
+
+## Ce que GPT-5.5 a trouvé en plus
+
+| Constat | Verdict | Suite |
+|---|---|---|
+| `dangling()` n'a pas la garde que `backlinks()` a | **jumeau asymétrique**, réel | jointure + filtre ajoutés |
+| `findPlaintextInFolder` ne voit pas un titre en clair sans corps | réel — et **l'application publiée non plus** | requête alignée sur `carriesPlaintext` |
+| `reassignFolder` n'écrit pas `updated_at` | réel — vérifié dans le Dart, qui l'écrit | ajouté |
+| `requireUsableName` utilise le `trim()` de Kotlin | réel, mineur | passé à `DartTextSemantics` |
+| `create()` peut écrire du clair si le scelleur est bogué | réel mais **latent** | post-condition `check` ajoutée |
+| Le pré-filtre d'auto-complétion utilise `trim().lowercase()` de Kotlin | réel | passé à `DartTextSemantics` |
+| Une note **vide** dans un coffre n'est pas scellée | à la réflexion, **c'est voulu** | KDoc corrigé, comportement inchangé |
+| Transactions imbriquées : vraiment atomiques ? | **question juste, non tranchable par lecture** | **test écrit et passé** |
+
+## Le meilleur apport de cette passe n'est pas un défaut, c'est une question
+
+GPT-5.5 a demandé si `NoteLinkWriter`, qui ouvre son propre `withTransaction` alors que l'appelant
+en tient déjà une, participe bien à la même transaction — en disant explicitement qu'il ne pouvait
+pas trancher sans mesurer.
+
+**Toute la décision D-009 reposait sur cette hypothèse, et elle n'était pas vérifiée.** Si elle
+avait été fausse, une exception après l'écriture des liens aurait laissé `note_links` écrite et
+`notes` annulée : exactement la divergence que D-009 prétend rendre impossible.
+
+`une_exception_apres_l_ecriture_des_liens_annule_aussi_les_liens` la mesure désormais. Elle est
+vraie. Mais elle est **vérifiée** au lieu d'être crue, et elle le restera si Room ou le pilote
+changent.
+
+## Deux constats écartés, après vérification
+
+- **`unlockNote` retire la protection.** C'est son rôle, il porte ce nom pour ça, et il n'a aucun
+  appelant. GPT-5.5 le signalait en disant lui-même ne pas pouvoir produire de scénario.
+- **L'auto-complétion divulguerait les titres de coffre au format 1.** Vérifié : `findByTitleLike`
+  porte déjà `AND encrypted_content IS NULL`. Un test le fige désormais.
+
+## Mesures après cette passe
+
+| Vérification | Résultat |
+|---|---|
+| Tests instrumentés sur Galaxy S9 (API 29) | **55**, 0 échec |
+| Tests JVM | **45**, 0 échec |
+| `ktlintCheck`, `detekt`, `lintDebug` | verts |

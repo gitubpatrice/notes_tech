@@ -153,8 +153,37 @@ interface NoteDao {
      *
      * ⚠️ **Sans filtre sur la corbeille, volontairement.** Une note de coffre laissée en clair puis
      * jetée y séjourne trente jours — c'est l'endroit où il serait le plus grave de l'oublier.
+     *
+     * ## ⚠️ Un titre en clair compte, et l'application publiée ne le voyait pas
+     *
+     * Sa requête ne teste que `content <> ''` (`notes_dao.dart:91`). Une note **sans blob** dont
+     * seul le titre est rempli — « Codes de la carte bleue », corps vide — n'était donc réparée par
+     * aucune passe : ni celle-ci, ni celle du format 1, qui exige un blob. C'est la limite que son
+     * propre code documente comme connue et ouverte (`notes_repository.dart:209`).
+     *
+     * Ce portage la ferme en reprenant **exactement** le critère de
+     * `NotesRepository.carriesPlaintext` :
+     *
+     * | État | Retenu | Pourquoi |
+     * |---|---|---|
+     * | pas de blob, titre **ou** contenu non vide | oui | rien ne le protège |
+     * | blob, contenu non vide | oui | le contenu est vidé au chiffrement |
+     * | blob format 2, titre non vide | oui | le titre a rejoint le blob, la colonne doit être vide |
+     * | blob format 1, titre non vide | **non** | état hérité légitime |
+     *
+     * Relevé par une relecture externe (GPT-5.5, 2026-08-13).
      */
-    @Query("SELECT * FROM notes WHERE folder_id = :folderId AND content IS NOT NULL AND content != ''")
+    @Query(
+        """
+        SELECT * FROM notes
+        WHERE folder_id = :folderId
+          AND (
+            (encrypted_content IS NULL AND (title != '' OR content != ''))
+            OR (encrypted_content IS NOT NULL AND content != '')
+            OR (encrypted_content IS NOT NULL AND enc_v = 2 AND title != '')
+          )
+        """,
+    )
     suspend fun findPlaintextInFolder(folderId: String): List<NoteEntity>
 
     /**

@@ -92,12 +92,34 @@ abstract class NoteLinkDao {
      *
      * `target_id IS NULL` les identifie. Ils se résolvent tout seuls si l'utilisateur crée plus
      * tard une note portant ce titre — d'où l'intérêt de les lister, pour proposer la création.
+     *
+     * ## ⚠️ La garde sur les sources verrouillées était absente ici, et [backlinks] l'avait
+     *
+     * Deux requêtes lisaient la même table, l'une refusait les notes de coffre comme source, l'autre
+     * non. C'est le **jumeau asymétrique** : le genre d'écart qui ne se voit pas parce que chaque
+     * requête, isolément, paraît correcte.
+     *
+     * Ce que la version non gardée divulguait : `target_title` est un titre **écrit dans le texte
+     * d'une note**. Si cette note est dans un coffre, son texte est censé être illisible ; une ligne
+     * de `note_links` issue d'elle rendrait pourtant visible un fragment de ce qu'elle cite.
+     *
+     * En principe la situation ne se produit pas — les liens d'une note sont effacés à son
+     * verrouillage. Mais `note_links` est hors du graphe Room, la base est **partagée avec
+     * l'application Flutter**, et aucune migration ne la nettoie. Une garantie de non-divulgation
+     * qui repose sur la propreté d'un état écrit ailleurs n'est pas une garantie.
+     *
+     * Relevé par une relecture externe (GPT-5.5, 2026-08-13).
      */
     fun dangling(): Flow<List<NoteLinkRow>> = rawLinks(
         SimpleSQLiteQuery(
             """
-            SELECT source_id, target_id, target_title, target_title_norm, position
-            FROM note_links WHERE target_id IS NULL ORDER BY target_title_norm ASC
+            SELECT l.source_id, l.target_id, l.target_title, l.target_title_norm, l.position
+            FROM note_links l
+            JOIN notes n ON n.id = l.source_id
+            WHERE l.target_id IS NULL
+              AND n.trashed_at IS NULL
+              AND n.encrypted_content IS NULL
+            ORDER BY l.target_title_norm ASC
             """,
         ),
     )

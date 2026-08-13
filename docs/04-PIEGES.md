@@ -243,3 +243,50 @@ chaque écriture coûte deux `UPDATE` et supprime la question.
 
 **Le motif à retenir** : conditionner une opération de sécurité à un changement *observable* suppose
 que le changement de sécurité s'y reflète. Ici il ne s'y reflétait pas.
+
+
+---
+
+## 15. 🔴 Une écriture en bloc contourne toutes les gardes posées « par note »
+
+`deleteKeepingNotes` déplaçait les notes d'un dossier par un `UPDATE notes SET folder_id = …`
+unique. Aucune note n'était touchée individuellement, donc **aucune garde « par note » ne
+s'appliquait** : ni le scellement, ni le refus de déplacer une note verrouillée.
+
+Résultat : vider un dossier ordinaire **vers un coffre** y déposait des notes en clair ; vider un
+coffre **vers ailleurs** faisait survivre ses notes chiffrées à la clé qu'on supprimait avec le
+dossier.
+
+Corrigé par deux refus explicites. La règle générale, elle, vaut pour tout ce qui reste à écrire :
+
+> **Chaque fois qu'une opération touche N lignes en une requête, se demander quelles gardes
+> « par ligne » viennent d'être sautées.**
+
+Relevé indépendamment par deux relectures externes, sur un lot que la passe précédente venait de
+déclarer exempt de fuite de clair.
+
+---
+
+## 16. 🟠 Deux requêtes sur la même table, une seule gardée
+
+`backlinks()` refusait les notes de coffre comme source. `dangling()` lisait la même table sans ce
+filtre. Chacune, isolément, paraissait correcte.
+
+`target_title` est un titre **écrit dans le texte** d'une note. Venant d'une note de coffre, il
+laissait filtrer un fragment de ce qu'elle cite.
+
+C'est le **jumeau asymétrique**. Le chercher activement : quand une garde existe quelque part, se
+demander qui d'autre lit la même chose.
+
+---
+
+## 17. 🟠 Vérifier ce que rend une dépendance, pas seulement ce qu'on lui demande
+
+`sealIfVault` appelait le scelleur et insérait ce qu'il rendait. Un scelleur qui chiffrerait
+correctement mais oublierait de vider `content` aurait fait insérer le blob **et** le texte lisible.
+
+La phase 4 n'étant pas écrite, le contrôle porte sur du code à venir — et c'est exactement le
+moment de le poser, pendant que le contrat est encore une intention plutôt qu'une habitude.
+
+`check(!carriesPlaintext(sealed))` annule la transaction. Un test avec un scelleur délibérément
+négligent le prouve.

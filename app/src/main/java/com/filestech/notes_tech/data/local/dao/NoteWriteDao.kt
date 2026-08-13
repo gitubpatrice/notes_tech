@@ -146,8 +146,8 @@ interface NoteWriteDao {
      *
      * | Appelant | `updatedAt` | Pourquoi |
      * |---|---|---|
-     * | édition d'une note de coffre par l'utilisateur | l'instant courant | c'est une modification, elle doit remonter en tête de « récentes » |
-     * | reprotection d'arrière-plan à l'ouverture du coffre | `null` | une réparation silencieuse qui réordonne l'écran n'est pas silencieuse |
+     * | édition par l'utilisateur | l'instant courant | c'est une modification : elle doit remonter |
+     * | reprotection d'arrière-plan | `null` | une réparation qui réordonne l'écran n'est pas discrète |
      *
      * La première version n'écrivait **jamais** `updated_at` ni `tags`. Conséquences mesurées :
      * modifier les étiquettes d'une note de coffre les perdait en silence, et éditer son texte ne la
@@ -255,7 +255,18 @@ interface NoteWriteDao {
      *
      * Sert à vider un dossier avant sa suppression quand l'utilisateur choisit de garder ses
      * notes — sans quoi la cascade `ON DELETE CASCADE` les emporterait.
+     *
+     * ⚠️ **Écrit `updated_at`**, comme l'application publiée (`notes_dao.dart:365`). Une première
+     * version de ce portage l'omettait : les notes déplacées ne remontaient pas dans
+     * « modifiées récemment » là où la version Flutter les y fait remonter. Relevé par une
+     * relecture externe (GPT-5.5) qui, faute de la source Dart, ne pouvait que signaler l'écart
+     * sans le trancher.
      */
-    @Query("UPDATE notes SET folder_id = :destinationId WHERE folder_id = :sourceId")
-    suspend fun reassignFolder(sourceId: String, destinationId: String): Int
+    @Query(
+        """
+        UPDATE notes SET folder_id = :destinationId, updated_at = :updatedAt
+        WHERE folder_id = :sourceId
+        """,
+    )
+    suspend fun reassignFolder(sourceId: String, destinationId: String, updatedAt: Long): Int
 }

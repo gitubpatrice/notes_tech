@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.repository
 
 import androidx.room.withTransaction
+import com.filestech.notes_tech.core.text.DartTextSemantics
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.NotesDatabase
 import com.filestech.notes_tech.data.local.entity.FolderEntity
@@ -136,6 +137,28 @@ class FoldersRepository @Inject constructor(private val databases: DatabaseProvi
      * Sans cette réassignation, la cascade `ON DELETE CASCADE` emporterait les notes — **y compris
      * celles qui sont en corbeille**, dont la rétention de trente jours n'aurait pas été respectée.
      *
+     * ## 🔴 Ni la source ni la destination ne peuvent être un coffre
+     *
+     * La réassignation est un `UPDATE notes SET folder_id = …` en bloc. Elle ne passe **ni** par le
+     * scellement, **ni** par la garde qui interdit de déplacer une note verrouillée. C'est donc le
+     * chemin par lequel les deux invariants du coffre tombent d'un coup :
+     *
+     * | Cas | Ce qui se passait sans le refus |
+     * |---|---|
+     * | destination = coffre | des notes en clair entrent dans le coffre, `encrypted_content` à `NULL` |
+     * | source = coffre | ses notes chiffrées survivent à `vault_kek_wrapped`, supprimé avec le dossier |
+     *
+     * Le second cas est pire que la suppression qu'il prétend éviter : supprimer le coffre avec ses
+     * notes est propre, les garder sans leur clé produit des blobs orphelins que rien n'ouvrira.
+     *
+     * L'application publiée a les deux trous — sa réassignation est le même `UPDATE` nu. Vider un
+     * coffre demande de déchiffrer d'abord, ce que seul le service de coffres saura faire (phase 4,
+     * équivalent de `FolderVaultService.decryptAllNotesInFolder`).
+     *
+     * Relevé par la relecture **des correctifs** (Gemini 3.1 Pro, 2026-08-13) — le lot précédent
+     * avait été déclaré exempt de fuite de clair, et celle-ci passait par un chemin que la revue
+     * initiale n'avait pas suivi jusqu'au bout.
+     *
      * ## 🔴 Une suppression refusée doit tout annuler, pas seulement s'abstenir
      *
      * Les deux gestes sont dans la même transaction, et le second **lève** s'il ne supprime rien.
@@ -150,15 +173,31 @@ class FoldersRepository @Inject constructor(private val databases: DatabaseProvi
      * *dans une transaction, un refus qui se contente de rendre une valeur ne défait rien.*
      *
      * @return le nombre de notes déplacées.
-     * @throws IllegalArgumentException si la destination est la source, ou s'il s'agit de la boîte
-     *   de réception — que l'interface ne doit pas proposer de supprimer.
+     * @throws IllegalArgumentException si la destination est la source, s'il s'agit de la boîte de
+     *   réception, ou si l'un des deux dossiers est un coffre.
      * @throws IllegalStateException si le dossier n'existe pas. Rien n'est alors déplacé.
      */
     suspend fun deleteKeepingNotes(id: String, destinationId: String): Int = inTransaction { database ->
         require(id != destinationId) { "destination identique a la source" }
         require(id != Folder.INBOX_ID) { "la boite de reception ne se supprime pas" }
-        val moved = database.noteWriteDao().reassignFolder(sourceId = id, destinationId = destinationId)
-        check(database.folderDao().delete(id) > 0) {
+
+        // 🔴 Les deux refus ci-dessous existent parce que la réassignation est un `UPDATE` en bloc :
+        // elle ne passe ni par le scellement, ni par la garde de déplacement des notes verrouillées.
+        // Sans eux, cette méthode est le trou par lequel les deux invariants du coffre tombent.
+        val folders = database.folderDao()
+        require(folders.isVault(destinationId) != true) {
+            "destination refusee : $destinationId est un coffre, les notes y entreraient EN CLAIR"
+        }
+        require(folders.isVault(id) != true) {
+            "source refusee : $id est un coffre, ses notes chiffrees lui survivraient sans leur cle"
+        }
+
+        val moved = database.noteWriteDao().reassignFolder(
+            sourceId = id,
+            destinationId = destinationId,
+            updatedAt = clock.millis(),
+        )
+        check(folders.delete(id) > 0) {
             "dossier $id introuvable : la reassignation de $moved note(s) est annulee"
         }
         moved
@@ -176,7 +215,11 @@ class FoldersRepository @Inject constructor(private val databases: DatabaseProvi
      * doit accepter tout ce que la base contient déjà.
      */
     private fun requireUsableName(name: String): String {
-        val trimmed = name.trim()
+        // ⚠️ `DartTextSemantics.trim` et non `trim()` de Kotlin : les deux n'élaguent pas le même
+        // ensemble. Un nom réduit à U+001F est refusé par Kotlin et accepté par Dart ; un nom bordé
+        // de U+0085, l'inverse. L'écart est minuscule et sans conséquence de sécurité, mais ce
+        // fichier n'a aucune raison d'appliquer d'autres règles que le reste du portage.
+        val trimmed = DartTextSemantics.trim(name)
         require(trimmed.isNotEmpty()) { "nom de dossier vide" }
         return trimmed
     }
