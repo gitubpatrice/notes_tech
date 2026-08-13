@@ -50,7 +50,7 @@ l'acquisition de la KEK. Une build isolée verte ne prouve **pas** la migration.
 |---|---|
 | Compilation `assembleDebug` | verte |
 | Tests JVM | **37**, 0 échec |
-| Tests instrumentés, Galaxy S9 (API 29) | **19**, 0 échec |
+| Tests instrumentés, Galaxy S9 (API 29) | **20**, 0 échec |
 | Schéma Room vs DDL hérité, comparaison mécanique | **aucune divergence** |
 | Manifeste fusionné release, permissions | aucune permission réseau |
 | Garde-fou « zéro réseau », contrôles négatifs | **3/3 échouent correctement** |
@@ -71,7 +71,7 @@ Deux contrôles ont une valeur particulière parce qu'ils **peuvent échouer** :
 Quatre passes indépendantes : Gemini 3.1 Pro et GPT-5.2 sur le noyau, GPT-5.2 sur les DAO, puis un
 audit `data-room` interne. Détail et tri dans [07-RELECTURES.md](07-RELECTURES.md).
 
-**Bilan : 12 constats recevables, 11 corrigés, 1 réfuté par la mesure.**
+**Bilan : 16 constats recevables, 15 corrigés, 1 réfuté par la mesure.**
 
 ⚠️ **La leçon la plus utile de la journée** : l'audit interne avait accès au **vrai code Flutter**,
 ce que les relecteurs externes n'avaient pas. Il a trouvé cinq écarts de **parité** — dont un

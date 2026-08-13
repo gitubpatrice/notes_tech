@@ -122,8 +122,9 @@ interface NoteDao {
      * d'écrire en clair le contenu d'une note de coffre, quel que soit l'objet que l'appelant a en
      * main — y compris l'éphémère déchiffrée que détient l'éditeur.
      *
-     * Le chemin légitime pour une note de coffre est [replaceContentPayload], seul à écrire
-     * `encrypted_content`, et qui porte ce nom pour qu'on ne s'y trompe pas.
+     * Les chemins légitimes pour une note de coffre sont [lockNote] et [unlockNote] — les seuls à
+     * écrire `encrypted_content`, et qui portent ces noms pour qu'on ne s'y trompe pas. Pour ses
+     * seules étiquettes, [updateTags], qui ne touche ni au contenu ni au blob.
      *
      * @return `0` si l'identifiant est inconnu **ou** si la note est verrouillée.
      */
@@ -165,35 +166,82 @@ interface NoteDao {
     ): Int
 
     /**
-     * Réécrit le couple (`content`, `encrypted_content`) — **le seul chemin qui écrit le blob**.
+     * Écrit les seules étiquettes.
      *
-     * ⚠️ **Ne touche pas à `updated_at`**, délibérément. Cette écriture sert au verrouillage, au
-     * déverrouillage et aux réparations d'arrière-plan : remettre `updated_at` à maintenant ferait
-     * remonter toutes les notes reprotégées en tête de « modifiées récemment » à chaque ouverture
+     * **Pas de garde `encrypted_content IS NULL` ici, et c'est correct** : les étiquettes d'une
+     * note de coffre sont stockées en clair (le trigger FTS5 les masque à l'index, il ne les
+     * chiffre pas). Les modifier ne touche ni au contenu ni au blob, donc le geste est sûr sur
+     * n'importe quelle note.
+     *
+     * Cette méthode existe parce que la garde de [updateEditableFields] retirait, sans le vouloir,
+     * la possibilité d'étiqueter une note de coffre — capacité que l'application publiée offre.
+     * Relevé par la relecture des correctifs (Gemini, 2026-08-13).
+     */
+    @Query("UPDATE notes SET tags = :tags, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateTags(id: String, tags: String, updatedAt: Long): Int
+
+    /**
+     * **Verrouille** une note : son contenu part dans le blob chiffré.
+     *
+     * Trois choses sont écrites **en dur** dans la requête, et c'est tout l'intérêt de la méthode :
+     *
+     * - `content = ''` — verrouiller ne peut **pas** écrire de texte en clair. Un appelant qui
+     *   passerait par erreur le contenu déchiffré n'a aucun paramètre pour le faire entrer.
+     * - `encryptedContent` est **non-nullable** — verrouiller ne peut pas effacer la protection.
+     * - `plainTitle` est **obligatoire** : `""` pour le format 2 (le titre part dans le blob),
+     *   le titre courant pour le format 1. Pas de valeur par défaut, donc pas de `COALESCE` dont
+     *   on pourrait croire à tort qu'il vide la colonne.
+     *
+     * ⚠️ **Ne touche pas à `updated_at`.** Le verrouillage et les réparations d'arrière-plan ne
+     * doivent pas faire remonter les notes en tête de « modifiées récemment » à chaque ouverture
      * du coffre. Une réparation silencieuse qui réordonne l'écran n'est pas silencieuse.
      *
-     * `title` et `encVersion` sont facultatifs et restent inchangés à `null`. Quand ils sont
-     * fournis, ils sont écrits dans **le même `UPDATE`** que le blob : à partir du format 2 le
-     * titre vit dans le chiffré, et deux écritures séparées laisseraient, en cas d'interruption, un
-     * titre en clair face à un blob qui le contient déjà.
+     * Le titre est écrit dans le **même** `UPDATE` que le blob : à partir du format 2 il vit dans
+     * le chiffré, et deux écritures séparées laisseraient, en cas d'interruption, un titre en clair
+     * face à un blob qui le contient déjà.
+     */
+    @Query(
+        """
+        UPDATE notes SET
+          content = '',
+          title = :plainTitle,
+          encrypted_content = :encryptedContent,
+          enc_v = :encVersion
+        WHERE id = :id
+        """,
+    )
+    suspend fun lockNote(id: String, encryptedContent: ByteArray, encVersion: Int, plainTitle: String): Int
+
+    /**
+     * **Déverrouille** une note : son contenu revient en clair, le blob disparaît.
+     *
+     * 🔴 **C'est le seul chemin du code qui retire la protection d'une note**, et il porte ce nom
+     * pour qu'aucun appel ne puisse le faire par inadvertance. `encrypted_content = NULL` est écrit
+     * en dur : il n'y a pas de paramètre par lequel un autre geste pourrait produire cet effet.
+     *
+     * La séparation d'avec [lockNote] vient de la relecture des correctifs (Gemini et GPT-5.2,
+     * 2026-08-13). Une méthode unique `replaceContentPayload(content, encryptedContent?)` laissait
+     * deux combinaisons dangereuses ouvertes à toute erreur d'appelant :
+     *
+     * | Appel fautif | Conséquence |
+     * |---|---|
+     * | contenu clair **+** blob conservé | texte en clair au repos, note « verrouillée » à l'écran |
+     * | contenu clair **+** blob à `null` | protection détruite définitivement |
+     *
+     * Aucune des deux n'est plus exprimable : la première n'a plus de paramètre pour le clair, la
+     * seconde exige d'appeler une méthode qui s'appelle « déverrouiller ».
      */
     @Query(
         """
         UPDATE notes SET
           content = :content,
-          encrypted_content = :encryptedContent,
-          title = COALESCE(:title, title),
-          enc_v = COALESCE(:encVersion, enc_v)
+          title = :plainTitle,
+          encrypted_content = NULL,
+          enc_v = 1
         WHERE id = :id
         """,
     )
-    suspend fun replaceContentPayload(
-        id: String,
-        content: String,
-        encryptedContent: ByteArray?,
-        title: String? = null,
-        encVersion: Int? = null,
-    ): Int
+    suspend fun unlockNote(id: String, content: String, plainTitle: String): Int
 
     /**
      * Met ou retire l'horodatage de corbeille, sans toucher au contenu.

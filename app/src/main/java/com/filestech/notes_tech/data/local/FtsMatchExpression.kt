@@ -35,7 +35,24 @@ package com.filestech.notes_tech.data.local
  */
 internal object FtsMatchExpression {
 
-    private val WHITESPACE = Regex("\\s+")
+    /**
+     * ⚠️ **`\s` ne suffit pas** : en Java il ne couvre que l'ASCII (`[ \t\n\x0B\f\r]`), alors que
+     * le `RegExp(r'\s+')` de Dart suit ECMAScript et englobe les espaces Unicode.
+     *
+     * La divergence n'est pas théorique en français : l'espace fine insécable **U+202F** est ce que
+     * produisent les claviers et les correcteurs devant `: ; ! ?`, et elle voyage par copier-coller.
+     * Avec `\s` seul, `réunion budget` resterait **un seul terme** côté Kotlin là où Flutter en
+     * fait deux — deux applications qui ne rendent pas les mêmes résultats pour la même saisie.
+     *
+     * La classe est donc écrite en toutes lettres plutôt que confiée à un drapeau : espace
+     * insécable, espace insécable étroite, cadratins, séparateurs de ligne et de paragraphe,
+     * espace idéographique, marque d'ordre des octets. C'est le `WhiteSpace` d'ECMAScript, celui-là
+     * même que Dart applique.
+     *
+     * Relevé par la relecture des correctifs (GPT-5.2, 2026-08-13).
+     */
+    private val WHITESPACE =
+        Regex("[\\s\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]+")
 
     /**
      * FTS5 n'accepte le suffixe `*` que derrière un terme alphanumérique.

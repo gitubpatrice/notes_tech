@@ -212,6 +212,83 @@ et une cascade de clé étrangère ne déclenchant pas le trigger de nettoyage (
 
 ---
 
+## R-004 — Relecture **des correctifs** de R-003 · 2026-08-13
+
+**Pourquoi cette passe existe** : sur ce portefeuille, les correctifs d'audit contiennent des
+défauts plus souvent que le code d'origine — 12 défauts introduits en corrigeant 53 constats sur
+une application voisine, 8 en deux passes sur une autre. Un correctif non relu est un pari.
+
+**Relecteurs** : Gemini 3.1 Pro et GPT-5.2, en parallèle, sur le **delta seul**.
+Directives : `audits/PROMPT-correctifs-parite.md`.
+
+**Bilan : 4 constats recevables, 4 corrigés.** Les deux relecteurs ont convergé, indépendamment,
+sur le même trou principal — ce qui est le meilleur signal qu'on puisse avoir.
+
+### 🔴 Le correctif de R-003 avait laissé le trou ouvert
+
+Supprimer l'écriture générique ne suffisait pas : `replaceContentPayload` restait le seul chemin
+écrivant le blob, et il acceptait **deux combinaisons destructrices** :
+
+| Appel fautif | Conséquence |
+|---|---|
+| contenu clair **+** blob conservé | texte en clair au repos, note « verrouillée » à l'écran |
+| contenu clair **+** blob à `null` | protection détruite définitivement |
+
+C'est exactement le défaut que R-003 prétendait rendre impossible, déplacé d'une méthode à l'autre.
+
+**Correctif** : deux méthodes qui disent ce qu'elles font, et dont aucune ne peut faire le travail
+de l'autre.
+
+- `lockNote` — `content = ''` **écrit en dur**, `encryptedContent` **non-nullable**. Verrouiller ne
+  peut ni écrire de clair, ni effacer la protection : il n'y a aucun paramètre pour ça.
+- `unlockNote` — `encrypted_content = NULL` **écrit en dur**. C'est le seul chemin du code qui
+  retire une protection, et il porte ce nom.
+
+### 🟠 Une capacité retirée sans le vouloir
+
+La garde `AND encrypted_content IS NULL` de `updateEditableFields` rendait impossible
+**l'étiquetage d'une note de coffre** — capacité que l'application publiée offre. Les étiquettes
+d'une note verrouillée sont stockées en clair (le trigger les masque à l'index, il ne les chiffre
+pas). Ajout d'un `updateTags` sans garde : écrire des étiquettes ne touche ni au contenu ni au blob.
+
+### 🟠 Divergence Unicode sur le découpage des termes
+
+`\s` en Java ne couvre que l'ASCII ; le `RegExp(r'\s+')` de Dart suit ECMAScript et englobe les
+espaces Unicode. L'**espace fine insécable U+202F** — ce que produisent les claviers français
+devant `: ; ! ?`, et qui voyage par copier-coller — n'était donc pas un séparateur côté Kotlin.
+`réunion budget` serait resté **un seul terme** là où Flutter en fait deux.
+
+La classe de caractères est désormais écrite en toutes lettres, celle d'ECMAScript.
+
+### 🟡 Mon test était vacant, et les deux relecteurs l'ont vu
+
+`search("l'été")` attendait un résultat vide. Mais le jeu d'essai ne contient ni « l » ni « été » :
+l'assertion passait **aussi bien avec l'algorithme fautif**. Elle ne prouvait rien de la correction.
+
+Remplacé par un test qui **discrimine** : `search("bud reu")` doit rendre **zéro** résultat. Sous
+l'ancien algorithme — préfixe sur chaque terme — `"bud"* "reu"*` appariait « budget » et
+« réunion ». Sous le nouveau, `"bud"` est une phrase exacte qu'aucun mot du corpus ne porte. Avec
+son contrôle positif (`search("reunion bud")` → 1 résultat), la règle « seul le dernier terme est
+préfixé » devient observable.
+
+### Écarté
+
+**« `COALESCE(:x, x)` mal lié par Room »** (Gemini). GPT a tranché l'inverse, et il a raison : les
+paramètres sont `Boolean?`, Room lie bien `NULL`. Les 20 tests sur appareil le confirment.
+
+⚠️ Gemini avait néanmoins raison sur le **fond** du risque : `title = COALESCE(:title, title)`
+laissait croire qu'un `null` viderait la colonne, alors qu'il la conserve — un titre en clair
+survivant à côté d'un blob de format 2. Le `COALESCE` sur le titre a disparu avec la scission :
+`lockNote` exige un `plainTitle` non-nullable, donc le choix est explicite à chaque appel.
+
+### Noté, pas corrigé
+
+GPT signale que découper une écriture en plusieurs méthodes retire l'atomicité que
+`update(note)` offrait — « déplacer et archiver » est maintenant deux instructions. C'est au
+repository de les envelopper dans une transaction (phase 3). Écrit ici pour ne pas l'oublier.
+
+---
+
 ## Vérification mécanique du schéma — sans appareil
 
 `audits/verifier-schema-room-vs-flutter.py`

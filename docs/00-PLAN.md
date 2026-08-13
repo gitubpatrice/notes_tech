@@ -82,7 +82,7 @@ plancher exclurait les utilisateurs Android 7 d'une mise à jour.
 
 | Vérification | Résultat |
 |---|---|
-| Tests instrumentés sur Galaxy S9 (API 29) | **19**, 0 échec |
+| Tests instrumentés sur Galaxy S9 (API 29) | **20**, 0 échec |
 | Tests JVM | **37**, 0 échec |
 | Schéma Room vs DDL hérité (comparaison mécanique) | aucune divergence |
 

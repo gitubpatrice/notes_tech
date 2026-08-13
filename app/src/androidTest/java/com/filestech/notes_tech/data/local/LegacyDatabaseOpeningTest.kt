@@ -164,12 +164,40 @@ class LegacyDatabaseOpeningTest {
         // Sans neutralisation, ces saisies sont interprétées comme de la SYNTAXE FTS5 et lèvent
         // une SQLiteException. Autrement dit : l'utilisateur qui tape une apostrophe fait planter
         // sa recherche.
+        //
+        // ⚠️ Ces assertions prouvent l'ABSENCE DE PLANTAGE, rien d'autre. Un résultat vide ne
+        // distingue pas « la saisie a été neutralisée » de « le jeu d'essai ne contient pas ces
+        // mots ». La fidélité de l'algorithme est prouvée par le test suivant, qui discrimine.
         assertThat(dao.search("   ").first()).isEmpty()
         assertThat(dao.search("\"").first()).isEmpty()
         assertThat(dao.search("(((").first()).isEmpty()
         assertThat(dao.search("NEAR").first()).isEmpty()
         assertThat(dao.search("budget*)").first()).hasSize(1)
         assertThat(dao.search("l'été").first()).isEmpty()
+    }
+
+    @Test
+    fun seul_le_dernier_terme_saisi_est_traite_comme_un_prefixe(): Unit = runBlocking {
+        val dao = openDatabase().noteSearchDao()
+        // Le jeu d'essai contient « Réunion budget ».
+
+        // 🔴 L'assertion qui compte, et la seule du fichier qui ÉCHOUERAIT sur l'ancien algorithme.
+        //
+        // L'ancienne version préfixait CHAQUE terme : `bud reu` devenait `"bud"* "reu"*`, qui
+        // apparie « budget » et « réunion » — donc un résultat. La version fidèle à l'application
+        // publiée ne préfixe que le dernier : `"bud" "reu"*`, où `"bud"` est une phrase exacte
+        // qu'aucun mot du corpus ne porte. Zéro résultat.
+        //
+        // Sans cette assertion, la correction de l'algorithme n'était prouvée par aucun test :
+        // toutes les autres passaient aussi bien avant qu'après. Relevé par la relecture des
+        // correctifs (Gemini et GPT-5.2, 2026-08-13).
+        assertThat(dao.search("bud reu").first()).isEmpty()
+
+        // Contrôle positif — sans lui, le vide ci-dessus pourrait venir d'une recherche cassée.
+        // Termes dans le bon ordre : « reunion » est un mot achevé (l'index dépouille les
+        // diacritiques), « bud » est le préfixe en cours de frappe.
+        assertThat(dao.search("reunion bud").first().map(NoteEntity::id))
+            .containsExactly(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)
     }
 
     @Test
