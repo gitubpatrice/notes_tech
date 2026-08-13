@@ -1,6 +1,6 @@
 # Notes Tech — portage Flutter → Kotlin natif
 
-> **État** : phases 1 et 2 **closes**, phase 3 entamée. Dernière mise à jour : 2026-08-13.
+> **État** : phases 1, 2 et 3 **closes**. Prochaine : phase 4 (coffres). Dernière mise à jour : 2026-08-13.
 >
 > Ce fichier est le plan de référence. Il dit **où on en est** et **ce qui vient ensuite**.
 > Les décisions déjà prises sont dans [01-DECISIONS.md](01-DECISIONS.md) — ne pas les rediscuter ici.
@@ -94,21 +94,41 @@ fuitée dans l'index ne doit **quand même** pas ressortir d'une recherche.
 build isolée n'a accès ni aux préférences ni au Keystore de l'application d'origine. Cela ne se
 vérifie qu'à la bascule — cf. [06-ISOLATION-PENDANT-LE-CHANTIER.md](06-ISOLATION-PENDANT-LE-CHANTIER.md) §2.
 
-### Phase 3 — Domaine et données ⏳ entamée
+### Phase 3 — Domaine et données ✅ close le 2026-08-13
 
 - [x] DAO dossiers, notes, recherche FTS5 (`@RawQuery(observedEntities = …)`), liens
 - [x] `NoteLinkWriter` — écritures de liens, hors graphe Room
-- [ ] 4 modèles de domaine (`Note`, `Folder`, `NoteLink`, `NoteChange`)
-- [ ] Repositories, `Flow` Room en remplacement des streams `provider`
-- [ ] `normalizeTitle` — **la même fonction** que côté Dart, sinon les liens ne s'apparient plus
+- [x] `normalizeTitle` et l'extraction `[[Titre]]` — **vérifiés contre le vrai code Dart**, pas
+      supposés équivalents (`09-VECTEURS-DE-PARITE.md`)
+- [x] Modèles de domaine : `Note`, `Folder`, `NoteSortMode`
+- [x] Repositories transactionnels : notes, dossiers, liens
+- [x] Séparation lectures / écritures des DAO (D-010)
+- [x] Contrat `VaultSealer`, fermé par défaut (D-011)
+
+**Deux modèles annoncés n'ont PAS été portés, et c'est une décision, pas un oubli :**
+
+| Modèle | Pourquoi non |
+|---|---|
+| `NoteChange` | il prévenait trois écouteurs qu'une note avait changé ; l'invalidation de Room le fait déjà. Le porter aurait produit un chemin mort (D-009) |
+| `NoteLink` | `NoteLinkRow` a exactement la forme voulue. Un jumeau de domaine identique serait un doublon sans contrepartie |
 
 ⚠️ Point relevé en écrivant `NoteLinkWriter` : la résolution des liens **ne peut pas se faire en
 SQL**. SQLite ne sait pas dépouiller les diacritiques, donc `lower(title)` rend `réunion` là où la
 normalisation rend `reunion`. La version Flutter apparie en mémoire
 (`backlinks_service.dart:327`), et cette table d'appariement **exclut les notes verrouillées**.
 
-**Critère de sortie** : tests JVM sur les repositories + le test instrumenté de la phase 2 étendu
-aux écritures (création, édition, corbeille, purge).
+**Critère de sortie atteint** — mesuré :
+
+| Vérification | Résultat |
+|---|---|
+| Tests instrumentés sur Galaxy S9 (API 29) | **48**, 0 échec |
+| Tests JVM | **45**, 0 échec |
+| Schéma Room vs DDL hérité | aucune divergence |
+| Vecteurs de parité rejoués depuis le vrai Dart | 92, dont 2 divergences **assumées et listées** |
+
+Six de ces tests portent sur des défauts **réellement trouvés** pendant la phase : trois par les
+tests eux-mêmes, deux par une relecture externe, un en écrivant la couche domaine. Le détail est
+dans `07-RELECTURES.md`.
 
 ### Phase 4 — Coffres 🔴 point de risque n°2
 

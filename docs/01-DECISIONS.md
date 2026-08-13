@@ -204,3 +204,128 @@ n'a aucune incidence.
 **Conséquences.** Le paquet garde un tiret bas, contraire à la convention Kotlin. C'est déjà le
 cas d'`agenda_tech` et de la coque Flutter existante : la cohérence du portefeuille et la
 survie des données priment sur la convention de nommage.
+
+## D-009 — Écrire une note et indexer ses liens est **une seule transaction**
+
+**Prise le** 2026-08-13, en écrivant `NotesRepository`.
+
+### Décision
+
+Toute écriture de note réindexe ses liens `[[Titre]]` dans la **même** transaction Room. Il n'existe
+aucun service d'indexation séparé, aucun flux d'événements, aucun délai de temporisation.
+
+### Ce que fait l'application publiée, et ce que ça lui a coûté
+
+Le repository Flutter émet un `NoteChangeEvent`. `BacklinksService` y est abonné, temporise une
+demi-seconde, puis réindexe. Ce détour a demandé, dans l'ordre où les défauts sont apparus :
+
+| Mécanisme ajouté | Pour corriger quoi |
+|---|---|
+| Cache de l'index titre→identifiant | une lecture complète de la base à chaque frappe |
+| Durée de vie de 5 s sur ce cache | un cache jamais rafraîchi |
+| Invalidation explicite au renommage | des rétroliens qui pointaient sur un titre périmé |
+| Horloge **monotone** au lieu de l'heure système | un appareil dont on recule l'heure figeait le cache |
+| Compteur de génération + trois tours | une course où le cache répondait sur un état antérieur |
+
+Le même détour a produit, côté dossiers, une garde de sécurité qui répondait « ce n'est pas un
+coffre » pour un coffre qui venait d'être créé — relevé en critique par deux relectures externes
+successives, dont la seconde portait sur le correctif de la première.
+
+### Ce que la transaction supprime
+
+Toutes ces lignes. Pas parce que le portage serait plus habile, mais parce que la question ne se
+pose plus : il n'existe aucun instant où la note est écrite et ses liens ne le sont pas encore, ni
+aucun intervalle pendant lequel une réponse pourrait vieillir.
+
+### Ce qui remplace le flux d'événements
+
+L'invalidation de Room. Écrire dans `notes` réveille les flux qui l'observent, y compris ceux qui
+lisent `note_links` par `observedEntities` — les liens étant dérivés des notes, c'est exact et non
+un contournement.
+
+### Conséquence : `NoteChange` n'est pas porté
+
+Le modèle `NoteChangeEvent` de la version Flutter existait pour prévenir trois écouteurs. Room les
+prévient déjà. Le porter aurait produit un chemin mort, et un chemin mort est une invitation à s'en
+servir.
+
+### Ce qu'on accepte
+
+Une écriture de note qui contient des liens lit la table des titres. La projection ne ramène que
+`(id, title)` des notes vivantes non verrouillées, et le raccourci « aucun `[[` dans le texte »
+l'évite entièrement — l'application publiée mesure que quatre notes sur cinq sont dans ce cas.
+
+### Écarté
+
+**Garder le flux d'événements pour l'interface.** Il ferait doublon avec l'invalidation de Room,
+avec deux sources de rafraîchissement pouvant se contredire.
+
+---
+
+## D-010 — Aucune écriture de ligne entière, **ni sur `notes`, ni sur `folders`**
+
+**Prise le** 2026-08-13, en écrivant les DAO d'écriture.
+
+### Décision
+
+`NoteWriteDao` et `FolderDao` n'exposent que des écritures **ciblées**. Ni `@Update`, ni conversion
+`domaine → entité` utilisable pour une mise à jour.
+
+### Le cas des notes était connu ; celui des dossiers ne l'était pas
+
+L'incident de production porte sur les notes : épingler une note de coffre ouverte réécrivait la
+ligne entière depuis l'éphémère déchiffrée, effaçait le blob, et détruisait la protection sans
+signal. Ce portage ne se contente pas de l'avertissement qu'a ajouté la version Flutter : le geste
+n'est pas exprimable.
+
+**Le même motif existe sur `folders`, et sa conséquence est pire.** L'application publiée renomme un
+dossier par un `UPDATE` complet construit depuis un objet `Folder` en mémoire
+(`folders_dao.dart:66`), et cet objet porte les sept colonnes de coffre. Renommer un coffre depuis
+une instance incomplète ou périmée y écrirait `NULL` dans `vault_kek_wrapped`.
+
+Une note dont on efface le blob est perdue. **Un coffre dont on efface la clé enveloppée emporte
+toutes ses notes**, et aucune saisie de la bonne phrase secrète ne les rendra : le matériel qui
+permettait de les déchiffrer n'existe plus. Rien ne le signalerait avant la prochaine ouverture.
+
+Aucun défaut n'a été constaté dans l'application publiée — les objets `Folder` qu'elle manipule
+viennent de la base et portent bien leurs colonnes. La fragilité est structurelle, pas actuelle :
+c'était aussi le cas des notes, jusqu'au jour où ça ne l'a plus été.
+
+### Écarté
+
+**Un commentaire d'avertissement au-dessus d'un `@Update`.** C'est exactement ce qu'a fait la
+version Flutter pour les notes. Un avertissement qu'il faut se rappeler à chaque appel est un défaut
+en attente d'un nouvel appelant.
+
+---
+
+## D-011 — Le scelleur de coffres **refuse** tant que la phase 4 n'a rien livré
+
+**Prise le** 2026-08-13.
+
+### Décision
+
+`VaultSealer` est une interface du domaine. Son implémentation actuelle, `UnavailableVaultSealer`,
+lève systématiquement. Écrire une note dans un dossier coffre échoue **bruyamment**.
+
+### Pourquoi pas un bouchon neutre
+
+Un bouchon permissif — qui rendrait la note inchangée — aurait exactement le comportement qu'on
+cherche à rendre impossible : écrire en clair les notes d'un coffre. Et il ne se verrait pas,
+puisque rien n'échouerait. Une écriture refusée se remarque à la première tentative ; une écriture
+en clair ne se remarque jamais.
+
+C'est le sens général du repli dans ce projet : `FoldersRepository.isVaultFolder` répond `true` pour
+un dossier inconnu, pour la même raison. Au pire une opération légitime est refusée bruyamment ;
+jamais un secret écrit en silence.
+
+### Ce que l'interface règle en plus
+
+La version Flutter câble le scellement **après** construction, par un passeur nullable, parce que le
+service de coffres dépend déjà du repository et que l'injecter en retour créerait un cycle. Une
+interface casse le cycle sans câblage tardif : le repository dépend d'un contrat, pas d'un service.
+
+### À la livraison de la phase 4
+
+Seule la liaison d'injection change. Le contrat reste, et `UnavailableVaultSealer` reste utile aux
+tests qui doivent vérifier qu'un refus n'écrit rien.

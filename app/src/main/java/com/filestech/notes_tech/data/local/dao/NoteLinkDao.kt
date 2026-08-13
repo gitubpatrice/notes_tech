@@ -51,22 +51,39 @@ abstract class NoteLinkDao {
     /**
      * Les notes qui **pointent vers** [noteId] — les rétroliens.
      *
-     * ⚠️ Les notes verrouillées sont exclues. Un rétrolien affiche le titre de la note source ;
-     * laisser passer une note de coffre divulguerait ce titre depuis une note qui, elle, n'est pas
-     * protégée. Même raisonnement que la garde de la recherche plein texte : la promesse de
-     * non-divulgation ne doit dépendre d'aucune donnée écrite par un autre programme.
+     * ## ⚠️ Deux façons de pointer, pas une
+     *
+     * Un lien vise sa cible soit par identifiant (`target_id`), soit — s'il est encore fantôme — par
+     * titre normalisé. Une première version de cette requête ne retenait que la première :
+     * `[[Réunion]]` écrit avant l'existence de la note « Réunion » n'apparaissait pas dans ses
+     * rétroliens tant qu'aucune réindexation n'était passée le résoudre.
+     *
+     * L'écart était invisible en test — il faut avoir écrit le lien **avant** la note pour le voir.
+     * Relevé en portant la couche des repositories, par comparaison avec `links_dao.dart:64`.
+     *
+     * ⚠️ [titleNorm] doit venir de `TitleNormalizer`, jamais d'un titre brut : c'est la clé
+     * d'appariement, pas le libellé.
+     *
+     * ## Les notes verrouillées sont exclues
+     *
+     * Un rétrolien affiche le titre de la note **source** ; laisser passer une note de coffre
+     * divulguerait ce titre depuis une liste que consulte une note non protégée.
+     *
+     * En principe la question ne se pose pas — les liens d'une note verrouillée sont effacés au
+     * verrouillage. C'est précisément pourquoi la garde est ici : elle ne dépend d'aucune donnée
+     * écrite par un autre programme, et l'application publiée, elle, ne l'a pas.
      */
-    fun backlinks(noteId: String): Flow<List<NoteEntity>> = rawNotes(
+    fun backlinks(noteId: String, titleNorm: String): Flow<List<NoteEntity>> = rawNotes(
         SimpleSQLiteQuery(
             """
             SELECT DISTINCT n.* FROM note_links l
             JOIN notes n ON n.id = l.source_id
-            WHERE l.target_id = ?
+            WHERE (l.target_id = ? OR (l.target_id IS NULL AND l.target_title_norm = ?))
               AND n.trashed_at IS NULL
               AND n.encrypted_content IS NULL
             ORDER BY n.updated_at DESC
             """,
-            arrayOf<Any?>(noteId),
+            arrayOf<Any?>(noteId, titleNorm),
         ),
     )
 

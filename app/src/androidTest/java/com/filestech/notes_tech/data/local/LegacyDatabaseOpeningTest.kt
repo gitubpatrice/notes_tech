@@ -237,7 +237,7 @@ class LegacyDatabaseOpeningTest {
     @Test
     fun une_note_inseree_par_room_entre_dans_l_index_fts5(): Unit = runBlocking {
         val db = openDatabase()
-        db.noteDao().insert(
+        db.noteWriteDao().insert(
             NoteEntity(
                 id = "note-neuve",
                 title = "Chantier portage",
@@ -268,7 +268,7 @@ class LegacyDatabaseOpeningTest {
         assertThat(linkCountFrom(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)).isEqualTo(1)
 
         val note = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)!!
-        val touchees = db.noteDao().updateEditableFields(
+        val touchees = db.noteWriteDao().updateEditableFields(
             id = note.id,
             title = "Réunion budget révisée",
             content = note.content,
@@ -296,7 +296,7 @@ class LegacyDatabaseOpeningTest {
         // l'éditeur détient l'éphémère DÉCHIFFRÉE et écrit son contenu en clair. Le code Flutter
         // documente l'incident (`notes_dao.dart:234-241`) — épingler une telle note effaçait son
         // blob chiffré, définitivement, sur un tap d'icône.
-        val touchees = db.noteDao().updateEditableFields(
+        val touchees = db.noteWriteDao().updateEditableFields(
             id = LegacyDatabaseFixture.Fixtures.NOTE_LOCKED,
             title = "Codes bancaires",
             content = "1234 5678 9012 3456",
@@ -321,7 +321,7 @@ class LegacyDatabaseOpeningTest {
         val db = openDatabase()
         val avant = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!
 
-        val touchees = db.noteDao().updateFlags(
+        val touchees = db.noteWriteDao().updateFlags(
             id = LegacyDatabaseFixture.Fixtures.NOTE_LOCKED,
             updatedAt = 9_999L,
             pinned = true,
@@ -343,7 +343,7 @@ class LegacyDatabaseOpeningTest {
         val db = openDatabase()
         assertThat(db.noteSearchDao().search("reunion").first()).hasSize(1)
 
-        db.noteDao().updateFlags(
+        db.noteWriteDao().updateFlags(
             id = LegacyDatabaseFixture.Fixtures.NOTE_PLAIN,
             updatedAt = 9_999L,
             archived = true,

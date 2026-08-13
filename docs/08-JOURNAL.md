@@ -127,3 +127,105 @@ Un point mineur relevé par la relecture des DAO, à traiter quand l'interface d
 le compteur de tentatives PIN s'incrémente correctement en base, mais la **relecture** qui suit est
 une seconde requête — sous concurrence, elle peut afficher « tentative 2/5 » après le premier échec.
 Pas permissif, seulement surprenant.
+
+---
+
+## 2026-08-13 — Phase 3 : le domaine, les repositories, et la clé qui apparie les liens
+
+### Ce qui a été fait
+
+La couche qui manquait entre les DAO et l'interface : modèles de domaine, repositories, et surtout
+la fonction de normalisation dont dépend l'appariement des rétroliens entre les deux versions de
+l'application.
+
+### La décision qui structure tout le reste
+
+**Écrire une note et réindexer ses liens sont une seule transaction** (D-009). L'application
+publiée fait autrement — un événement, un service abonné, une demi-seconde de temporisation — et le
+code Flutter porte les cicatrices de ce détour : un cache d'index avec durée de vie, une horloge
+monotone contre un appareil dont on recule l'heure, une invalidation explicite au renommage, un
+compteur de génération contre une course. Cinq mécanismes, dont trois ajoutés après coup pour
+corriger des défauts que le précédent avait laissés.
+
+La transaction ne les remplace pas par un mécanisme plus habile : elle rend la question sans objet.
+
+Conséquence directe : `NoteChange` n'est pas porté, et `FoldersRepository.isVaultFolder` n'a pas de
+cache. Le prédicat est lu **dans la transaction qui écrit** ; il ne peut pas être périmé.
+
+### Le point le plus instructif : trois divergences Dart / Java, mesurées
+
+`target_title_norm` est une **clé d'appariement partagée** — les deux versions écrivent dans la même
+base. J'allais porter `normalizeTitle` en supposant que `lowercase()`, `trim()` et `\s` se
+comportent pareil des deux côtés.
+
+Le SDK Flutter était installé. J'ai exécuté le vrai code Dart sur un corpus de piégeage plutôt que
+de parier :
+
+| Ce que j'aurais écrit | Ce que Dart fait |
+|---|---|
+| `value.lowercase()` | casse **simple** : `ΟΔΟΣ` → `οδοσ`, pas `οδος` ; `İ` → un caractère, pas deux |
+| `value.trim()` | élague `U+0085`, **pas** `U+001F` — l'inverse de Kotlin |
+| `Regex("\s+")` | espaces Unicode, dont `U+202F`, omniprésente en français |
+
+Les 92 vecteurs produits sont rejoués à chaque `testDebugUnitTest`. Deux d'entre eux divergent
+sciemment — la table de casse de Dart ignore l'osage et l'adlam — et la liste des dispenses est
+**fermée dans les deux sens** : une dispense qui cesserait d'être nécessaire fait échouer le test.
+
+⚠️ `notes_tech` est resté intact : le fichier de test temporaire a été supprimé, `git status`
+vérifié.
+
+### Quatre défauts trouvés, et par quoi
+
+- **Un test qui affirmait un garde-fou** a montré que l'anti-auto-lien était défait par la requête
+  suivante, dans la même transaction. L'application publiée a exactement ce défaut. Le motif —
+  *un garde-fou posé dans une étape n'engage que cette étape* — est dans `04-PIEGES.md` §13.
+- **Écrire la couche domaine** a fait apparaître que `findVaults` identifiait un coffre par
+  `vault_mode`, une colonne rétro-remplie par une migration, au lieu de `vault_salt`.
+- **Comparer avec le Dart** a montré que `backlinks` manquait les liens fantômes : un lien écrit
+  avant sa cible n'apparaissait pas dans ses rétroliens.
+- **Relire mon propre correctif** a montré que conditionner la réaccroche des liens au changement de
+  titre laissait passer le pire cas : une note verrouillée au format 1 garde son titre.
+
+### Deux défauts trouvés par la relecture externe
+
+Tous deux vérifiés avant d'être appliqués, tous deux réels :
+
+1. `lockNote` perdait les étiquettes et la date de modification. La méthode servait deux appelants
+   aux besoins opposés et n'en servait bien qu'un.
+2. `deleteKeepingNotes` déplaçait les notes, constatait que la suppression était refusée, et
+   **rendait `null`**. Rendre une valeur n'annule pas une transaction : la boîte de réception
+   survivait vidée de tout son contenu.
+
+Le second est le plus utile des deux, parce que son motif se généralise : *dans une transaction, un
+refus qui se contente de rendre une valeur ne défait rien.*
+
+### Ce que detekt a trouvé, et qui méritait mieux qu'un seuil relevé
+
+27 méthodes dans `NoteDao`. Plutôt que d'assouplir la règle, les écritures sont parties dans
+`NoteWriteDao`. Le bénéfice n'est pas cosmétique : c'est dans les écritures que se joue la protection
+des coffres, et la surface entière tient maintenant dans un fichier court qui se vérifie d'un coup
+d'œil.
+
+Le même passage a fait apparaître que le motif de l'écriture pleine ligne existe aussi sur
+`folders`, où la conséquence est pire : effacer `vault_kek_wrapped` rend **toutes** les notes d'un
+coffre définitivement illisibles. `FolderDao` n'a plus de `@Update` (D-010).
+
+### Mesures
+
+| Vérification | Résultat |
+|---|---|
+| Tests instrumentés sur Galaxy S9 (API 29) | **48**, 0 échec |
+| Tests JVM | **45**, 0 échec |
+| `ktlintCheck`, `detekt`, `lintDebug` | verts |
+| Schéma Room vs DDL hérité | aucune divergence |
+| Contrôle « zéro réseau » | 1 permission, aucune réseau |
+
+### Ce qui reste ouvert
+
+| Sujet | État |
+|---|---|
+| Relecture GPT-5.2 du lot | le service a rendu `503` — **à relancer** |
+| Couche ② de l'acquisition de la KEK | conçue et documentée, pas écrite |
+| Release passerelle 2.0.4 côté Flutter | pas écrite |
+| Crypto des coffres | phase 4 — `VaultSealer` refuse tout en attendant, délibérément |
+| `excerpt`, `wordCount` et les libellés de tri | reportés en phase 5 avec l'écran qui les consomme |

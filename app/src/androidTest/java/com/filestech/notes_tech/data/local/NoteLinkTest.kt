@@ -80,11 +80,11 @@ class NoteLinkTest {
         )
         assertThat(db.noteLinkDao().dangling().first()).hasSize(1)
 
-        db.noteDao().insert(note(id = "note-archive", title = "Archive 2025"))
+        db.noteWriteDao().insert(note(id = "note-archive", title = "Archive 2025"))
         writer.resolveDanglingTargets("note-archive", "archive 2025")
 
         assertThat(db.noteLinkDao().dangling().first()).isEmpty()
-        assertThat(db.noteLinkDao().backlinks("note-archive").first().map(NoteEntity::id))
+        assertThat(db.noteLinkDao().backlinks("note-archive", "archive 2025").first().map(NoteEntity::id))
             .containsExactly(source)
     }
 
@@ -92,7 +92,7 @@ class NoteLinkTest {
     fun renommer_une_note_redonne_leur_statut_de_fantome_aux_liens_qui_la_visaient(): Unit = runBlocking {
         val db = openDatabase()
         val writer = NoteLinkWriter(db)
-        db.noteDao().insert(note(id = "note-cible", title = "Ancien titre"))
+        db.noteWriteDao().insert(note(id = "note-cible", title = "Ancien titre"))
         writer.replaceLinksOf(
             LegacyDatabaseFixture.Fixtures.NOTE_PLAIN,
             listOf(OutgoingLink("note-cible", "Ancien titre", "ancien titre", 0)),
@@ -102,7 +102,7 @@ class NoteLinkTest {
         // conduirait à une note qui ne porte plus ce titre.
         writer.unresolveByMismatch("note-cible", "nouveau titre")
 
-        assertThat(db.noteLinkDao().backlinks("note-cible").first()).isEmpty()
+        assertThat(db.noteLinkDao().backlinks("note-cible", "cible").first()).isEmpty()
         assertThat(db.noteLinkDao().dangling().first()).hasSize(1)
     }
 
@@ -110,7 +110,7 @@ class NoteLinkTest {
     fun une_note_verrouillee_n_apparait_jamais_dans_les_retroliens(): Unit = runBlocking {
         val db = openDatabase()
         val writer = NoteLinkWriter(db)
-        db.noteDao().insert(note(id = "note-cible", title = "Cible"))
+        db.noteWriteDao().insert(note(id = "note-cible", title = "Cible"))
 
         // Le lien part d'une note de COFFRE. L'afficher en rétrolien divulguerait son titre depuis
         // une note qui, elle, n'est pas protégée.
@@ -119,20 +119,20 @@ class NoteLinkTest {
             listOf(OutgoingLink("note-cible", "Cible", "cible", 0)),
         )
 
-        assertThat(db.noteLinkDao().backlinks("note-cible").first()).isEmpty()
+        assertThat(db.noteLinkDao().backlinks("note-cible", "cible").first()).isEmpty()
     }
 
     @Test
     fun supprimer_une_note_emporte_ses_liens_sortants_et_rend_fantomes_les_entrants(): Unit = runBlocking {
         val db = openDatabase()
         val writer = NoteLinkWriter(db)
-        db.noteDao().insert(note(id = "note-cible", title = "Cible"))
+        db.noteWriteDao().insert(note(id = "note-cible", title = "Cible"))
         writer.replaceLinksOf(
             LegacyDatabaseFixture.Fixtures.NOTE_PLAIN,
             listOf(OutgoingLink("note-cible", "Cible", "cible", 0)),
         )
 
-        db.noteDao().deletePermanently("note-cible")
+        db.noteWriteDao().deletePermanently("note-cible")
 
         // Deux comportements DIFFÉRENTS, tous deux portés par le schéma hérité et non par le code :
         //   - ON DELETE SET NULL sur `target_id` → le lien survit, redevenu fantôme ;
@@ -140,7 +140,7 @@ class NoteLinkTest {
         assertThat(db.noteLinkDao().dangling().first()).hasSize(1)
 
         // Et dans l'autre sens : supprimer la SOURCE emporte bien ses liens (ON DELETE CASCADE).
-        db.noteDao().deletePermanently(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)
+        db.noteWriteDao().deletePermanently(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)
         assertThat(db.noteLinkDao().dangling().first()).isEmpty()
     }
 

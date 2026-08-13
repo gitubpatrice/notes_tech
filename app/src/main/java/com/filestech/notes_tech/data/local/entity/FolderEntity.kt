@@ -85,7 +85,12 @@ class FolderEntity(
     @ColumnInfo(name = "vault_verifier", typeAffinity = ColumnInfo.BLOB)
     val vaultVerifier: ByteArray?,
 
-    /** `'passphrase'`, `'pin'`, ou `null`. Voir [VaultMode] pour la lecture typée. */
+    /**
+     * `'passphrase'`, `'pin'`, ou `null`. Lecture typée par
+     * [com.filestech.notes_tech.domain.model.VaultMode].
+     *
+     * ⚠️ **Ne dit pas si le dossier est un coffre** — c'est `vault_salt` qui le dit.
+     */
     @ColumnInfo(name = "vault_mode")
     val vaultMode: String?,
 
@@ -111,24 +116,5 @@ class FolderEntity(
          * a pu renommer ce dossier.
          */
         const val INBOX_ID = "inbox"
-    }
-}
-
-/**
- * Lecture typée de `folders.vault_mode`.
- *
- * Volontairement **pas** un `TypeConverter` Room : la colonne peut contenir une valeur inconnue
- * (base écrite par une version future, corruption), et un convertisseur ferait échouer la lecture
- * de la ligne entière. Ici, une valeur inconnue est traitée comme [NONE] — le dossier s'affiche,
- * verrouillé, plutôt que de faire disparaître son contenu.
- */
-enum class VaultMode(val stored: String?) {
-    NONE(null),
-    PASSPHRASE("passphrase"),
-    PIN("pin"),
-    ;
-
-    companion object {
-        fun from(stored: String?): VaultMode = entries.firstOrNull { it.stored == stored } ?: NONE
     }
 }

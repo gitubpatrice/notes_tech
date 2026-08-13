@@ -1,0 +1,546 @@
+package com.filestech.notes_tech.data.repository
+
+import androidx.room.withTransaction
+import com.filestech.notes_tech.data.local.DatabaseProvider
+import com.filestech.notes_tech.data.local.NotesDatabase
+import com.filestech.notes_tech.data.local.OutgoingLink
+import com.filestech.notes_tech.data.local.entity.NoteEntity
+import com.filestech.notes_tech.data.local.mapper.TagCodec
+import com.filestech.notes_tech.data.local.mapper.toDomain
+import com.filestech.notes_tech.domain.links.TitleNormalizer
+import com.filestech.notes_tech.domain.links.WikiLinkParser
+import com.filestech.notes_tech.domain.model.EncryptedFormat
+import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.domain.repository.VaultSealer
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import java.time.Clock
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Les notes : ce qui les lit, ce qui les écrit, et l'indexation de leurs liens.
+ *
+ * ## 🔴 Une écriture de note est UNE transaction, liens compris
+ *
+ * C'est la décision structurante de cette couche (`docs/01-DECISIONS.md` D-009). Écrire une note et
+ * réindexer ses liens `[[Titre]]` sont **une seule opération** : les liens sont dérivés du contenu,
+ * ils n'ont pas d'existence propre, et un état où les deux divergent n'a pas de sens.
+ *
+ * L'application publiée fait autrement — elle émet un événement, qu'un service reprend une
+ * demi-seconde plus tard. Ce détour lui a coûté cher, et le code Flutter en porte les cicatrices :
+ * un cache d'index titre→identifiant à durée de vie de cinq secondes pour ne pas relire toute la
+ * base à chaque frappe, une horloge monotone pour qu'un appareil dont on recule l'heure ne puisse
+ * pas le figer, une invalidation explicite à chaque renommage — et malgré tout ça, une fenêtre
+ * pendant laquelle les rétroliens désignaient un titre périmé.
+ *
+ * Rien de cela n'est nécessaire ici, et pas parce que le portage serait plus habile : parce que la
+ * transaction rend la question sans objet. Il n'existe aucun instant où la note est écrite et ses
+ * liens ne le sont pas encore.
+ *
+ * ## Ce qui remplace le flux d'événements
+ *
+ * L'invalidation de Room. Écrire dans `notes` réveille tous les flux qui l'observent, y compris ceux
+ * qui lisent `note_links` par `observedEntities` (cf. `NoteLinkDao`). L'interface se rafraîchit sans
+ * qu'aucun code ne le lui demande.
+ *
+ * C'est pourquoi le modèle `NoteChange` de la version Flutter n'a **pas** été porté : il servait à
+ * prévenir trois écouteurs qu'une note avait changé, ce que Room fait déjà. Le porter aurait produit
+ * un chemin mort.
+ *
+ * ## La base s'obtient, elle ne s'injecte pas
+ *
+ * [DatabaseProvider] l'ouvre au premier usage, et cette ouverture peut **échouer légitimement** —
+ * la clé peut être introuvable. Injecter la base construirait le graphe autour d'une valeur qui
+ * n'existe peut-être pas, et transformerait un échec de clé explicable en plantage à l'injection.
+ *
+ * ## L'horloge est injectée
+ *
+ * [clock] plutôt que `Instant.now()` : un test qui vérifie qu'une opération ne remonte pas
+ * `updated_at` doit pouvoir observer le temps, pas l'espérer. La leçon vient d'ailleurs — une
+ * horloge à moitié injectable rend les tests vacants, verts pour la mauvaise raison.
+ */
+@Singleton
+class NotesRepository @Inject constructor(
+    private val databases: DatabaseProvider,
+    private val folders: FoldersRepository,
+    private val sealer: VaultSealer,
+    private val clock: Clock,
+) {
+
+    // ── Lectures ─────────────────────────────────────────────────────────────
+
+    fun observeInFolder(
+        folderId: String,
+        sort: NoteSortMode = NoteSortMode.DEFAULT,
+        includeArchived: Boolean = false,
+    ): Flow<List<Note>> = observing { it.noteDao().observeInFolder(folderId, sort, includeArchived) }
+        .map { it.toDomain() }
+
+    fun observeRecent(limit: Int): Flow<List<Note>> =
+        observing { it.noteDao().observeRecent(limit) }.map { it.toDomain() }
+
+    fun observeTrash(): Flow<List<Note>> = observing { it.noteDao().observeTrash() }.map { it.toDomain() }
+
+    fun observeFavorites(): Flow<List<Note>> = observing { it.noteDao().observeFavorites() }.map { it.toDomain() }
+
+    fun observeById(id: String): Flow<Note?> = observing { it.noteDao().observeById(id) }.map { it?.toDomain() }
+
+    suspend fun find(id: String): Note? = databases.get().noteDao().findById(id)?.toDomain()
+
+    suspend fun listAllAlive(): List<Note> = databases.get().noteDao().listAllAlive().toDomain()
+
+    suspend fun countInFolder(folderId: String): Int = databases.get().noteDao().countInFolder(folderId)
+
+    /**
+     * Charge plusieurs notes en une fois, par tranches.
+     *
+     * SQLite plafonne le nombre de paramètres liés d'une requête — 999 sur beaucoup de versions.
+     * Au-delà, la requête échoue : le découpage n'est pas une optimisation mais une condition de
+     * fonctionnement. La taille de tranche reprend celle de l'application publiée.
+     *
+     * ⚠️ **L'ordre du résultat ne suit pas celui des identifiants demandés** — c'est celui que rend
+     * SQLite. L'appelant qui a besoin d'un ordre le rétablit lui-même.
+     */
+    suspend fun findMany(ids: List<String>): List<Note> {
+        if (ids.isEmpty()) return emptyList()
+        val dao = databases.get().noteDao()
+        return ids.chunked(SQLITE_VARIABLE_CHUNK).flatMap { dao.findByIds(it) }.toDomain()
+    }
+
+    /**
+     * Pré-filtre pour l'auto-complétion `[[…]]`, affiné en mémoire sur les titres normalisés.
+     *
+     * Deux passes, comme l'application publiée : SQLite écarte le gros du corpus avec un `LIKE`
+     * insensible à la casse, puis la normalisation tranche sur les diacritiques — que SQLite ne sait
+     * pas dépouiller. Le sur-échantillonnage compense ce que la première passe laisse passer.
+     */
+    suspend fun suggestTitles(query: String, limit: Int = SUGGESTION_LIMIT, excludeId: String? = null): List<Note> {
+        val needle = TitleNormalizer.normalize(query)
+        if (needle.isEmpty()) return emptyList()
+        val escaped = escapeLike(query.trim().lowercase())
+        val candidates = databases.get().noteDao().findByTitleLike(
+            pattern = "$escaped%",
+            wordPattern = "% $escaped%",
+            limit = limit * SUGGESTION_OVERFETCH,
+            excludeId = excludeId,
+        )
+        return candidates.asSequence()
+            .filter { it.title.isNotEmpty() }
+            .filter { entity ->
+                val normalized = TitleNormalizer.normalize(entity.title)
+                normalized.startsWith(needle) || normalized.contains(" $needle")
+            }
+            .take(limit)
+            .toList()
+            .toDomain()
+    }
+
+    // ── Écritures ────────────────────────────────────────────────────────────
+
+    /**
+     * Crée une note, scellée **avant** son insertion si son dossier est un coffre.
+     *
+     * L'ordre est tout : sceller puis insérer ne laisse aucun instant où le clair est sur le disque.
+     * Insérer puis chiffrer laisserait cet instant, et un arrêt brutal entre les deux y figerait la
+     * note en clair dans un coffre.
+     */
+    suspend fun create(
+        folderId: String,
+        title: String = "",
+        content: String = "",
+        tags: List<String> = emptyList(),
+    ): Note {
+        requireTitleWithinLimit(title)
+        val now = clock.instant()
+        val draft = Note(
+            id = UUID.randomUUID().toString(),
+            title = title,
+            content = content,
+            folderId = folderId,
+            tags = tags,
+            pinned = false,
+            favorite = false,
+            archived = false,
+            trashedAt = null,
+            createdAt = now,
+            updatedAt = now,
+            encrypted = null,
+            encVersion = EncryptedFormat.CONTENT_ONLY,
+        )
+
+        return inTransaction { database ->
+            val persisted = sealIfVault(draft)
+            database.noteWriteDao().insert(persisted.toNewEntity())
+            reindexLinks(database, persisted)
+            resolveIncoming(database, persisted)
+            persisted
+        }
+    }
+
+    /**
+     * Enregistre ce que l'éditeur a modifié : titre, contenu, étiquettes.
+     *
+     * ⚠️ **N'écrit jamais le blob chiffré et ne l'efface jamais.** La requête sous-jacente porte
+     * `AND encrypted_content IS NULL` : appelée avec l'éphémère déchiffrée d'une note de coffre,
+     * elle ne touche rien et rend `0`. Verrouiller et déverrouiller sont des gestes nommés,
+     * ailleurs.
+     *
+     * @return la note telle qu'elle est en base après écriture, ou `null` si l'identifiant est
+     *   inconnu — une note supprimée pendant l'édition est un cas nominal, pas une erreur.
+     */
+    suspend fun saveEdits(id: String, title: String, content: String, tags: List<String>): Note? {
+        requireTitleWithinLimit(title)
+        return inTransaction { database ->
+            val previous = database.noteDao().findById(id) ?: return@inTransaction null
+            val candidate = previous.toDomain().copy(
+                title = title,
+                content = content,
+                tags = tags,
+                updatedAt = clock.instant(),
+            )
+            val persisted = sealIfVault(candidate)
+
+            if (persisted.isLocked) {
+                // Le scellement a produit un blob : c'est un verrouillage, pas une édition en clair.
+                // `lockNote` écrit `content = ''` en dur, donc le texte que portait l'éphémère ne
+                // peut pas atteindre le disque, même si le scellement avait échoué à le vider.
+                database.linkWriter.deleteLinksOf(id)
+                database.noteWriteDao().lockNote(
+                    id = id,
+                    encryptedContent = requireNotNull(persisted.encrypted).toByteArray(),
+                    encVersion = persisted.encVersion,
+                    plainTitle = persisted.title,
+                    // Les étiquettes d'une note de coffre restent en clair : elles sont éditables,
+                    // et ce chemin est le seul par lequel l'éditeur les écrit pour une telle note.
+                    // Les omettre les perdait en silence.
+                    tags = TagCodec.encode(persisted.tags),
+                    // C'est une ÉDITION, pas une reprotection : la note doit remonter en tête de
+                    // « modifiées récemment », comme le fait l'application publiée.
+                    updatedAt = persisted.updatedAt.toEpochMilli(),
+                )
+            } else {
+                database.noteWriteDao().updateEditableFields(
+                    id = id,
+                    title = persisted.title,
+                    content = persisted.content,
+                    tags = TagCodec.encode(persisted.tags),
+                    updatedAt = persisted.updatedAt.toEpochMilli(),
+                )
+                reindexLinks(database, persisted)
+            }
+
+            // ⚠️ Sans condition sur le changement de titre, et ce n'est pas une facilité.
+            //
+            // Une première version ne réaccrochait les liens entrants que si le titre avait changé.
+            // Elle laissait passer le cas le plus grave : une note qui vient d'être VERROUILLÉE au
+            // format 1 garde son titre en clair — donc « le titre n'a pas changé », donc les liens
+            // qui pointaient vers elle restaient résolus, et une note non protégée continuait
+            // d'afficher un lien cliquable vers une note désormais au coffre.
+            //
+            // Les deux opérations sont idempotentes et portent sur une table minuscule. Les appeler
+            // à chaque fois coûte deux `UPDATE` et supprime la question.
+            resolveIncoming(database, persisted)
+            database.noteDao().findById(id)?.toDomain()
+        }
+    }
+
+    /**
+     * Écrit les seules étiquettes — le seul champ éditable d'une note **verrouillée**.
+     *
+     * Les étiquettes d'une note de coffre sont stockées en clair : le trigger de l'index plein texte
+     * les masque, il ne les chiffre pas. Les modifier ne touche ni au contenu ni au blob ; le geste
+     * est donc sûr sur n'importe quelle note, et c'est pourquoi il n'a pas de garde.
+     */
+    suspend fun updateTags(id: String, tags: List<String>): Boolean =
+        databases.get().noteWriteDao().updateTags(id, TagCodec.encode(tags), clock.millis()) > 0
+
+    /**
+     * Épingle ou désépingle.
+     *
+     * 🔴 N'écrit **que** ce drapeau. C'est très précisément ce geste — un tap sur une icône
+     * d'épinglage — qui détruisait la protection d'une note de coffre dans l'application publiée,
+     * parce qu'il passait par une réécriture de ligne entière.
+     */
+    suspend fun setPinned(id: String, pinned: Boolean): Boolean =
+        databases.get().noteWriteDao().updateFlags(id = id, updatedAt = clock.millis(), pinned = pinned) > 0
+
+    suspend fun setFavorite(id: String, favorite: Boolean): Boolean =
+        databases.get().noteWriteDao().updateFlags(id = id, updatedAt = clock.millis(), favorite = favorite) > 0
+
+    suspend fun setArchived(id: String, archived: Boolean): Boolean =
+        databases.get().noteWriteDao().updateFlags(id = id, updatedAt = clock.millis(), archived = archived) > 0
+
+    /**
+     * Met une note à la corbeille.
+     *
+     * ⚠️ **Ses liens disparaissent dans la même transaction.** Une note en corbeille n'apparaît plus
+     * nulle part ; garder ses liens sortants ferait remonter des rétroliens depuis une note que
+     * l'utilisateur croit supprimée. Les liens qui *pointaient* vers elle repassent fantômes, ce qui
+     * masque au passage son titre.
+     */
+    suspend fun moveToTrash(id: String): Boolean = inTransaction { database ->
+        val now = clock.millis()
+        val touched = database.noteWriteDao().setTrashedAt(id = id, updatedAt = now, trashedAt = now)
+        if (touched > 0) {
+            database.linkWriter.deleteLinksOf(id)
+            database.linkWriter.unresolveByMismatch(noteId = id, newTitleNorm = "")
+        }
+        touched > 0
+    }
+
+    /**
+     * Restaure une note depuis la corbeille et réindexe ses liens.
+     *
+     * La réindexation n'est pas décorative : les liens ont été effacés à la mise en corbeille, et
+     * sans cette passe la note reviendrait sans aucun de ses rétroliens.
+     */
+    suspend fun restoreFromTrash(id: String): Boolean = inTransaction { database ->
+        val restored = database.noteWriteDao().setTrashedAt(id = id, updatedAt = clock.millis(), trashedAt = null)
+        if (restored > 0) {
+            database.noteDao().findById(id)?.toDomain()?.let { note ->
+                reindexLinks(database, note)
+                resolveIncoming(database, note)
+            }
+        }
+        restored > 0
+    }
+
+    /**
+     * Suppression définitive.
+     *
+     * Les liens partants tombent par cascade et l'index plein texte se nettoie par trigger : il n'y
+     * a rien à faire de plus. Les liens qui *pointaient* vers elle repassent à `NULL` — comportement
+     * hérité et voulu, puisque le texte `[[titre]]` reste écrit dans les notes sources.
+     */
+    suspend fun deletePermanently(id: String): Boolean = databases.get().noteWriteDao().deletePermanently(id) > 0
+
+    /**
+     * Déplace une note vers un autre dossier.
+     *
+     * 🔴 **Entrer dans un coffre chiffre la note dans la MÊME transaction que le déplacement.**
+     * Déplacer d'abord et chiffrer ensuite laisserait, entre les deux, une note en clair dans un
+     * dossier coffre — exactement l'état qu'on ne veut jamais écrire sur le disque. Une première
+     * version de cette méthode faisait précisément ça : elle appelait le scellement, **jetait son
+     * résultat**, puis déplaçait la note en clair. Le chiffrement s'y donnait des airs de garde sans
+     * rien garder.
+     *
+     * @throws VaultRelocationException si la note est verrouillée. Sortir d'un coffre, ou passer
+     *   d'un coffre à un autre, exige la clé du coffre d'origine : chaque coffre a la sienne, et le
+     *   blob ne se transporte pas tel quel.
+     * @throws com.filestech.notes_tech.domain.repository.VaultLockedException si la destination est
+     *   un coffre dont la session n'est pas ouverte.
+     */
+    suspend fun moveToFolder(id: String, folderId: String): Boolean = inTransaction { database ->
+        val current = database.noteDao().findById(id) ?: return@inTransaction false
+        if (current.folderId == folderId) return@inTransaction false
+        if (current.isLocked) throw VaultRelocationException(noteId = id, folderId = current.folderId)
+
+        val relocated = sealIfVault(current.toDomain().copy(folderId = folderId))
+        if (relocated.isLocked) {
+            database.noteWriteDao().lockNote(
+                id = id,
+                encryptedContent = requireNotNull(relocated.encrypted).toByteArray(),
+                encVersion = relocated.encVersion,
+                plainTitle = relocated.title,
+                // Le déplacement ne modifie pas les étiquettes.
+                tags = null,
+                // `moveToFolder`, juste après, écrit `updated_at` : le poser ici en ferait deux
+                // écritures pour un seul geste, dont l'une serait aussitôt écrasée.
+                updatedAt = null,
+            )
+            database.linkWriter.deleteLinksOf(id)
+            database.linkWriter.unresolveByMismatch(noteId = id, newTitleNorm = "")
+        }
+        database.noteWriteDao().moveToFolder(id = id, folderId = folderId, updatedAt = clock.millis()) > 0
+    }
+
+    /**
+     * Purge les notes en corbeille au-delà de la rétention héritée de trente jours.
+     *
+     * @return le nombre de notes réellement supprimées, pour que l'appelant puisse le rapporter au
+     *   lieu de l'affirmer.
+     */
+    suspend fun purgeExpiredTrash(): Int {
+        val cutoff = clock.instant().minusMillis(TRASH_RETENTION_MILLIS)
+        return databases.get().noteWriteDao().purgeTrashedBefore(cutoff.toEpochMilli())
+    }
+
+    // ── Rouages internes ─────────────────────────────────────────────────────
+
+    /**
+     * Ouvre la base au moment de la **collecte**, pas à la construction du flux.
+     *
+     * Un `Flow` construit tôt et collecté tard est la norme dans une interface ; si l'ouverture
+     * avait lieu à la construction, un écran assemblé avant que la clé soit disponible échouerait
+     * sans que personne ne collecte encore.
+     */
+    private fun <T> observing(source: (NotesDatabase) -> Flow<T>): Flow<T> = flow { emitAll(source(databases.get())) }
+
+    private suspend fun <T> inTransaction(block: suspend (NotesDatabase) -> T): T {
+        val database = databases.get()
+        return database.withTransaction { block(database) }
+    }
+
+    /**
+     * Chiffre la note si son dossier est un coffre et qu'elle porte encore du lisible.
+     *
+     * ⚠️ **La présence d'un blob ne suffit pas à conclure que tout est protégé**, et c'était le trou
+     * de la version publiée : elle sortait dès qu'un chiffré existait, donc une note portant un blob
+     * **et** du clair ajouté à côté traversait toutes les défenses. Relevé en critique par une
+     * relecture externe, sur le correctif lui-même.
+     */
+    private suspend fun sealIfVault(note: Note): Note {
+        if (!carriesPlaintext(note)) return note
+        if (!folders.isVaultFolder(note.folderId)) return note
+        return sealer.seal(note)
+    }
+
+    /**
+     * Dit si [note] transporte encore du texte qu'un coffre devrait protéger.
+     *
+     * Le test ne peut pas être « blob présent ⇒ rien en clair » : le format 1 est légitimement un
+     * blob de contenu avec le titre en clair dans la colonne. La distinction se fait par le format.
+     *
+     * | État | Verdict | Pourquoi |
+     * |---|---|---|
+     * | pas de blob, titre ou contenu non vide | lisible | rien ne le protège |
+     * | blob, contenu non vide | lisible | le contenu est vidé au chiffrement, quel que soit le format |
+     * | blob format 2, titre non vide | lisible | le titre a rejoint le blob, la colonne doit être vide |
+     * | blob format 1, titre non vide | protégé | c'est l'état hérité, et il est normal |
+     */
+    private fun carriesPlaintext(note: Note): Boolean {
+        if (!note.isLocked) return note.title.isNotEmpty() || note.content.isNotEmpty()
+        if (note.content.isNotEmpty()) return true
+        return note.encVersion == EncryptedFormat.TITLE_AND_CONTENT && note.title.isNotEmpty()
+    }
+
+    /**
+     * Recalcule les liens sortants de [note]. **À n'appeler que dans une transaction.**
+     *
+     * Trois chemins, dans l'ordre où ils se présentent :
+     *
+     * 1. **Note verrouillée** : ses liens sont effacés, jamais indexés. Le contenu chiffré ne
+     *    contient pas de `[[`, mais d'anciens liens peuvent survivre d'une indexation antérieure à
+     *    sa mise au coffre — et ils désigneraient des cibles depuis une note devenue secrète.
+     * 2. **Aucun `[[` dans le texte** : rien à indexer, mais les liens existants sont **quand même**
+     *    effacés. Une note dont on retire le dernier `[[` doit perdre ses liens, pas les garder.
+     *    L'application publiée mesure que quatre notes sur cinq n'ont aucun `[[` ; ce test leur
+     *    épargne la lecture de la table des titres.
+     * 3. Sinon, la table d'appariement est construite et les liens réécrits en bloc.
+     */
+    private suspend fun reindexLinks(database: NotesDatabase, note: Note) {
+        if (note.isLocked || !note.content.contains(WIKI_LINK_MARKER)) {
+            database.linkWriter.deleteLinksOf(note.id)
+            return
+        }
+        val extracted = WikiLinkParser.extract(note.content)
+        if (extracted.isEmpty()) {
+            database.linkWriter.deleteLinksOf(note.id)
+            return
+        }
+
+        // ⚠️ `associate` garde la DERNIÈRE valeur en cas de clé répétée, et la requête trie par
+        // `updated_at DESC` : deux notes de même titre normalisé résolvent donc vers la moins
+        // récemment modifiée. C'est le comportement de l'application publiée, dont le littéral de
+        // map écrase les doublons dans le même ordre. Changer l'un des deux ferait pointer les
+        // liens ambigus ailleurs.
+        val byNormalizedTitle = database.noteDao().titlesForLinking()
+            .associate { TitleNormalizer.normalize(it.title) to it.id }
+
+        database.linkWriter.replaceLinksOf(
+            sourceId = note.id,
+            links = extracted.map { link ->
+                val target = byNormalizedTitle[link.titleNorm]
+                OutgoingLink(
+                    // Une note qui se cite elle-même ne produit pas de lien vers elle-même.
+                    targetId = if (target == note.id) null else target,
+                    targetTitle = link.title,
+                    targetTitleNorm = link.titleNorm,
+                    position = link.position,
+                )
+            },
+        )
+    }
+
+    /**
+     * Réaccroche les liens qui visent [note], et détache ceux qui ne la visent plus.
+     *
+     * Les deux gestes vont ensemble : le titre courant attire les liens fantômes écrits avant
+     * l'existence de la note, l'ancien titre détache ceux devenus incorrects.
+     *
+     * ⚠️ Une note verrouillée n'est **jamais** une cible : la clé normalisée est forcée à vide, ce
+     * qui détache tout lien vers elle. Sans cela, un rétrolien révélerait le titre et l'existence
+     * d'une note de coffre depuis une note qui, elle, n'est pas protégée.
+     */
+    private suspend fun resolveIncoming(database: NotesDatabase, note: Note) {
+        val normalized = if (note.isLocked) "" else TitleNormalizer.normalize(note.title)
+        if (normalized.isNotEmpty()) {
+            database.linkWriter.resolveDanglingTargets(noteId = note.id, titleNorm = normalized)
+        }
+        database.linkWriter.unresolveByMismatch(noteId = note.id, newTitleNorm = normalized)
+    }
+
+    private fun Note.toNewEntity(): NoteEntity = NoteEntity(
+        id = id,
+        title = title,
+        content = content,
+        encryptedContent = encrypted?.toByteArray(),
+        folderId = folderId,
+        tags = TagCodec.encode(tags),
+        pinned = pinned,
+        favorite = favorite,
+        archived = archived,
+        trashedAt = trashedAt?.toEpochMilli(),
+        createdAt = createdAt.toEpochMilli(),
+        updatedAt = updatedAt.toEpochMilli(),
+        encVersion = encVersion,
+    )
+
+    private fun requireTitleWithinLimit(title: String) {
+        require(title.length <= TITLE_MAX_LENGTH) {
+            "titre de ${title.length} caracteres, maximum $TITLE_MAX_LENGTH"
+        }
+    }
+
+    /** Échappe `%`, `_` et `\` pour un `LIKE ... ESCAPE '\'`. */
+    private fun escapeLike(value: String): String = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    private companion object {
+        /** Valeur héritée : `AppConstants.noteTitleMaxLength`. */
+        const val TITLE_MAX_LENGTH = 200
+
+        /** Trente jours en millisecondes. Valeur héritée : `AppConstants.trashRetentionDays`. */
+        const val TRASH_RETENTION_MILLIS = 30L * 24 * 60 * 60 * 1000
+
+        /** Sous la limite de paramètres liés de SQLite, avec de la marge. */
+        const val SQLITE_VARIABLE_CHUNK = 500
+
+        const val SUGGESTION_LIMIT = 8
+
+        /** Le `LIKE` de SQLite ignore les diacritiques : il faut ramener plus large qu'il ne faut. */
+        const val SUGGESTION_OVERFETCH = 4
+
+        const val WIKI_LINK_MARKER = "[["
+    }
+}
+
+/**
+ * On a demandé à déplacer une note **verrouillée** d'un dossier à un autre.
+ *
+ * Chaque coffre a sa propre clé : le blob d'une note ne se transporte pas d'un coffre à l'autre, et
+ * ne redevient pas lisible en sortant. L'opération exige de déchiffrer avec la clé d'origine puis de
+ * rechiffrer — donc une session ouverte, donc le service de coffres (phase 4).
+ *
+ * Refuser ici plutôt que déplacer la ligne : une note déplacée avec un blob que plus aucune clé
+ * n'ouvre est une note perdue, sans le moindre message.
+ */
+class VaultRelocationException(val noteId: String, val folderId: String) :
+    IllegalStateException(
+        "deplacement refuse : la note $noteId est verrouillee dans le coffre $folderId, le transfert " +
+            "exige la cle de ce coffre",
+    )

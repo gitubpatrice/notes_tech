@@ -1,5 +1,7 @@
 package com.filestech.notes_tech.data.local
 
+import com.filestech.notes_tech.core.text.DartTextSemantics
+
 /**
  * Transforme une saisie utilisateur libre en expression `MATCH` valide pour FTS5.
  *
@@ -44,15 +46,13 @@ internal object FtsMatchExpression {
      * Avec `\s` seul, `réunion budget` resterait **un seul terme** côté Kotlin là où Flutter en
      * fait deux — deux applications qui ne rendent pas les mêmes résultats pour la même saisie.
      *
-     * La classe est donc écrite en toutes lettres plutôt que confiée à un drapeau : espace
-     * insécable, espace insécable étroite, cadratins, séparateurs de ligne et de paragraphe,
-     * espace idéographique, marque d'ordre des octets. C'est le `WhiteSpace` d'ECMAScript, celui-là
-     * même que Dart applique.
+     * La définition vit désormais dans [DartTextSemantics], partagée avec la normalisation des
+     * titres. Elle y était d'abord recopiée : deux exemplaires d'une même règle d'appariement, dont
+     * l'un pouvait dériver sans que rien ne le signale.
      *
-     * Relevé par la relecture des correctifs (GPT-5.2, 2026-08-13).
+     * Relevé par la relecture des correctifs (GPT-5.2, 2026-08-13), factorisé le lendemain.
      */
-    private val WHITESPACE =
-        Regex("[\\s\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]+")
+    private val WHITESPACE = DartTextSemantics.WHITESPACE
 
     /**
      * FTS5 n'accepte le suffixe `*` que derrière un terme alphanumérique.

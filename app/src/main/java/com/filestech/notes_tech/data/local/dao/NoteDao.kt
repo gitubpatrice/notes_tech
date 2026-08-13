@@ -1,50 +1,34 @@
 package com.filestech.notes_tech.data.local.dao
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
+import androidx.sqlite.db.SimpleSQLiteQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.filestech.notes_tech.data.local.entity.NoteEntity
+import com.filestech.notes_tech.domain.model.NoteSortMode
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Accès à `notes`.
+ * Lectures de `notes`.
  *
- * ## 🔴 Il n'existe AUCUNE écriture de ligne entière — c'est le point le plus important du fichier
+ * ## Les écritures ne sont pas ici, et c'est le point du fichier
  *
- * Une écriture générique `update(note)` réécrit toutes les colonnes depuis l'objet fourni,
- * `content` **et** `encrypted_content` compris. C'est un chemin par lequel une note de coffre perd
- * sa protection, définitivement, sans le moindre signal.
+ * Elles vivent toutes dans [NoteWriteDao]. La séparation n'est pas cosmétique : c'est dans les
+ * écritures que se joue la protection des coffres, et une surface d'écriture qui tient en un fichier
+ * court se vérifie d'un coup d'œil. Mêlee aux seize façons de lire la table, elle se relisait dans
+ * trois cents lignes.
  *
- * Ce n'est pas une crainte théorique : **l'incident a déjà eu lieu dans l'application publiée**, et
- * le code Flutter le documente (`notes_tech/lib/data/db/notes_dao.dart:234-241`) —
+ * 🔴 **Il n'existe aucune écriture de ligne entière nulle part** — la raison, et l'incident qui
+ * l'a imposée, sont exposés en tête de [NoteWriteDao].
  *
- * > *« l'éditeur détient l'éphémère DÉCHIFFRÉE d'une note de coffre (`content` rempli,
- * > `encryptedContent == null`) : épingler une telle note réécrivait son contenu en clair et
- * > effaçait son blob chiffré — la note perdait sa protection définitivement, sans le moindre
- * > signal, sur un tap d'icône. »*
+ * ## Ce que les lectures ne divulguent pas
  *
- * La version Flutter a ajouté des écritures ciblées **et gardé** l'écriture générique, sous un
- * avertissement. Ce portage va plus loin : l'écriture générique **n'existe pas**. Un avertissement
- * qu'il faut se rappeler à chaque appel est un défaut en attente d'un nouvel appelant — celui-là a
- * déjà été oublié une fois.
- *
- * Chaque écriture ci-dessous touche un groupe de colonnes **et un seul**, et
- * [updateEditableFields] porte en plus une garde SQL qui la rend inopérante sur une note
- * verrouillée. L'invariant est tenu par la base, pas par la mémoire du prochain lecteur.
- *
- * ## ⚠️ Aucune méthode n'utilise `OnConflictStrategy.REPLACE`
- *
- * `REPLACE` est un `DELETE` suivi d'un `INSERT` : nouveau `rowid`, donc index FTS5 désynchronisé
- * **et** backlinks supprimés par cascade. Le trigger `notes_ad` ne rattrape rien,
- * `PRAGMA recursive_triggers` valant `OFF`. Cf. `docs/04-PIEGES.md` §1.
- *
- * ## Les écritures rendent le nombre de lignes touchées
- *
- * `0` signifie « aucune note ne porte cet identifiant » — ou, pour [updateEditableFields], « la
- * note est verrouillée ». La version Flutter lève une `NoteNotFoundException` dans ce cas ; ici le
- * DAO reste muet et c'est au repository de trancher, un DAO qui lève sur identifiant inconnu
- * rendant malcommode le cas nominal d'une suppression concurrente.
+ * Deux requêtes portent une garde de confidentialité plutôt qu'un filtre de confort :
+ * [titlesForLinking] et [findByTitleLike] écartent les notes verrouillées. Sans elles, un lien
+ * `[[…]]` ou une auto-complétion révélerait le titre d'une note de coffre depuis une note qui, elle,
+ * n'est pas protégée.
  */
 @Dao
 interface NoteDao {
@@ -89,6 +73,140 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE trashed_at IS NOT NULL ORDER BY trashed_at DESC")
     fun observeTrash(): Flow<List<NoteEntity>>
 
+    @Query(
+        """
+        SELECT * FROM notes
+        WHERE favorite = 1 AND archived = 0 AND trashed_at IS NULL
+        ORDER BY updated_at DESC
+        """,
+    )
+    fun observeFavorites(): Flow<List<NoteEntity>>
+
+    /**
+     * Liste d'un dossier, dans l'ordre demandé.
+     *
+     * `@RawQuery` parce que la clause `ORDER BY` varie : Room refuse un paramètre à cet endroit, et
+     * il a raison — une colonne de tri n'est pas une valeur. La clause vient d'un
+     * [NoteSortMode], un ensemble fermé de constantes écrites en toutes lettres ; les identifiants,
+     * eux, restent des paramètres liés.
+     *
+     * `observedEntities` rend le flux réactif malgré le SQL construit : sans cette mention, Room
+     * n'a aucun moyen de savoir quelle table observer.
+     */
+    @RawQuery(observedEntities = [NoteEntity::class])
+    fun observeSorted(query: SupportSQLiteQuery): Flow<List<NoteEntity>>
+
+    fun observeInFolder(folderId: String, sort: NoteSortMode, includeArchived: Boolean): Flow<List<NoteEntity>> =
+        observeSorted(
+            SimpleSQLiteQuery(
+                "SELECT * FROM notes WHERE folder_id = ? AND trashed_at IS NULL" +
+                    (if (includeArchived) "" else " AND archived = 0") +
+                    " ORDER BY ${sort.orderBy}",
+                arrayOf<Any?>(folderId),
+            ),
+        )
+
+    /**
+     * Toutes les notes hors corbeille, **archives comprises**.
+     *
+     * Balayage complet : réservé aux consommateurs qui en ont réellement besoin — statistiques,
+     * export, écran d'accueil. Jamais dans une boucle de rendu, et jamais pour construire l'index
+     * des rétroliens : [titlesForLinking] existe pour ça et ne charge pas les blobs.
+     */
+    @Query("SELECT * FROM notes WHERE trashed_at IS NULL ORDER BY updated_at DESC")
+    suspend fun listAllAlive(): List<NoteEntity>
+
+    /**
+     * Les couples (identifiant, titre) qui peuvent être **cible** d'un lien `[[Titre]]`.
+     *
+     * ⚠️ **Les notes verrouillées en sont exclues**, et c'est une garantie de confidentialité, pas
+     * une optimisation. Résoudre un lien vers une note de coffre inscrirait son identifiant dans
+     * `note_links`, d'où une note non protégée afficherait son titre et un lien cliquable vers
+     * elle. Même raisonnement que la garde de la recherche plein texte.
+     *
+     * ⚠️ **L'ordre `updated_at DESC` fait partie du contrat.** Deux notes peuvent porter le même
+     * titre normalisé ; la table d'appariement n'en garde qu'une, et l'application publiée garde la
+     * **dernière** rencontrée dans cet ordre — donc la moins récemment modifiée
+     * (`backlinks_service.dart:324`, où le littéral de map écrase les clés en double). Trier
+     * autrement ferait pointer les liens ambigus vers une autre note.
+     *
+     * Projection sur deux colonnes : cette requête tourne à chaque enregistrement d'une note qui
+     * contient des liens. Charger les entités entières y ferait lire tous les blobs chiffrés de la
+     * base pour n'en utiliser aucun.
+     */
+    @Query(
+        """
+        SELECT id, title FROM notes
+        WHERE trashed_at IS NULL AND encrypted_content IS NULL AND title != ''
+        ORDER BY updated_at DESC
+        """,
+    )
+    suspend fun titlesForLinking(): List<NoteTitleRef>
+
+    /**
+     * Notes d'un dossier dont le contenu est **en clair**, donc lisible au repos si ce dossier est
+     * un coffre.
+     *
+     * Le critère est l'exposition elle-même — `content` non vide — et **non** l'absence de blob :
+     * une ligne portant à la fois un chiffré et du clair serait tout aussi lisible, et un test sur
+     * « verrouillée » la laisserait passer.
+     *
+     * ⚠️ **Sans filtre sur la corbeille, volontairement.** Une note de coffre laissée en clair puis
+     * jetée y séjourne trente jours — c'est l'endroit où il serait le plus grave de l'oublier.
+     */
+    @Query("SELECT * FROM notes WHERE folder_id = :folderId AND content IS NOT NULL AND content != ''")
+    suspend fun findPlaintextInFolder(folderId: String): List<NoteEntity>
+
+    /**
+     * Notes chiffrées d'un dossier restées au format 1 — celles dont le titre est encore en clair.
+     *
+     * Sert la migration vers le format 2, qui ne peut se faire qu'à l'ouverture du coffre :
+     * déplacer le titre dans le blob exige la clé, dont une migration de schéma ne dispose pas.
+     */
+    @Query(
+        """
+        SELECT * FROM notes
+        WHERE folder_id = :folderId AND encrypted_content IS NOT NULL AND enc_v = 1
+        """,
+    )
+    suspend fun findLegacyEncryptedInFolder(folderId: String): List<NoteEntity>
+
+    /**
+     * Pré-filtre d'auto-complétion sur le titre, insensible à la casse.
+     *
+     * ⚠️ Insensible à la casse **mais pas aux diacritiques** : `LOWER()` de SQLite ne connaît que
+     * l'ASCII. L'affinage revient à l'appelant, qui compare des titres normalisés — d'où le
+     * sur-échantillonnage recommandé, hérité de l'application publiée.
+     *
+     * Deux motifs : préfixe de titre, et préfixe de mot à l'intérieur du titre.
+     *
+     * ⚠️ `encrypted_content IS NULL` est une garde de confidentialité, pas un filtre de confort.
+     * Sans elle, l'auto-complétion d'un `[[…]]` révélerait le titre des notes d'un coffre. La
+     * placer ici plutôt que chez l'appelant a une seconde raison, apprise par l'application
+     * publiée : filtrer après coup laisserait la limite être consommée par des notes verrouillées,
+     * et les suggestions visibles s'amincir sans raison apparente.
+     *
+     * @param pattern déjà échappé pour `ESCAPE '\'` et déjà suffixé de `%` par l'appelant.
+     */
+    @Query(
+        """
+        SELECT * FROM notes
+        WHERE (LOWER(title) LIKE :pattern ESCAPE '\' OR LOWER(title) LIKE :wordPattern ESCAPE '\')
+          AND trashed_at IS NULL
+          AND encrypted_content IS NULL
+          AND (:excludeId IS NULL OR id != :excludeId)
+        ORDER BY updated_at DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun findByTitleLike(pattern: String, wordPattern: String, limit: Int, excludeId: String?): List<NoteEntity>
+
+    @Query("SELECT COUNT(*) FROM notes WHERE folder_id = :folderId AND trashed_at IS NULL")
+    suspend fun countInFolder(folderId: String): Int
+
+    @Query("SELECT * FROM notes WHERE id IN (:ids)")
+    suspend fun findByIds(ids: List<String>): List<NoteEntity>
+
     @Query("SELECT * FROM notes WHERE id = :id")
     suspend fun findById(id: String): NoteEntity?
 
@@ -104,188 +222,14 @@ interface NoteDao {
      */
     @Query("SELECT * FROM notes WHERE folder_id = :folderId AND encrypted_content IS NOT NULL")
     suspend fun findLockedInFolder(folderId: String): List<NoteEntity>
-
-    /**
-     * `ABORT` et non `REPLACE` : un identifiant déjà pris est une erreur de programmation (les
-     * identifiants sont des UUID produits par le domaine), pas un cas à absorber en silence.
-     */
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insert(note: NoteEntity)
-
-    // ── Écritures ciblées ────────────────────────────────────────────────────
-
-    /**
-     * Écrit ce que l'éditeur modifie : titre, contenu, étiquettes.
-     *
-     * 🔴 **`AND encrypted_content IS NULL` est la garde qui remplace l'avertissement.** Sur une
-     * note verrouillée, cette requête ne touche **rien** et rend `0`. Il devient impossible
-     * d'écrire en clair le contenu d'une note de coffre, quel que soit l'objet que l'appelant a en
-     * main — y compris l'éphémère déchiffrée que détient l'éditeur.
-     *
-     * Les chemins légitimes pour une note de coffre sont [lockNote] et [unlockNote] — les seuls à
-     * écrire `encrypted_content`, et qui portent ces noms pour qu'on ne s'y trompe pas. Pour ses
-     * seules étiquettes, [updateTags], qui ne touche ni au contenu ni au blob.
-     *
-     * @return `0` si l'identifiant est inconnu **ou** si la note est verrouillée.
-     */
-    @Query(
-        """
-        UPDATE notes
-        SET title = :title, content = :content, tags = :tags, updated_at = :updatedAt
-        WHERE id = :id AND encrypted_content IS NULL
-        """,
-    )
-    suspend fun updateEditableFields(id: String, title: String, content: String, tags: String, updatedAt: Long): Int
-
-    /**
-     * Écrit les seuls drapeaux de métadonnées.
-     *
-     * `COALESCE(:x, x)` laisse inchangé tout drapeau passé à `null` : l'appelant qui n'épingle que
-     * la note n'a pas à connaître l'état des deux autres, donc ne peut pas les écraser par
-     * inadvertance avec une valeur périmée.
-     *
-     * Ne touche **ni** au contenu, **ni** au blob chiffré. C'est précisément le geste qui avait
-     * détruit la protection d'une note de coffre dans l'application publiée.
-     */
-    @Query(
-        """
-        UPDATE notes SET
-          updated_at = :updatedAt,
-          pinned = COALESCE(:pinned, pinned),
-          favorite = COALESCE(:favorite, favorite),
-          archived = COALESCE(:archived, archived)
-        WHERE id = :id
-        """,
-    )
-    suspend fun updateFlags(
-        id: String,
-        updatedAt: Long,
-        pinned: Boolean? = null,
-        favorite: Boolean? = null,
-        archived: Boolean? = null,
-    ): Int
-
-    /**
-     * Écrit les seules étiquettes.
-     *
-     * **Pas de garde `encrypted_content IS NULL` ici, et c'est correct** : les étiquettes d'une
-     * note de coffre sont stockées en clair (le trigger FTS5 les masque à l'index, il ne les
-     * chiffre pas). Les modifier ne touche ni au contenu ni au blob, donc le geste est sûr sur
-     * n'importe quelle note.
-     *
-     * Cette méthode existe parce que la garde de [updateEditableFields] retirait, sans le vouloir,
-     * la possibilité d'étiqueter une note de coffre — capacité que l'application publiée offre.
-     * Relevé par la relecture des correctifs (Gemini, 2026-08-13).
-     */
-    @Query("UPDATE notes SET tags = :tags, updated_at = :updatedAt WHERE id = :id")
-    suspend fun updateTags(id: String, tags: String, updatedAt: Long): Int
-
-    /**
-     * **Verrouille** une note : son contenu part dans le blob chiffré.
-     *
-     * Trois choses sont écrites **en dur** dans la requête, et c'est tout l'intérêt de la méthode :
-     *
-     * - `content = ''` — verrouiller ne peut **pas** écrire de texte en clair. Un appelant qui
-     *   passerait par erreur le contenu déchiffré n'a aucun paramètre pour le faire entrer.
-     * - `encryptedContent` est **non-nullable** — verrouiller ne peut pas effacer la protection.
-     * - `plainTitle` est **obligatoire** : `""` pour le format 2 (le titre part dans le blob),
-     *   le titre courant pour le format 1. Pas de valeur par défaut, donc pas de `COALESCE` dont
-     *   on pourrait croire à tort qu'il vide la colonne.
-     *
-     * ⚠️ **Ne touche pas à `updated_at`.** Le verrouillage et les réparations d'arrière-plan ne
-     * doivent pas faire remonter les notes en tête de « modifiées récemment » à chaque ouverture
-     * du coffre. Une réparation silencieuse qui réordonne l'écran n'est pas silencieuse.
-     *
-     * Le titre est écrit dans le **même** `UPDATE` que le blob : à partir du format 2 il vit dans
-     * le chiffré, et deux écritures séparées laisseraient, en cas d'interruption, un titre en clair
-     * face à un blob qui le contient déjà.
-     */
-    @Query(
-        """
-        UPDATE notes SET
-          content = '',
-          title = :plainTitle,
-          encrypted_content = :encryptedContent,
-          enc_v = :encVersion
-        WHERE id = :id
-        """,
-    )
-    suspend fun lockNote(id: String, encryptedContent: ByteArray, encVersion: Int, plainTitle: String): Int
-
-    /**
-     * **Déverrouille** une note : son contenu revient en clair, le blob disparaît.
-     *
-     * 🔴 **C'est le seul chemin du code qui retire la protection d'une note**, et il porte ce nom
-     * pour qu'aucun appel ne puisse le faire par inadvertance. `encrypted_content = NULL` est écrit
-     * en dur : il n'y a pas de paramètre par lequel un autre geste pourrait produire cet effet.
-     *
-     * La séparation d'avec [lockNote] vient de la relecture des correctifs (Gemini et GPT-5.2,
-     * 2026-08-13). Une méthode unique `replaceContentPayload(content, encryptedContent?)` laissait
-     * deux combinaisons dangereuses ouvertes à toute erreur d'appelant :
-     *
-     * | Appel fautif | Conséquence |
-     * |---|---|
-     * | contenu clair **+** blob conservé | texte en clair au repos, note « verrouillée » à l'écran |
-     * | contenu clair **+** blob à `null` | protection détruite définitivement |
-     *
-     * Aucune des deux n'est plus exprimable : la première n'a plus de paramètre pour le clair, la
-     * seconde exige d'appeler une méthode qui s'appelle « déverrouiller ».
-     */
-    @Query(
-        """
-        UPDATE notes SET
-          content = :content,
-          title = :plainTitle,
-          encrypted_content = NULL,
-          enc_v = 1
-        WHERE id = :id
-        """,
-    )
-    suspend fun unlockNote(id: String, content: String, plainTitle: String): Int
-
-    /**
-     * Met ou retire l'horodatage de corbeille, sans toucher au contenu.
-     *
-     * Même raison que [updateFlags] : mettre à la corbeille une note de coffre ouverte, par une
-     * écriture de ligne entière, la déchiffrait au repos.
-     *
-     * `trashedAt` à `null` restaure la note.
-     */
-    @Query("UPDATE notes SET trashed_at = :trashedAt, updated_at = :updatedAt WHERE id = :id")
-    suspend fun setTrashedAt(id: String, updatedAt: Long, trashedAt: Long?): Int
-
-    /** Déplace une note vers un autre dossier, sans toucher au contenu. */
-    @Query("UPDATE notes SET folder_id = :folderId, updated_at = :updatedAt WHERE id = :id")
-    suspend fun moveToFolder(id: String, folderId: String, updatedAt: Long): Int
-
-    // ── Suppressions ─────────────────────────────────────────────────────────
-
-    /**
-     * Suppression définitive.
-     *
-     * Le trigger `notes_ad` retire l'entrée de l'index plein texte, et la cascade de
-     * `note_links.source_id` retire les liens partant de cette note. Les liens qui **pointaient**
-     * vers elle passent à `target_id = NULL` (`ON DELETE SET NULL`) et redeviennent fantômes —
-     * comportement hérité, voulu : le texte `[[titre]]` reste écrit dans les notes sources.
-     */
-    @Query("DELETE FROM notes WHERE id = :id")
-    suspend fun deletePermanently(id: String): Int
-
-    /**
-     * Purge les notes en corbeille depuis avant [cutoff]. Rétention héritée : 30 jours.
-     *
-     * @return le nombre de notes réellement supprimées, pour que l'appelant puisse le rapporter au
-     *   lieu de l'affirmer.
-     */
-    @Query("DELETE FROM notes WHERE trashed_at IS NOT NULL AND trashed_at < :cutoff")
-    suspend fun purgeTrashedBefore(cutoff: Long): Int
-
-    /**
-     * Réassigne les notes d'un dossier vers un autre.
-     *
-     * Sert à vider un dossier avant sa suppression quand l'utilisateur choisit de garder ses
-     * notes — sans quoi la cascade `ON DELETE CASCADE` les emporterait.
-     */
-    @Query("UPDATE notes SET folder_id = :destinationId WHERE folder_id = :sourceId")
-    suspend fun reassignFolder(sourceId: String, destinationId: String): Int
 }
+
+/**
+ * Le strict nécessaire pour apparier un lien `[[Titre]]` à sa cible.
+ *
+ * Deux colonnes, jamais l'entité entière : cette projection est lue à chaque enregistrement d'une
+ * note porteuse de liens, et charger les blobs chiffrés de toute la base pour n'en lire aucun
+ * serait payer cher un travail inutile — et tenir en mémoire, sans raison, du matériel qu'on
+ * cherche par ailleurs à ne pas exposer.
+ */
+data class NoteTitleRef(@ColumnInfo(name = "id") val id: String, @ColumnInfo(name = "title") val title: String)

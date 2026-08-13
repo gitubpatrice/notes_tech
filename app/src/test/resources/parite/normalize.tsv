@@ -1,0 +1,70 @@
+# Vecteurs produits par le VRAI code Flutter de notes_tech 2.0.3, le 2026-08-13.
+# Regeneration : docs/09-VECTEURS-DE-PARITE.md.
+# Champs echappes en \uXXXX pour tout ce qui n'est pas ASCII imprimable.
+R\u00E9union budget	reunion budget
+R\u00C9UNION BUDGET	reunion budget
+\u0152uvre compl\u00E8te	ouvre complete
+\u0152UVRE	ouvre
+\u00C6ther	ather
+\u00C6THER	ather
+  espaces   multiples  	espaces multiples
+a\u00A0b	a b
+a\u202Fb	a b
+a\u2028b	a b
+a\u2029b	a b
+a\u0085b	a\u0085b
+\u0085abc\u0085	abc
+\u001Fabc\u001F	\u001Fabc\u001F
+\u001Cabc\u001C	\u001Cabc\u001C
+a\uFEFFb	a b
+\uFEFFabc\uFEFF	abc
+a\u1680b	a b
+a\u2000b	a b
+a\u200Ab	a b
+a\u205Fb	a b
+a\u3000b	a b
+a\u2007b	a b
+a\u200Bb	a\u200Bb
+\u0130stanbul	istanbul
+ISTANBUL	istanbul
+Stra\u00DFe \u00DF	stra\u00DFe \u00DF
+\u00FF\u00DD\u0178	yyy
+\u00F1\u00D1	nn
+\u00C7a va	ca va
+\u00C0\u00C1\u00C2\u00C3\u00C4\u00C5	aaaaaa
+\u00C8\u00C9\u00CA\u00CB	eeee
+\u00CC\u00CD\u00CE\u00CF	iiii
+\u00D2\u00D3\u00D4\u00D5\u00D6	ooooo
+\u00D9\u00DA\u00DB\u00DC	uuuu
+\u00D0 \u00DE \u00F0 \u00FE	\u00F0 \u00FE \u00F0 \u00FE
+	
+   	
+\u00A0	
+\uFB01 ligature	\uFB01 ligature
+Note \uD83D\uDE00 emoji	note \uD83D\uDE00 emoji
+\u0110\u00F4ng	\u0111ong
+\u0101 \u0113 \u012B \u015F \u0131	\u0101 \u0113 \u012B \u015F \u0131
+a\u0009b\u000Ac\u000Dd	a b c d
+\u216B	\u217B
+\u01C5	\u01C6
+\uFB00	\uFB00
+cafe\u0301	cafe\u0301
+caf\u00E9	cafe
+AAAAA	aaaaa
+\u03A3\u03AF\u03C3\u03C5\u03C6\u03BF\u03C2	\u03C3\u03AF\u03C3\u03C5\u03C6\u03BF\u03C2
+\u041C\u041E\u0421\u041A\u0412\u0410	\u043C\u043E\u0441\u043A\u0432\u0430
+\u039F\u0394\u039F\u03A3	\u03BF\u03B4\u03BF\u03C3
+\u0391\u03A3	\u03B1\u03C3
+\u03A3\u03A3	\u03C3\u03C3
+\u1E9E	\u00DF
+\u1F88	\u1F80
+\u0130\u0130	ii
+\uFB05	\uFB05
+\u0149	\u0149
+\u01F1	\u01F3
+\u01F2	\u01F3
+\uD801\uDC00\uD801\uDC01	\uD801\uDC28\uD801\uDC29
+\uD801\uDCB0	\uD801\uDCB0
+\uD83A\uDD00	\uD83A\uDD00
+A\u0301\u0327	a\u0301\u0327
+\u00C0\u0301	a\u0301

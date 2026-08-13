@@ -96,12 +96,29 @@ class NoteLinkWriter(private val database: NotesDatabase) {
      * existe — l'utilisateur verrait un lien mort vers une note qu'il vient de créer.
      *
      * L'opération est **idempotente** : relancée, elle ne fait rien de plus.
+     *
+     * ## ⚠️ `source_id != :noteId` — le garde-fou anti-auto-lien serait défait sans lui
+     *
+     * L'indexation exclut délibérément les auto-références : une note qui écrit son propre titre
+     * entre crochets ne produit pas un lien vers elle-même, elle produit un fantôme. Sans la
+     * condition sur la source, cette requête — appelée juste après, dans la même transaction —
+     * rattacherait ce fantôme à la note qui vient de l'émettre, annulant le garde-fou une ligne
+     * plus loin.
+     *
+     * **L'application publiée a exactement ce défaut** : `backlinks_service.dart:338` écarte
+     * l'auto-lien, puis `resolveDangling` le rétablit au tour suivant. Personne ne l'a vu parce que
+     * la conséquence est cosmétique — une note qui figure dans ses propres rétroliens. Ce portage
+     * ne le reproduit pas : `target_id` n'est pas une clé d'appariement partagée entre les deux
+     * versions, chaque réindexation le réécrit, et il n'y a donc rien à préserver ici.
+     *
+     * Relevé par `NotesRepositoryTest`, qui affirmait le garde-fou et l'a trouvé inopérant.
      */
     suspend fun resolveDanglingTargets(noteId: String, titleNorm: String) {
         database.withTransaction {
             database.openHelper.writableDatabase.execSQL(
-                "UPDATE note_links SET target_id = ? WHERE target_id IS NULL AND target_title_norm = ?",
-                arrayOf<Any?>(noteId, titleNorm),
+                "UPDATE note_links SET target_id = ? " +
+                    "WHERE target_id IS NULL AND target_title_norm = ? AND source_id != ?",
+                arrayOf<Any?>(noteId, titleNorm, noteId),
             )
         }
     }

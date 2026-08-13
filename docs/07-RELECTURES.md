@@ -335,3 +335,66 @@ Utile à consigner : ce sont les hypothèses sur lesquelles repose tout le porta
    normal où « la base existe » et « générer une clé » seraient tous deux corrects. ✅
 4. **`INSERT OR IGNORE` dans `onOpen` est sûr** sous WAL : atomique, idempotent, sans l'effet
    destructif de `REPLACE`. ✅
+
+---
+
+# R-005 — Phase 3 : domaine, repositories, normalisation
+
+> 2026-08-13. Lot relu : 16 fichiers, 2 356 lignes — repositories, DAO, convertisseurs, modèles de
+> domaine, sémantique de texte, contrat de scellement.
+
+## Ce qui a trouvé quoi
+
+Cette passe est instructive par sa **répartition** : chaque catégorie de vérification a trouvé une
+classe de défauts que les autres ne pouvaient pas voir.
+
+| Trouvé par | Constat | Gravité |
+|---|---|---|
+| **Exécution du vrai code Dart** | trois divergences de sémantique de chaînes entre Dart et Java | invisible autrement |
+| **Un test qui affirmait un garde-fou** | l'anti-auto-lien est défait par la requête suivante | 🟠 |
+| **Écriture de la couche domaine** | `findVaults` utilisait `vault_mode` au lieu de `vault_salt` | 🟠 |
+| **Comparaison avec le Dart d'origine** | `backlinks` manquait les liens fantômes | 🟠 |
+| **Relecture externe (Gemini 3.1 Pro)** | `lockNote` perdait étiquettes et date de modification | 🔴 |
+| **Relecture externe (Gemini 3.1 Pro)** | une suppression refusée vidait quand même le dossier | 🔴 |
+| **Relecture de mon propre correctif** | « le titre n'a pas changé » masquait un verrouillage | 🔴 |
+| **detekt** | le DAO `notes` mêlait 16 lectures et 11 écritures dans un fichier | 🟡 |
+
+## Les trois divergences Dart / Java
+
+Mesurées, pas déduites, en exécutant `BacklinksService` de l'application publiée sur un corpus de
+piégeage. Détail et procédure de regénération : `09-VECTEURS-DE-PARITE.md`.
+
+Elles portent toutes sur `target_title_norm`, la clé par laquelle un lien retrouve sa note. **Aucune
+n'aurait été trouvée par relecture** : rien dans la documentation des deux langages ne signale que
+`String.lowercase()` de Java applique la règle du sigma final, ni que son `trim()` élague `U+001F`.
+
+## Les deux constats externes, vérifiés avant d'être appliqués
+
+**`lockNote` perdait les étiquettes et la date.** Confirmé par lecture : la requête n'avait de
+paramètre ni pour l'un ni pour l'autre. La méthode servait deux appelants aux besoins opposés — une
+édition, qui doit faire remonter la note ; une reprotection d'arrière-plan, qui ne doit pas
+réordonner l'écran — et ne servait bien que le second. Corrigé par deux paramètres nullables
+**sans valeur par défaut** : chaque appelant tranche.
+
+**Une suppression refusée vidait quand même le dossier.** Confirmé : `deleteKeepingNotes` déplaçait
+les notes, constatait que la suppression n'avait rien fait, et **rendait `null`**. Rendre une valeur
+ne défait rien : Room validait la transaction. Appliqué à la boîte de réception, protégée dans sa
+requête de suppression, le dossier survivait vidé de tout son contenu. Corrigé par une levée, qui
+annule.
+
+Le motif dépasse le cas : **dans une transaction, un refus qui se contente de rendre une valeur ne
+défait rien.**
+
+## Ce que la relecture externe a explicitement écarté
+
+> « Aucun chemin permettant d'écrire le contenu d'un coffre en clair sur le disque n'a été trouvé. »
+
+Et, en point de vigilance, une remarque juste sur `observeBacklinks` : la garde reposait sur une
+**propriété distante** — aucune ligne de `note_links` ne porte de clé normalisée vide, parce que
+l'extraction les écarte. C'était vrai. Ça cesserait de l'être si une telle ligne entrait par un
+autre chemin. Rendu explicite : une note verrouillée court-circuite la requête.
+
+## Ce qui reste ouvert
+
+- Relecture GPT-5.2 : le service a rendu `503` deux fois. À relancer.
+- La couche ② de la KEK et la release passerelle 2.0.4 restent à écrire.

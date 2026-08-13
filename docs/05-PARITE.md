@@ -84,3 +84,36 @@ peut y injecter une permission :
 | Coffre passphrase créé en Flutter, ouvert en Kotlin | ☐ |
 | Coffre PIN créé en Flutter, ouvert en Kotlin | ☐ |
 | Auto-effacement interrompu (`vault_wipe_pending_*`) repris au démarrage | ☐ |
+
+## Écarts assumés avec l'application publiée, relevés en phase 3
+
+> Un écart n'est acceptable que s'il est **choisi**, écrit, et justifié. Ceux-là le sont.
+
+| Sujet | Application publiée | Ce portage | Pourquoi |
+|---|---|---|---|
+| Auto-lien `[[son propre titre]]` | résolu vers elle-même — le garde-fou est défait par `resolveDangling` | reste fantôme | l'intention du code d'origine est explicite ; `target_id` n'est pas partagé entre versions |
+| Rétroliens depuis une note verrouillée | pas de garde SQL ; les liens sont purgés au verrouillage | garde SQL **en plus** | la non-divulgation ne doit dépendre d'aucune donnée écrite par un autre programme |
+| Rétroliens : liens fantômes | inclus (`links_dao.dart:64`) | inclus | une première version de ce portage les manquait — corrigé |
+| Casse Unicode : osage, adlam | inchangés (table de casse figée) | passent en minuscules | écart mesuré, borné, se répare à la réindexation. Cf. `09-VECTEURS-DE-PARITE.md` |
+| Longueur du nom de dossier | non plafonnée | non plafonnée | plafonner refuserait de renommer un dossier existant plus long. À traiter au champ de saisie |
+| Déplacer une note verrouillée | passe par le service de coffres | **refusé** avec une exception nommée | chaque coffre a sa clé ; le blob ne se transporte pas. Sera levé en phase 4 |
+| Flux d'événements de changement | `NoteChangeEvent` + service temporisé | invalidation Room + transaction | cf. `01-DECISIONS.md` D-009 |
+
+## Reporté à la phase 5, avec l'interface
+
+Ces éléments sont des **fonctions d'affichage** du modèle. Les porter avant l'écran qui les
+consomme reviendrait à écrire du code qu'aucun test ne peut exercer.
+
+| Élément | Source Dart | Piège connu |
+|---|---|---|
+| `Note.excerpt` | `note.dart:200` | cinq expressions régulières enchaînées, plafond à 200 caractères ; vide pour une note verrouillée |
+| `Note.wordCount` | `note.dart:86` | ⚠️ rend **1** pour un contenu fait uniquement d'espaces — `"".split(\s+)` rend une liste d'un élément vide. Reproduire le quirk, ou le corriger sciemment |
+| `Note.characterCount` | `note.dart:85` | compte les unités UTF-16, pas les caractères perçus |
+| Libellés de `NoteSortMode` | `note.dart:230` | à localiser, pas à recopier en dur |
+
+## Reporté à la phase 6
+
+| Élément | Pourquoi il ne pouvait pas être fait en phase 3 |
+|---|---|
+| Réconciliation complète des liens au démarrage | l'indexation transactionnelle rend les incohérences impossibles **côté Kotlin**, mais la base vient de la version Flutter et peut en porter |
+| Auto-complétion `[[…]]` dans l'éditeur | `NotesRepository.suggestTitles` existe et est testé ; il lui manque son écran |

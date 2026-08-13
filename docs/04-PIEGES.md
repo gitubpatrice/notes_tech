@@ -165,3 +165,81 @@ c'est-à-dire toutes.
 Les défauts du constructeur (`requireMigration = true`,
 `allowDestructiveMigrationOnDowngrade = false`) donnent l'exception visible qu'on veut.
 **Ne rien dire est la bonne façon de le dire.**
+
+## 11. 🔴 Effacer la clé enveloppée d'un coffre emporte **toutes** ses notes
+
+Le piège 1 bis porte sur une note. Celui-ci porte sur un dossier, et sa conséquence est plus large.
+
+La table `folders` a sept colonnes `vault_*`. Une écriture de ligne entière construite depuis un
+objet `Folder` incomplet ou périmé y écrirait `NULL` dans `vault_kek_wrapped`. La bonne phrase
+secrète ne rendrait plus rien : le matériel qui permettait de déchiffrer n'existe plus. Rien ne le
+signalerait avant la prochaine ouverture du coffre.
+
+L'application publiée renomme par `UPDATE` complet (`folders_dao.dart:66`). Aucun défaut n'a été
+constaté — ses objets viennent de la base et portent bien leurs colonnes. C'était aussi vrai des
+notes, jusqu'au jour où ça ne l'a plus été.
+
+**Ce portage** : `FolderDao` n'a pas de `@Update`. Renommer, recolorer et déplacer sont trois
+requêtes qui nomment leurs colonnes. Les colonnes de coffre ne s'écriront que par les méthodes de
+provisionnement (phase 4). Cf. `01-DECISIONS.md` D-010.
+
+---
+
+## 12. 🟠 `vault_mode` ne dit pas si un dossier est un coffre — `vault_salt` le dit
+
+Un défaut de ce portage, relevé le 2026-08-13 en écrivant la couche domaine : `FolderDao.findVaults`
+sélectionnait `WHERE vault_mode IS NOT NULL`.
+
+`vault_mode` n'existe que depuis la 0.9 et a été **rétro-remplie** par une migration
+(`database.dart:761`). `vault_salt`, lui, est présent depuis le premier coffre, et c'est le critère
+que retient l'application publiée (`folder.dart:100`).
+
+L'écart aurait été indétectable en pratique — la migration a fait son travail. Ce n'est pas une
+raison : faire dépendre l'identification d'un coffre du bon déroulement passé d'une migration, quand
+la conséquence est d'écrire ou non du clair sur le disque, est un pari qu'on n'a aucune raison de
+prendre.
+
+Un test instrumenté vide `vault_mode` et vérifie que le dossier reste reconnu comme coffre.
+
+---
+
+## 13. 🟠 Un garde-fou peut être défait par la ligne suivante
+
+L'indexation exclut délibérément les auto-références : une note qui écrit son propre titre entre
+crochets produit un fantôme, pas un lien vers elle-même.
+
+Puis `resolveDanglingTargets` passe, et rattache tous les fantômes visant ce titre à cette note —
+**y compris celui qu'on venait d'écarter**. Le garde-fou est annulé une ligne plus loin, dans la
+même transaction.
+
+**L'application publiée a exactement ce défaut** (`backlinks_service.dart:338` écarte,
+`resolveDangling` rétablit). Personne ne l'a vu parce que la conséquence est cosmétique : une note
+qui figure dans ses propres rétroliens.
+
+Corrigé ici par `AND source_id != :noteId` dans la requête de résolution. Ce n'est pas une divergence
+gênante : `target_id` n'est pas une clé d'appariement partagée, chaque réindexation le réécrit.
+
+**La leçon générale, elle, dépasse le cas** : un garde-fou posé dans une étape n'engage que cette
+étape. Quand plusieurs écritures se suivent dans une transaction, il faut se demander laquelle défait
+ce que la précédente vient d'établir.
+
+Relevé par un test qui **affirmait** le garde-fou. Aucune relecture ne l'avait vu — ni les miennes,
+ni les externes.
+
+---
+
+## 14. 🟠 « Le titre n'a pas changé » ne veut pas dire « rien n'a changé »
+
+Une première version de `saveEdits` ne réaccrochait les liens entrants que si le titre avait changé.
+L'optimisation paraissait évidente et elle était fausse.
+
+Une note verrouillée au **format 1** garde son titre en clair. Elle vient de partir au coffre, mais
+son titre est identique — donc la réaccroche ne se déclenchait pas, donc les liens qui pointaient
+vers elle restaient résolus. Une note non protégée continuait d'afficher un lien cliquable vers une
+note désormais secrète.
+
+Les deux opérations concernées sont idempotentes et portent sur une table minuscule. Les appeler à
+chaque écriture coûte deux `UPDATE` et supprime la question.
+
+**Le motif à retenir** : conditionner une opération de sécurité à un changement *observable* suppose
+que le changement de sécurité s'y reflète. Ici il ne s'y reflétait pas.

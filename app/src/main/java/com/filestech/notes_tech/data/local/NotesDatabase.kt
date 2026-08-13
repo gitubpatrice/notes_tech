@@ -7,6 +7,7 @@ import com.filestech.notes_tech.data.local.dao.FolderDao
 import com.filestech.notes_tech.data.local.dao.NoteDao
 import com.filestech.notes_tech.data.local.dao.NoteLinkDao
 import com.filestech.notes_tech.data.local.dao.NoteSearchDao
+import com.filestech.notes_tech.data.local.dao.NoteWriteDao
 import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 
@@ -57,6 +58,12 @@ abstract class NotesDatabase : RoomDatabase() {
 
     abstract fun noteDao(): NoteDao
 
+    /**
+     * Écritures dans `notes`, séparées des lectures à dessein : c'est là que se joue la protection
+     * des coffres, et la surface entière tient dans un fichier court.
+     */
+    abstract fun noteWriteDao(): NoteWriteDao
+
     abstract fun noteSearchDao(): NoteSearchDao
 
     /**
@@ -64,6 +71,15 @@ abstract class NotesDatabase : RoomDatabase() {
      * est hors du graphe d'entités, donc Room ne peut pas générer son SQL d'écriture.
      */
     abstract fun noteLinkDao(): NoteLinkDao
+
+    /**
+     * Écritures de `note_links`.
+     *
+     * Attaché à la base plutôt qu'injecté : il n'a pas d'état propre, et le lier ici garantit qu'il
+     * écrit dans **cette** instance — donc dans la transaction en cours, condition de tout le
+     * dispositif décrit dans [NoteLinkWriter].
+     */
+    val linkWriter: NoteLinkWriter by lazy { NoteLinkWriter(this) }
 
     companion object {
         /**

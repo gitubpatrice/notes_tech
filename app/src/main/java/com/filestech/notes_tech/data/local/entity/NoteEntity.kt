@@ -102,7 +102,8 @@ class NoteEntity(
     val updatedAt: Long,
 
     /**
-     * Version du format de [encryptedContent]. Voir [EncryptedFormat].
+     * Version du format de [encryptedContent].
+     * Voir [com.filestech.notes_tech.domain.model.EncryptedFormat].
      *
      * Colonne de schéma plutôt qu'un marqueur deviné dans le blob, et la raison est bonne : un
      * préfixe de version à l'intérieur du chiffré serait ambigu avec un nonce commençant par la
@@ -114,13 +115,4 @@ class NoteEntity(
     /** `true` si la note est verrouillée dans un coffre. Unique test à utiliser — jamais
      *  `content.isEmpty()`, qui est aussi vrai d'une note vide ordinaire. */
     val isLocked: Boolean get() = encryptedContent != null
-}
-
-/** Formats successifs du blob `encrypted_content`. */
-object EncryptedFormat {
-    /** Contenu seul ; le titre reste en clair dans `notes.title`. */
-    const val CONTENT_ONLY = 1
-
-    /** Titre **et** contenu dans le blob ; `notes.title` est vidée. Introduit en 2.0.0. */
-    const val TITLE_AND_CONTENT = 2
 }
