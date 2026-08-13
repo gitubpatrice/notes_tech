@@ -163,7 +163,9 @@ une couverture de la version Flutter.
 
 **70 tests verts côté Flutter (65 avant), `flutter analyze` sans avertissement.**
 
-### Quand publier ces correctifs — décision du 2026-08-13
+### Quand publier ces correctifs — **décision de Patrice**, 2026-08-13
+
+> « pas de publication 2.0.4 pour le moment ». Les correctifs restent sur leur branche.
 
 **Attendre que la MR F-Droid !37885 soit tranchée.** Elle est ouverte, à **2.0.3 / versionCode 51**,
 son blocage Play Core est résolu et documenté, et elle est en `waiting-for-upstream` — la balle est
