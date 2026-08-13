@@ -5,6 +5,7 @@ import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.domain.repository.UnavailableVaultSealer
 import com.filestech.notes_tech.domain.repository.VaultSealer
+import com.filestech.notes_tech.security.kek.FlutterSecureStorageKekSource
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.KeystoreSealedKekSource
 import com.filestech.notes_tech.security.kek.WritableKekSource
@@ -38,9 +39,16 @@ object DatabaseModule {
     /**
      * Ordre des sources de clé — il est **significatif**, pas décoratif.
      *
-     * Aujourd'hui une seule source : la couche ①, l'alias natif du Keystore. La couche ② (lecture
-     * directe du format `flutter_secure_storage`, pour l'utilisateur qui saute la release
-     * passerelle) s'ajoutera **après** celle-ci, sans rien modifier d'autre.
+     * **La couche ① d'abord** : l'alias natif du Keystore, écrit par la release passerelle 2.0.4.
+     * C'est le chemin nominal, et il n'utilise que des API de plateforme.
+     *
+     * **La couche ② ensuite** : la lecture directe du format `flutter_secure_storage`, pour
+     * l'utilisateur qui saute la 2.0.4. L'ordre compte — la couche ② transcrit à l'envers la
+     * cryptographie d'une bibliothèque tierce, et rien ne garantit qu'une version future de
+     * celle-ci garde ce format. Elle ne doit être atteinte que si la première n'a rien.
+     *
+     * Une clé trouvée par la couche ② est **recopiée** dans la couche ① par [KekRepository] : dès
+     * le premier démarrage réussi, le format tiers sort du chemin critique.
      *
      * La couche ③ n'est pas une source : c'est le refus, et il vit dans [KekRepository]. Ne pas
      * chercher à l'implémenter ici sous forme de source « qui génère » — ce serait exactement la
@@ -52,7 +60,7 @@ object DatabaseModule {
     @Singleton
     fun provideKekRepository(@ApplicationContext context: Context, primary: WritableKekSource): KekRepository =
         KekRepository(
-            sources = listOf(primary),
+            sources = listOf(primary, FlutterSecureStorageKekSource(context)),
             primary = primary,
             // Passé en lambda et non évalué ici : l'existence du fichier doit être constatée au moment
             // de l'acquisition, pas au moment où le graphe d'injection se construit.

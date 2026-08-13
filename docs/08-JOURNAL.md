@@ -251,3 +251,77 @@ et **rien ne l'avait vérifié**. Un test le mesure désormais. La réponse est 
 vérifiée, et elle le restera si Room ou le pilote changent.
 
 Total de la phase : **13 défauts corrigés**, 55 tests instrumentés, 45 tests JVM.
+
+---
+
+## 2026-08-13 — Couche ② de la KEK : le format de `flutter_secure_storage`, lu et éprouvé
+
+### Ce qui a décidé la méthode
+
+Le S9 porte `com.filestech.notes_tech` en **2.0.1**, installée le 2026-08-07. Deux constats en ont
+découlé, tous deux vérifiés et non supposés :
+
+- `flags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ]` — **pas de `DEBUGGABLE`**, donc `run-as` est exclu et
+  son stockage privé est illisible. Impossible de mesurer sur l'installation réelle.
+- La version installée n'est pas la 2.0.3 publiée. Un utilisateur qui met à jour rarement passera
+  directement de sa version à la 3.0.0 : la couche ② n'est pas un cas d'école.
+
+La méthode retenue : lire les **sources Java de `flutter_secure_storage 10.3.1`**, présentes sur le
+disque, et éprouver le portage contre une fixture qui écrit **exactement comme la bibliothèque** —
+écrite elle aussi depuis ces sources, pas depuis mon lecteur. Sinon le test vérifierait que ma
+transcription est cohérente avec elle-même.
+
+### La constante qui justifiait de ne rien écrire de mémoire
+
+`OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA1, …)` — condensat principal SHA-256,
+MGF1 en **SHA-1**. Personne n'écrirait ça spontanément.
+
+Le contre-test devait sceller avec MGF1-SHA256 et vérifier que la lecture échouait. **Il n'a même
+pas pu sceller** : l'`AndroidKeyStore` refuse la combinaison à l'initialisation — *« Unsupported
+MGF1 digest: SHA-256. Only SHA-1 supported »*.
+
+Résultat plus fort que prévu : ce n'est pas un choix de la bibliothèque qu'on recopie, c'est la
+seule valeur que la plateforme accepte. Une erreur y échouerait bruyamment, jamais en silence.
+
+### Ce que la lecture des sources a apporté en plus
+
+La bibliothèque **enregistre les algorithmes qu'elle a employés** (`FlutterSecureSAlgorithmKey`,
+`FlutterSecureSAlgorithmStorage`). La couche ② les lit et **refuse** ce qu'elle ne sait pas traiter,
+au lieu d'essayer une combinaison puis une autre. Un déchiffrement à l'aveugle pourrait rendre des
+octets arbitraires qui passeraient le contrôle de longueur — et ouvriraient la base avec une clé
+fausse.
+
+### La promotion, qui fait de la couche ② un vrai secours
+
+Une clé trouvée par la couche ② est **recopiée** dans la couche ①. Dès le premier démarrage réussi,
+la transcription d'un format tiers sort du chemin critique. L'échec de la recopie ne fait jamais
+échouer l'acquisition : la clé est déjà en main.
+
+### Mesures
+
+| Vérification | Résultat |
+|---|---|
+| Tests instrumentés sur Galaxy S9 (API 29) | **66**, 0 échec |
+| Tests JVM | **47**, 0 échec |
+| `ktlintCheck`, `detekt`, `lintDebug` | verts |
+
+### ⚠️ Ce que ces tests ne prouvent PAS
+
+Qu'un utilisateur récupérera sa clé. Ils prouvent que **le format se lit**. L'`AndroidKeyStore`
+étant cloisonné par UID, la build isolée ne verra jamais le matériel de l'application publiée : cela
+ne se vérifiera qu'à la bascule. Les deux affirmations sont différentes et une seule est démontrée.
+
+### La passerelle 2.0.4, conçue et non appliquée
+
+`docs/10-PASSERELLE-2.0.4.md`. `KeystoreBridge.kt` existe déjà côté Flutter et fait l'essentiel ; il
+manque une méthode qui enchaîne création de clé, scellement et écriture des préférences.
+
+🔴 **Le piège qui la rendrait inopérante sans que rien ne se voie** : `shared_preferences` préfixe
+ses clés par `flutter.` et écrit dans son propre fichier. Une écriture Dart de `db_kek_v1.blob`
+atterrirait en `flutter.db_kek_v1.blob` ailleurs, la couche ① ne trouverait rien, et la 2.0.4
+aurait l'air d'avoir fonctionné. L'écriture doit être **native**.
+
+Second piège : le clair scellé doit être les **32 octets bruts**, alors que `flutter_secure_storage`
+contient les **64 caractères hexadécimaux**.
+
+`notes_tech` n'a **pas** été modifié : publier une 2.0.4 demande la clé de signature et une décision.

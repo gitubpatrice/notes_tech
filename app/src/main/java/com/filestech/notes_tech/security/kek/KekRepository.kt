@@ -117,7 +117,11 @@ class KekRepository(
             val kek = loadOrNull(source) { failure ->
                 if (firstFailure == null) firstFailure = failure
             }
-            if (kek != null) return validated(kek, source.name)
+            if (kek != null) {
+                val cle = validated(kek, source.name)
+                if (source !== primary) promoteToPrimary(cle)
+                return cle
+            }
         }
         // Aucune clé. Si une source n'a pas pu être lue, l'absence n'est PAS établie : on remonte
         // l'échec, ce qui interdit à l'appelant de conclure « première installation ».
@@ -141,6 +145,39 @@ class KekRepository(
             onFailure(e)
             null
         }
+
+    /**
+     * Recopie dans la source primaire une clé obtenue ailleurs, pour que le prochain démarrage
+     * n'ait plus à en dépendre.
+     *
+     * C'est ce qui fait de la couche ② un **secours** et non un chemin permanent : dès le premier
+     * démarrage réussi, la clé vit sous un alias que ce projet maîtrise, et la transcription du
+     * format d'une bibliothèque tierce sort du chemin critique.
+     *
+     * ## ⚠️ L'échec de la recopie ne doit JAMAIS faire échouer l'acquisition
+     *
+     * La clé est déjà en main et reste lisible depuis sa source d'origine à chaque démarrage. Une
+     * recopie qui échoue coûte une lecture de plus au prochain lancement, rien d'autre. La laisser
+     * remonter transformerait un démarrage qui fonctionne en refus d'ouverture — exactement le
+     * genre de zèle qui casse ce qu'il prétend améliorer.
+     *
+     * `Throwable` et non `Exception` : le fournisseur cryptographique de la plateforme lève des
+     * erreurs non typées par nous, et aucune ne justifie de perdre une clé valide.
+     *
+     * ## Pourquoi `store` et surtout pas `replaceKeyAndStore`
+     *
+     * `replaceKeyAndStore` détruit le matériel de scellage existant. Ici une base existe — c'est
+     * tout le scénario — et détruire un scellé dont on ignore ce qu'il protégeait serait la faute
+     * que `docs/03-KEK-ACQUISITION.md` interdit.
+     */
+    private fun promoteToPrimary(kek: ByteArray) {
+        try {
+            primary.store(kek)
+            Timber.i("KEK recopiée dans la source primaire — les prochains démarrages l'y trouveront")
+        } catch (t: Throwable) {
+            Timber.w(t, "recopie de la KEK impossible — sans conséquence, la clé reste lisible à sa source")
+        }
+    }
 
     private fun validated(kek: ByteArray, sourceName: String): ByteArray {
         if (kek.size != SqlCipherRawKey.KEY_SIZE_BYTES) {

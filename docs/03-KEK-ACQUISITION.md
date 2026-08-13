@@ -31,6 +31,10 @@ Un `getOrCreate` naïf ferait exactement l'inverse, et détruirait silencieuseme
 
 ### Couche ① — Alias natif, écrit par la release passerelle 2.0.4 *(chemin nominal)*
 
+> 🔹 **Le détail de cette release est dans [10-PASSERELLE-2.0.4.md](10-PASSERELLE-2.0.4.md)** :
+> contrat exact, code à ajouter, et le piège qui la rendrait inopérante — `shared_preferences`
+> préfixe ses clés par `flutter.`, donc l'écriture doit se faire côté natif.
+
 Plutôt que de réimplémenter la cryptographie d'une bibliothèque tierce dans le chemin critique,
 on fait faire la migration **par l'application Flutter elle-même**, pendant qu'elle est encore là.
 
@@ -73,10 +77,27 @@ Notes Tech (`AndroidOptions(resetOnError: false)`, tout le reste par défaut) :
 | Déballage | `Cipher.getInstance("RSA/ECB/OAEPPadding", "AndroidKeyStoreBCWorkaround")`, `UNWRAP_MODE` | `KeyCipherImplementationRSAOAEP.java:49`, `KeyCipherImplementationRSA18.java:64` |
 | Alias `AndroidKeyStore` | `com.filestech.notes_tech.FlutterSecureStoragePluginKeyOAEP` | `KeyCipherImplementationRSAOAEP.java:30` |
 
-> 🔶 **Une constante reste à lire avant d'écrire cette couche** :
-> `KeyCipherImplementationRSAOAEP.getAlgorithmParameterSpec()`. L'`AndroidKeyStore` impose un
-> `OAEPParameterSpec` particulier (le MGF1 n'y utilise pas le même condensat que l'algorithme
-> principal). **Ne pas l'écrire de mémoire** — la lire dans le fichier au moment de coder.
+> ✅ **Constante relevée, couche ② écrite et éprouvée le 2026-08-13.**
+>
+> `KeyCipherImplementationRSAOAEP.java:53` rend
+> `OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec.SHA1, PSource.PSpecified.DEFAULT)` —
+> condensat principal **SHA-256**, MGF1 en **SHA-1**.
+>
+> Et la mesure a rendu mieux qu'attendu : l'`AndroidKeyStore` **refuse** MGF1 en SHA-256
+> (*« Unsupported MGF1 digest: SHA-256. Only SHA-1 supported »*). Ce n'est donc pas un choix de la
+> bibliothèque qu'on recopie, c'est la seule valeur que la plateforme accepte : une erreur à cet
+> endroit échoue bruyamment à l'initialisation, jamais en silence. Test :
+> `FlutterSecureStorageKekSourceTest.la_plateforme_impose_mgf1_en_sha1_et_refuse_sha256`.
+
+> 🔹 **Deux constantes de plus, découvertes en écrivant la couche** :
+>
+> - la bibliothèque **enregistre elle-même** les algorithmes employés, dans `FlutterSecureSAlgorithmKey`
+>   et `FlutterSecureSAlgorithmStorage` (`StorageCipherFactory.java:13-15`). La couche ② les lit et
+>   **refuse** toute combinaison qu'elle ne sait pas traiter, au lieu de tenter un déchiffrement à
+>   l'aveugle qui pourrait rendre des octets arbitraires ;
+> - l'alias du Keystore est construit sur `context.getPackageName()`. La build de portage portant le
+>   suffixe `.next`, l'identifiant publié est écrit en clair dans le code : c'est le matériel de
+>   l'application **publiée** qu'on cherche.
 
 **Combinaison héritée.** Un appareil qui n'aurait jamais migré depuis la 9.x utiliserait
 `AES_CBC_PKCS7Padding` + `RSA_ECB_PKCS1Padding` sous un autre alias. Vu que
@@ -104,6 +125,21 @@ C'est la présence du fichier qui distingue les deux situations, pas l'absence d
 
 La couche ③ est celle qui ne peut pas être omise. Les deux autres existent pour qu'on l'atteigne
 le moins souvent possible.
+
+## 3 bis. État au 2026-08-13
+
+| Couche | État | Preuve |
+|---|---|---|
+| ① alias natif | **écrite**, lue par `KeystoreSealedKekSource` | tests instrumentés de la phase 2 |
+| ② `flutter_secure_storage` | **écrite et éprouvée** | 10 tests instrumentés contre une fixture qui écrit comme la bibliothèque |
+| ③ refus | **écrite** | `KekRepositoryTest` |
+| Promotion ② → ① | **écrite** | 2 tests JVM |
+| Passerelle 2.0.4 | **conçue, pas appliquée** | `10-PASSERELLE-2.0.4.md` |
+
+⚠️ **Ce qui reste non prouvé, et qui est le risque n°1 du projet** : qu'un utilisateur réel
+récupère sa clé. Les tests démontrent que **le format se lit**, pas que la migration fonctionne —
+l'`AndroidKeyStore` étant cloisonné par UID, la build isolée ne verra jamais le matériel de
+l'application publiée. Ces deux affirmations sont différentes et une seule est démontrée.
 
 ## 4. Critère de sortie
 

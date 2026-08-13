@@ -2,6 +2,7 @@ package com.filestech.notes_tech.security.kek
 
 import com.filestech.notes_tech.data.local.SqlCipherRawKey
 import com.google.common.truth.Truth.assertThat
+import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -183,6 +184,70 @@ class KekRepositoryTest {
             if (echoueEnEcriture) throw KekFailure.SourceUnavailable(name, null)
             remplacements++
             derniereEcriture = kek.copyOf()
+        }
+    }
+
+    /**
+     * Une clé trouvée par une source **secondaire** est recopiée dans la primaire.
+     *
+     * C'est ce qui fait de la couche ② un secours et non un chemin permanent : dès le premier
+     * démarrage réussi, la transcription du format d'une bibliothèque tierce sort du chemin
+     * critique.
+     */
+    @Test
+    @DisplayName("une clé trouvée ailleurs est recopiée dans la source primaire")
+    fun promotionVersLaSourcePrimaire() {
+        val attendue = ByteArray(32) { (it * 3).toByte() }
+        val primaire = SourceEnregistreuse(detient = null)
+        val secours = SourceSimple("secours", attendue)
+        val depot = KekRepository(listOf(primaire, secours), primaire, databaseExists = { true })
+
+        val obtenue = depot.acquire()
+
+        assertThat(obtenue).isEqualTo(attendue)
+        assertThat(primaire.stockee).isEqualTo(attendue)
+        // ⚠️ `store` et non `replaceKeyAndStore` : une base existe, détruire le matériel de
+        // scellage existant serait la faute que toute la conception écarte.
+        assertThat(primaire.remplacements).isEqualTo(0)
+    }
+
+    /**
+     * ⚠️ **Une recopie qui échoue ne doit pas faire échouer l'acquisition.**
+     *
+     * La clé est déjà en main et reste lisible à sa source d'origine. Laisser l'échec remonter
+     * transformerait un démarrage qui fonctionne en refus d'ouverture.
+     */
+    @Test
+    @DisplayName("l'échec de la recopie ne fait pas échouer l'acquisition")
+    fun promotionEnEchecNEmpecheRien() {
+        val attendue = ByteArray(32) { (it * 5).toByte() }
+        val primaire = SourceEnregistreuse(detient = null, echoueALEcriture = true)
+        val secours = SourceSimple("secours", attendue)
+        val depot = KekRepository(listOf(primaire, secours), primaire, databaseExists = { true })
+
+        assertThat(depot.acquire()).isEqualTo(attendue)
+    }
+
+    private class SourceSimple(override val name: String, private val cle: ByteArray?) : KekSource {
+        override fun load(): ByteArray? = cle?.copyOf()
+    }
+
+    private class SourceEnregistreuse(private val detient: ByteArray?, private val echoueALEcriture: Boolean = false) :
+        WritableKekSource {
+        override val name = "primaire"
+        var stockee: ByteArray? = null
+        var remplacements = 0
+
+        override fun load(): ByteArray? = detient?.copyOf()
+
+        override fun store(kek: ByteArray) {
+            if (echoueALEcriture) throw KekFailure.SourceUnavailable(name, null)
+            stockee = kek.copyOf()
+        }
+
+        override fun replaceKeyAndStore(kek: ByteArray) {
+            remplacements++
+            stockee = kek.copyOf()
         }
     }
 }
