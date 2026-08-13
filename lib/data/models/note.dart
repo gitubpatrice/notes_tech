@@ -84,8 +84,14 @@ class Note {
 
   int get characterCount => content.length;
   int get wordCount {
-    if (content.isEmpty) return 0;
-    return content.trim().split(RegExp(r'\s+')).length;
+    // ⚠️ Le `trim()` doit précéder le test de vacuité, pas le suivre.
+    //
+    // `''.split(RegExp(r'\s+'))` rend `['']`, donc une longueur de 1 : un contenu
+    // fait uniquement d'espaces était compté comme un mot. Le cas `content.isEmpty`
+    // était traité, celui d'un contenu blanc non vide ne l'était pas.
+    final trimmed = content.trim();
+    if (trimmed.isEmpty) return 0;
+    return trimmed.split(RegExp(r'\s+')).length;
   }
 
   Note copyWith({

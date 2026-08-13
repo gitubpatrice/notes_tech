@@ -99,7 +99,22 @@ class NotesDao {
     try {
       final rows = await _db.query(
         'notes',
-        where: "folder_id = ? AND content IS NOT NULL AND content <> ''",
+        // ⚠️ Un TITRE en clair compte, même sans corps — ajouté après coup.
+        //
+        // Le critère ne testait que `content <> ''`. Une note SANS blob dont seul le
+        // titre est rempli — « Codes de la carte bleue », corps vide — n'était donc
+        // réparée par aucune passe : ni celle-ci, ni `_migrateLegacyEncryptedNotes`,
+        // qui exige un blob. C'est la limite que documente `NotesRepository`
+        // (« LE TITRE N'EST PAS GARDÉ ICI ») : `_sealIfVault` protège désormais les
+        // écritures neuves, mais rien ne rattrapait les lignes écrites AVANT lui.
+        //
+        // Strictement additif : aucune note précédemment retenue ne sort du résultat.
+        // Le format 1 — blob présent, titre en clair légitime — reste exclu, sa
+        // migration étant l'affaire de `_migrateLegacyEncryptedNotes`.
+        where: 'folder_id = ? AND ('
+            "(encrypted_content IS NULL AND (content <> '' OR title <> '')) OR "
+            "(encrypted_content IS NOT NULL AND content <> '')"
+            ')',
         whereArgs: [folderId],
       );
       return rows.map(Note.fromRow).toList(growable: false);

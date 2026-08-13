@@ -72,6 +72,7 @@ class LinksDao {
         FROM notes n
         JOIN note_links l ON l.source_id = n.id
         WHERE n.trashed_at IS NULL
+          AND n.encrypted_content IS NULL
           AND (l.target_id = ? OR
                (l.target_id IS NULL AND l.target_title_norm = ?))
         ORDER BY n.updated_at DESC
@@ -96,11 +97,22 @@ class LinksDao {
     required String titleNorm,
   }) async {
     try {
+      // ⚠️ `source_id <> ?` — sans lui, le garde-fou anti-auto-lien est annulé une
+      // étape plus loin.
+      //
+      // `BacklinksService._indexOne` écarte délibérément l'auto-référence : une note qui
+      // écrit son propre titre entre crochets produit un lien fantôme, pas un lien vers
+      // elle-même. Puis `_handleSingleChange` appelle cette méthode dans la même passe,
+      // et elle rattachait ce fantôme à la note qui venait de l'émettre.
+      //
+      // Conséquence visible : la note apparaît dans ses PROPRES rétroliens, et son lien
+      // sortant se présente comme résolu vers elle-même.
       return await _db.update(
         'note_links',
         {'target_id': noteId},
-        where: 'target_id IS NULL AND target_title_norm = ?',
-        whereArgs: [titleNorm],
+        where:
+            'target_id IS NULL AND target_title_norm = ? AND source_id <> ?',
+        whereArgs: [titleNorm, noteId],
       );
     } catch (e) {
       throw DatabaseException('links.resolveDangling échoué', cause: e);
