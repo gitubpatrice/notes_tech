@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Chaînes françaises.
+
+  ⚠️ Toute apostrophe dans une VALEUR est échappée `\'`. Sans l'antislash, aapt tronque la chaîne
+  au caractère fautif, sans erreur ni avertissement : la ressource compile, et le texte affiché est
+  amputé. C'est un défaut qui ne se voit qu'à l'écran, en français, donc jamais en test anglais.
+-->
+<resources>
+    <string name="startup_failure_title">Vos notes n\'ont pas pu être déverrouillées</string>
+    <string name="startup_failure_notes_are_safe">Vos notes sont toujours sur cet appareil et n\'ont pas été modifiées.</string>
+    <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Installez d\'abord Notes Tech 2.0.4, ouvrez-la une fois, puis remettez à jour.</string>
+    <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\'appareil est momentanément indisponible. Relancez l\'application ; si le problème persiste, redémarrez l\'appareil.</string>
+    <string name="startup_failure_retry">Réessayer</string>
+</resources>

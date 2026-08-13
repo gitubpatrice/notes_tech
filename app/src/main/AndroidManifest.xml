@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Notes Tech — 100 % local, zéro réseau.
+
+      Aucune permission INTERNET n'est déclarée, intentionnellement. C'est une promesse publique
+      affichée sur files-tech.com et dans les métadonnées F-Droid, donc une contrainte de build,
+      pas une intention.
+
+      Les `tools:node="remove"` ci-dessous neutralisent les permissions qu'une dépendance
+      transitive tenterait d'injecter. Ils sont conservés depuis la version Flutter : le portage
+      natif a bien moins de dépendances, mais une déclaration qui ne coûte rien et documente
+      l'intention se garde.
+
+      ⚠️ Le contrôle qui compte se fait sur le manifeste FUSIONNÉ, jamais sur celui-ci. La CI
+      échoue si une permission réseau y apparaît — c'est le seul garde-fou mécanique.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
+
+    <!--
+      RECORD_AUDIO n'est PAS déclarée à ce stade, et c'est délibéré : la dictée vocale arrive en
+      phase 7 (cf. docs/00-PLAN.md). Déclarer une permission qu'aucun code n'exerce l'expose à
+      l'utilisateur sans contrepartie.
+
+      ⚠️ Elle doit être rétablie avec la dictée, sans quoi la parité 2.0.3 n'est pas atteinte :
+          <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    -->
+
+    <application
+        android:name=".NotesTechApplication"
+        android:label="${appLabel}"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NotesTech.Splash">
+
+        <!--
+          `allowBackup=false` + `dataExtractionRules` : la base est chiffrée par une clé scellée
+          dans le Keystore de l'appareil, qui n'est pas sauvegardable. Une sauvegarde produirait
+          donc un fichier restauré illisible — pire qu'aucune sauvegarde, parce qu'elle laisserait
+          croire que les notes sont récupérables. La sortie de secours est l'export Markdown.
+        -->
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NotesTech.Splash"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+    <queries>
+        <!-- Sélection de texte système dans l'éditeur (PROCESS_TEXT). -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

@@ -1,0 +1,31 @@
+*.iml
+.gradle/
+.kotlin/
+/.idea/
+.DS_Store
+
+# `build/` et non `/build` : la barre en tête n'ancrerait la règle qu'à la racine, laissant
+# `app/build/` suivi. Ce n'est pas cosmétique — le premier commit a été refusé par Git sur un
+# chemin de classe généré trop long pour Windows, et les artefacts de build n'ont de toute façon
+# rien à faire dans l'historique.
+build/
+captures/
+.externalNativeBuild
+.cxx
+
+# Chemin du SDK Android, propre au poste.
+local.properties
+
+# ⚠️ Secrets de signature — ne JAMAIS committer. Signer avec une autre clé que celle de
+# `notes_tech` romprait le chemin de mise à jour de toutes les installations existantes, et une
+# clé publiée est une clé compromise, sans recours.
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# ℹ️ `app/schemas/` est VOLONTAIREMENT suivi. C'est le schéma que Room attend, exporté par KSP :
+# il sert de témoin, et `audits/verifier-schema-room-vs-flutter.py` le compare au DDL hérité à
+# chaque passage de CI. L'ignorer priverait la revue du seul artefact qui prouve que les entités
+# décrivent encore la base des utilisateurs.

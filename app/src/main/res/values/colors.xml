@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Fond de l'icône adaptative — repris à l'identique de la version Flutter
+      (`notes_tech/android/app/src/main/res/values/colors.xml`). L'icône est copiée telle quelle :
+      un portage change l'implémentation, pas l'identité visuelle du produit.
+    -->
+    <color name="ic_launcher_background">#262660</color>
+
+    <!-- Fond de l'écran de démarrage. Même teinte que l'icône, pour qu'il n'y ait pas de rupture
+         entre l'icône touchée et la fenêtre qui s'ouvre. -->
+    <color name="splash_background">#262660</color>
+</resources>

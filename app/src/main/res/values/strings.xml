@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Chaînes anglaises (locale par défaut).
+
+  ⚠️ Ce fichier reste minimal jusqu'à la phase 5. Les 436 clés de la version Flutter y seront
+  transposées **par script** depuis `notes_tech/lib/l10n/app_en.arb`, jamais à la main : une
+  transposition manuelle de 436 clés × 2 langues produit des oublis silencieux, et les placeholders
+  ARB (`{count}`) ne s'écrivent pas comme ceux d'Android (`%1$d`).
+
+  ⚠️ Rappel pour la version française : une apostrophe dans une VALEUR doit être échappée `\'`,
+  sinon la ressource est tronquée sans avertissement. L'échappement ne s'applique pas dans un
+  commentaire XML.
+-->
+<resources>
+    <!-- Le nom affiché vient du placeholder de manifeste `appLabel`, pas d'ici : il change selon
+         que la build s'installe à côté de l'application Flutter ou à sa place. Voir
+         docs/06-ISOLATION-PENDANT-LE-CHANTIER.md -->
+
+    <!-- ── Écran d'échec au démarrage ─────────────────────────────────────────
+         Ces chaînes sont les seules qui comptent avant la phase 5 : ce sont celles que verrait un
+         utilisateur dont la base ne s'ouvre pas. Un message vague à ce moment-là transforme une
+         situation récupérable en abandon. -->
+    <string name="startup_failure_title">Your notes could not be unlocked</string>
+    <string name="startup_failure_notes_are_safe">Your notes are still on this device and have not been modified.</string>
+    <string name="startup_failure_missing_key">The encryption key for this database was not found. Install Notes Tech 2.0.4 first, open it once, then update again.</string>
+    <string name="startup_failure_key_unavailable">The device keystore is temporarily unavailable. Restart the app; if the problem persists, restart the device.</string>
+    <string name="startup_failure_retry">Try again</string>
+</resources>
