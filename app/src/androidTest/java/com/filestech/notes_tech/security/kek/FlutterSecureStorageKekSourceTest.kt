@@ -104,6 +104,25 @@ class FlutterSecureStorageKekSourceTest {
         assertThat(refus).hasMessageThat().contains("MGF1")
     }
 
+    /**
+     * 🔴 Une valeur présente mais **du mauvais type** n'est pas une absence.
+     *
+     * C'est le motif que tout ce fichier existe pour éviter, et il s'était glissé dans la première
+     * version : `snapshot[VALUE_KEY] as? String ?: return null` rendait `null` aussi bien pour « la
+     * clé n'existe pas » que pour « elle existe mais porte autre chose ». Le second cas est une
+     * préférence abîmée, et le lire comme une absence mène à générer une clé neuve.
+     *
+     * Rare, oui. Mais tolérer la confusion parce qu'elle est improbable reviendrait à choisir
+     * lesquels des trois états on veut bien distinguer.
+     */
+    @Test
+    fun une_valeur_du_mauvais_type_n_est_pas_une_absence() {
+        FlutterSecureStorageFixture.seed(context, aliasBase, SecretBytes.toHex(kek))
+        FlutterSecureStorageFixture.storeValueWithWrongType(context)
+
+        assertThrows(KekFailure.SourceUnavailable::class.java) { source.load() }
+    }
+
     /** Aucune valeur : cette source ne détient rien. C'est le seul cas qui rend `null`. */
     @Test
     fun un_stockage_vide_rend_null() {

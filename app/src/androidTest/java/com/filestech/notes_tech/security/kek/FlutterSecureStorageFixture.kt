@@ -135,6 +135,20 @@ object FlutterSecureStorageFixture {
             .commit()
     }
 
+    /**
+     * Remplace la valeur par une entrée du **mauvais type**, en gardant la clé présente.
+     *
+     * Reproduit une préférence abîmée : la clé existe, mais ce qu'elle porte n'est pas une chaîne.
+     * C'est l'état qui, lu par un `as? String ?: return null`, se confondrait avec une absence.
+     */
+    fun storeValueWithWrongType(context: Context) {
+        context.getSharedPreferences(FlutterSecureStorageKekSource.DATA_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .remove(FlutterSecureStorageKekSource.VALUE_KEY)
+            .putLong(FlutterSecureStorageKekSource.VALUE_KEY, 42L)
+            .commit()
+    }
+
     /** Retire la clé AES enveloppée, en laissant la valeur en place. */
     fun removeWrappedKey(context: Context) {
         context.getSharedPreferences(FlutterSecureStorageKekSource.KEY_STORAGE_PREFS, Context.MODE_PRIVATE)

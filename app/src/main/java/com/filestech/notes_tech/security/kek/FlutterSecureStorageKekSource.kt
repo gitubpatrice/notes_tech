@@ -60,15 +60,17 @@ class FlutterSecureStorageKekSource(
     override val name: String = "flutter_secure_storage"
 
     override fun load(): ByteArray? {
-        val dataPrefs = context.getSharedPreferences(DATA_PREFS, Context.MODE_PRIVATE)
-
         // Lecture atomique : deux `getString` successifs pourraient tomber de part et d'autre d'une
-        // écriture concurrente de la version Flutter, si elle tourne encore.
-        val snapshot = runCatching { dataPrefs.all }.getOrElse { cause ->
+        // écriture concurrente de la version Flutter, si elle tourne encore. L'ouverture du fichier
+        // est dans le même `runCatching` : elle peut échouer sur un stockage abîmé, et cet échec-là
+        // ne prouve pas davantage l'absence de clé.
+        val snapshot = runCatching {
+            context.getSharedPreferences(DATA_PREFS, Context.MODE_PRIVATE).all
+        }.getOrElse { cause ->
             throw KekFailure.SourceUnavailable(name, cause)
         }
 
-        val encodedValue = snapshot[VALUE_KEY] as? String ?: return null
+        val encodedValue = readStoredValue(snapshot) ?: return null
 
         requireExpectedAlgorithms(snapshot)
 
@@ -78,6 +80,34 @@ class FlutterSecureStorageKekSource(
         } finally {
             aesKey.wipe()
         }
+    }
+
+    /**
+     * Distingue **trois** états de la valeur stockée, là où un `as? String ?: return null` n'en
+     * distinguait que deux.
+     *
+     * 🔴 C'est exactement le motif que ce fichier existe pour éviter, et il s'y était glissé.
+     *
+     * `snapshot[VALUE_KEY] as? String ?: return null` rend `null` dans **deux** situations très
+     * différentes : la clé est absente — il n'y a effectivement rien — ou bien elle est présente avec
+     * un type inattendu. Le second cas est une préférence abîmée, pas une absence, et le traiter
+     * comme une absence conduit `KekRepository` à conclure « aucune clé nulle part », puis, si la
+     * base n'existait pas encore, à en générer une neuve.
+     *
+     * Le cas est rare — les préférences sont typées, et seule une corruption ou une écriture par un
+     * autre programme le produirait. Mais c'est précisément la forme du défaut que tout ce fichier
+     * cherche à rendre impossible, et le tolérer ici au motif qu'il est improbable reviendrait à
+     * choisir lequel des trois états on veut bien distinguer.
+     *
+     * Relevé en relisant ce fichier avec le motif en tête, après l'avoir écrit.
+     */
+    private fun readStoredValue(snapshot: Map<String, *>): String? {
+        if (!snapshot.containsKey(VALUE_KEY)) return null
+        return snapshot[VALUE_KEY] as? String
+            ?: throw KekFailure.SourceUnavailable(
+                name,
+                IllegalStateException("valeur presente mais d'un type inattendu"),
+            )
     }
 
     /**
