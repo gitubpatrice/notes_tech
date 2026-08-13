@@ -117,3 +117,48 @@ consomme reviendrait à écrire du code qu'aucun test ne peut exercer.
 |---|---|
 | Réconciliation complète des liens au démarrage | l'indexation transactionnelle rend les incohérences impossibles **côté Kotlin**, mais la base vient de la version Flutter et peut en porter |
 | Auto-complétion `[[…]]` dans l'éditeur | `NotesRepository.suggestTitles` existe et est testé ; il lui manque son écran |
+
+## ⚠️ Correctifs appliqués à l'application Flutter le 2026-08-13
+
+> Branche `fix/defauts-releves-pendant-le-portage` dans `notes_tech`, commit `ca72f2c`.
+> **Non fusionnée, non publiée** — version et `versionCode` inchangés.
+
+Le portage a servi de relecture ligne à ligne de l'original. Trois défauts en sont sortis, corrigés
+côté Flutter puisque c'est **la version publiée**, celle que les utilisateurs font tourner.
+
+| Défaut | Conséquence | Correctif |
+|---|---|---|
+| `resolveDangling` annulait le garde-fou anti-auto-lien | une note figurait dans ses **propres** rétroliens | `AND source_id <> ?` |
+| `listPlaintextInFolder` ne voyait pas un titre en clair **sans corps** | une note de coffre héritée restait lisible au repos, indéfiniment | critère élargi, strictement additif |
+| `wordCount` rendait **1** pour un contenu fait d'espaces | compteur faux | élaguer avant de tester la vacuité |
+
+Renforcement : `backlinkSources` exclut désormais les notes verrouillées comme **source**.
+
+### Ce qui n'a **pas** été corrigé, et pourquoi
+
+**Une étiquette contenant une virgule serait coupée en deux.** Vérifié : **aucun chemin de
+l'application n'écrit jamais d'étiquette**. La colonne `tags` est dormante — seules la lecture et
+l'export existent. Le défaut est inatteignable, et corriger le codage changerait un format de
+données partagé entre les deux versions.
+
+⚠️ J'avais annoncé ce point comme « de la perte de donnée visible par l'utilisateur ». C'était faux :
+je n'avais pas vérifié qu'il existait un chemin de saisie.
+
+**`folders_dao.update` écrit la ligne entière, colonnes de coffre comprises.** Effacer
+`vault_kek_wrapped` rendrait toutes les notes du coffre définitivement illisibles. Mais aucun défaut
+aujourd'hui — les objets viennent de la base — et modifier un chemin d'écriture qui fonctionne dans
+une application **publiée** coûte plus qu'il ne rapporte. Le portage Kotlin, lui, ne l'expose pas
+(D-010).
+
+### Ce que les tests couvrent, et ce qu'ils ne couvrent pas
+
+`wordCount` est testé (5 cas). Les deux correctifs SQL ne le sont pas : la suite Flutter n'a **aucun
+harnais de base de données**, un choix que ses auteurs documentent explicitement dans
+`folder_vault_service_test.dart`.
+
+Le portage Kotlin, lui, exerce la même sémantique contre du vrai SQLite —
+`une_note_qui_se_cite_elle_meme_ne_produit_pas_de_lien_vers_elle_meme` et
+`une_note_de_coffre_au_titre_en_clair_et_au_corps_vide_est_detectee`. C'est un contrôle croisé, pas
+une couverture de la version Flutter.
+
+**70 tests verts côté Flutter (65 avant), `flutter analyze` sans avertissement.**
