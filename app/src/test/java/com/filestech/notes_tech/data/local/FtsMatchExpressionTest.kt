@@ -6,80 +6,70 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
 /**
- * FTS5 interprète ce qu'il reçoit comme un **langage de requête**, pas comme du texte.
+ * L'expression `MATCH` doit être **identique** à celle que produit l'application publiée
+ * (`_buildFtsMatch`, `notes_tech/lib/data/db/notes_dao.dart:485`). Une recherche qui ne rend pas
+ * les mêmes résultats est une régression, même si l'algorithme se défend dans l'absolu.
  *
- * Sans neutralisation, chercher `l'été` lève une `SQLiteException`. C'est un défaut invisible en
- * anglais et systématique en français — exactement le genre qui traverse une campagne de tests.
+ * FTS5 interprète par ailleurs ce qu'il reçoit comme un **langage de requête**, pas comme du texte :
+ * sans neutralisation, chercher `l'été` lève une `SQLiteException`.
  */
 class FtsMatchExpressionTest {
-
     @Test
-    fun `un terme simple devient une phrase avec prefixe`() {
+    fun `un terme unique est prefixe car c'est celui qu'on tape`() {
         assertThat(FtsMatchExpression.from("budget")).isEqualTo("\"budget\"*")
     }
 
     @Test
-    fun `plusieurs termes sont juxtaposes, ce que FTS5 lit comme un ET`() {
-        assertThat(FtsMatchExpression.from("budget reunion")).isEqualTo("\"budget\"* \"reunion\"*")
+    fun `seul le DERNIER terme est prefixe`() {
+        // Les termes précédents sont des mots achevés ; les préfixer élargirait la recherche sans
+        // que l'utilisateur l'ait demandé.
+        assertThat(FtsMatchExpression.from("budget reunion")).isEqualTo("\"budget\" \"reunion\"*")
+        assertThat(FtsMatchExpression.from("a b c")).isEqualTo("\"a\" \"b\" \"c\"*")
     }
 
     @Test
     fun `les accents sont conserves car c'est l'index qui les neutralise`() {
-        // `tokenize='unicode61 remove_diacritics 2'` s'en charge côté SQLite. Les dépouiller ici
-        // en plus ne servirait à rien et ferait diverger deux endroits qui doivent s'accorder.
+        // `tokenize='unicode61 remove_diacritics 2'` s'en charge côté SQLite. Les dépouiller ici en
+        // plus ferait diverger deux endroits qui doivent s'accorder.
         assertThat(FtsMatchExpression.from("Réunion")).isEqualTo("\"Réunion\"*")
     }
 
+    @Test
+    fun `le decoupage se fait sur les espaces, PAS sur la ponctuation`() {
+        // 🔴 Le défaut que ce test fige. Un découpage sur la ponctuation donnait `"l"* "été"*` :
+        // deux termes au lieu d'un, dont `"l"*` qui rattrape presque tout le corpus. Silencieux,
+        // et seulement en français.
+        assertThat(FtsMatchExpression.from("l'été")).isEqualTo("\"l'été\"")
+        assertThat(FtsMatchExpression.from("rock'n'roll")).isEqualTo("\"rock'n'roll\"")
+    }
+
+    @Test
+    fun `un terme non alphanumerique n'est pas prefixe, mais reste cherche`() {
+        // FTS5 n'accepte `*` que derrière un terme alphanumérique. `C++` est donc cherché tel quel.
+        assertThat(FtsMatchExpression.from("C++")).isEqualTo("\"C++\"")
+        assertThat(FtsMatchExpression.from("note_2025")).isEqualTo("\"note_2025\"")
+    }
+
+    @Test
+    fun `les guillemets sont doubles pour rester dans la phrase`() {
+        assertThat(FtsMatchExpression.from("dit \"oui\"")).isEqualTo("\"dit\" \"\"\"oui\"\"\"")
+    }
+
     @ParameterizedTest
-    @ValueSource(
-        strings = [
-            "",
-            " ",
-            "   \t\n  ",
-            "'",
-            "\"",
-            "(((",
-            ")",
-            "-",
-            "*",
-            "^",
-            ":",
-            "+++",
-            "...",
-            "??",
-        ],
-    )
-    fun `une saisie sans terme exploitable rend null plutot qu'une expression vide`(saisie: String) {
+    @ValueSource(strings = ["", " ", "   \t\n  "])
+    fun `une saisie vide ou blanche rend null`(saisie: String) {
         // `null` et non `""` : une chaîne vide passée à MATCH est elle-même une erreur de syntaxe.
-        // Le type force l'appelant à court-circuiter la requête.
         assertThat(FtsMatchExpression.from(saisie)).isNull()
     }
 
     @ParameterizedTest
-    @ValueSource(strings = ["l'été", "C++", "NEAR", "AND", "OR", "NOT", "a-b", "\"quoted\"", "50%"])
-    fun `les saisies qui feraient echouer FTS5 sont neutralisees en phrases`(saisie: String) {
+    @ValueSource(strings = ["NEAR", "AND", "OR", "NOT", "-exclu", "*", "(((", ")", "^", ":"])
+    fun `les operateurs FTS5 sont neutralises en phrases litterales`(saisie: String) {
         val expression = FtsMatchExpression.from(saisie)
 
         assertThat(expression).isNotNull()
-        // Chaque terme est encadré de guillemets : FTS5 le traite comme une phrase littérale, donc
-        // `NEAR` cesse d'être un mot-clé et `-` cesse d'être un opérateur de négation.
-        assertThat(expression!!.split(" ")).isNotEmpty()
-        expression.split(" ").forEach { terme ->
-            assertThat(terme).startsWith("\"")
-            assertThat(terme).endsWith("\"*")
-        }
-    }
-
-    @Test
-    fun `les mots-cles FTS5 perdent leur sens d'operateur`() {
-        assertThat(FtsMatchExpression.from("NEAR")).isEqualTo("\"NEAR\"*")
-        // `a-b` deviendrait `a NOT b` sans neutralisation : deux termes au lieu d'un, et un
-        // résultat faux plutôt qu'une erreur — le pire des deux.
-        assertThat(FtsMatchExpression.from("a-b")).isEqualTo("\"a\"* \"b\"*")
-    }
-
-    @Test
-    fun `les chiffres et le tiret bas sont des caracteres de terme`() {
-        assertThat(FtsMatchExpression.from("note_2025")).isEqualTo("\"note_2025\"*")
+        // Encadré de guillemets : FTS5 le traite comme du texte. `NEAR` cesse d'être un mot-clé,
+        // `-` un opérateur de négation, et `(((` ne fait plus lever de SQLiteException.
+        assertThat(expression!!).startsWith("\"")
     }
 }

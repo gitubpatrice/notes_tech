@@ -132,6 +132,86 @@ l'interface du coffre existera.
 
 ---
 
+## R-003 — Audit `data-room` interne · 2026-08-13
+
+**Relecteur** : agent `android-code-quality-deep-dive`, axe `data-room`.
+
+**Ce qui le distingue des deux autres, et ce qui a tout changé** : il avait accès à
+`j:\applications\notes_tech` — **le vrai code Flutter**. Ni Gemini ni GPT ne l'avaient. Il a donc
+pu trancher en CONFIRMÉ des points que la relecture GPT avait dû laisser en PROBABLE, et surtout
+comparer le portage à ce que l'application publiée fait **réellement**.
+
+Leçon à garder : sur un portage, le relecteur qui a la source d'origine sous les yeux voit une
+classe de défauts que les autres ne peuvent pas voir. Les trois quarts des constats ci-dessous sont
+des **écarts de parité**, invisibles à qui juge le code Kotlin dans l'absolu.
+
+### 🔴 DR1 — La protection d'une note de coffre pouvait être effacée par un tap
+
+Le portage n'exposait qu'une écriture générique `update(note)`, qui réécrit toute la ligne —
+`content` **et** `encrypted_content`.
+
+**Ce n'est pas théorique. L'incident a déjà eu lieu dans l'application publiée**, et le code Flutter
+le documente (`notes_dao.dart:234-241`) :
+
+> *« l'éditeur détient l'éphémère DÉCHIFFRÉE d'une note de coffre (`content` rempli,
+> `encryptedContent == null`) : épingler une telle note réécrivait son contenu en clair et effaçait
+> son blob chiffré — la note perdait sa protection définitivement, sans le moindre signal, sur un
+> tap d'icône. »*
+
+Flutter a répondu en ajoutant des écritures ciblées **et en gardant** l'écriture générique, sous un
+avertissement. Le portage n'avait repris que le chemin dangereux — l'avertissement, lui, s'était
+perdu en route.
+
+**Correctif, plus fort que l'original** : l'écriture générique **n'existe pas**. `NoteDao` n'expose
+que des écritures ciblées, et `updateEditableFields` porte une garde SQL
+`AND encrypted_content IS NULL` qui la rend **inopérante** sur une note verrouillée. L'invariant est
+tenu par la base, pas par la mémoire du prochain lecteur.
+
+Deux tests instrumentés le prouvent : écrire en clair sur une note de coffre touche `0` ligne, et
+l'épingler laisse son blob intact.
+
+### 🟠 DR2 — La recherche ne filtrait pas les notes archivées
+
+`notes_dao.dart:471` filtre `AND n.archived = 0`. Le portage ne le faisait pas : archiver une note
+ne la retirait pas des résultats. Corrigé, plus le tri secondaire `n.updated_at DESC` qui manquait
+aussi.
+
+### 🟠 DR5 — L'expression FTS5 divergeait de l'originale
+
+Le portage découpait sur **toute ponctuation** et préfixait **chaque** terme. Flutter découpe sur
+les **espaces seuls** et ne préfixe que **le dernier**.
+
+Conséquence : `l'été` devenait `"l"* "été"*` — deux termes au lieu d'un, dont `"l"*` qui rattrape
+presque tout un corpus français. Pas une erreur visible : une recherche silencieusement fausse, et
+seulement en français.
+
+`FtsMatchExpression` est désormais une transposition à l'identique de `_buildFtsMatch`.
+
+### 🟡 DR3 — « Récentes » n'était plus « récentes »
+
+`observeRecent` triait `pinned DESC, updated_at DESC`. `listRecent` côté Flutter trie sur
+`updated_at DESC` seul : une note épinglée ancienne restait bloquée en tête d'un écran qui annonce
+les modifications récentes. Corrigé.
+
+### 🟡 DR6 — Les écritures ne signalaient pas un identifiant inconnu
+
+Flutter lève systématiquement `NoteNotFoundException` quand `rows == 0`. Les écritures du portage
+rendent maintenant le **nombre de lignes touchées** ; c'est au repository de trancher. Choix
+délibéré : un DAO qui lève sur identifiant inconnu rend malcommode le cas nominal d'une suppression
+concurrente.
+
+### Confirmé sain — et vérifié empiriquement, pas par lecture
+
+- aucun chemin `REPLACE`/`rowid` (bytecode Room **décompilé** : `@Insert`/`@Update` = `ABORT`) ;
+- le masquage des notes verrouillées tient même si l'appelant oublie de vider le contenu ;
+- `UnmanagedSchema` est identique au caractère près au `database.dart` réel ;
+- la garde anti-suppression de `inbox` n'a pas de contournement.
+
+Deux hypothèses ont été **testées et réfutées** : `VACUUM` renumérotant les `rowid` (non reproduit)
+et une cascade de clé étrangère ne déclenchant pas le trigger de nettoyage (réfutée).
+
+---
+
 ## Vérification mécanique du schéma — sans appareil
 
 `audits/verifier-schema-room-vs-flutter.py`

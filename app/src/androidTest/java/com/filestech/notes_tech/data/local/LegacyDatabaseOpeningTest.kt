@@ -240,23 +240,14 @@ class LegacyDatabaseOpeningTest {
         assertThat(linkCountFrom(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)).isEqualTo(1)
 
         val note = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)!!
-        db.noteDao().update(
-            NoteEntity(
-                id = note.id,
-                title = "Réunion budget révisée",
-                content = note.content,
-                encryptedContent = note.encryptedContent,
-                folderId = note.folderId,
-                tags = note.tags,
-                pinned = note.pinned,
-                favorite = note.favorite,
-                archived = note.archived,
-                trashedAt = note.trashedAt,
-                createdAt = note.createdAt,
-                updatedAt = note.updatedAt + 1,
-                encVersion = note.encVersion,
-            ),
+        val touchees = db.noteDao().updateEditableFields(
+            id = note.id,
+            title = "Réunion budget révisée",
+            content = note.content,
+            tags = note.tags,
+            updatedAt = note.updatedAt + 1,
         )
+        assertThat(touchees).isEqualTo(1)
 
         // Si un `INSERT OR REPLACE` s'était glissé dans le DAO, le rowid changerait — et la
         // cascade `ON DELETE` aurait emporté les backlinks au passage, silencieusement.
@@ -265,7 +256,77 @@ class LegacyDatabaseOpeningTest {
         assertThat(db.noteSearchDao().search("révisée").first()).hasSize(1)
     }
 
-    // ── 5. Refus sans destruction ────────────────────────────────────────────
+    // ── 5. L'invariant du coffre est tenu par la base ────────────────────────
+
+    @Test
+    fun une_note_verrouillee_ne_peut_PAS_etre_ecrite_en_clair(): Unit = runBlocking {
+        val db = openDatabase()
+        val avant = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!
+        assertThat(avant.isLocked).isTrue()
+
+        // Le geste exact qui a déjà détruit une note de coffre dans l'application publiée :
+        // l'éditeur détient l'éphémère DÉCHIFFRÉE et écrit son contenu en clair. Le code Flutter
+        // documente l'incident (`notes_dao.dart:234-241`) — épingler une telle note effaçait son
+        // blob chiffré, définitivement, sur un tap d'icône.
+        val touchees = db.noteDao().updateEditableFields(
+            id = LegacyDatabaseFixture.Fixtures.NOTE_LOCKED,
+            title = "Codes bancaires",
+            content = "1234 5678 9012 3456",
+            tags = "",
+            updatedAt = 9_999L,
+        )
+
+        // La garde SQL `AND encrypted_content IS NULL` rend la requête inopérante. Ce n'est pas un
+        // avertissement qu'il faut se rappeler : c'est la base qui refuse.
+        assertThat(touchees).isEqualTo(0)
+
+        val apres = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!
+        assertThat(apres.encryptedContent).isEqualTo(avant.encryptedContent)
+        assertThat(apres.content).isEmpty()
+        assertThat(apres.title).isEmpty()
+        // Et rien n'a fuité dans l'index plein texte au passage.
+        assertThat(db.noteSearchDao().search("bancaires").first()).isEmpty()
+    }
+
+    @Test
+    fun epingler_une_note_de_coffre_ne_touche_ni_son_contenu_ni_son_blob(): Unit = runBlocking {
+        val db = openDatabase()
+        val avant = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!
+
+        val touchees = db.noteDao().updateFlags(
+            id = LegacyDatabaseFixture.Fixtures.NOTE_LOCKED,
+            updatedAt = 9_999L,
+            pinned = true,
+        )
+
+        assertThat(touchees).isEqualTo(1)
+        val apres = db.noteDao().findById(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!
+        assertThat(apres.pinned).isTrue()
+        // Les drapeaux non passés restent inchangés — `COALESCE(:x, x)`.
+        assertThat(apres.favorite).isEqualTo(avant.favorite)
+        assertThat(apres.archived).isEqualTo(avant.archived)
+        // Et surtout : la protection est intacte.
+        assertThat(apres.encryptedContent).isEqualTo(avant.encryptedContent)
+        assertThat(apres.content).isEmpty()
+    }
+
+    @Test
+    fun la_recherche_ignore_les_notes_archivees(): Unit = runBlocking {
+        val db = openDatabase()
+        assertThat(db.noteSearchDao().search("reunion").first()).hasSize(1)
+
+        db.noteDao().updateFlags(
+            id = LegacyDatabaseFixture.Fixtures.NOTE_PLAIN,
+            updatedAt = 9_999L,
+            archived = true,
+        )
+
+        // `AND n.archived = 0` — la version Flutter filtre ainsi (`notes_dao.dart:471`). Sans ce
+        // filtre, archiver une note ne la retirait pas des résultats de recherche.
+        assertThat(db.noteSearchDao().search("reunion").first()).isEmpty()
+    }
+
+    // ── 6. Refus sans destruction ────────────────────────────────────────────
 
     @Test
     fun sans_kek_et_avec_une_base_presente_l_ouverture_est_refusee_et_la_base_intacte() {

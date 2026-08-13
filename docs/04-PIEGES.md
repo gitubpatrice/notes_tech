@@ -28,6 +28,36 @@ déclenche pas** sur le `DELETE` interne du `REPLACE`. L'index n'est même pas n
 par `@Insert(onConflict = ABORT)` et `@Update` explicites. La règle est vérifiée par un test
 qui échouerait si un `REPLACE` réapparaissait.
 
+## 1 bis. 🔴 Une écriture de ligne entière détruit la protection d'une note de coffre
+
+**Le piège.** `@Update` sur une entité réécrit **toutes** les colonnes depuis l'objet fourni,
+`content` **et** `encrypted_content` compris.
+
+Or l'éditeur détient l'éphémère **déchiffrée** d'une note de coffre — `content` rempli,
+`encryptedContent` à `null`. Écrire cet objet efface le blob et pose le contenu en clair dans la
+base. La note perd sa protection **définitivement**, sans le moindre signal.
+
+**Ce n'est pas une hypothèse.** L'incident a eu lieu dans l'application publiée, sur un simple tap
+sur l'icône d'épinglage. Le code Flutter le documente à l'endroit du correctif
+(`notes_tech/lib/data/db/notes_dao.dart:234-241`).
+
+**Contre-mesure structurelle.** `NoteDao` n'expose **aucune** écriture de ligne entière. Chaque
+écriture touche un groupe de colonnes et un seul :
+
+| Méthode | Écrit | N'écrit jamais |
+|---|---|---|
+| `updateEditableFields` | titre, contenu, étiquettes | `encrypted_content` |
+| `updateFlags` | épinglé, favori, archivé | contenu, blob |
+| `replaceContentPayload` | contenu **et** blob | `updated_at` |
+| `setTrashedAt` | corbeille | contenu, blob |
+| `moveToFolder` | dossier | contenu, blob |
+
+Et `updateEditableFields` porte en plus `AND encrypted_content IS NULL` : sur une note verrouillée
+elle ne touche **rien** et rend `0`. **C'est la base qui refuse**, pas un commentaire qui prévient.
+
+La version Flutter, elle, a gardé l'écriture générique sous un avertissement. C'est insuffisant :
+l'avertissement a été perdu au moment du portage, et le chemin dangereux a été repris seul.
+
 ## 2. 🔴 `@Upsert` renvoie `-1` sur une mise à jour
 
 **Le piège.** Room `@Upsert` renvoie le `rowid` sur insertion, mais **`-1` sur mise à jour**.

@@ -81,8 +81,9 @@ abstract class NoteSearchDao {
             JOIN notes n ON n.rowid = f.rowid
             WHERE notes_fts MATCH ?
               AND n.trashed_at IS NULL
+              AND n.archived = 0
               AND n.encrypted_content IS NULL
-            ORDER BY bm25(notes_fts) ASC
+            ORDER BY bm25(notes_fts), n.updated_at DESC
             LIMIT ?
         """
     }
