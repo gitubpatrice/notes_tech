@@ -27,198 +27,205 @@ class AboutScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(t.aboutTitle)),
-      body: ListView(
-        // `AlwaysScrollableScrollPhysics` v1.0.6 — feedback de défilement
-        // garanti même si le contenu fait pile la hauteur de l'écran.
-        // Évite le bug perçu « on ne peut pas scroller » signalé sur S24.
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
-        children: [
-          // ── Header centré (style PDF Tech) ───────────────────────────────
-          const _AppHeader(),
+      // `SafeArea` — même idiome que home / search / trash / éditeur. Sans lui,
+      // `targetSdk 36` impose l'edge-to-edge : la liste s'étend SOUS la barre de
+      // navigation et sa fin reste inatteignable. Le correctif v1.0.6 ci-dessous
+      // ne traitait que le FEEDBACK de défilement, pas le contenu masqué — deux
+      // symptômes voisins, deux causes distinctes.
+      body: SafeArea(
+        child: ListView(
+          // `AlwaysScrollableScrollPhysics` v1.0.6 — feedback de défilement
+          // garanti même si le contenu fait pile la hauteur de l'écran.
+          // Évite le bug perçu « on ne peut pas scroller » signalé sur S24.
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 40),
+          children: [
+            // ── Header centré (style PDF Tech) ───────────────────────────────
+            const _AppHeader(),
 
-          const SizedBox(height: 28),
+            const SizedBox(height: 28),
 
-          // ── Confidentialité ──────────────────────────────────────────────
-          _SectionTitle(t.aboutSectionPrivacy),
-          const SizedBox(height: 8),
-          _PrivacyCard(
-            title: t.aboutPrivacyCardTitle,
-            items: [
-              (
-                icon: Icons.cloud_off_outlined,
-                color: const Color(0xFF43A047),
-                label: t.aboutPrivacy1,
-              ),
-              (
-                icon: Icons.account_circle_outlined,
-                color: const Color(0xFF1976D2),
-                label: t.aboutPrivacy2,
-              ),
-              (
-                icon: Icons.bar_chart_outlined,
-                color: const Color(0xFFFF7043),
-                label: t.aboutPrivacy3,
-              ),
-              (
-                icon: Icons.lock_outline,
-                color: const Color(0xFF7B1FA2),
-                label: t.aboutPrivacy4,
-              ),
-              (
-                icon: Icons.visibility_off_outlined,
-                color: const Color(0xFF00897B),
-                label: t.aboutPrivacy5,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Voix (dictée locale Whisper) ─────────────────────────────────
-          _SectionTitle(t.aboutSectionVoice),
-          const SizedBox(height: 8),
-          _FeatureRow(
-            icon: Icons.mic_none_outlined,
-            color: cs.primary,
-            label: t.aboutVoice1,
-          ),
-          _FeatureRow(
-            icon: Icons.shield_outlined,
-            color: cs.primary,
-            label: t.aboutVoice2,
-          ),
-          _FeatureRow(
-            icon: Icons.delete_sweep_outlined,
-            color: cs.primary,
-            label: t.aboutVoice3,
-          ),
-          const SizedBox(height: 12),
-          _NoticeBox(
-            title: t.aboutNoticeTitle,
-            steps: [
-              t.aboutNoticeStep1,
-              t.aboutNoticeStep2,
-              t.aboutNoticeStep3,
-              t.aboutNoticeStep4,
-              t.aboutNoticeStep5,
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // ── Licences ─────────────────────────────────────────────────────
-          _SectionTitle(t.aboutSectionLicenses),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                _LinkTile(
-                  icon: Icons.code,
-                  title: t.aboutLinkRepo,
-                  subtitle: 'github.com/gitubpatrice/notes_tech',
-                  url: 'https://github.com/gitubpatrice/notes_tech',
+            // ── Confidentialité ──────────────────────────────────────────────
+            _SectionTitle(t.aboutSectionPrivacy),
+            const SizedBox(height: 8),
+            _PrivacyCard(
+              title: t.aboutPrivacyCardTitle,
+              items: [
+                (
+                  icon: Icons.cloud_off_outlined,
+                  color: const Color(0xFF43A047),
+                  label: t.aboutPrivacy1,
                 ),
-                _LinkTile(
-                  icon: Icons.code,
-                  title: t.aboutLinkVoice,
-                  subtitle: 'github.com/gitubpatrice/files_tech_voice',
-                  url: 'https://github.com/gitubpatrice/files_tech_voice',
+                (
+                  icon: Icons.account_circle_outlined,
+                  color: const Color(0xFF1976D2),
+                  label: t.aboutPrivacy2,
                 ),
-                _LinkTile(
-                  icon: Icons.code,
-                  title: t.aboutLinkWhisper,
-                  subtitle: 'huggingface.co/ggerganov/whisper.cpp',
-                  url: 'https://huggingface.co/ggerganov/whisper.cpp',
+                (
+                  icon: Icons.bar_chart_outlined,
+                  color: const Color(0xFFFF7043),
+                  label: t.aboutPrivacy3,
+                ),
+                (
+                  icon: Icons.lock_outline,
+                  color: const Color(0xFF7B1FA2),
+                  label: t.aboutPrivacy4,
+                ),
+                (
+                  icon: Icons.visibility_off_outlined,
+                  color: const Color(0xFF00897B),
+                  label: t.aboutPrivacy5,
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _Badge(
-                icon: Icons.gavel_outlined,
-                color: const Color(0xFF546E7A),
-                label: t.aboutLicense,
-              ),
-              _Badge(
-                icon: Icons.attach_money_outlined,
-                color: const Color(0xFF43A047),
-                label: t.aboutFree,
-              ),
-            ],
-          ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // ── Contact ──────────────────────────────────────────────────────
-          _SectionTitle(t.aboutSectionContact),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
+            // ── Voix (dictée locale Whisper) ─────────────────────────────────
+            _SectionTitle(t.aboutSectionVoice),
+            const SizedBox(height: 8),
+            _FeatureRow(
+              icon: Icons.mic_none_outlined,
+              color: cs.primary,
+              label: t.aboutVoice1,
+            ),
+            _FeatureRow(
+              icon: Icons.shield_outlined,
+              color: cs.primary,
+              label: t.aboutVoice2,
+            ),
+            _FeatureRow(
+              icon: Icons.delete_sweep_outlined,
+              color: cs.primary,
+              label: t.aboutVoice3,
+            ),
+            const SizedBox(height: 12),
+            _NoticeBox(
+              title: t.aboutNoticeTitle,
+              steps: [
+                t.aboutNoticeStep1,
+                t.aboutNoticeStep2,
+                t.aboutNoticeStep3,
+                t.aboutNoticeStep4,
+                t.aboutNoticeStep5,
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Licences ─────────────────────────────────────────────────────
+            _SectionTitle(t.aboutSectionLicenses),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: [
+                  _LinkTile(
+                    icon: Icons.code,
+                    title: t.aboutLinkRepo,
+                    subtitle: 'github.com/gitubpatrice/notes_tech',
+                    url: 'https://github.com/gitubpatrice/notes_tech',
+                  ),
+                  _LinkTile(
+                    icon: Icons.code,
+                    title: t.aboutLinkVoice,
+                    subtitle: 'github.com/gitubpatrice/files_tech_voice',
+                    url: 'https://github.com/gitubpatrice/files_tech_voice',
+                  ),
+                  _LinkTile(
+                    icon: Icons.code,
+                    title: t.aboutLinkWhisper,
+                    subtitle: 'huggingface.co/ggerganov/whisper.cpp',
+                    url: 'https://huggingface.co/ggerganov/whisper.cpp',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                const _LinkTile(
-                  icon: Icons.public,
-                  title: 'Files Tech',
-                  subtitle: 'files-tech.com',
-                  url: 'https://www.files-tech.com',
+                _Badge(
+                  icon: Icons.gavel_outlined,
+                  color: const Color(0xFF546E7A),
+                  label: t.aboutLicense,
                 ),
-                // Le titre portait l'adresse, le sous-titre AUSSI : la tuile
-                // affichait deux fois la même chaîne. Le titre nomme
-                // désormais l'action, comme la tuile voisine qui nomme le
-                // site et donne son domaine dessous.
-                _LinkTile(
-                  icon: Icons.mail_outline,
-                  title: t.aboutContactEmail,
-                  subtitle: 'contact@files-tech.com',
-                  url: 'mailto:contact@files-tech.com',
+                _Badge(
+                  icon: Icons.attach_money_outlined,
+                  color: const Color(0xFF43A047),
+                  label: t.aboutFree,
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
 
-          // ── Auteur ───────────────────────────────────────────────────────
-          Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: cs.primaryContainer,
-                child: Icon(Icons.person_outline, color: cs.primary),
-              ),
-              title: const Text(AppConstants.appAuthor),
-              subtitle: Text(
-                t.aboutContactQuestions,
-                style: theme.textTheme.bodySmall,
+            const SizedBox(height: 24),
+
+            // ── Contact ──────────────────────────────────────────────────────
+            _SectionTitle(t.aboutSectionContact),
+            const SizedBox(height: 8),
+            Card(
+              child: Column(
+                children: [
+                  const _LinkTile(
+                    icon: Icons.public,
+                    title: 'Files Tech',
+                    subtitle: 'files-tech.com',
+                    url: 'https://www.files-tech.com',
+                  ),
+                  // Le titre portait l'adresse, le sous-titre AUSSI : la tuile
+                  // affichait deux fois la même chaîne. Le titre nomme
+                  // désormais l'action, comme la tuile voisine qui nomme le
+                  // site et donne son domaine dessous.
+                  _LinkTile(
+                    icon: Icons.mail_outline,
+                    title: t.aboutContactEmail,
+                    subtitle: 'contact@files-tech.com',
+                    url: 'mailto:contact@files-tech.com',
+                  ),
+                ],
               ),
             ),
-          ),
+            const SizedBox(height: 12),
 
-          const SizedBox(height: 24),
-
-          // ── Mentions légales (page dédiée) ───────────────────────────────
-          // v1.0 — page dédiée plutôt que long bloc inline (UX small screen).
-          _SectionTitle(t.aboutSectionLegal),
-          const SizedBox(height: 8),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.gavel_outlined),
-              title: Text(t.aboutLegalLink),
-              subtitle: Text(
-                t.aboutLegalSubtitle,
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const MentionsLegalesScreen(),
+            // ── Auteur ───────────────────────────────────────────────────────
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: cs.primaryContainer,
+                  child: Icon(Icons.person_outline, color: cs.primary),
+                ),
+                title: const Text(AppConstants.appAuthor),
+                subtitle: Text(
+                  t.aboutContactQuestions,
+                  style: theme.textTheme.bodySmall,
                 ),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 24),
+
+            // ── Mentions légales (page dédiée) ───────────────────────────────
+            // v1.0 — page dédiée plutôt que long bloc inline (UX small screen).
+            _SectionTitle(t.aboutSectionLegal),
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.gavel_outlined),
+                title: Text(t.aboutLegalLink),
+                subtitle: Text(
+                  t.aboutLegalSubtitle,
+                  style: const TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MentionsLegalesScreen(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

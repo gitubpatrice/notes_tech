@@ -151,79 +151,86 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
     final t = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(t.voiceSetupAppBarTitle)),
-      body: AbsorbPointer(
-        absorbing: _busy,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-          children: [
-            const _OfflineEngagementBanner(),
-            const SizedBox(height: 24),
-            Semantics(
-              header: true,
-              child: Text(
-                t.voiceSetupHowToTitle,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+      // `SafeArea` — même idiome que home / search / trash / éditeur / réglages.
+      // Ce padding bas de 100 masquait le défaut plutôt qu'il ne le corrigeait :
+      // il dépasse l'inset système actuel, donc rien ne se voit aujourd'hui. Mais
+      // c'est un nombre en dur face à une hauteur qui dépend du mode de
+      // navigation — le même piège que sur les trois écrans où il se voyait.
+      body: SafeArea(
+        child: AbsorbPointer(
+          absorbing: _busy,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+            children: [
+              const _OfflineEngagementBanner(),
+              const SizedBox(height: 24),
+              Semantics(
+                header: true,
+                child: Text(
+                  t.voiceSetupHowToTitle,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            _StepTile(
-              number: '1',
-              title: t.voiceSetupStep1Title,
-              text: t.voiceSetupStep1Text,
-            ),
-            _ModelChoice(
-              selected: _selectedModel,
-              onChanged: (m) => setState(() => _selectedModel = m),
-            ),
-            const SizedBox(height: 16),
-            _StepTile(
-              number: '2',
-              title: t.voiceSetupStep2Title,
-              text: t.voiceSetupStep2Text,
-              extra: _UrlRow(
-                url: _selectedModel.url,
-                onCopy: () => _copyUrl(_selectedModel.url),
+              const SizedBox(height: 12),
+              _StepTile(
+                number: '1',
+                title: t.voiceSetupStep1Title,
+                text: t.voiceSetupStep1Text,
               ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.only(left: 42),
-              child: FilledButton.tonalIcon(
-                onPressed: _busy ? null : _openInBrowser,
-                icon: const Icon(Icons.download_outlined),
-                label: Text(t.voiceSetupDownload),
+              _ModelChoice(
+                selected: _selectedModel,
+                onChanged: (m) => setState(() => _selectedModel = m),
+              ),
+              const SizedBox(height: 16),
+              _StepTile(
+                number: '2',
+                title: t.voiceSetupStep2Title,
+                text: t.voiceSetupStep2Text,
+                extra: _UrlRow(
+                  url: _selectedModel.url,
+                  onCopy: () => _copyUrl(_selectedModel.url),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 42),
+                child: FilledButton.tonalIcon(
+                  onPressed: _busy ? null : _openInBrowser,
+                  icon: const Icon(Icons.download_outlined),
+                  label: Text(t.voiceSetupDownload),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _StepTile(
+                number: '3',
+                title: t.voiceSetupStep3Title,
+                text: t.voiceSetupStep3Text,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _busy ? null : _pickAndImport,
+                icon: const Icon(Icons.file_upload_outlined),
+                label: Text(
+                  _busy ? t.voiceSetupImportInProgress : t.voiceSetupSelectFile,
+                ),
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: const Size.fromHeight(52),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _StepTile(
-              number: '3',
-              title: t.voiceSetupStep3Title,
-              text: t.voiceSetupStep3Text,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _busy ? null : _pickAndImport,
-              icon: const Icon(Icons.file_upload_outlined),
-              label: Text(
-                _busy ? t.voiceSetupImportInProgress : t.voiceSetupSelectFile,
-              ),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-              ),
-            ),
-            if (_busy) ...[
-              const SizedBox(height: 20),
-              _ProgressBlock(progress: _progress, label: _phaseLabel),
+              if (_busy) ...[
+                const SizedBox(height: 20),
+                _ProgressBlock(progress: _progress, label: _phaseLabel),
+              ],
+              const SizedBox(height: 28),
+              const _SecurityFooter(),
             ],
-            const SizedBox(height: 28),
-            const _SecurityFooter(),
-          ],
+          ),
         ),
       ),
     );

@@ -40,14 +40,20 @@ class MentionsLegalesScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            _MarkdownAssetView(
-              key: ValueKey(privacyAsset),
-              asset: privacyAsset,
-            ),
-            _MarkdownAssetView(key: ValueKey(termsAsset), asset: termsAsset),
-          ],
+        // `SafeArea` — même idiome que home / search / trash / éditeur. Sans lui,
+        // `targetSdk 36` impose l'edge-to-edge : le Markdown s'étend SOUS la barre
+        // de navigation et la fin de PRIVACY / TERMS reste illisible. Le padding
+        // bas de 32 du `Markdown` est fixe, il ne compense pas l'inset système.
+        body: SafeArea(
+          child: TabBarView(
+            children: [
+              _MarkdownAssetView(
+                key: ValueKey(privacyAsset),
+                asset: privacyAsset,
+              ),
+              _MarkdownAssetView(key: ValueKey(termsAsset), asset: termsAsset),
+            ],
+          ),
         ),
       ),
     );

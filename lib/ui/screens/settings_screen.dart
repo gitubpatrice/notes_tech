@@ -41,119 +41,127 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: Text(t.settingsTitle)),
-      body: ListView(
-        // `AlwaysScrollableScrollPhysics` — feedback de défilement garanti
-        // même quand le contenu fait pile la hauteur de l'écran (bug S24).
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-        children: [
-          // ── Apparence ────────────────────────────────────────────────────
-          _SectionTitle(t.settingsSectionAppearance),
-          const SizedBox(height: 8),
-          const Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [_LanguageTile(), Divider(height: 1), _ThemeTile()],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ── Tri ──────────────────────────────────────────────────────────
-          _SectionTitle(t.homeSortMode),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: MergeSemantics(
-              child: ListTile(
-                leading: const Icon(Icons.sort),
-                title: Text(t.homeSortMode),
-                subtitle: Text(_localizedSortLabel(t, settings.sortMode)),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _showSortDialog(context, settings, t),
+      // `SafeArea` — même idiome que home / search / trash / éditeur. Sans lui,
+      // `targetSdk 36` impose l'edge-to-edge : la liste s'étend SOUS la barre de
+      // navigation et ses derniers éléments restent inatteignables. Le padding
+      // bas de 40 est fixe, il ne compense pas l'inset système.
+      body: SafeArea(
+        child: ListView(
+          // `AlwaysScrollableScrollPhysics` — feedback de défilement garanti
+          // même quand le contenu fait pile la hauteur de l'écran (bug S24).
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+          children: [
+            // ── Apparence ────────────────────────────────────────────────────
+            _SectionTitle(t.settingsSectionAppearance),
+            const SizedBox(height: 8),
+            const Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [_LanguageTile(), Divider(height: 1), _ThemeTile()],
               ),
             ),
-          ),
 
-          const SizedBox(height: 20),
+            const SizedBox(height: 20),
 
-          // ── Sécurité ─────────────────────────────────────────────────────
-          _SectionTitle(t.settingsSectionSecurity),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.visibility_off_outlined),
-                  title: Text(t.settingsSecureWindow),
-                  subtitle: Text(t.settingsSecureWindowSubtitle),
-                  value: settings.secureWindowEnabled,
-                  onChanged: (v) async {
-                    // Capture le service AVANT l'await pour ne pas dépendre
-                    // de BuildContext après la frontière asynchrone.
-                    final secure = context.read<SecureWindowService>();
-                    await settings.setSecureWindowEnabled(v);
-                    await secure.setEnabled(v);
-                  },
-                ),
-                const Divider(height: 1),
-                const _VaultAutoLockTile(),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ── Dictée vocale ────────────────────────────────────────────────
-          _SectionTitle(t.voiceSetupTitle),
-          const SizedBox(height: 8),
-          const Card(clipBehavior: Clip.antiAlias, child: _VoiceSection()),
-
-          const SizedBox(height: 20),
-
-          // ── Export ───────────────────────────────────────────────────────
-          _SectionTitle(t.settingsExportAll),
-          const SizedBox(height: 8),
-          const Card(clipBehavior: Clip.antiAlias, child: _ExportSection()),
-
-          const SizedBox(height: 20),
-
-          // ── Mode panique (zone destructive — bordure rouge subtle) ───────
-          _SectionTitle(t.settingsPanic),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: cs.error.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: const _PanicSection(),
-          ),
-
-          const SizedBox(height: 20),
-
-          // ── À propos ─────────────────────────────────────────────────────
-          _SectionTitle(t.settingsSectionAbout),
-          const SizedBox(height: 8),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: MergeSemantics(
-              child: ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: Text(t.settingsAbout),
-                subtitle: Text(t.settingsAboutSubtitle),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const AboutScreen()),
+            // ── Tri ──────────────────────────────────────────────────────────
+            _SectionTitle(t.homeSortMode),
+            const SizedBox(height: 8),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: MergeSemantics(
+                child: ListTile(
+                  leading: const Icon(Icons.sort),
+                  title: Text(t.homeSortMode),
+                  subtitle: Text(_localizedSortLabel(t, settings.sortMode)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showSortDialog(context, settings, t),
                 ),
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 20),
+
+            // ── Sécurité ─────────────────────────────────────────────────────
+            _SectionTitle(t.settingsSectionSecurity),
+            const SizedBox(height: 8),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    secondary: const Icon(Icons.visibility_off_outlined),
+                    title: Text(t.settingsSecureWindow),
+                    subtitle: Text(t.settingsSecureWindowSubtitle),
+                    value: settings.secureWindowEnabled,
+                    onChanged: (v) async {
+                      // Capture le service AVANT l'await pour ne pas dépendre
+                      // de BuildContext après la frontière asynchrone.
+                      final secure = context.read<SecureWindowService>();
+                      await settings.setSecureWindowEnabled(v);
+                      await secure.setEnabled(v);
+                    },
+                  ),
+                  const Divider(height: 1),
+                  const _VaultAutoLockTile(),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Dictée vocale ────────────────────────────────────────────────
+            _SectionTitle(t.voiceSetupTitle),
+            const SizedBox(height: 8),
+            const Card(clipBehavior: Clip.antiAlias, child: _VoiceSection()),
+
+            const SizedBox(height: 20),
+
+            // ── Export ───────────────────────────────────────────────────────
+            _SectionTitle(t.settingsExportAll),
+            const SizedBox(height: 8),
+            const Card(clipBehavior: Clip.antiAlias, child: _ExportSection()),
+
+            const SizedBox(height: 20),
+
+            // ── Mode panique (zone destructive — bordure rouge subtle) ───────
+            _SectionTitle(t.settingsPanic),
+            const SizedBox(height: 8),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: cs.error.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: const _PanicSection(),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── À propos ─────────────────────────────────────────────────────
+            _SectionTitle(t.settingsSectionAbout),
+            const SizedBox(height: 8),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: MergeSemantics(
+                child: ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: Text(t.settingsAbout),
+                  subtitle: Text(t.settingsAboutSubtitle),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AboutScreen(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
