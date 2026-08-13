@@ -162,3 +162,21 @@ Le portage Kotlin, lui, exerce la même sémantique contre du vrai SQLite —
 une couverture de la version Flutter.
 
 **70 tests verts côté Flutter (65 avant), `flutter analyze` sans avertissement.**
+
+### Quand publier ces correctifs — décision du 2026-08-13
+
+**Attendre que la MR F-Droid !37885 soit tranchée.** Elle est ouverte, à **2.0.3 / versionCode 51**,
+son blocage Play Core est résolu et documenté, et elle est en `waiting-for-upstream` — la balle est
+chez le mainteneur.
+
+| Raison | Détail |
+|---|---|
+| Ne pas bouger la cible | la MR vient d'être débloquée après 21 commentaires ; taguer 2.0.4 obligerait à la mettre à jour en plein examen, ou à la laisser en retard |
+| Publier après coûte **moins** | `AutoUpdateMode: Version` + `UpdateCheckMode: Tags` ⇒ une fois fusionnée, **un tag suffit** |
+| Exposition étroite | notes de coffre créées **avant la 2.0.0**, titre rempli, corps vide ; `_sealIfVault` protège les écritures depuis |
+
+**Déclencheur** : MR fusionnée ou fermée. **Borne** : quatre à six semaines, après quoi publier
+quand même — un correctif de confidentialité qui existe ne doit pas attendre indéfiniment un tiers.
+
+⚠️ Le bump touche `pubspec.yaml` **et** `AppConstants.appVersion`, plus fastlane FR+EN, les trois
+surfaces du site, et le `.yml` F-Droid.
