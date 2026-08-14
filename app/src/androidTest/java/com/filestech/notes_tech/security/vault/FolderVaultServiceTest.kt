@@ -12,6 +12,7 @@ import com.filestech.notes_tech.data.local.SqlCipherRawKey
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.domain.model.EncryptedFormat
+import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.WritableKekSource
 import com.google.common.truth.Truth.assertThat
@@ -430,6 +431,28 @@ class FolderVaultServiceTest {
         coffres.unlockWithPin(DOSSIER, CODE)
 
         assertThat(coffres.decrypt(notes.find(note.id)!!).content).isEqualTo("PIN 0000")
+    }
+
+    /**
+     * ⚠️ Le JUMEAU du test précédent, et la raison pour laquelle il existe.
+     *
+     * Le service savait déduire le mode des colonnes ; la couche qui alimente l'interface, elle,
+     * lisait encore l'étiquette. Le même coffre était donc reconnu par l'un et pas par l'autre —
+     * personne ne l'aurait vu avant que l'interface n'existe. Relevé par un audit de cohérence, sur
+     * un correctif appliqué le jour même à un seul des deux sites.
+     */
+    @Test
+    fun le_domaine_lit_le_mode_dans_les_colonnes_lui_aussi(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE folders SET vault_mode = NULL WHERE id = ?",
+            arrayOf(DOSSIER),
+        )
+
+        val dossier = dossiers.find(DOSSIER)!!
+
+        assertThat(dossier.isVault).isTrue()
+        assertThat(dossier.vault!!.mode).isEqualTo(VaultMode.PIN)
     }
 
     // ── Reprise d'un effacement interrompu ───────────────────────────────────────────────────────

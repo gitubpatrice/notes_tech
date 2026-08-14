@@ -9,6 +9,7 @@ import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.domain.repository.VaultSealer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.time.Clock
@@ -147,7 +148,7 @@ class FolderVaultService @Inject constructor(
                 // 🔴 La clé Keystore vient d'être créée et ne protège plus rien. La laisser en
                 // ferait un orphelin dans le matériel sécurisé, et surtout un alias occupé qui
                 // gênerait une nouvelle tentative de conversion.
-                runCatching { keystore.deleteKey(alias) }
+                echoue { keystore.deleteKey(alias) }
                 error("conversion en coffre a code refusee pour $folderId")
             }
             sessions.open(folderId, folderKey)
@@ -494,7 +495,7 @@ class FolderVaultService @Inject constructor(
         if (!wiping.add(folderId)) return
         try {
             wipeJournal.markPending(folderId)
-            runCatching { keystore.deleteKey(VaultParams.pinKeystoreAlias(folderId)) }
+            echoue { keystore.deleteKey(VaultParams.pinKeystoreAlias(folderId)) }
 
             val database = databases.get()
             // ⚠️ Les échecs de suppression sont COMPTÉS, pas ignorés.
@@ -505,7 +506,7 @@ class FolderVaultService @Inject constructor(
             // permettait de les lire, et sans rien pour déclencher une reprise. Relevé par une
             // relecture externe (GPT-5.2, 2026-08-14).
             val restantes = database.noteDao().findLockedInFolder(folderId).count { note ->
-                runCatching { database.noteWriteDao().deletePermanently(note.id) }.isFailure
+                echoue { database.noteWriteDao().deletePermanently(note.id) }
             }
             database.folderDao().clearVault(folderId, clock.millis())
             sessions.lock(folderId)
@@ -538,7 +539,7 @@ class FolderVaultService @Inject constructor(
     suspend fun resumePendingWipes() {
         val folderDao = databases.get().folderDao()
         for (folderId in wipeJournal.pendingFolderIds()) {
-            runCatching {
+            echoue {
                 if (folderDao.vaultMaterial(folderId) == null) {
                     wipeJournal.clearPending(folderId)
                 } else {
@@ -546,6 +547,29 @@ class FolderVaultService @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Exécute [block] et rend `true` s'il a échoué. **L'annulation, elle, remonte.**
+     *
+     * ## ⚠️ Pourquoi ce n'est pas un `runCatching`
+     *
+     * `runCatching` attrape `Throwable`, donc `CancellationException`. Sur un chemin annulable, il
+     * transforme « cette coroutine doit s'arrêter » en « cette opération a raté », et la boucle
+     * continue de tourner dans une coroutine qui n'existe plus. `docs/04-PIEGES.md` §8 l'interdit
+     * explicitement, et ces trois sites l'enfreignaient — sur le chemin le plus destructeur du
+     * fichier, l'effacement d'un coffre. Relevé par l'audit de cohérence du 2026-08-14.
+     *
+     * Le « meilleur effort » reste entier pour ce qu'il vise : une note qui refuse de se supprimer
+     * n'empêche pas les autres, et le drapeau de reprise garde la trace de l'inachèvement.
+     */
+    private suspend inline fun echoue(block: () -> Unit): Boolean = try {
+        block()
+        false
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        true
     }
 
     // ── Internes ─────────────────────────────────────────────────────────────────────────────────

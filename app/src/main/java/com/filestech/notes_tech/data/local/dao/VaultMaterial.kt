@@ -53,7 +53,12 @@ class VaultMaterial(
      *
      * Relevé par une relecture externe (GPT-5.2, 2026-08-14). L'écart avec l'application publiée est
      * assumé : il ne peut qu'ouvrir des coffres qui seraient restés fermés.
+     *
+     * ⚠️ La règle elle-même vit dans [VaultMode.fromMaterial], et **pas ici**. Elle a d'abord été
+     * écrite à cet endroit seul, pendant que `FolderMapper` continuait de lire l'étiquette — deux
+     * réponses possibles à la même question, dont une fausse. Un audit de cohérence l'a relevé le
+     * jour même.
      */
     val effectiveMode: VaultMode
-        get() = if (pinBlob != null && pinIv != null) VaultMode.PIN else VaultMode.PASSPHRASE
+        get() = VaultMode.fromMaterial(kekWrapped, pinBlob, pinIv)
 }

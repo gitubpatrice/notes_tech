@@ -702,3 +702,90 @@ Le portage a désormais deux natures de risque bien séparées, et elles ne se r
 | **Le jugement** — ce que le code conclut d'un échec | une relecture adversariale, et des tests qui vérifient qu'il ne se passe RIEN | c'est là que tout se joue |
 
 Un vecteur ne dira jamais qu'un coffre s'est détruit pour la mauvaise raison.
+
+---
+
+# R-009 — Audit de cohérence interne, le jour même : le correctif à moitié appliqué
+
+**2026-08-14**, agent `android-architecture-coherence-checker` sur l'ensemble du dépôt. Consigne
+explicite : **ne pas chercher de failles** — deux relectures venaient de le faire — mais uniquement
+la dérive de motif, « ici comme ça, là autrement ».
+
+## Le constat qui justifie à lui seul la passe
+
+**`FolderMapper.toDomain()` lisait le mode d'un coffre dans `vault_mode`**, l'étiquette, alors que
+`VaultMaterial.effectiveMode` venait d'être corrigé pour le déduire des **colonnes**. Le correctif
+issu de R-008 avait été appliqué à **un seul des deux sites**, quelques heures plus tôt.
+
+Pire : le KDoc de `FolderMapper` explique déjà, sur huit lignes, pourquoi `vault_mode` ne doit pas
+servir à décider si un dossier est un coffre. La règle était écrite, comprise, appliquée au
+prédicat « est-ce un coffre ? » — et pas à la question voisine « quel genre de coffre ? », deux
+lignes plus bas dans la même fonction.
+
+**Impact latent** : un coffre à code migré depuis Flutter avec un `vault_mode` perdu aurait été
+déverrouillé correctement par le service, et affiché comme `UNKNOWN` par le premier écran à le
+lire. Aucun écran n'existe encore — le défaut serait apparu en phase 5, loin de sa cause.
+
+> ⚠️⚠️ **C'est la quatrième occurrence du jumeau asymétrique sur ce projet**, et la première où le
+> jumeau naît d'un correctif de la même journée. La règle de mémoire disait déjà « corriger un motif
+> quelque part, c'est s'engager à le chercher partout ailleurs ». Elle ne suffit pas : je l'avais, et
+> je ne l'ai pas appliquée.
+>
+> **Ce qui l'a rattrapée, c'est un outil dont c'est le seul travail.** Pas une relecture de
+> sécurité — les deux qui venaient de passer n'avaient pas ce site dans leur périmètre.
+
+**Correctif structurel, et non local** : la règle vit désormais dans `VaultMode.fromMaterial`,
+**seul** point où la question se tranche. `VaultMode.from(stored)` et le champ `stored` ont disparu
+avec leur dernier lecteur — un mécanisme sans lecteur est un chemin mort, pas une documentation.
+
+## Le second constat retenu : `runCatching` autour d'appels annulables
+
+Quatre sites, tous des `suspend fun`, dont l'effacement d'un coffre à code — le chemin le plus
+destructeur du fichier. `runCatching` attrape `Throwable`, donc `CancellationException` : il
+transforme « cette coroutine doit s'arrêter » en « cette opération a raté », et la boucle continue
+dans une coroutine qui n'existe plus.
+
+`docs/04-PIEGES.md` §8 l'interdisait déjà, et `countingOneAttempt` — écrit une heure plus tôt dans
+le même fichier — applique la règle avec soin. Même forme de dérive que le premier constat : la
+règle connue, appliquée là où on y pensait, absente là où on n'y pensait pas.
+
+Remplacés par un `echoue { }` qui **relaie l'annulation** et n'absorbe que le reste.
+
+⚠️ **Les `runCatching` de `security/kek/` et de `AndroidVaultKeystore` sont conservés**, et ce n'est
+pas une omission : ils entourent des appels **non suspendables** — préférences, magasin de clés —
+où aucune `CancellationException` ne peut naître. Le piège porte sur les appels annulables, et
+l'appliquer aveuglément aurait été du bruit.
+
+## Ce qui a été appliqué, et ce qui a été écarté
+
+| Constat | Suite donnée |
+|---|---|
+| Mode lu dans l'étiquette (`FolderMapper`) | **appliqué** — un seul point de vérité, plus un test jumeau |
+| `runCatching` autour de `suspend` (4 sites) | **appliqué** |
+| `VaultSessions` construit à la main dans le module | **appliqué** — `@Singleton @Inject`, un `@Provides` de moins |
+| `VaultCrypto`, `VaultParams`, `NoteEnvelope` publics | **appliqué** — `internal`, comme les cinq autres aides du dépôt |
+| Sous-classes de `KekFailure` sans suffixe `Exception` | **écarté** — `KekFailure.SourceUnavailable` se lit bien qualifié ; le suffixe donnerait `SourceUnavailableException` imbriqué dans `KekFailure`, un bégaiement. Convention Kotlin admise |
+| `KeystoreSealedKekSource` construit à la main | **écarté** — code de phase 2, stable et éprouvé. Le gain est cosmétique, le risque de churn ne l'est pas |
+| Styles de nommage de tests mélangés | **écarté pour l'instant** — à uniformiser si `KekRepositoryTest` est retouché, pas avant |
+
+Le principe du tri : **on aligne le code neuf sur les conventions, on ne remue pas le code stable
+pour une convention.** Sauf quand la divergence porte sur une règle de sécurité — et c'était le cas
+des deux premiers.
+
+## Mesures après correction
+
+| Vérification | Résultat |
+|---|---|
+| Tests JVM | **70**, 0 échec |
+| Tests instrumentés sur Galaxy S9 | **92** (91 avant ce lot), 0 échec |
+| `ktlintCheck`, `detekt`, `lintDebug` | verts |
+
+## ⚠️ La leçon, et elle est méthodologique
+
+**Une relecture de sécurité et un audit de cohérence ne trouvent pas les mêmes choses**, même sur le
+même code, le même jour. Les deux relectures externes ont cherché ce qui casse ; l'audit de
+cohérence a cherché ce qui **diverge** — et c'est ainsi qu'on trouve un correctif appliqué à moitié,
+que personne ne cherche parce qu'il vient d'être fait.
+
+> **Après avoir corrigé un motif, passer l'outil qui cherche ce motif ailleurs.** L'engagement pris
+> de mémoire ne suffit pas : ce jour-là je l'avais en tête, et j'ai quand même oublié un site.

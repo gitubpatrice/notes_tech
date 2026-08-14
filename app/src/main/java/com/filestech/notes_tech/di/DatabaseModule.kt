@@ -14,7 +14,6 @@ import com.filestech.notes_tech.security.vault.AndroidVaultKeystore
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.MonotonicClock
 import com.filestech.notes_tech.security.vault.VaultKeystore
-import com.filestech.notes_tech.security.vault.VaultSessions
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -107,10 +106,6 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideMonotonicClock(): MonotonicClock = MonotonicClock { SystemClock.elapsedRealtime() }
-
-    @Provides
-    @Singleton
-    fun provideVaultSessions(clock: MonotonicClock): VaultSessions = VaultSessions(clock)
 
     @Provides
     @Singleton

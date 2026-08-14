@@ -14,7 +14,7 @@ package com.filestech.notes_tech.security.vault
  * coffres existants. Un tel changement demanderait une migration qui rechiffre, donc la passphrase,
  * donc l'utilisateur : ce n'est pas un réglage.
  */
-object VaultParams {
+internal object VaultParams {
 
     // ── Argon2id, mode passphrase ────────────────────────────────────────────────────────────────
     // `core/constants.dart:62-65`

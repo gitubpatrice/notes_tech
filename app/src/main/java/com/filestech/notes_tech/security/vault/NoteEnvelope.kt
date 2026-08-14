@@ -17,7 +17,7 @@ package com.filestech.notes_tech.security.vault
  * Source : `folder_vault_service.dart`, `_packTitleAndContent` / `_unpackTitleAndContent` /
  * `encryptNote` / `decryptNote`.
  */
-object NoteEnvelope {
+internal object NoteEnvelope {
 
     /** `notes.enc_v` — le blob ne porte que le contenu. */
     const val ENC_V_CONTENT_ONLY = 1

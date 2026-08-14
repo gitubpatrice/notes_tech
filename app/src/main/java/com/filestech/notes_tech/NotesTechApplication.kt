@@ -7,6 +7,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultAutoLocker
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -54,10 +55,21 @@ class NotesTechApplication : Application() {
         // la relit.
         //
         // Lancé sans bloquer le démarrage : la reprise est du rattrapage, pas un préalable à
-        // l'affichage. `runCatching` parce qu'un échec ici ne doit empêcher aucun lancement — le
-        // drapeau, lui, est conservé et la reprise sera retentée au démarrage suivant.
+        // l'affichage. Un échec n'empêche aucun lancement — le drapeau, lui, est conservé et la
+        // reprise sera retentée au démarrage suivant.
+        //
+        // ⚠️ **Pas de `runCatching` ici**, qui attraperait aussi l'annulation et la transformerait
+        // en « ça a raté » — cf. `docs/04-PIEGES.md` §8. La portée n'est jamais annulée
+        // aujourd'hui, mais une règle qui ne tient que tant que personne ne touche à la portée
+        // n'est pas une règle.
         applicationScope.launch {
-            runCatching { vaults.resumePendingWipes() }
+            try {
+                vaults.resumePendingWipes()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "reprise des effacements de coffre interrompue")
+            }
         }
     }
 

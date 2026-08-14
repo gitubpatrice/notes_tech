@@ -4,6 +4,8 @@ import com.filestech.notes_tech.core.crypto.wipe
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Une horloge qui ne recule pas.
@@ -42,7 +44,8 @@ fun interface MonotonicClock {
  * deux passages. C'est la question à se poser devant toute garde échantillonnée — « si la condition
  * devient vraie une seconde plus tard, qui rappelle ce code ? »
  */
-class VaultSessions(private val clock: MonotonicClock) {
+@Singleton
+class VaultSessions @Inject constructor(private val clock: MonotonicClock) {
 
     private class Session(val key: ByteArray, var lastActivityMillis: Long)
 

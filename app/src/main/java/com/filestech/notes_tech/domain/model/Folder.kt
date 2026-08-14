@@ -65,28 +65,49 @@ data class VaultDescriptor(val mode: VaultMode, val failedAttempts: Int) {
  * distinction a de l'importance : les coffres créés en 0.8, avant l'existence des coffres à code,
  * n'avaient pas de colonne `vault_mode`. La migration de schéma la leur a bien renseignée
  * (`database.dart:761` — `UPDATE folders SET vault_mode = 'passphrase' WHERE vault_salt IS NOT
- * NULL`), mais s'appuyer sur une colonne rétro-remplie plutôt que sur la source de vérité, pour
- * décider si une écriture doit être chiffrée, serait un pari inutile.
+ * NULL`), mais s'appuyer sur une colonne rétro-remplie plutôt que sur la source de vérité serait un
+ * pari inutile.
+ *
+ * ## 🔴 Et le mode LUI-MÊME ne se lit pas dans `vault_mode`
+ *
+ * Le même raisonnement s'applique une marche plus loin, et il a fallu deux relectures pour s'en
+ * apercevoir. `vault_mode` est une **étiquette** ; `vault_pin_blob` et `vault_kek_wrapped` sont ce
+ * que le coffre **porte**. Un `vault_mode` perdu ou incohérent rendrait un coffre à code inouvrable
+ * **par les deux chemins à la fois** : refusé côté code faute d'étiquette, refusé côté phrase
+ * secrète faute de clé enveloppée.
+ *
+ * [fromMaterial] est donc le **seul** point où cette question se tranche. Elle l'a d'abord été à
+ * deux endroits — une fois corrigé, une fois pas — ce qui est précisément le jumeau asymétrique que
+ * `docs/04-PIEGES.md` décrit comme le motif le plus tenace de ce portage.
  */
-enum class VaultMode(val stored: String?) {
+enum class VaultMode {
     /** Argon2id sur une phrase secrète. Le mode d'origine, et celui de tous les coffres de 0.8. */
-    PASSPHRASE("passphrase"),
+    PASSPHRASE,
 
     /** Code à 4-6 chiffres, Argon2id allégé, scellé par une clé liée à l'appareil. */
-    PIN("pin"),
+    PIN,
 
     /**
-     * Coffre dont la colonne porte une valeur que cette version ne connaît pas — base écrite par
-     * une version plus récente, ou corrompue.
+     * Coffre qui porte un sel mais **aucun matériel de clé exploitable** — ni scellé de code, ni
+     * clé enveloppée. Base abîmée, restauration partielle, ou format d'une version plus récente.
      *
-     * Volontairement **pas** un `TypeConverter` Room, qui ferait échouer la lecture de la ligne
-     * entière. Ici le dossier s'affiche, verrouillé et non déverrouillable, plutôt que de
-     * disparaître avec tout son contenu.
+     * Le dossier s'affiche, verrouillé et non déverrouillable, plutôt que de disparaître avec tout
+     * son contenu. Un `TypeConverter` Room qui échouerait ferait perdre la ligne entière.
      */
-    UNKNOWN(null),
+    UNKNOWN,
     ;
 
     companion object {
-        fun from(stored: String?): VaultMode = entries.firstOrNull { it.stored == stored } ?: UNKNOWN
+        /**
+         * Le mode d'un coffre, déduit de ce qu'il porte.
+         *
+         * L'ordre des cas compte : un coffre à code n'a pas de `vault_kek_wrapped` — son emballage
+         * vit dans `vault_pin_blob`, après un tour de plus par le Keystore.
+         */
+        fun fromMaterial(kekWrapped: ByteArray?, pinBlob: ByteArray?, pinIv: ByteArray?): VaultMode = when {
+            pinBlob != null && pinIv != null -> PIN
+            kekWrapped != null -> PASSPHRASE
+            else -> UNKNOWN
+        }
     }
 }

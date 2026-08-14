@@ -31,7 +31,7 @@ import javax.crypto.spec.SecretKeySpec
  * Le critère de sortie de la phase 4 reste d'ouvrir un coffre réellement créé par la version
  * Flutter — cf. `docs/00-PLAN.md`.
  */
-object VaultCrypto {
+internal object VaultCrypto {
 
     /**
      * Dérive la clé qui déballe la clé du coffre, à partir d'un secret mémorisé.

@@ -451,3 +451,42 @@ parité avaient déjà fermée. Le tableau de référence est dans
 [11-COFFRES.md](11-COFFRES.md) §5, et la règle dans `01-DECISIONS.md` D-012.
 
 > **Un vecteur de parité ne dira jamais qu'un coffre s'est détruit pour la mauvaise raison.**
+
+## §25 — Un correctif de motif se propage, ou il crée le jumeau qu'il prétend fermer
+
+Le 2026-08-14, une relecture externe fait corriger un point : le mode d'un coffre se déduit de ses
+**colonnes**, pas de l'étiquette `vault_mode`. Le correctif est appliqué à `VaultMaterial`.
+
+Quelques heures plus tard, un audit de cohérence trouve `FolderMapper.toDomain()` qui lit toujours
+l'étiquette. Le KDoc de ce même fichier explique pourtant, sur huit lignes, pourquoi `vault_mode`
+n'est pas fiable — la règle y était écrite, appliquée au prédicat « est-ce un coffre ? », et pas à
+la question voisine « quel genre de coffre ? », deux lignes plus bas.
+
+**Quatrième occurrence du jumeau asymétrique sur ce projet, et la première née d'un correctif de la
+même journée.**
+
+> **Après avoir corrigé un motif, passer l'outil qui cherche ce motif ailleurs.** L'engagement pris
+> de mémoire ne suffit pas : la règle était connue, et le second site a quand même été oublié.
+
+Le correctif durable n'est pas de rectifier le second site, c'est de faire en sorte qu'il n'y ait
+plus deux sites : la règle vit désormais dans `VaultMode.fromMaterial`, seul endroit où la question
+se tranche.
+
+⚠️ Et son ancien mécanisme — `VaultMode.from(stored)`, le champ `stored` — a été **supprimé** avec
+son dernier lecteur. Un mécanisme sans lecteur n'est pas de la documentation, c'est un chemin mort
+qui invite à s'en resservir.
+
+## §26 — `runCatching` autour d'un appel **annulable**, encore
+
+Le §8 l'interdit déjà. Quatre sites l'enfreignaient quand même dans le code des coffres, dont
+l'effacement d'un coffre à code — le chemin le plus destructeur du fichier. Et cela pendant que la
+fonction voisine, écrite une heure plus tôt, appliquait la règle avec soin.
+
+`runCatching` attrape `Throwable`, donc `CancellationException` : il transforme « cette coroutine
+doit s'arrêter » en « cette opération a raté », et la boucle continue de tourner dans une coroutine
+qui n'existe plus.
+
+⚠️ **Mais la règle ne porte que sur les appels ANNULABLES.** Les `runCatching` qui entourent des
+préférences ou le magasin de clés — `security/kek/`, `AndroidVaultKeystore` — sont corrects et
+restent : aucune `CancellationException` ne peut y naître. Appliquer un piège en aveugle produit du
+bruit, ce qui finit par le faire ignorer là où il compte.

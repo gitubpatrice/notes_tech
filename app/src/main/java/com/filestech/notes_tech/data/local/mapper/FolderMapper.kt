@@ -19,6 +19,12 @@ import java.time.Instant
  * doit être chiffrée reviendrait à faire dépendre une garde de sécurité du bon déroulement d'une
  * migration passée. Le sel, lui, est là depuis le premier coffre.
  *
+ * ⚠️ **Et le MODE non plus ne se lit pas dans `vault_mode`.** Cette fonction le faisait, alors que
+ * le KDoc ci-dessus explique pourquoi il ne faut pas — la règle était écrite, appliquée au
+ * prédicat « est-ce un coffre ? », et pas à la question voisine « quel genre de coffre ? ». Le
+ * service de coffres, lui, avait été corrigé. Jumeau asymétrique classique, relevé par un audit de
+ * cohérence le 2026-08-14. Un seul point de vérité désormais : [VaultMode.fromMaterial].
+ *
  * ⚠️ Aucun octet de coffre ne traverse cette fonction. Le sel, la clé enveloppée, le vérificateur
  * et les blobs de code restent dans la couche données ; le domaine n'en apprend que l'existence et
  * le mode. Un écran qui liste les carnets n'a pas à tenir de matériel cryptographique en mémoire —
@@ -33,7 +39,10 @@ internal fun FolderEntity.toDomain(): Folder = Folder(
     createdAt = Instant.ofEpochMilli(createdAt),
     updatedAt = Instant.ofEpochMilli(updatedAt),
     vault = if (vaultSalt != null) {
-        VaultDescriptor(mode = VaultMode.from(vaultMode), failedAttempts = vaultAttempts)
+        VaultDescriptor(
+            mode = VaultMode.fromMaterial(vaultKekWrapped, vaultPinBlob, vaultPinIv),
+            failedAttempts = vaultAttempts,
+        )
     } else {
         null
     },
