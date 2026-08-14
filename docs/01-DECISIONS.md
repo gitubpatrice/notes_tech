@@ -329,3 +329,62 @@ interface casse le cycle sans câblage tardif : le repository dépend d'un contr
 
 Seule la liaison d'injection change. Le contrat reste, et `UnavailableVaultSealer` reste utile aux
 tests qui doivent vérifier qu'un refus n'écrit rien.
+
+---
+
+## D-012 — Un échec ne compte que s'il **prouve** que l'utilisateur s'est trompé
+
+**Prise le 2026-08-14, phase 4.**
+
+Un coffre à code se détruit au cinquième échec. La question « qu'est-ce qu'un échec ? » devient donc
+une question de perte de données, et elle se tranche une fois pour toutes ici plutôt qu'à chaque
+point d'appel.
+
+**Seules deux sorties consomment une tentative** : un code effectivement faux (`WrongPinException`)
+et, sans objet, la destruction elle-même. Tout le reste la reprend — Keystore muet, base abîmée,
+colonne de mauvaise longueur, fournisseur cryptographique récalcitrant, **annulation de la
+coroutine**.
+
+### Ce qui a été écarté
+
+| Écarté | Pourquoi |
+|---|---|
+| Liste **noire** des erreurs qui ne comptent pas | c'est ce que faisait l'application publiée avant sa v1.0.3. Une mise à jour du système exposant un sous-type inattendu suffisait à détruire un coffre |
+| Ne pas incrémenter avant la tentative | il suffirait alors de tuer l'application entre l'échec et l'écriture pour disposer d'essais illimités |
+| Reprendre l'incrément sans `NonCancellable` | la reprise serait annulée avec le reste, et l'annulation est le cas le plus fréquent de la liste |
+
+### La conséquence structurelle
+
+**L'incrément et sa reprise vivent dans la même fonction.** Séparés — ne serait-ce que par une
+relecture du compteur, qui est un point de suspension — il existe un instant où l'un a eu lieu et
+l'autre est devenu inatteignable.
+
+## D-013 — Ce que le coffre EST se lit dans ses colonnes, jamais dans son étiquette
+
+**Prise le 2026-08-14, phase 4.** Prolonge la règle déjà posée pour `vault_salt`.
+
+`vault_mode` n'existe que depuis la 0.9 et a été **rétro-remplie** par une migration.
+`vault_pin_blob`, lui, n'est écrit que par la création d'un coffre à code. Le mode d'ouverture se
+déduit donc du matériel présent, pas de l'étiquette.
+
+Ce n'est pas une élégance : un `vault_mode` perdu ou abîmé rendrait le coffre **inouvrable par les
+deux chemins à la fois** — refusé côté code faute d'étiquette, refusé côté phrase secrète faute de
+`vault_kek_wrapped`. L'écart avec l'application publiée ne peut qu'**ouvrir** des coffres qui
+seraient restés fermés.
+
+## D-014 — La propriété d'une clé en mémoire est explicite, et elle se transfère
+
+**Prise le 2026-08-14, phase 4.**
+
+Trois règles, qui tiennent ensemble :
+
+1. `VaultSessions.open` **prend** la propriété du tableau qu'on lui donne. L'appelant ne l'efface
+   plus — ce serait remplir de zéros la session qui vient de s'ouvrir.
+2. `VaultSessions.sessionKey` rend une **copie**, dont l'appelant est propriétaire et qu'il efface.
+3. `hasLiveSession` existe pour les prédicats d'affichage, afin qu'un simple « ce carnet est-il
+   ouvert ? » ne matérialise pas un secret que personne n'effacera.
+
+Le point 2 ferme une course qui n'existe pas côté Dart, mono-fil : rendre le tableau de la session
+permettait à un verrouillage concurrent de le vider pendant qu'un chiffrement s'en servait. La note
+serait partie en base **scellée sous une clé nulle** — présentée comme protégée, et
+irrécupérable. Trente-deux octets recopiés par opération sont un prix négligeable pour ça.

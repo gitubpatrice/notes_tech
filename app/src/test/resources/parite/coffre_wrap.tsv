@@ -1,0 +1,14 @@
+# Vecteurs de parite des coffres -- produits en EXECUTANT le vrai code Dart de
+# Notes Tech 2.0.3 (paquet `cryptography` 2.9.0), puis recoupes contre une
+# troisieme implantation independante (argon2-cffi = C de reference, et
+# `cryptography` Python = OpenSSL). 37 concordances, 0 divergence.
+# Procedure et limites : docs/09-VECTEURS-DE-PARITE.md.
+# NE PAS EDITER A LA MAIN. Tout champ textuel est en hexadecimal UTF-8.
+# 
+# Sortie = cipherText || tag(16 octets). L'IV n'y est PAS : il vit dans la
+# colonne `vault_iv`. AAD = folder_id en UTF-8 -- le cas `folderId_non_ascii`
+# fige cet encodage, qu'un passage en UTF-16 ou Latin-1 casserait sans erreur
+# visible, juste un tag qui ne valide plus.
+# nom	cleHex	ivHex	clairHex	aadUtf8Hex	wrappedHex
+nominal	000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f	0102030405060708090a0b0c	202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f	62336631633264342d356536662d346137622d386339642d306531663261336234633564	25cb78f6c8b1d6a1648b496c3c3ec4077272d3cda35866f29966c31fa28b48fa50e8335bbe3045c56b731a104934c942
+folderId_non_ascii	ffeeddccbbaa99887766554433221100ffeeddccbbaa998877665544332211ff	aabbccddeeff001122334455	0f0e0d0c0b0a09080706050403020100f0e0d0c0b0a090807060504030201000	636f666672652dc3a974c3a92de697a5e69cac	e13110174f65247df3279ca6ec268c0f6753b48bd222cce011e889b4486bf09883a841d9df5d3de6608ea075b78b9c73

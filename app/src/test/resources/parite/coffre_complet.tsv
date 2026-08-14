@@ -1,0 +1,14 @@
+# Vecteurs de parite des coffres -- produits en EXECUTANT le vrai code Dart de
+# Notes Tech 2.0.3 (paquet `cryptography` 2.9.0), puis recoupes contre une
+# troisieme implantation independante (argon2-cffi = C de reference, et
+# `cryptography` Python = OpenSSL). 37 concordances, 0 divergence.
+# Procedure et limites : docs/09-VECTEURS-DE-PARITE.md.
+# NE PAS EDITER A LA MAIN. Tout champ textuel est en hexadecimal UTF-8.
+# 
+# Le vecteur qui compte : les quatre colonnes `vault_*` d'un coffre passphrase
+# tel qu'il serait EN BASE, plus une note chiffree dedans. Kotlin doit partir de
+# la seule passphrase et tout retrouver -- derivation, deballage, verifier, note.
+# Aucun Keystore n'intervient dans ce mode : ce scenario est donc rejouable
+# entierement sur la JVM, sans appareil.
+# passphraseUtf8Hex	folderIdUtf8Hex	vaultSaltHex	vaultIvHex	vaultKekWrappedHex	vaultVerifierHex	kekDeriveeHex	folderKekHex	noteIdUtf8Hex	noteTitreUtf8Hex	noteContenuUtf8Hex	noteBlobHex
+6d61207061737370687261736520646520636f666672652032303236	61316232633364342d653566362d343738392d616263642d656630313233343536373839	0f1e2d3c4b5a69788796a5b4c3d2e1f0	000000000000000000000001	602156805229e425e7c5608398e10df032e910ffaefa00262efd135b52cd8180beae5f745081c2d5ebcf13118e01439a	857d32c0920d35df93570d264a5db3ff12266ffe85e311f5f1c03aaad40c6370	af1ea2da543bd51220be0548a35c4dfc493d8a64589ca36af816ba23acd511fe	5a5b5c5d5e5f606162636465666768696a6b6c6d6e6f70717273747576777879	63306666656530302d646561642d346265652d386665652d303132333435363738396162	52656c6576c3a92062616e6361697265	4942414e204652373620e28094206e6520706173207061727461676572	0a0b0c0d0e0f1011121314159569aebdf78cde7e713492e2caaed3708f40f331f86c4bb5f8ebf964a1662447d1584f32af2633c811541e37215aae89bbf3512defacaa919e4af5843214b96e8d

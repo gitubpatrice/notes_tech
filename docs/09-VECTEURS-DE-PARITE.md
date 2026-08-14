@@ -74,3 +74,58 @@ Deux fichiers de ressources :
 
 Le format est du TSV parce que chaque champ est déjà échappé en `\uXXXX` : la tabulation ne peut
 donc jamais apparaître littéralement dans un champ, ce qui en fait un séparateur sûr.
+
+---
+
+## Les vecteurs des coffres — 2026-08-14
+
+Même méthode que pour la normalisation des titres, avec **un contrôle de plus** : les valeurs sont
+recoupées contre une **tierce implantation**, ce que la première série n'avait pas.
+
+### Ce qui est figé
+
+| Ressource | Contenu |
+|---|---|
+| `coffre_argon2.tsv` | 16 dérivations, deux jeux de paramètres (t=3/64 Mo et t=2/32 Mo) |
+| `coffre_verifier.tsv` | 3 vérificateurs HMAC-SHA-256 |
+| `coffre_wrap.tsv` | 2 scellements de clé de coffre, dont un `folder_id` non ASCII |
+| `coffre_note.tsv` | 5 blobs de note, formats 1 et 2, titres vides et hors BMP |
+| `coffre_complet.tsv` | un coffre entier : les quatre colonnes `vault_*` et une note dedans |
+| `coffre_pin.tsv` | les deux couches internes d'un coffre à code |
+
+### La procédure, reproductible
+
+1. Écrire un test temporaire dans `j:\applications\notes_tech\test\`, qui **recopie verbatim** les
+   expressions crypto de `folder_vault_service.dart` et écrit un JSON.
+2. `flutter test <ce fichier>`.
+3. Recouper le JSON contre `argon2-cffi` (le C de référence de la RFC 9106) et contre
+   `cryptography` Python (OpenSSL).
+4. Convertir en TSV ASCII — tout champ textuel en hexadécimal UTF-8.
+5. **Supprimer le fichier temporaire**, et vérifier que `git status` de `notes_tech` est revenu à
+   son état d'avant.
+
+Résultat de l'étape 3 le 2026-08-14 : **37 concordances, 0 divergence**.
+
+### ⚠️ Pourquoi l'étape 3 n'est pas facultative
+
+Sans elle, un défaut du paquet `cryptography` Dart reproduit à l'identique côté Kotlin passerait
+pour une réussite : les deux seraient d'accord, et tous deux faux. Trois implantations
+indépendantes qui concordent, c'est le standard qui est implanté des deux côtés.
+
+### ⚠️ Ce que ces vecteurs ne prouvent pas
+
+Ils rejouent ce que j'ai **recopié** du service, pas le service lui-même. La fidélité de la recopie
+se vérifie en relecture — c'est un des points sur lesquels R-008 portait — et non ici.
+
+Et surtout : ils figent un **format**, pas une migration. Le critère de sortie de la phase 4 reste
+d'ouvrir un coffre réellement créé par l'application publiée. Cf. `11-COFFRES.md` §4.
+
+### Les cas choisis, et pourquoi
+
+| Cas | Ce qu'il ferme |
+|---|---|
+| `accents_precomposes` **contre** `accents_decomposes` | la même chaîne perçue en NFC et en NFD donne des clés **différentes** : aucune normalisation Unicode ne doit s'immiscer |
+| `hors_bmp` | les paires de substitution UTF-16 de Java doivent produire les mêmes octets UTF-8 que Dart |
+| `espaces_aux_bords` | rien ne doit être élagué — une phrase secrète n'est pas un identifiant |
+| `folderId_non_ascii` | l'AAD est en UTF-8 ; un passage en UTF-16 ou Latin-1 ne produirait aucune erreur visible, juste un tag qui ne valide plus |
+| `v2_titre_vide`, `v2_contenu_vide` | le préfixe de longueur à zéro, des deux côtés de la frontière |

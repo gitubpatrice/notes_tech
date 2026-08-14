@@ -1,0 +1,563 @@
+package com.filestech.notes_tech.security.vault
+
+import android.content.Context
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.filestech.notes_tech.core.crypto.SecretBytes
+import com.filestech.notes_tech.data.local.DatabaseProvider
+import com.filestech.notes_tech.data.local.LegacyDatabaseFixture
+import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
+import com.filestech.notes_tech.data.local.NotesDatabaseFactory
+import com.filestech.notes_tech.data.local.SqlCipherRawKey
+import com.filestech.notes_tech.data.repository.FoldersRepository
+import com.filestech.notes_tech.data.repository.NotesRepository
+import com.filestech.notes_tech.domain.model.EncryptedFormat
+import com.filestech.notes_tech.security.kek.KekRepository
+import com.filestech.notes_tech.security.kek.WritableKekSource
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertThrows
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.io.File
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+
+/**
+ * Les coffres, contre du vrai SQLCipher et le vrai schéma hérité.
+ *
+ * ## Pourquoi instrumentés
+ *
+ * Deux raisons distinctes, et il faut les tenir séparées. La base d'abord : les gardes de
+ * `provisionPassphraseVault` sont **dans le SQL**, et un double factice ne les exercerait pas. Le
+ * Keystore ensuite : il n'existe que sur un appareil.
+ *
+ * ## 🔴 Ce que ces tests NE prouvent pas
+ *
+ * Qu'un coffre créé par l'application publiée s'ouvre. `laCleDunCoffreEcritParFlutterSOuvre` s'en
+ * approche autant qu'il est possible ici — il injecte en base les colonnes **réellement produites
+ * par le Dart** et les ouvre depuis Kotlin — mais les octets viennent d'un vecteur, pas du
+ * téléphone de quelqu'un. Le critère de sortie de la phase 4 reste inchangé.
+ *
+ * Et pour le mode à code, l'écart est structurel : la clé du Keystore est liée à l'UID, et la build
+ * de portage porte un `applicationId` suffixé `.next`. Elle ne PEUT pas voir les clés de
+ * l'application publiée. Cf. `docs/06-ISOLATION-PENDANT-LE-CHANTIER.md`.
+ */
+@RunWith(AndroidJUnit4::class)
+class FolderVaultServiceTest {
+
+    private lateinit var context: Context
+    private lateinit var databaseFile: File
+    private val kek = ByteArray(SqlCipherRawKey.KEY_SIZE_BYTES) { (it * 7 + 5).toByte() }
+    private val horloge = HorlogeReglable(Instant.ofEpochMilli(1_700_000_000_000L))
+    private val horlogeMonotone = HorlogeMonotoneReglable()
+
+    private lateinit var provider: DatabaseProvider
+    private lateinit var dossiers: FoldersRepository
+    private lateinit var notes: NotesRepository
+    private lateinit var sessions: VaultSessions
+    private lateinit var keystore: KeystoreEnMemoire
+    private lateinit var journal: VaultWipeJournal
+    private lateinit var coffres: FolderVaultService
+
+    @Before
+    fun setUp() {
+        context = InstrumentationRegistry.getInstrumentation().targetContext
+        System.loadLibrary("sqlcipher")
+        databaseFile = File(context.cacheDir, "vault-fixture/notes_tech.db")
+        LegacyDatabaseFixture.create(databaseFile, SqlCipherRawKey.encode(kek))
+
+        val source = object : WritableKekSource {
+            override val name = "test"
+            override fun load(): ByteArray = kek.copyOf()
+            override fun store(kek: ByteArray) = Unit
+            override fun replaceKeyAndStore(kek: ByteArray) = Unit
+        }
+        provider = DatabaseProvider(
+            context = context,
+            factory = NotesDatabaseFactory(
+                kekRepository = KekRepository(listOf(source), source, databaseExists = { true }),
+                nowMillis = horloge::millis,
+                databaseFile = { databaseFile },
+            ),
+            ioDispatcher = Dispatchers.IO,
+        )
+        sessions = VaultSessions(horlogeMonotone)
+        keystore = KeystoreEnMemoire()
+        journal = VaultWipeJournal(context)
+        coffres = FolderVaultService(provider, keystore, sessions, journal, horloge)
+        dossiers = FoldersRepository(provider, horloge)
+        notes = NotesRepository(provider, dossiers, coffres, horloge)
+
+        // Le journal vit dans les préférences réelles : un test précédent ne doit pas en léguer.
+        journal.pendingFolderIds().forEach(journal::clearPending)
+    }
+
+    @After
+    fun tearDown(): Unit = runBlocking {
+        sessions.lockAll()
+        journal.pendingFolderIds().forEach(journal::clearPending)
+        provider.close()
+        LegacyDatabaseLocation.SIDECAR_SUFFIXES.forEach { File(databaseFile.path + it).delete() }
+    }
+
+    // ── Coffre à phrase secrète ──────────────────────────────────────────────────────────────────
+
+    @Test
+    fun un_coffre_cree_puis_verrouille_se_rouvre_avec_sa_phrase(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val note = notes.create(folderId = DOSSIER, title = "Relevé", content = "IBAN FR76")
+
+        // La note doit être partie chiffrée : c'est le scelleur réel qui vient d'être branché.
+        assertThat(note.isLocked).isTrue()
+        assertThat(note.title).isEmpty()
+        assertThat(note.content).isEmpty()
+        assertThat(note.encVersion).isEqualTo(EncryptedFormat.TITLE_AND_CONTENT)
+
+        coffres.lock(DOSSIER)
+        assertThat(coffres.isUnlocked(DOSSIER)).isFalse()
+
+        coffres.unlockWithPassphrase(DOSSIER, PHRASE)
+        val relue = coffres.decrypt(notes.find(note.id)!!)
+        assertThat(relue.title).isEqualTo("Relevé")
+        assertThat(relue.content).isEqualTo("IBAN FR76")
+    }
+
+    /**
+     * ⚠️ Le contrôle qui compte vraiment : ce qu'il y a **sur le disque**.
+     *
+     * Vérifier que l'objet rendu est chiffré ne prouve rien sur ce qui a été écrit. Ici on relit la
+     * ligne sans passer par le service, et ni le titre ni le contenu ne doivent y figurer.
+     */
+    @Test
+    fun rien_de_lisible_ne_reste_en_base_apres_le_scellement(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val note = notes.create(folderId = DOSSIER, title = "Codes", content = "1234 secret")
+
+        val ligne = provider.get().noteDao().findById(note.id)!!
+        assertThat(ligne.title).isEmpty()
+        assertThat(ligne.content).isEmpty()
+        assertThat(ligne.encryptedContent).isNotNull()
+        val blob = String(ligne.encryptedContent!!, Charsets.ISO_8859_1)
+        assertThat(blob).doesNotContain("Codes")
+        assertThat(blob).doesNotContain("secret")
+    }
+
+    @Test
+    fun une_mauvaise_phrase_est_refusee_et_arme_le_freinage(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        coffres.lock(DOSSIER)
+
+        assertThrows(WrongSecretException::class.java) {
+            runBlocking { coffres.unlockWithPassphrase(DOSSIER, "une autre phrase") }
+        }
+        assertThat(coffres.isUnlocked(DOSSIER)).isFalse()
+
+        // La tentative suivante est refusée AVANT toute dérivation : c'est ce qui rend un
+        // dictionnaire coûteux.
+        assertThrows(VaultLockoutInProgressException::class.java) {
+            runBlocking { coffres.unlockWithPassphrase(DOSSIER, PHRASE) }
+        }
+
+        horlogeMonotone.avance(1_000)
+        coffres.unlockWithPassphrase(DOSSIER, PHRASE)
+        assertThat(coffres.isUnlocked(DOSSIER)).isTrue()
+    }
+
+    /**
+     * 🔴 Le test le plus proche du critère de sortie de la phase 4.
+     *
+     * Les quatre colonnes injectées ici ont été **produites par le vrai code Dart** de la 2.0.3, et
+     * recoupées contre OpenSSL et le C de référence d'Argon2 (`docs/09-VECTEURS-DE-PARITE.md`). Le
+     * service ne reçoit que la phrase secrète et doit tout retrouver, y compris le contenu d'une
+     * note chiffrée par ce Dart-là.
+     *
+     * ⚠️ Ce n'est **pas** un coffre pris sur le téléphone d'un utilisateur. Les octets sont
+     * authentiques, leur provenance ne l'est qu'à moitié.
+     */
+    @Test
+    fun la_cle_dun_coffre_ecrit_par_flutter_souvre_depuis_kotlin(): Unit = runBlocking {
+        val vecteur = VecteurCoffreFlutter
+        // ⚠️ Le dossier porte l'identifiant DU VECTEUR, pas celui du jeu d'essai. Il sert d'AAD au
+        // scellement de la clé : le changer ferait échouer l'étiquette GCM, et le test conclurait à
+        // une phrase secrète fausse là où seul l'identifiant aurait bougé.
+        val base = provider.get().openHelper.writableDatabase
+        base.execSQL(
+            """
+            INSERT INTO folders (id, name, parent_id, color, icon, created_at, updated_at,
+                                 vault_salt, vault_kek_wrapped, vault_iv, vault_verifier,
+                                 vault_mode, vault_pin_blob, vault_pin_iv, vault_attempts)
+            VALUES (?, 'Coffre Flutter', NULL, NULL, NULL, 1, 1, ?, ?, ?, ?, 'passphrase', NULL, NULL, 0)
+            """.trimIndent(),
+            arrayOf(vecteur.FOLDER_ID, vecteur.SEL, vecteur.KEK_EMBALLEE, vecteur.NONCE, vecteur.VERIFICATEUR),
+        )
+        base.execSQL(
+            """
+            INSERT INTO notes (id, title, content, encrypted_content, folder_id, tags, pinned,
+                               favorite, archived, trashed_at, created_at, updated_at, enc_v)
+            VALUES (?, '', '', ?, ?, '', 0, 0, 0, NULL, 1, 1, 2)
+            """.trimIndent(),
+            arrayOf(vecteur.NOTE_ID, vecteur.NOTE_BLOB, vecteur.FOLDER_ID),
+        )
+
+        coffres.unlockWithPassphrase(vecteur.FOLDER_ID, vecteur.PASSPHRASE)
+
+        val relue = coffres.decrypt(notes.find(vecteur.NOTE_ID)!!)
+        assertThat(relue.title).isEqualTo(vecteur.NOTE_TITRE)
+        assertThat(relue.content).isEqualTo(vecteur.NOTE_CONTENU)
+    }
+
+    @Test
+    fun convertir_un_dossier_deja_coffre_est_refuse(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+
+        val erreur = assertThrows(VaultValidationException::class.java) {
+            runBlocking { coffres.createPassphraseVault(DOSSIER, "une autre phrase encore") }
+        }
+        assertThat(erreur.reason).isEqualTo(VaultValidationException.Reason.ALREADY_A_VAULT)
+    }
+
+    // ── Coffre à code ────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun un_coffre_a_code_se_rouvre_avec_son_code(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        val note = notes.create(folderId = DOSSIER, title = "Carte", content = "PIN 0000")
+        coffres.lock(DOSSIER)
+
+        coffres.unlockWithPin(DOSSIER, CODE)
+
+        assertThat(coffres.decrypt(notes.find(note.id)!!).content).isEqualTo("PIN 0000")
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+    }
+
+    @Test
+    fun cinq_codes_faux_detruisent_le_coffre_et_ses_notes(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        val note = notes.create(folderId = DOSSIER, title = "Carte", content = "à perdre")
+        coffres.lock(DOSSIER)
+
+        repeat(VaultParams.PIN_MAX_ATTEMPTS - 1) { tour ->
+            horlogeMonotone.avance(60_000)
+            val erreur = assertThrows(WrongPinException::class.java) {
+                runBlocking { coffres.unlockWithPin(DOSSIER, "999999") }
+            }
+            assertThat(erreur.attemptsRemaining).isEqualTo(VaultParams.PIN_MAX_ATTEMPTS - tour - 1)
+        }
+
+        horlogeMonotone.avance(60_000)
+        assertThrows(VaultPinWipedException::class.java) {
+            runBlocking { coffres.unlockWithPin(DOSSIER, "999999") }
+        }
+
+        // Le coffre est démoli : clé partie, notes verrouillées supprimées, dossier redevenu
+        // ordinaire — et le drapeau de reprise retiré, puisque l'effacement est allé au bout.
+        assertThat(keystore.hasKey(VaultParams.pinKeystoreAlias(DOSSIER))).isFalse()
+        assertThat(notes.find(note.id)).isNull()
+        assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isFalse()
+        assertThat(journal.pendingFolderIds()).doesNotContain(DOSSIER)
+    }
+
+    /**
+     * 🔴 Le défaut que la version Flutter a corrigé en v1.0.3, et qu'il ne faut pas réintroduire.
+     *
+     * Un Keystore momentanément indisponible — mise à jour du système en cours, écran verrouillé —
+     * ne prouve rien sur le code saisi. Le compter reviendrait à détruire le coffre d'un
+     * utilisateur qui n'a rien fait de mal, en cinq lancements d'application.
+     */
+    @Test
+    fun un_keystore_indisponible_ne_consomme_pas_de_tentative(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        keystore.panneTransitoire = true
+
+        assertThrows(KeystoreUnavailableException::class.java) {
+            runBlocking { coffres.unlockWithPin(DOSSIER, CODE) }
+        }
+
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+
+        keystore.panneTransitoire = false
+        coffres.unlockWithPin(DOSSIER, CODE)
+        assertThat(coffres.isUnlocked(DOSSIER)).isTrue()
+    }
+
+    @Test
+    fun une_cle_definitivement_invalidee_detruit_le_coffre(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        keystore.invalidationPermanente = true
+
+        assertThrows(VaultPinWipedException::class.java) {
+            runBlocking { coffres.unlockWithPin(DOSSIER, CODE) }
+        }
+        assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isFalse()
+    }
+
+    @Test
+    fun un_code_hors_format_est_refuse_au_deverrouillage_comme_a_la_creation(): Unit = runBlocking {
+        // La règle « quatre à six chiffres » doit valoir des deux côtés. Ne la poser qu'à la
+        // création laisserait une divergence entre les deux chemins.
+        assertThrows(VaultValidationException::class.java) {
+            runBlocking { coffres.createPinVault(DOSSIER, "12") }
+        }
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+
+        val erreur = assertThrows(VaultValidationException::class.java) {
+            runBlocking { coffres.unlockWithPin(DOSSIER, "abcd") }
+        }
+        assertThat(erreur.reason).isEqualTo(VaultValidationException.Reason.PIN_NOT_DIGITS_ONLY)
+        // Et le refus de format ne consomme pas de tentative.
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+    }
+
+    // ── Ce qui ne doit JAMAIS consommer une tentative ────────────────────────────────────────────
+
+    /**
+     * 🔴 Un vérificateur incohérent n'est pas un mauvais code.
+     *
+     * AES-GCM est authentifié : que la clé soit sortie prouve déjà que le code était bon. Un
+     * vérificateur qui ne concorde pas ensuite décrit une base abîmée. La version publiée compte
+     * pourtant un échec ici — cinq lectures d'une colonne corrompue y détruiraient un coffre dont
+     * le code était bon à chaque fois. Relevé par les deux relectures externes du 2026-08-14.
+     */
+    @Test
+    fun un_verificateur_incoherent_ne_consomme_pas_de_tentative(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE folders SET vault_verifier = ? WHERE id = ?",
+            arrayOf(ByteArray(32) { 0x5A }, DOSSIER),
+        )
+
+        assertThrows(MalformedVaultDataException::class.java) {
+            runBlocking { coffres.unlockWithPin(DOSSIER, CODE) }
+        }
+
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+        assertThat(coffres.isUnlocked(DOSSIER)).isFalse()
+    }
+
+    @Test
+    fun un_verificateur_incoherent_narme_pas_le_freinage_du_mode_phrase(): Unit = runBlocking {
+        // Le jumeau du test précédent. Les deux modes doivent conclure « base abîmée », pas
+        // « mauvais secret » — et une première version plantait ici au lieu de refuser.
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        coffres.lock(DOSSIER)
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE folders SET vault_verifier = ? WHERE id = ?",
+            arrayOf(ByteArray(32) { 0x5A }, DOSSIER),
+        )
+
+        assertThrows(MalformedVaultDataException::class.java) {
+            runBlocking { coffres.unlockWithPassphrase(DOSSIER, PHRASE) }
+        }
+
+        assertThat(coffres.lockoutRemainingMillis(DOSSIER)).isEqualTo(0)
+    }
+
+    /**
+     * 🔴 Une colonne de mauvaise longueur ne prouve rien non plus.
+     *
+     * Un `vault_iv` tronqué fait lever une `IllegalArgumentException` — pas une `VaultException`.
+     * Une première version ne reprenait l'incrément que pour les erreurs du Keystore : cinq
+     * lectures de cette base auraient effacé le coffre.
+     */
+    @Test
+    fun une_colonne_de_mauvaise_longueur_ne_consomme_pas_de_tentative(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE folders SET vault_iv = ? WHERE id = ?",
+            arrayOf(ByteArray(4), DOSSIER),
+        )
+
+        runCatching { coffres.unlockWithPin(DOSSIER, CODE) }
+
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+    }
+
+    /**
+     * 🔴 Revenir en arrière pendant la dérivation ne coûte pas une tentative.
+     *
+     * Argon2id dure de l'ordre de la seconde : l'annulation est le cas le plus fréquent de tous
+     * ceux qui ne prouvent rien. Sans `NonCancellable` autour de la reprise, la reprise serait
+     * elle-même annulée, et cinq hésitations détruiraient le coffre.
+     */
+    @Test
+    fun une_tentative_annulee_ne_consomme_pas_de_tentative(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+
+        val portee = CoroutineScope(Dispatchers.IO)
+        val travail = portee.launch { coffres.unlockWithPin(DOSSIER, CODE) }
+        // Laisse l'incrément partir en base, puis annule pendant la dérivation.
+        while (provider.get().folderDao().vaultAttempts(DOSSIER) == 0) {
+            delay(1)
+        }
+        travail.cancelAndJoin()
+
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+    }
+
+    /**
+     * ⚠️ Un coffre à code dont l'étiquette `vault_mode` a été perdue reste ouvrable.
+     *
+     * Se fier à l'étiquette plutôt qu'aux colonnes rendrait ce coffre inouvrable **par les deux
+     * chemins à la fois** : refusé côté code faute d'étiquette, refusé côté phrase secrète faute de
+     * `vault_kek_wrapped`.
+     */
+    @Test
+    fun un_coffre_a_code_sans_etiquette_reste_ouvrable(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        val note = notes.create(folderId = DOSSIER, title = "Carte", content = "PIN 0000")
+        coffres.lock(DOSSIER)
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE folders SET vault_mode = NULL WHERE id = ?",
+            arrayOf(DOSSIER),
+        )
+
+        coffres.unlockWithPin(DOSSIER, CODE)
+
+        assertThat(coffres.decrypt(notes.find(note.id)!!).content).isEqualTo("PIN 0000")
+    }
+
+    // ── Reprise d'un effacement interrompu ───────────────────────────────────────────────────────
+
+    @Test
+    fun un_effacement_interrompu_est_repris_au_demarrage(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        val note = notes.create(folderId = DOSSIER, title = "Carte", content = "à perdre")
+        coffres.lock(DOSSIER)
+        // Ce que laisse une application tuée entre le drapeau et le premier geste.
+        journal.markPending(DOSSIER)
+
+        coffres.resumePendingWipes()
+
+        assertThat(notes.find(note.id)).isNull()
+        assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isFalse()
+        assertThat(journal.pendingFolderIds()).doesNotContain(DOSSIER)
+    }
+
+    /**
+     * ⚠️ Le drapeau d'un dossier disparu est retiré — c'est le **seul** retrait légitime.
+     *
+     * Le retirer sur échec, en revanche, annulerait définitivement un effacement déclenché par cinq
+     * codes faux : il suffirait de provoquer un plantage au démarrage pour sauver le coffre qu'on
+     * vient de faire condamner.
+     */
+    @Test
+    fun le_drapeau_dun_dossier_disparu_est_retire(): Unit = runBlocking {
+        journal.markPending("dossier-qui-nexiste-plus")
+
+        coffres.resumePendingWipes()
+
+        assertThat(journal.pendingFolderIds()).doesNotContain("dossier-qui-nexiste-plus")
+    }
+
+    // ── Doubles et utilitaires ───────────────────────────────────────────────────────────────────
+
+    private companion object {
+        const val DOSSIER = LegacyDatabaseFixture.Fixtures.FOLDER_WORK
+        const val PHRASE = "ma phrase de coffre"
+        const val CODE = "482913"
+    }
+
+    /**
+     * Le Keystore, en mémoire.
+     *
+     * Le vrai est exercé par `AndroidVaultKeystoreTest`. Ici il faut pouvoir **provoquer** ses
+     * pannes — indisponibilité passagère, invalidation définitive — puisque c'est la distinction
+     * entre les deux qui décide de détruire ou non les notes de quelqu'un.
+     */
+    private class KeystoreEnMemoire : VaultKeystore {
+        private val cles = mutableMapOf<String, ByteArray>()
+        var panneTransitoire = false
+        var invalidationPermanente = false
+
+        override fun createKey(alias: String): Boolean {
+            garde()
+            if (cles.containsKey(alias)) return false
+            cles[alias] = SecretBytes.randomBytes(VaultParams.FOLDER_KEY_BYTES)
+            return true
+        }
+
+        override fun seal(alias: String, plaintext: ByteArray): SealedByKeystore {
+            garde()
+            val cle = cles[alias] ?: throw KeystoreUnavailableException()
+            val nonce = VaultCrypto.newNonce()
+            return SealedByKeystore(VaultCrypto.seal(cle, nonce, plaintext, ByteArray(0)), nonce)
+        }
+
+        override fun open(alias: String, sealed: SealedByKeystore): ByteArray {
+            garde()
+            val cle = cles[alias] ?: throw KeystoreUnavailableException()
+            return VaultCrypto.open(cle, sealed.nonce, sealed.ciphertext, ByteArray(0))
+        }
+
+        override fun deleteKey(alias: String) {
+            cles.remove(alias)
+        }
+
+        override fun hasKey(alias: String): Boolean = cles.containsKey(alias)
+
+        private fun garde() {
+            if (invalidationPermanente) throw KeystorePermanentlyInvalidatedException()
+            if (panneTransitoire) throw KeystoreUnavailableException()
+        }
+    }
+
+    private class HorlogeReglable(private var maintenant: Instant) : Clock() {
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+        override fun withZone(zone: ZoneId): Clock = this
+        override fun instant(): Instant = maintenant
+    }
+
+    private class HorlogeMonotoneReglable : MonotonicClock {
+        private var millis = 0L
+        override fun elapsedMillis(): Long = millis
+
+        fun avance(de: Long) {
+            millis += de
+        }
+    }
+
+    /**
+     * Les octets d'un coffre **produits par le Dart de la 2.0.3**, recopiés de
+     * `app/src/test/resources/parite/coffre_complet.tsv`.
+     *
+     * Répétés en dur ici plutôt que lus depuis la ressource : les ressources de test JVM ne sont
+     * pas au chemin de classe d'un test instrumenté, et les dupliquer sur cinq lignes coûte moins
+     * qu'un mécanisme de partage. Le contrôle de cohérence, lui, est fait par
+     * `PariteCoffreAvecFlutterTest`, qui lit la ressource et vérifie les mêmes valeurs.
+     */
+    private object VecteurCoffreFlutter {
+        const val PASSPHRASE = "ma passphrase de coffre 2026"
+        const val FOLDER_ID = "a1b2c3d4-e5f6-4789-abcd-ef0123456789"
+        const val NOTE_ID = "c0ffee00-dead-4bee-8fee-0123456789ab"
+        const val NOTE_TITRE = "Relevé bancaire"
+        const val NOTE_CONTENU = "IBAN FR76 — ne pas partager"
+        val SEL: ByteArray = SecretBytes.fromHex("0f1e2d3c4b5a69788796a5b4c3d2e1f0")
+        val NONCE: ByteArray = SecretBytes.fromHex("000000000000000000000001")
+        val KEK_EMBALLEE: ByteArray = SecretBytes.fromHex(
+            "602156805229e425e7c5608398e10df032e910ffaefa00262efd135b52cd8180beae5f745081c2d5ebcf13118e01439a",
+        )
+        val VERIFICATEUR: ByteArray = SecretBytes.fromHex(
+            "857d32c0920d35df93570d264a5db3ff12266ffe85e311f5f1c03aaad40c6370",
+        )
+        val NOTE_BLOB: ByteArray = SecretBytes.fromHex(
+            "0a0b0c0d0e0f1011121314159569aebdf78cde7e713492e2caaed3708f40f331f86c4bb5f8ebf964a1662447d1584f" +
+                "32af2633c811541e37215aae89bbf3512defacaa919e4af5843214b96e8d",
+        )
+    }
+}

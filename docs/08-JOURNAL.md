@@ -325,3 +325,31 @@ Second piège : le clair scellé doit être les **32 octets bruts**, alors que `
 contient les **64 caractères hexadécimaux**.
 
 `notes_tech` n'a **pas** été modifié : publier une 2.0.4 demande la clé de signature et une décision.
+
+## 2026-08-14 — Phase 4 : les coffres
+
+**Cible de release fixée** : Kotlin 3.0.0 début septembre 2026. La 2.0.4 Flutter, elle, n'a **pas**
+de date — elle attend la MR F-Droid !37885. Les deux horloges avaient été confondues dans une
+première rédaction, corrigée le jour même.
+
+**Écrit** : `security/vault/` (neuf fichiers), le provisionnement de coffre dans `FolderDao`, la
+projection `VaultMaterial`, le branchement du scelleur réel, `VaultAutoLocker` et le verrouillage au
+passage en arrière-plan.
+
+**Prouvé** : 37 concordances contre une tierce implantation d'Argon2id et d'AES-GCM ; un coffre dont
+les colonnes viennent du vrai Dart ouvert depuis Kotlin sur du vrai SQLCipher ; 70 tests JVM et 91
+instrumentés sur le S9, gate qualité vert sans ligne de base.
+
+**Pas prouvé, et écrit comme tel** : qu'un utilisateur réel rouvre son coffre. Pour le mode à code
+c'est structurellement impossible avant la bascule — la clé du Keystore est liée à l'UID.
+
+**Six défauts**, dont quatre relevés par deux relectures externes indépendantes et deux par mes
+propres tests. **Cinq portaient sur le classement des échecs, aucun sur la cryptographie.**
+Détail dans `07-RELECTURES.md` R-008, règles dans `01-DECISIONS.md` D-012 à D-014, motifs dans
+`04-PIEGES.md` §21 à §24.
+
+**Ce que la phase a appris** : le portage a deux natures de risque, et elles ne se relisent pas
+pareil. Le **format** se ferme par des vecteurs pris sur le vrai Dart. Le **jugement** — ce que le
+code conclut d'un échec — ne se ferme que par une relecture adversariale et par des tests qui
+vérifient qu'il ne se passe *rien*. Un vecteur ne dira jamais qu'un coffre s'est détruit pour la
+mauvaise raison.

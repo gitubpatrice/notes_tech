@@ -383,3 +383,71 @@ Corollaire moins évident, relevé sur le même fichier : `fromHex` remplissait 
 fur et à mesure et le laissait au ramasse-miettes si un caractère invalide survenait **vers la fin**.
 Le chemin d'erreur est celui qu'on regarde le moins ; c'est aussi celui où un secret à demi décodé
 traîne sans que personne ne l'ait voulu.
+
+---
+
+## §21 — Une garde échantillonnée a besoin de **quelqu'un pour la rappeler**
+
+Le verrouillage automatique était vérifié à deux endroits : à la lecture d'une session, et par un
+balayage. Le premier refuse de servir une clé périmée ; le second l'**efface**. Le premier ne libère
+rien, le second ne protège rien entre deux passages : il en faut deux.
+
+Sauf que le second n'avait **aucun appelant en production**. `sweep()` existait, était testé, et ne
+tournait jamais. Une clé oubliée serait restée en mémoire jusqu'à la mort du processus, et rien ne
+l'aurait signalé — le comportement observable, lui, était correct.
+
+> **La question à poser devant toute garde échantillonnée : « si la condition devient vraie une
+> seconde plus tard, qui rappelle ce code ? »** Si la réponse est « personne », la garde est
+> décorative.
+
+Corollaire trouvé dans la foulée : ce même balayage excluait de son **calcul d'échéance** les
+sessions en cours d'ouverture, alors qu'il ne devait les exclure que du **verrouillage**. Seule
+session ouverte, elle faisait annoncer « plus rien à surveiller » au moment précis où il allait y
+avoir quelque chose à surveiller. Deux filtres qui se ressemblent n'ont pas forcément le même objet.
+
+## §22 — Un geste et sa reprise doivent être dans la **même portée**
+
+Le compteur de tentatives d'un coffre à code est incrémenté avant l'essai, et repris si l'essai ne
+prouve rien. Les deux vivaient à deux endroits différents, séparés par une seule ligne — une
+relecture du compteur, donc un point de suspension.
+
+Cette ligne suffisait : une annulation qui tombe là emporte tout **sans passer par la reprise**.
+La fenêtre fait quelques microsecondes, et le test écrit pour un autre défaut tombait dedans à tous
+les coups, parce qu'il attend précisément que le compteur bouge pour annuler.
+
+> **Séparés, un geste et sa reprise laissent toujours un instant où l'un a eu lieu et l'autre est
+> devenu inatteignable.**
+
+⚠️ Et la reprise elle-même doit être **`NonCancellable`** : sur un chemin annulable, rattraper une
+annulation avec du code annulable ne rattrape rien.
+
+## §23 — Ce que Dart ne peut pas vous apprendre : les tableaux d'octets partagés
+
+Dart est mono-fil. Un `Uint8List` rendu par une méthode ne peut pas être vidé pendant que
+l'appelant s'en sert, et le code d'origine s'appuie là-dessus sans le dire.
+
+Kotlin n'a pas cette propriété. Rendre le tableau d'une session ouvrait ceci :
+
+```
+coroutine A : val cle = sessionKey(f)      // référence sur le tableau de la session
+coroutine B : lock(f)                      // remplit CE MÊME tableau de zéros
+coroutine A : VaultCrypto.seal(cle, …)     // chiffre sous une clé nulle
+```
+
+La note serait partie en base **scellée sous une clé de zéros** : présentée comme protégée,
+définitivement illisible, et sans aucune erreur pour le signaler. Le verrouillage automatique est
+justement conçu pour tomber sans prévenir — la fenêtre n'a rien de théorique.
+
+> **Chaque fois qu'un portage rend un tableau mutable partagé, se demander ce qui se passerait si
+> une autre coroutine le modifiait à cet instant.** L'original ne pouvait pas se poser la question.
+
+## §24 — « Cet échec prouve-t-il quelque chose ? » est une question de perte de données
+
+Cinq échecs détruisent un coffre à code. Un échec système classé comme échec utilisateur détruit
+donc les notes de quelqu'un qui n'a rien fait de mal.
+
+Cinq des six défauts de la phase 4 étaient là — **aucun dans la cryptographie**, que les vecteurs de
+parité avaient déjà fermée. Le tableau de référence est dans
+[11-COFFRES.md](11-COFFRES.md) §5, et la règle dans `01-DECISIONS.md` D-012.
+
+> **Un vecteur de parité ne dira jamais qu'un coffre s'est détruit pour la mauvaise raison.**

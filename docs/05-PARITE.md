@@ -180,5 +180,16 @@ chez le mainteneur.
 **Déclencheur** : MR fusionnée ou fermée. **Borne** : quatre à six semaines, après quoi publier
 quand même — un correctif de confidentialité qui existe ne doit pas attendre indéfiniment un tiers.
 
+#### ⚠️ La 2.0.4 Flutter n'a **PAS** de date — précisé par Patrice le 2026-08-14
+
+> « pour Flutter on verra quand F-Droid aura validé l'appli. »
+
+Le déclencheur reste **exactement** celui écrit ci-dessus : la MR !37885 tranchée. Aucune date de
+calendrier ne s'y substitue.
+
+⚠️ **Ne pas confondre avec la cible de début septembre**, qui porte sur la **release 3.0.0 du
+portage Kotlin** et sur elle seule — cf. [00-PLAN.md](00-PLAN.md), phase 8. Les deux dépôts ont des
+horloges séparées, et je les avais confondues en écrivant cette section une première fois.
+
 ⚠️ Le bump touche `pubspec.yaml` **et** `AppConstants.appVersion`, plus fastlane FR+EN, les trois
 surfaces du site, et le `.yml` F-Droid.

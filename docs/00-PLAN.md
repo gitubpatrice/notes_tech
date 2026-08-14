@@ -1,9 +1,35 @@
 # Notes Tech — portage Flutter → Kotlin natif
 
-> **État** : phases 1, 2 et 3 **closes**. Prochaine : phase 4 (coffres). Dernière mise à jour : 2026-08-13.
+> **État** : phases 1 à 4 **closes** (la 4 avec une réserve écrite, cf. plus bas). Prochaine : phase 5 (interface Compose). Dernière mise à jour : 2026-08-14.
+>
+> **🎯 Cible de release 3.0.0 : début septembre 2026** — fixée par Patrice le 2026-08-14.
 >
 > Ce fichier est le plan de référence. Il dit **où on en est** et **ce qui vient ensuite**.
 > Les décisions déjà prises sont dans [01-DECISIONS.md](01-DECISIONS.md) — ne pas les rediscuter ici.
+
+## 0. La contrainte de calendrier, et ce qu'elle change
+
+> « prévoyons une release pour début septembre, ça laisse le temps de peaufiner l'application. »
+> — Patrice, 2026-08-14
+
+Trois semaines pour les phases 4 à 8. Le plan **ne change pas d'ordre** : la phase 4 reste le
+verrou, et aucune interface ne se construit sur des coffres non prouvés.
+
+Ce que la date change, c'est **où se situe l'arbitrage**. Les phases 4, 5, 6 et 8 sont du travail
+borné : leur contenu est connu, mesuré, et il ne réserve pas de surprise de nature. La **phase 7
+est la seule dont le coût n'est pas connu** — `whisper_ggml_plus` est un plugin FFI sans équivalent
+Kotlin, et il faudra soit écrire un pont JNI vers whisper.cpp, soit s'en passer.
+
+⚠️ **Le point à trancher, et le seul :** est-ce que la 3.0.0 sort **avec ou sans dictée vocale** ?
+La question n'a pas à être tranchée maintenant — elle se pose à la fin de la phase 6, quand le
+reste sera mesuré. Elle est notée ici pour ne pas être découverte le 1ᵉʳ septembre.
+
+⚠️ **Ce qui ne bouge pas, quelle que soit la date** : le critère de sortie de la phase 4 (ouvrir un
+coffre réellement créé par la version Flutter) et la règle du §4 — aucune phase ne démarre avant que
+le critère de la précédente soit **observé**. Une date ne transforme pas une supposition en preuve.
+
+⚠️ **La 2.0.4 Flutter n'est PAS concernée par cette date.** Elle attend la MR F-Droid !37885, sans
+calendrier. Cf. [05-PARITE.md](05-PARITE.md).
 
 ---
 
@@ -25,7 +51,7 @@ Les cinq plus gros fichiers, qui concentrent l'essentiel de la difficulté :
 
 | Fichier Dart | Lignes | Destination Kotlin |
 |---|---|---|
-| `services/security/folder_vault_service.dart` | 1 582 | `security/vault/` (phase 4) |
+| `services/security/folder_vault_service.dart` | 1 582 | `security/vault/` ✅ phase 4 |
 | `ui/screens/note_editor_screen.dart` | 1 123 | `ui/editor/` (phase 5) |
 | `data/db/database.dart` | 905 | `data/local/` (phase 2-3) |
 | `ui/widgets/vault_pin_sheets.dart` | 857 | `ui/vault/` (phase 5) |
@@ -134,19 +160,34 @@ R-006.
 déclarer exempt de fuite de clair.** Le trou n'était pas dans un chemin d'écriture de note mais
 dans une réassignation de dossier, qui déplace N notes sans en toucher aucune individuellement.
 
-### Phase 4 — Coffres 🔴 point de risque n°2
+### Phase 4 — Coffres ⚠️ close le 2026-08-14, **critère de sortie partiellement atteint**
 
-Paramètres à recopier **à l'identique** — la moindre dérive rend les coffres existants
-inouvrables. Valeurs exactes dans [02-SCHEMA-HERITE.md](02-SCHEMA-HERITE.md) §4.
+Détail complet : [11-COFFRES.md](11-COFFRES.md).
 
-- [ ] Argon2id via BouncyCastle `Argon2BytesGenerator`
-- [ ] Enveloppe AES-GCM `nonce(12) || ciphertext || tag(16)`
-- [ ] `KeystoreBridge.kt` repris du projet Flutter, débarrassé de sa couche MethodChannel
-- [ ] Auto-verrouillage, compteur de tentatives, auto-effacement à 5 échecs
+- [x] Argon2id via BouncyCastle `Argon2BytesGenerator` — 16 vecteurs, deux jeux de paramètres
+- [x] Enveloppe AES-GCM `nonce(12) ‖ ciphertext ‖ tag(16)`, AAD liante
+- [x] `KeystoreBridge.kt` repris, débarrassé de sa couche MethodChannel
+- [x] Auto-verrouillage, freinage exponentiel, compteur de tentatives, effacement à 5 échecs
+- [x] Reprise des effacements interrompus, lue dans les préférences **héritées**
+- [x] `VaultSealer` réel branché — le bouchon qui refuse a rempli son office jusqu'au bout
 
-**Critère de sortie** : ouvrir depuis Kotlin un coffre **créé par la version Flutter**, sur base
-réelle, dans les deux modes (passphrase et PIN). Pas sur vecteur synthétique — cf. la leçon
-« un test peut passer sur un chemin qu'aucun appelant n'emprunte ».
+**Mesuré** :
+
+| Vérification | Résultat |
+|---|---|
+| Tests JVM | **70** (48 avant), 0 échec |
+| Tests instrumentés sur Galaxy S9 | **91** (67 avant), 0 échec |
+| Argon2id / AES-GCM / HMAC contre une **tierce** implantation | 37 concordances, 0 divergence |
+| Un coffre dont les colonnes viennent du Dart, ouvert depuis Kotlin | ✅ |
+
+🔴 **Ce qui reste ouvert, et qu'il ne faut pas déclarer clos par habitude** : aucun test n'ouvre un
+coffre pris sur le téléphone d'un utilisateur. Pour le mode à code c'est **structurellement
+impossible** avant la bascule — la clé du Keystore est liée à l'UID, et la build de portage porte
+un `applicationId` suffixé `.next`. Le contrôle appartient donc à la phase 8, sur base réelle.
+
+**Six défauts trouvés pendant la phase**, dont quatre par deux relectures externes indépendantes et
+deux par mes propres tests. Cinq sur six portaient sur le **classement des échecs**, pas sur la
+cryptographie. Cf. [07-RELECTURES.md](07-RELECTURES.md), R-008.
 
 ### Phase 5 — Interface Compose
 

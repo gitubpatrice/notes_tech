@@ -1,0 +1,15 @@
+# Vecteurs de parite des coffres -- produits en EXECUTANT le vrai code Dart de
+# Notes Tech 2.0.3 (paquet `cryptography` 2.9.0), puis recoupes contre une
+# troisieme implantation independante (argon2-cffi = C de reference, et
+# `cryptography` Python = OpenSSL). 37 concordances, 0 divergence.
+# Procedure et limites : docs/09-VECTEURS-DE-PARITE.md.
+# NE PAS EDITER A LA MAIN. Tout champ textuel est en hexadecimal UTF-8.
+# 
+# HMAC-SHA-256, cle = folder_kek, message = 'files-tech.notes_tech.vault.v1'
+# soit en hexadecimal UTF-8 : 66696c65732d746563682e6e6f7465735f746563682e7661756c742e7631
+# Cette constante est SEPAREE PAR DOMAINE et ne doit JAMAIS changer : la modifier
+# rendrait incompatibles tous les coffres deja crees.
+# folderKekHex	verifierHex
+0000000000000000000000000000000000000000000000000000000000000000	32eb8d336a3651923bc75671b78e3fd0ac6253443320936da6fdf039f4d48f83
+000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f	e4005774ea7e082928d5182d47b4aa35997726ff8c43b6b2c1afedb45605d97b
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff	e20811fe561787c167bf81f24a5a117e68ad41530e577adb1dab3025f31be9be

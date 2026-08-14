@@ -573,3 +573,132 @@ courant était `notes_tech`, et les chemins relatifs pointaient dans le mauvais 
 vérification de la taille du rapport, j'aurais conclu « aucun constat ».
 
 **Un rapport vide est un échec, jamais un satisfecit.**
+
+---
+
+# R-008 — Phase 4, les coffres : deux modèles, six défauts, tous du même genre
+
+**2026-08-14.** `GPT-5.2` et `Gemini 3.1 Pro`, lancés en parallèle sur les mêmes 2 087 lignes :
+les neuf fichiers de `security/vault/`, `FolderDao`, `VaultMaterial` et le module d'injection.
+Consigne : chercher à faire échouer le code, pas à le valider ; et l'interdiction explicite de
+proposer de « durcir » Argon2id ou de changer le message du vérificateur, deux valeurs figées par
+les données des utilisateurs.
+
+## Le fait marquant
+
+**Cinq défauts sur six portaient sur le CLASSEMENT DES ÉCHECS, pas sur la cryptographie.**
+
+Les vecteurs de parité avaient déjà fermé la cryptographie : dérivation, enveloppes, encodages,
+tout concordait avec le Dart et avec une tierce implantation. Ce qui restait ouvert, c'était la
+question qui n'a rien de mathématique — *cet échec prouve-t-il que l'utilisateur s'est trompé ?* —
+et sur laquelle un coffre à code se détruit au cinquième « oui ».
+
+C'est aussi ce que la version publiée avait mis trois versions à apprendre.
+
+## Les six constats
+
+| # | Constat | Trouvé par | Gravité |
+|---|---|---|---|
+| 1 | Le vérificateur incohérent comptait comme un mauvais code | **les deux** | perte définitive |
+| 2 | Seules les erreurs du Keystore reprenaient l'incrément de tentative | **les deux** | perte définitive |
+| 3 | Un succès pouvait préparer une destruction : session ouverte avant la remise à zéro | GPT-5.2 | perte définitive |
+| 4 | L'effacement partiel retirait quand même son drapeau de reprise | GPT-5.2 | notes orphelines |
+| 5 | Se fier à `vault_mode` peut rendre un coffre inouvrable **par les deux chemins** | GPT-5.2 | refus indu |
+| 6 | Le planificateur d'auto-verrouillage pouvait se taire pendant une ouverture | Gemini | fuite de clair |
+
+### 1 — Le vérificateur n'est pas un juge du secret
+
+AES-GCM est **authentifié**. Que la clé soit sortie prouve déjà que le secret était bon. Si le
+vérificateur échoue après ça, la seule explication est que `vault_verifier` ne correspond pas à la
+clé — base abîmée, colonnes recombinées, restauration partielle. Jamais quelqu'un qui s'est trompé.
+
+Le code comptait pourtant un échec, dans les deux modes. Cinq lectures d'une colonne corrompue
+auraient détruit un coffre dont le code était bon à chaque fois. Et côté phrase secrète, GPT a vu
+pire que ce que j'avais écrit : le rappel de rejet ne levait pas, donc le déverrouillage se
+terminait par un `error(...)` — **un plantage**, pas un refus.
+
+⚠️ **Écart délibéré avec l'application publiée**, qui compte un échec ici. Son propre commentaire
+reconnaît que la branche est « en pratique jamais atteinte si le tag GCM a passé » — ce qui est
+exactement l'argument pour ne pas la rendre destructrice.
+
+### 2 — Une reprise qui ne couvrait qu'un tiers des sorties
+
+Le compteur est incrémenté **avant** la tentative, pour qu'on ne puisse pas l'esquiver en tuant
+l'application. Le prix de cette précaution est que toute sortie qui ne prouve rien doit le
+reprendre. La version relue ne reprenait que les `VaultException` du Keystore. Passaient donc :
+
+- `IllegalArgumentException` — un `vault_iv` qui n'a pas douze octets ;
+- `MalformedVaultDataException` — une enveloppe trop courte ;
+- `ProviderException` et consorts — un fournisseur cryptographique récalcitrant.
+
+### 2 bis — Et le cas que ni l'un ni l'autre n'a vu : **l'annulation**
+
+En vérifiant leur constat, une sortie manquait à leurs trois listes, et c'est la plus fréquente de
+toutes : la dérivation Argon2id dure de l'ordre de la seconde, et il suffit que l'utilisateur
+revienne en arrière pendant ce temps pour que la coroutine soit annulée.
+
+Deux conséquences, chacune fermée séparément :
+
+1. La reprise doit passer par `NonCancellable`, sans quoi **elle est annulée elle aussi**.
+2. **L'incrément et sa reprise doivent être dans la même portée.** Ils ne l'étaient pas : entre les
+   deux se glissait une relecture du compteur, donc un point de suspension, donc une fenêtre où
+   l'annulation emportait tout sans passer par la reprise.
+
+Le second point n'a été trouvé ni par relecture ni par raisonnement, mais **par le test écrit pour
+le premier** — il attend que le compteur bouge pour annuler, et tombait donc dans la fenêtre à tous
+les coups. C'est la troisième fois sur ce projet qu'un test écrit pour un défaut en révèle un autre.
+
+### 6 — Le constat de Gemini était juste sur le fond, faux sur les faits
+
+Il décrivait un planificateur qui « s'endort indéfiniment ». C'est **inexact** : le balayeur
+retombe sur un pas de repos d'une minute. Mais le contrat de `nextDeadlineMillis` disait bien
+« plus rien à surveiller » au moment précis où une clé allait entrer en mémoire. Corrigé pour le
+contrat, pas pour le scénario.
+
+## ⚠️ Ce que j'ai trouvé moi-même, et qui ne venait d'aucune relecture
+
+Deux défauts, tous deux dans du code que je venais d'écrire :
+
+**Une garde échantillonnée sans personne pour la rappeler.** `sweep()` n'avait **aucun appelant en
+production**. Le verrouillage automatique ne tenait que par le contrôle paresseux de `sessionKey` —
+qui refuse de servir une clé périmée, mais ne l'efface pas. Une clé oubliée serait restée en mémoire
+jusqu'à la mort du processus. `VaultAutoLocker` existe pour ça, et `ProcessLifecycleOwner` verrouille
+tout dès le passage en arrière-plan, ce qui est la protection principale.
+
+**Une clé effacée sous les pieds de celui qui s'en sert.** `sessionKey` rendait le tableau de la
+session. Un verrouillage concurrent le remplit de zéros — et une note en cours de scellement serait
+partie en base chiffrée **sous une clé nulle**, c'est-à-dire présentée comme protégée et
+irrécupérable. Dart est mono-fil et ne connaît pas ce risque ; Kotlin si. La méthode rend désormais
+une copie, dont l'appelant est propriétaire.
+
+## Mesures après correction
+
+| Vérification | Résultat |
+|---|---|
+| Tests JVM | **70** (48 avant la phase), 0 échec |
+| Tests instrumentés sur Galaxy S9 (API 29) | **91** (67 avant), 0 échec |
+| `ktlintCheck`, `detekt`, `lintDebug` | verts, **aucune ligne de base ajoutée** |
+| Argon2id / AES-GCM / HMAC contre une tierce implantation | 37 concordances, 0 divergence |
+
+Cinq tests ont été écrits **pour ces constats précisément**, dont trois qui vérifient qu'un échec
+**ne consomme pas** de tentative — un vérificateur incohérent, une colonne de mauvaise longueur, une
+annulation.
+
+## Ce que les deux modèles ont cherché et écarté
+
+Utile à consigner, parce que c'est ce qui donne du poids au reste : réutilisation d'un couple
+(clé, nonce) en GCM, débordement d'entier sur la longueur de titre, normalisation Unicode de la
+phrase secrète, écritures de ligne entière, préfixe `flutter.` du journal d'effacement, liste
+blanche des raisons d'effacer côté Keystore, effacement des clés sur les chemins d'erreur de
+création. Aucun défaut sur ces points.
+
+## ⚠️ La leçon qui vaut pour la suite du portage
+
+Le portage a désormais deux natures de risque bien séparées, et elles ne se relisent pas pareil :
+
+| Nature | Se ferme par | État |
+|---|---|---|
+| **Le format** — ce que la base contient | des vecteurs pris sur le vrai Dart, recoupés | fermé |
+| **Le jugement** — ce que le code conclut d'un échec | une relecture adversariale, et des tests qui vérifient qu'il ne se passe RIEN | c'est là que tout se joue |
+
+Un vecteur ne dira jamais qu'un coffre s'est détruit pour la mauvaise raison.

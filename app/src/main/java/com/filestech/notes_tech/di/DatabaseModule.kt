@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.di
 
 import android.content.Context
+import android.os.SystemClock
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.domain.repository.UnavailableVaultSealer
@@ -9,6 +10,11 @@ import com.filestech.notes_tech.security.kek.FlutterSecureStorageKekSource
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.KeystoreSealedKekSource
 import com.filestech.notes_tech.security.kek.WritableKekSource
+import com.filestech.notes_tech.security.vault.AndroidVaultKeystore
+import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.security.vault.MonotonicClock
+import com.filestech.notes_tech.security.vault.VaultKeystore
+import com.filestech.notes_tech.security.vault.VaultSessions
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -88,16 +94,38 @@ object DatabaseModule {
     fun provideClock(): Clock = Clock.systemUTC()
 
     /**
-     * 🔴 Le scelleur de coffres tant que la phase 4 n'a rien livré : il **refuse** tout.
+     * L'horloge monotone du verrouillage automatique.
      *
-     * Un bouchon permissif aurait exactement le comportement qu'on cherche à rendre impossible —
-     * écrire en clair les notes d'un coffre — et il ne se verrait pas, puisque rien n'échouerait.
-     * Celui-ci se signale à la première tentative.
+     * `elapsedRealtime` et non `uptimeMillis` : la première continue de compter pendant la veille
+     * profonde. Un téléphone posé une heure verrouille donc son coffre au réveil, au lieu de le
+     * retrouver ouvert comme si l'heure ne s'était pas écoulée.
      *
-     * ⚠️ Quand la phase 4 livrera, cette liaison change de cible. Elle ne se supprime pas : le
-     * contrat, lui, reste.
+     * ⚠️ **Écart assumé avec la version Flutter**, qui s'appuie sur un `Stopwatch` — lequel
+     * n'avance pas pendant la veille. L'écart ne va que dans un sens : ce portage verrouille plus
+     * tôt, jamais plus tard. Pour une garde, c'est le bon sens de l'erreur.
      */
     @Provides
     @Singleton
-    fun provideVaultSealer(): VaultSealer = UnavailableVaultSealer()
+    fun provideMonotonicClock(): MonotonicClock = MonotonicClock { SystemClock.elapsedRealtime() }
+
+    @Provides
+    @Singleton
+    fun provideVaultSessions(clock: MonotonicClock): VaultSessions = VaultSessions(clock)
+
+    @Provides
+    @Singleton
+    fun provideVaultKeystore(keystore: AndroidVaultKeystore): VaultKeystore = keystore
+
+    /**
+     * 🔴 Le scelleur de coffres. La phase 4 a livré : la cible n'est plus le bouchon qui refuse.
+     *
+     * Le contrat, lui, n'a pas bougé — c'est tout l'intérêt de l'avoir écrit avant l'implantation.
+     * [UnavailableVaultSealer] reste dans le dépôt : il documente ce qu'un bouchon doit faire dans
+     * cette application, à savoir **refuser**. Un bouchon permissif aurait eu exactement le
+     * comportement qu'on cherche à rendre impossible — écrire en clair les notes d'un coffre — et
+     * il ne se serait pas vu, puisque rien n'aurait échoué.
+     */
+    @Provides
+    @Singleton
+    fun provideVaultSealer(service: FolderVaultService): VaultSealer = service
 }

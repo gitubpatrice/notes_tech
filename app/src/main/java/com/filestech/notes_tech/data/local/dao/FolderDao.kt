@@ -96,8 +96,107 @@ interface FolderDao {
     // matériel qui permettait de les déchiffrer n'existe plus. Rien ne le signalerait avant la
     // prochaine ouverture du coffre.
     //
-    // Le geste n'est donc pas exprimable. Les colonnes de coffre ne s'écrivent que par les méthodes
-    // de provisionnement, qui les nomment (phase 4).
+    // Le geste n'est donc pas exprimable. Les colonnes de coffre ne s'écrivent que par les trois
+    // méthodes de provisionnement plus bas, qui les nomment une par une.
+
+    /**
+     * Le matériel cryptographique d'un coffre, et lui seul.
+     *
+     * Une projection dédiée plutôt que `findById` : ces sept colonnes n'ont aucune raison de
+     * traverser la couche domaine ni de se retrouver dans un état d'interface. Elles ne sortent que
+     * pour le service de coffres, le temps d'un déverrouillage.
+     *
+     * @return `null` si le dossier n'existe pas. Un dossier ordinaire rend une projection dont
+     *   `salt` est `null` — c'est le critère qui dit « pas un coffre ».
+     */
+    @Query(
+        """
+        SELECT id, vault_salt, vault_kek_wrapped, vault_iv, vault_verifier, vault_mode,
+               vault_pin_blob, vault_pin_iv, vault_attempts
+        FROM folders WHERE id = :id
+        """,
+    )
+    suspend fun vaultMaterial(id: String): VaultMaterial?
+
+    /**
+     * Fait d'un dossier ordinaire un coffre à phrase secrète.
+     *
+     * ⚠️ **`WHERE vault_salt IS NULL` fait partie du contrat.** Sans cette condition, reconvertir un
+     * coffre déjà existant écraserait son sel et sa clé enveloppée par de nouveaux, et toutes ses
+     * notes deviendraient illisibles — l'ancienne phrase secrète ne dérivant plus rien d'utile, et
+     * la nouvelle n'ouvrant que du contenu chiffré avec l'ancienne clé.
+     *
+     * L'appelant vérifie déjà qu'il ne s'agit pas d'un coffre. La condition est là parce qu'une
+     * garde tenue par un seul appelant se perd au premier appelant suivant.
+     *
+     * @return `1` si le dossier a été converti, `0` s'il n'existait pas **ou** était déjà un coffre.
+     */
+    @Query(
+        """
+        UPDATE folders
+           SET vault_salt = :salt, vault_kek_wrapped = :kekWrapped, vault_iv = :iv,
+               vault_verifier = :verifier, vault_mode = 'passphrase',
+               vault_pin_blob = NULL, vault_pin_iv = NULL, vault_attempts = 0,
+               updated_at = :updatedAt
+         WHERE id = :id AND vault_salt IS NULL
+        """,
+    )
+    suspend fun provisionPassphraseVault(
+        id: String,
+        salt: ByteArray,
+        kekWrapped: ByteArray,
+        iv: ByteArray,
+        verifier: ByteArray,
+        updatedAt: Long,
+    ): Int
+
+    /**
+     * Fait d'un dossier ordinaire un coffre à code.
+     *
+     * `vault_kek_wrapped` reste `NULL` : en mode PIN, la clé enveloppée vit dans `vault_pin_blob`,
+     * après un tour supplémentaire par une clé du Keystore. Même garde `vault_salt IS NULL` que
+     * [provisionPassphraseVault], pour la même raison.
+     */
+    @Query(
+        """
+        UPDATE folders
+           SET vault_salt = :salt, vault_kek_wrapped = NULL, vault_iv = :iv,
+               vault_verifier = :verifier, vault_mode = 'pin',
+               vault_pin_blob = :pinBlob, vault_pin_iv = :pinIv, vault_attempts = 0,
+               updated_at = :updatedAt
+         WHERE id = :id AND vault_salt IS NULL
+        """,
+    )
+    suspend fun provisionPinVault(
+        id: String,
+        salt: ByteArray,
+        iv: ByteArray,
+        verifier: ByteArray,
+        pinBlob: ByteArray,
+        pinIv: ByteArray,
+        updatedAt: Long,
+    ): Int
+
+    /**
+     * Rend un coffre à l'état de dossier ordinaire.
+     *
+     * 🔴 **Appeler ceci alors qu'il reste des notes chiffrées les perd définitivement.** Le matériel
+     * effacé ici est le seul qui permettait de les déchiffrer, et aucune saisie ne le reconstitue.
+     * Les deux seuls appelants légitimes sont la levée de protection — qui déchiffre tout **avant**
+     * — et l'auto-effacement d'un coffre PIN — où les notes viennent d'être supprimées parce que
+     * leur clé est déjà hors d'atteinte.
+     */
+    @Query(
+        """
+        UPDATE folders
+           SET vault_salt = NULL, vault_kek_wrapped = NULL, vault_iv = NULL,
+               vault_verifier = NULL, vault_mode = NULL,
+               vault_pin_blob = NULL, vault_pin_iv = NULL, vault_attempts = 0,
+               updated_at = :updatedAt
+         WHERE id = :id
+        """,
+    )
+    suspend fun clearVault(id: String, updatedAt: Long): Int
 
     /** Renomme. Ne touche à rien d'autre — surtout pas aux colonnes de coffre. */
     @Query("UPDATE folders SET name = :name, updated_at = :updatedAt WHERE id = :id")
@@ -147,6 +246,20 @@ interface FolderDao {
      */
     @Query("UPDATE folders SET vault_attempts = vault_attempts + 1 WHERE id = :id")
     suspend fun incrementVaultAttempts(id: String)
+
+    /**
+     * Annule un incrément de tentative, sans jamais descendre sous zéro.
+     *
+     * 🔴 **Sert au cas où l'échec n'est PAS imputable à l'utilisateur** : Keystore momentanément
+     * indisponible, scellé abîmé. Le compteur est incrémenté **avant** la tentative — pour qu'un
+     * attaquant ne puisse pas l'esquiver en tuant l'application entre l'échec et l'incrément — donc
+     * il faut savoir le reprendre quand la tentative n'a rien prouvé.
+     *
+     * Décrément **en base** plutôt que réécriture d'une valeur lue plus tôt : réécrire écraserait un
+     * incrément concurrent, et offrirait des essais gratuits sur un coffre qui n'en a que cinq.
+     */
+    @Query("UPDATE folders SET vault_attempts = MAX(vault_attempts - 1, 0) WHERE id = :id")
+    suspend fun decrementVaultAttempts(id: String)
 
     @Query("SELECT vault_attempts FROM folders WHERE id = :id")
     suspend fun vaultAttempts(id: String): Int?
