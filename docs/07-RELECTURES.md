@@ -789,3 +789,31 @@ que personne ne cherche parce qu'il vient d'être fait.
 
 > **Après avoir corrigé un motif, passer l'outil qui cherche ce motif ailleurs.** L'engagement pris
 > de mémoire ne suffit pas : ce jour-là je l'avais en tête, et j'ai quand même oublié un site.
+
+## R-010 — Trois relectures sur le delta de la phase 5 (2026-08-14)
+
+Lancées **après** un gate complet vert (ktlint, detekt, `lintDebug`, 70 tests JVM) et après
+vérification de la boucle complète sur appareil.
+
+| Relecteur | Constats retenus |
+|---|---|
+| `android-architecture-coherence-checker` | 1 sérieux (`encryptAllNotesInFolder` sans appelant), 2 mineurs |
+| GPT-5.2 sur `git diff fbe4968..HEAD` | 5 retenus, dont 3 classés critiques et confirmés |
+| Gemini | ⚠️ **rapport vide** — non exploitable, à relancer |
+
+**Six défauts corrigés**, commit `c2c13a8`. Détail dans le message de commit.
+
+### Ce que cette passe apprend, au-delà des six
+
+**Un gate vert n'est pas une preuve de fonctionnement, et une application qui tourne n'est pas une
+preuve de correction.** Les six défauts vivaient dans du code que quatre outils venaient de déclarer
+propre et qu'un essai sur appareil venait d'exercer — parce que l'essai avait suivi le chemin
+nominal, et qu'aucun des six ne s'y trouve.
+
+**Un constat externe se vérifie avant d'être appliqué.** Le constat de GPT-5.2 sur le processus tué
+pendant `removeVaultProtection` est **exact mais déjà atténué** : `reprotectPlaintextNotes` au
+déverrouillage suivant rescelle les notes concernées, et sa requête a été vérifiée pour ça
+(`NoteDao.findPlaintextInFolder` retient bien « pas de blob, titre ou contenu non vide »). Le
+correctif proposé — une transaction englobante — n'a donc **pas** été appliqué : il aurait tenu un
+verrou d'écriture SQLCipher pendant le déchiffrement de N notes pour fermer une fenêtre déjà fermée
+ailleurs. Le constat est consigné, pas exécuté.

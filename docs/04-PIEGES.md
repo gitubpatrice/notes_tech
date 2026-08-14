@@ -534,3 +534,45 @@ voient `% h` comme une conversion inachevée.
 
 Le contrôle est légitime, pas un faux positif : la même chaîne avec un argument planterait à
 l'exécution.
+
+## §29 — Un commentaire juste rend un défaut PLUS difficile à voir qu'un commentaire absent
+
+**Trouvé le 2026-08-14 par une relecture externe, sur du code relu deux fois.**
+
+`PinSheet` portait ce commentaire :
+
+> ⚠️ Le code saisi est vidé après CHAQUE tentative, réussie ou non.
+
+Le code, lui, n'effaçait la saisie que sur **succès** : `ResultatDeTentative` n'appelait
+`onConsumed` que pour `VaultAttempt.Success`. Après un code faux, les chiffres restaient à l'écran.
+
+Conséquence : retaper par-dessus donne « 1234 » + « 5678 », valide une saisie de six chiffres qui
+n'est celle de personne, et **consomme une seconde tentative**. Sur un coffre qui se détruit au
+cinquième échec, deux frappes en perdent deux.
+
+**Ce qui rend le piège spécifique** : à la relecture, l'œil lit le commentaire, le trouve correct,
+et passe. Un commentaire absent aurait obligé à lire le code. Le commentaire juste a **protégé** le
+défaut.
+
+⇒ **Un commentaire qui décrit une garantie doit être relu comme une ASSERTION à vérifier**, pas
+comme une explication à comprendre. « Le code fait X » se vérifie en cherchant où X est fait.
+
+## §30 — Le chemin mort revient, et il revient toujours par le même angle
+
+**Troisième occurrence dans ce portage.** À chaque fois, une fonction correcte, testée ou testable,
+documentée comme câblée — et sans aucun appelant en production.
+
+| Quand | Quoi | Conséquence si personne ne l'avait vu |
+|---|---|---|
+| phase 4 | `VaultSessions.sweep()` | la moitié active de l'auto-verrouillage n'existait pas |
+| phase 5 | `encryptAllNotesInFolder` | un dossier converti en coffre gardait ses notes en clair |
+| phase 5 | (côté i18n) chaînes sans consommateur | fonctionnalité annoncée, écran absent |
+
+Les deux questions à poser sont **différentes** et il faut les poser toutes les deux :
+
+1. *« Si la condition devient vraie une seconde plus tard, qui rappelle ce code ? »*
+2. *« Qui appelle ce code ? »*
+
+⚠️ **La documentation ne prouve rien.** `docs/11-COFFRES.md` §8 affirmait que les quatre gestes
+étaient câblés, écrit le jour même où trois l'étaient. Un `grep` du nom de la fonction est le seul
+contrôle qui vaille — et il coûte deux secondes.
