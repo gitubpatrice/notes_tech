@@ -313,24 +313,26 @@ private fun MenuDeTri(ouvert: Boolean, actif: NoteSortMode, onDismiss: () -> Uni
  * ⚠️ `when` **exhaustif** et non une table : ajouter un mode sans lui donner de libellé doit échouer
  * à la compilation. Une table aurait rendu un menu avec une entrée vide.
  *
- * ## 🔴 Deux entrées portent le même libellé, et c'est REPRIS de l'application publiée
+ * ## ✅ Six modes, six libellés DISTINCTS — corrigé des deux côtés
  *
- * `settings_screen.dart:169-175` fait correspondre `createdDesc` à `homeSortRecentFirst` — le
- * libellé de `updatedDesc` — et `createdAsc` à celui de `updatedAsc`. Le menu de la 2.0.3 affiche
- * donc « Plus récent d'abord » **deux fois**, sans que rien ne distingue le tri par date de
- * modification de celui par date de création.
+ * L'application publiée fait correspondre `createdDesc` au libellé de `updatedDesc` et `createdAsc`
+ * à celui de `updatedAsc` : son menu affiche « Plus récent d'abord » **deux fois** et « Plus ancien
+ * d'abord » deux fois, sur six lignes. Rien n'y distingue un tri par date de modification d'un tri
+ * par date de création, et la position du bouton radio est le seul indice de ce qu'on a choisi.
  *
- * C'est un défaut réel de l'application publiée, pas un choix. Il est reproduit ici parce que la
- * parité est le critère de sortie de la phase 8 : un menu qui n'a pas les mêmes entrées des deux
- * côtés est indiscernable d'un défaut de portage le jour de la comparaison.
+ * Ce portage l'avait **reproduit**, la parité étant le critère de sortie de la phase 8. Patrice a
+ * tranché le 2026-08-14 : corriger. Les deux clés existantes ont changé de **valeur** plutôt que
+ * d'être doublées par deux nouvelles — « Plus récent d'abord » à côté de « Créée — plus récente
+ * d'abord » aurait laissé deviner que la première parle de modification.
  *
- * ⚠️ **Le corriger demande deux clés i18n nouvelles**, donc une modification de l'ARB source —
- * c'est-à-dire de `notes_tech`, gelé pendant le chantier. La décision appartient à Patrice ;
- * consignée dans `docs/05-PARITE.md`.
+ * ⚠️ Corrigé **aussi dans `notes_tech`** (commit `24bc67e`), sans quoi les deux versions
+ * divergeraient à la comparaison de la phase 8. Cf. `docs/05-PARITE.md`.
  */
 private fun libelleDeTri(mode: NoteSortMode): Int = when (mode) {
-    NoteSortMode.UPDATED_DESC, NoteSortMode.CREATED_DESC -> R.string.home_sort_recent_first
-    NoteSortMode.UPDATED_ASC, NoteSortMode.CREATED_ASC -> R.string.home_sort_old_first
+    NoteSortMode.UPDATED_DESC -> R.string.home_sort_recent_first
+    NoteSortMode.UPDATED_ASC -> R.string.home_sort_old_first
+    NoteSortMode.CREATED_DESC -> R.string.home_sort_created_recent_first
+    NoteSortMode.CREATED_ASC -> R.string.home_sort_created_old_first
     NoteSortMode.TITLE_ASC -> R.string.home_sort_alpha_asc
     NoteSortMode.TITLE_DESC -> R.string.home_sort_alpha_desc
 }

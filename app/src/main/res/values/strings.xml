@@ -42,8 +42,10 @@
     <string name="home_no_notes_in">No notes in this folder</string>
     <string name="home_start_writing">Tap the + button to create your first note.</string>
     <string name="home_sort_mode">Sort</string>
-    <string name="home_sort_recent_first">Most recent first</string>
-    <string name="home_sort_old_first">Oldest first</string>
+    <string name="home_sort_recent_first">Modified — newest first</string>
+    <string name="home_sort_old_first">Modified — oldest first</string>
+    <string name="home_sort_created_recent_first">Created — newest first</string>
+    <string name="home_sort_created_old_first">Created — oldest first</string>
     <string name="home_sort_alpha_asc">A → Z</string>
     <string name="home_sort_alpha_desc">Z → A</string>
     <string name="home_folder_inbox">Inbox</string>

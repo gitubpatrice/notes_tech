@@ -39,8 +39,10 @@
     <string name="home_no_notes_in">Aucune note dans ce dossier</string>
     <string name="home_start_writing">Tapez le bouton + pour créer votre première note.</string>
     <string name="home_sort_mode">Trier</string>
-    <string name="home_sort_recent_first">Plus récent d\'abord</string>
-    <string name="home_sort_old_first">Plus ancien d\'abord</string>
+    <string name="home_sort_recent_first">Modifiée — plus récente d\'abord</string>
+    <string name="home_sort_old_first">Modifiée — plus ancienne d\'abord</string>
+    <string name="home_sort_created_recent_first">Créée — plus récente d\'abord</string>
+    <string name="home_sort_created_old_first">Créée — plus ancienne d\'abord</string>
     <string name="home_sort_alpha_asc">A → Z</string>
     <string name="home_sort_alpha_desc">Z → A</string>
     <string name="home_folder_inbox">Boîte de réception</string>
