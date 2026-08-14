@@ -61,6 +61,27 @@ class _InMemoryStorage implements FlutterSecureStorage {
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// Un stockage dont la suppression **ne fait rien**, sans lever.
+///
+/// C'est le comportement qu'il fallait pouvoir reproduire : `delete` ne rend
+/// aucun statut, donc un échec côté plateforme — Keystore momentanément muet,
+/// fichier verrouillé — est indiscernable d'un succès pour l'appelant. Seule
+/// une relecture le distingue.
+class _StorageQuiRefuseDeSupprimer extends _InMemoryStorage {
+  @override
+  Future<void> delete({
+    required String key,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    // Rien. Et surtout pas d'exception : c'est tout l'intérêt du cas.
+  }
+}
+
 void main() {
   group('VaultService', () {
     test('génère une KEK 32 octets au premier appel', () async {
@@ -103,6 +124,23 @@ void main() {
       await vault.getOrCreateKek();
       await vault.destroyKek();
       expect(await vault.hasKek(), isFalse);
+    });
+
+    /// 🔴 La garantie minimale du mode panique se joue ici.
+    ///
+    /// `destroyKek` se déclarait réussie sans rien relire — la SEULE étape de
+    /// la panique dans ce cas, alors que c'est celle dont tout dépend. Une
+    /// suppression silencieusement inopérante faisait porter « kekDestroy OK »
+    /// au rapport, et l'écran de fin annonçait des notes irrécupérables à
+    /// quelqu'un dont les notes restaient parfaitement lisibles.
+    ///
+    /// Ce test échoue si la vérification disparaît.
+    test('destroyKek LÈVE si la clé survit à la suppression', () async {
+      final storage = _StorageQuiRefuseDeSupprimer();
+      final vault = VaultService(storage: storage);
+      await vault.getOrCreateKek();
+
+      await expectLater(vault.destroyKek(), throwsA(isA<StateError>()));
     });
 
     test('wipe met tous les octets à zéro', () {

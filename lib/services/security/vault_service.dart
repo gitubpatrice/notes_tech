@@ -117,8 +117,31 @@ class VaultService {
   /// chiffrées avec cette clé deviennent inaccessibles.
   /// Utilisé par le mode panique (cf. `PanicStep.kekDestroy` dans
   /// `panic_service.dart`) ou un reset utilisateur.
+  ///
+  /// ⚠️ LÈVE si une valeur survit à la suppression, et c'est le point.
+  ///
+  /// Cette méthode se déclarait réussie sans rien relire. C'était la SEULE
+  /// étape de la panique dans ce cas : `dbWipe`, `prefsClear`, `exportsWipe`
+  /// et `tmpPurge` ont toutes été corrigées pour lever si quelque chose
+  /// survit — et c'est justement celle dont dépend la garantie minimale qui
+  /// avait été oubliée. `hasKek()` existait déjà, dix lignes plus bas.
+  ///
+  /// Une suppression qui échoue en silence donne le pire résultat possible :
+  /// `PanicReport` porte « kekDestroy OK », l'écran de fin annonce des notes
+  /// irrécupérables, et quelqu'un se sépare de son téléphone en le croyant.
+  ///
+  /// Relevé en portant cette séquence vers Kotlin (2026-08-14).
+  ///
+  /// ⚠️ Le contrôle porte sur la PRÉSENCE d'une valeur, pas sur `hasKek()`,
+  /// qui exige en plus la bonne longueur : une KEK survivante mais corrompue
+  /// passerait pour une absence, alors qu'elle est précisément ce qu'on ne
+  /// veut pas laisser derrière soi.
   Future<void> destroyKek() async {
     await _storage.delete(key: _kekStorageKey);
+    final survivante = await _storage.read(key: _kekStorageKey);
+    if (survivante != null) {
+      throw StateError('KEK toujours presente apres suppression');
+    }
   }
 
   /// Vérifie qu'une KEK existe sans la matérialiser.

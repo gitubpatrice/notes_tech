@@ -701,6 +701,20 @@ class _PanicSectionState extends State<_PanicSection> {
 
     final echecs = rapport?.errors.length ?? 0;
     if (erreur != null || echecs > 0) {
+      // ⚠️ REMETTRE `_running` À FALSE, sans quoi la panique n'est plus
+      // relançable de toute la session.
+      //
+      // Ce drapeau désactive la tuile (`onTap: _running ? null : _trigger`) et
+      // y laisse un indicateur d'activité. Sur le chemin nominal, l'écran
+      // disparaît et la question ne se pose pas ; ici on RESTE sur les
+      // réglages, et le drapeau restait à `true` — l'utilisateur lisait
+      // « effacement INCOMPLET, vérifiez avant de vous séparer de l'appareil »
+      // devant un bouton devenu inerte, qui tourne indéfiniment.
+      //
+      // C'est le seul moment où il voudrait réessayer, et le seul où il ne
+      // pouvait pas sans redémarrer l'application. Relevé en portant cette
+      // séquence vers Kotlin (2026-08-14).
+      if (mounted) setState(() => _running = false);
       if (!mounted) return;
       messenger.showErrorSnack(
         t.panicIncomplete(echecs == 0 ? 1 : echecs),
