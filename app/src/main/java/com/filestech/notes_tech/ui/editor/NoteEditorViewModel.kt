@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
+import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.repository.VaultLockedException
@@ -14,6 +15,7 @@ import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.ui.navigation.Destination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -37,6 +39,17 @@ data class EditorUiState(
     val saving: Boolean = false,
     val lostToVaultLock: Boolean = false,
     val saveFailed: Boolean = false,
+    /**
+     * Le texte tel qu'il a été CHARGÉ, en clair.
+     *
+     * 🔴 Sans lui, aucune comparaison honnête n'est possible sur une note de coffre : `note.title`
+     * y vaut la chaîne vide (le titre vit dans le chiffré), donc « le titre a-t-il changé ? »
+     * répondait **toujours oui**. Ouvrir une note de coffre pour la LIRE, puis revenir, la
+     * rechiffrait et repoussait sa date de modification — elle remontait en tête de liste sans que
+     * personne n'y ait touché. Relevé par une relecture externe (Gemini, 2026-08-14).
+     */
+    val originalTitle: String = "",
+    val originalContent: String = "",
 ) {
     val isVaultNote: Boolean get() = folder?.isVault == true
 }
@@ -63,6 +76,7 @@ class NoteEditorViewModel @Inject constructor(
     private val folders: FoldersRepository,
     private val vaults: FolderVaultService,
     private val settings: AppSettings,
+    @ApplicationScope private val applicationScope: CoroutineScope,
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -111,7 +125,20 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun saveNow() {
         sauvegardeDifferee?.cancel()
-        viewModelScope.launch { withContext(NonCancellable) { enregistrer() } }
+        // 🔴 **La portee du PROCESSUS, pas celle du ViewModel.**
+        //
+        // `viewModelScope` est annulé à l'instant où l'écran disparaît, c'est-à-dire exactement quand
+        // cette sauvegarde est demandée. `withContext(NonCancellable)` ne protège qu'une coroutine
+        // **déjà démarrée** : sur une portee annulée, `launch` crée une coroutine qui n'exécute
+        // jamais son corps, et le texte tapé disparaît sans un mot.
+        //
+        // C'est la même leçon que la phase 4, un cran plus loin : ce n'est pas seulement l'annulation
+        // qu'il faut rattraper, c'est la PORTEE qui doit survivre au geste qu'elle exécute. Relevé
+        // par une relecture externe (Gemini, 2026-08-14).
+        val instantane = _state.value
+        applicationScope.launch {
+            withContext(NonCancellable) { enregistrer(instantane) }
+        }
     }
 
     private fun charger() {
@@ -129,6 +156,8 @@ class NoteEditorViewModel @Inject constructor(
                     content = note.content,
                     note = note,
                     folder = dossier,
+                    originalTitle = note.title,
+                    originalContent = note.content,
                 )
                 return@launch
             }
@@ -151,6 +180,8 @@ class NoteEditorViewModel @Inject constructor(
                 content = claire.content,
                 note = note,
                 folder = dossier,
+                originalTitle = claire.title,
+                originalContent = claire.content,
             )
         }
     }
@@ -170,11 +201,14 @@ class NoteEditorViewModel @Inject constructor(
         }
     }
 
-    private suspend fun enregistrer() {
-        val courant = _state.value
+    private suspend fun enregistrer(instantane: EditorUiState? = null) {
+        val courant = instantane ?: _state.value
         val note = courant.note ?: return
         if (courant.lockedVault != null) return
-        if (courant.title == note.title && courant.content == note.content && !note.isLocked) return
+        // ⚠️ Comparer au texte CHARGÉ, pas à l'entité en base : pour une note scellée, l'entité ne
+        // porte pas le clair. Et **pas** de `!note.isLocked` ici : cette condition faisait sauter la
+        // garde pour les seules notes où elle comptait.
+        if (courant.title == courant.originalTitle && courant.content == courant.originalContent) return
 
         _state.value = courant.copy(saving = true, saveFailed = false)
         try {
@@ -184,7 +218,11 @@ class NoteEditorViewModel @Inject constructor(
                 content = courant.content,
                 tags = note.tags,
             )
-            _state.value = _state.value.copy(saving = false)
+            _state.value = _state.value.copy(
+                saving = false,
+                originalTitle = courant.title,
+                originalContent = courant.content,
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (_: VaultLockedException) {

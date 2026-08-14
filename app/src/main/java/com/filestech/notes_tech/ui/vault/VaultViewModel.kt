@@ -45,6 +45,22 @@ sealed interface VaultAttempt {
     data class WrongSecret(val attemptsRemaining: Int?) : VaultAttempt
     data object Wiped : VaultAttempt
     data class LockedOut(val remainingMillis: Long) : VaultAttempt
+
+    /**
+     * Une saisie refusée avant tout calcul : trop courte, mauvais format, dossier déjà coffre.
+     *
+     * 🔴 **Porte la RAISON, pas un message.** `VaultValidationException.message` vaut
+     * « saisie refusee : PASSPHRASE_TOO_SHORT » — du texte interne, non traduit, jamais destiné à
+     * quelqu'un. Il remontait tel quel jusqu'à l'écran, **en français comme en anglais**, alors que
+     * six des huit raisons ont une chaîne localisée qui existe depuis le début et n'était jamais
+     * utilisée. Relevé par l'audit i18n du 2026-08-14.
+     *
+     * Transporter l'énumération plutôt que le texte oblige la couche d'affichage à choisir une
+     * chaîne, et un `when` exhaustif fait échouer à la compilation l'ajout d'une raison sans
+     * traduction.
+     */
+    data class Invalid(val reason: VaultValidationException.Reason) : VaultAttempt
+
     data class Failed(val message: String?) : VaultAttempt
 }
 
@@ -155,7 +171,7 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
                 // l'utilisateur qu'il vient de perdre un essai.
                 VaultAttempt.LockedOut(e.remainingMillis)
             } catch (e: VaultValidationException) {
-                VaultAttempt.Failed(e.message)
+                VaultAttempt.Invalid(e.reason)
             } catch (e: Exception) {
                 VaultAttempt.Failed(e.message ?: e::class.java.simpleName)
             }

@@ -57,6 +57,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
+import com.filestech.notes_tech.security.vault.VaultValidationException
 
 /**
  * La feuille qui déverrouille un coffre, **du bon mode**.
@@ -526,16 +527,20 @@ private fun ClavierNumerique(enabled: Boolean, onDigit: (Char) -> Unit, onDelete
                             )
                         }
 
-                        else -> TextButton(
-                            onClick = { onDigit(touche) },
-                            enabled = enabled,
-                            modifier = Modifier
-                                .size(TAILLE_TOUCHE)
-                                .semantics {
-                                    contentDescription = "$touche"
-                                },
-                        ) {
-                            Text(text = "$touche", style = MaterialTheme.typography.headlineSmall)
+                        else -> {
+                            // ⚠️ `vault_pin_key_label` (« Touche %1$s ») existait et n'était jamais
+                            // utilisée : le lecteur d'écran annonçait « 7 » tout court, indiscernable
+                            // d'un texte affiché. Relevé par l'audit i18n du 2026-08-14.
+                            val etiquette = stringResource(R.string.vault_pin_key_label, "$touche")
+                            TextButton(
+                                onClick = { onDigit(touche) },
+                                enabled = enabled,
+                                modifier = Modifier
+                                    .size(TAILLE_TOUCHE)
+                                    .semantics { contentDescription = etiquette },
+                            ) {
+                                Text(text = "$touche", style = MaterialTheme.typography.headlineSmall)
+                            }
                         }
                     }
                 }
@@ -573,6 +578,8 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
         "${(attempt.remainingMillis + MILLIS - 1) / MILLIS} s",
     )
 
+    is VaultAttempt.Invalid -> stringResource(messageDeRefus(attempt.reason))
+
     is VaultAttempt.Failed -> attempt.message?.let { stringResource(R.string.common_error_with, it) }
         ?: stringResource(R.string.common_error)
 }
@@ -595,6 +602,30 @@ private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: () -> Unit, o
             onConsumed()
         }
     }
+}
+
+/**
+ * La chaîne qui explique un refus de saisie.
+ *
+ * ⚠️ `when` **exhaustif** : ajouter une raison sans décider de ce qu'on en dit à l'utilisateur
+ * doit échouer à la compilation. C'est exactement ce qui manquait — la raison existait, la chaîne
+ * aussi, et rien ne reliait les deux.
+ *
+ * ⚠️ **Deux raisons n'ont PAS de chaîne dédiée** dans l'ARB de la version publiée, et je n'en
+ * invente pas : une clé que la version Flutter n'a pas serait une divergence d'i18n à réconcilier en
+ * phase 8. Elles retombent sur le message générique, ce qui reste infiniment mieux que du texte de
+ * débogage.
+ */
+private fun messageDeRefus(reason: VaultValidationException.Reason): Int = when (reason) {
+    VaultValidationException.Reason.PASSPHRASE_TOO_SHORT -> R.string.error_vault_passphrase_too_short
+    VaultValidationException.Reason.PIN_LENGTH_OUT_OF_RANGE -> R.string.error_vault_pin_too_short
+    VaultValidationException.Reason.PIN_NOT_DIGITS_ONLY -> R.string.error_vault_pin_not_digits
+    VaultValidationException.Reason.ALREADY_A_VAULT -> R.string.error_vault_already_enabled
+    VaultValidationException.Reason.NOT_A_VAULT -> R.string.error_vault_not_avault
+    VaultValidationException.Reason.NOT_A_PIN_VAULT -> R.string.error_vault_not_pin_vault
+    VaultValidationException.Reason.FOLDER_NOT_FOUND,
+    VaultValidationException.Reason.NOT_A_PASSPHRASE_VAULT,
+    -> R.string.common_error
 }
 
 private fun Modifier.clickableListItem(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)

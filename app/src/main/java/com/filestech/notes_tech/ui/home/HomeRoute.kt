@@ -55,7 +55,7 @@ fun HomeRoute(
     val snackbars = remember { SnackbarHostState() }
     val portee = rememberCoroutineScope()
     val messageNoteEnBoiteDeReception = stringResource(R.string.home_note_created_in_inbox)
-    val messageCreationImpossible = stringResource(R.string.home_vault_create_error, "%s")
+    val ressourcesDeLEcran = androidx.compose.ui.platform.LocalContext.current.resources
 
     var dossierEnMenu by remember { mutableStateOf<Folder?>(null) }
     var dossierARenommer by remember { mutableStateOf<Folder?>(null) }
@@ -79,12 +79,22 @@ fun HomeRoute(
             when (evenement) {
                 is HomeEvent.NoteCreated -> {
                     onOpenNote(evenement.note)
-                    if (evenement.inInbox) snackbars.showSnackbar(messageNoteEnBoiteDeReception)
+                    // ⚠️ `showSnackbar` SUSPEND jusqu'a la fermeture du message. L'appeler dans le
+                    // `collect` bloquerait la collecte plusieurs secondes ; les evenements suivants
+                    // s'empileraient dans un tampon de 4, apres quoi `emit` bloquerait le ViewModel.
+                    // Releve par une relecture externe (Gemini, 2026-08-14).
+                    if (evenement.inInbox) portee.launch { snackbars.showSnackbar(messageNoteEnBoiteDeReception) }
                 }
 
                 is HomeEvent.VaultLocked -> dossierAOuvrir = evenement.folder
-                is HomeEvent.CreationFailed ->
-                    snackbars.showSnackbar(messageCreationImpossible.format(evenement.message))
+                // ⚠️ La chaine est formatee ICI, avec son argument reel, et pas par un gabarit
+                // « %s » construit a l'avance : ce dernier casserait en silence le jour ou la
+                // chaine gagnerait un second placeholder. Releve par l'audit i18n du 2026-08-14.
+                is HomeEvent.CreationFailed -> portee.launch {
+                    snackbars.showSnackbar(
+                        ressourcesDeLEcran.getString(R.string.home_vault_create_error, evenement.message),
+                    )
+                }
             }
         }
     }
@@ -247,6 +257,7 @@ fun HomeRoute(
  */
 @Composable
 private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: SnackbarHostState) {
+    val portee = rememberCoroutineScope()
     val contexte = androidx.compose.ui.platform.LocalContext.current
     val ressources = contexte.resources
     val erreurGenerique = stringResource(R.string.common_error)
@@ -271,7 +282,8 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
                 is FolderEvent.Failed ->
                     ressources.getString(R.string.folder_delete_cancelled_error, evenement.message ?: erreurGenerique)
             }
-            if (message != null) snackbars.showSnackbar(message)
+            // ⚠️ Meme raison qu'au-dessus : afficher ne doit pas suspendre la collecte.
+            if (message != null) portee.launch { snackbars.showSnackbar(message) }
         }
     }
 }

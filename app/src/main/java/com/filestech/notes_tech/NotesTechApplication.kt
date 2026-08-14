@@ -4,12 +4,12 @@ import android.app.Application
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultAutoLocker
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -24,11 +24,16 @@ class NotesTechApplication : Application() {
     lateinit var vaults: FolderVaultService
 
     /**
-     * La portée du processus. `SupervisorJob` pour qu'un travail qui échoue n'emporte pas les
-     * autres — le balayage des coffres et la reprise des effacements n'ont aucune raison de
-     * dépendre l'un de l'autre.
+     * La portée du processus, **injectée**.
+     *
+     * ⚠️ Elle était construite ici, en local. L'éditeur en a désormais besoin pour que son
+     * enregistrement final survive à la fermeture de l'écran : deux portées applicatives auraient
+     * fait deux durées de vie pour une même notion, et personne n'aurait su laquelle protège quoi.
+     * Cf. `di/ApplicationScope.kt`.
      */
-    private val applicationScope = CoroutineScope(SupervisorJob())
+    @Inject
+    @ApplicationScope
+    lateinit var applicationScope: CoroutineScope
 
     override fun onCreate() {
         super.onCreate()

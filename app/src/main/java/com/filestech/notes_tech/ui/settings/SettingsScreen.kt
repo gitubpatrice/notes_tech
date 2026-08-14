@@ -120,7 +120,11 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
 
             TitreDeSection(stringResource(R.string.settings_section_about))
             ListItem(
-                headlineContent = { Text(stringResource(R.string.about_title)) },
+                // `settings_about` et son sous-titre existaient et n'etaient jamais utilises : la
+                // ligne affichait `about_title`, qui est le TITRE DE L'ECRAN, pas son libelle dans
+                // une liste de reglages. Releve par l'audit i18n du 2026-08-14.
+                headlineContent = { Text(stringResource(R.string.settings_about)) },
+                supportingContent = { Text(stringResource(R.string.settings_about_subtitle)) },
                 leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
                 modifier = Modifier.clickable(onClick = onOpenAbout),
             )
