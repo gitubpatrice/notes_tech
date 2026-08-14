@@ -21,6 +21,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -142,6 +143,7 @@ fun NoteEditorRoute(onBack: () -> Unit) {
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
                 ) {
+                    if (state.saveFailed) BanniereEchecEnregistrement()
                     TextField(
                         value = state.title,
                         onValueChange = viewModel::onTitleChange,
@@ -169,6 +171,25 @@ fun NoteEditorRoute(onBack: () -> Unit) {
             folder = dossier,
             onDismiss = onBack,
             onUnlocked = viewModel::retryAfterUnlock,
+        )
+    }
+}
+
+/**
+ * L'avertissement qu'un enregistrement a échoué.
+ *
+ * 🔴 En tête du contenu, pas en bas : l'utilisateur doit le voir avant de continuer à taper du
+ * texte qui ne sera pas conservé non plus.
+ */
+@Composable
+private fun BanniereEchecEnregistrement() {
+    val couleurs = MaterialTheme.colorScheme
+    Surface(color = couleurs.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.note_editor_error_save_failed),
+            style = MaterialTheme.typography.bodySmall,
+            color = couleurs.onErrorContainer,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.settings
 
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,6 +52,9 @@ import com.filestech.notes_tech.data.prefs.ThemePreference
 fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -> Unit) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Recreation de l'activite au changement de langue, cf. le commentaire du selecteur ci-dessous.
+    val activite = LocalActivity.current
 
     var choixDeTheme by remember { mutableStateOf(false) }
     var choixDeLangue by remember { mutableStateOf(false) }
@@ -148,9 +152,20 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
             actif = state.locale,
             libelle = { stringResource(libelleDeLangue(it)) },
             onDismiss = { choixDeLangue = false },
-            onSelect = {
+            onSelect = { choisie ->
                 choixDeLangue = false
-                viewModel.setLocale(it)
+                if (choisie != state.locale) {
+                    viewModel.setLocale(choisie)
+                    // 🔴 **La langue s'applique dans `attachBaseContext`, qui ne s'exécute qu'à la
+                    // création de l'activité.** Sans cette recréation, l'utilisateur choisit
+                    // « English », revient, et tout reste en français jusqu'au prochain démarrage.
+                    // Le réglage était bien écrit : c'est son EFFET qui manquait.
+                    //
+                    // Même motif que le délai d'auto-verrouillage plus tôt dans la phase — un réglage
+                    // écrit et jamais relu donne l'affichage du choix, pas le choix. Relevé par une
+                    // relecture externe (GPT-5.2, 2026-08-14).
+                    activite?.recreate()
+                }
             },
         )
     }

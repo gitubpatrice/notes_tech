@@ -132,6 +132,16 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
      */
     fun vaultLostDrafts(): List<String> = prefs.stringList(KEY_VAULT_LOST_DRAFTS)
 
+    /**
+     * Le nombre de modifications perdues, **observable**.
+     *
+     * 🔴 Sans ce flux, la bannière n'apparaît jamais dans la session où la perte se produit.
+     * L'éditeur écrit dans les préférences, l'accueil lit un état local figé à sa création, et le
+     * seul signalement d'une perte silencieuse reste... silencieux. Le défaut annulait exactement
+     * ce que la bannière existe pour empêcher. Relevé par une relecture externe (GPT-5.2).
+     */
+    val vaultLostDraftsCount: Flow<Int> = observing { vaultLostDrafts().size }
+
     fun addVaultLostDraft(noteId: String) {
         val actuels = vaultLostDrafts()
         if (noteId in actuels) return

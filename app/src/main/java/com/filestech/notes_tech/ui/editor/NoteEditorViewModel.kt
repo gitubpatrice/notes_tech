@@ -36,6 +36,7 @@ data class EditorUiState(
     val lockedVault: Folder? = null,
     val saving: Boolean = false,
     val lostToVaultLock: Boolean = false,
+    val saveFailed: Boolean = false,
 ) {
     val isVaultNote: Boolean get() = folder?.isVault == true
 }
@@ -175,7 +176,7 @@ class NoteEditorViewModel @Inject constructor(
         if (courant.lockedVault != null) return
         if (courant.title == note.title && courant.content == note.content && !note.isLocked) return
 
-        _state.value = courant.copy(saving = true)
+        _state.value = courant.copy(saving = true, saveFailed = false)
         try {
             notes.saveEdits(
                 id = noteId,
@@ -191,8 +192,16 @@ class NoteEditorViewModel @Inject constructor(
         } catch (_: VaultSessionClosedException) {
             signalerLaPerte()
         } catch (e: Exception) {
+            // 🔴 **Un échec d'enregistrement DOIT se voir.** Journaliser et rendre la main laissait
+            // l'utilisateur taper dans le vide : l'écran se comportait normalement, et le texte
+            // n'existait nulle part. Stockage plein, base verrouillée, erreur SQLCipher — toutes ces
+            // causes produisaient une perte parfaitement silencieuse.
+            //
+            // C'est l'invariant « une perte de données se signale », et il était tenu pour le
+            // verrouillage de coffre (bannière) mais pas pour le reste. Jumeau asymétrique. Relevé
+            // par une relecture externe (GPT-5.2, 2026-08-14).
             Timber.e(e, "enregistrement de la note $noteId")
-            _state.value = _state.value.copy(saving = false)
+            _state.value = _state.value.copy(saving = false, saveFailed = true)
         }
     }
 

@@ -141,7 +141,16 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
 
     ResultatDeTentative(state.attempt, onSuccess = onDone, onConsumed = viewModel::consumeAttempt)
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+    ModalBottomSheet(
+        // ⚠️ Fermer la feuille ANNULE la dérivation en cours. Sans ça, le travail continue dans
+        // `viewModelScope` et le coffre s'ouvre une seconde plus tard, sans que rien à l'écran
+        // ne l'indique. Relevé par une relecture externe (GPT-5.2).
+        onDismissRequest = {
+            viewModel.cancelAttempt()
+            onDismiss()
+        },
+        sheetState = rememberModalBottomSheetState(),
+    ) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
@@ -232,7 +241,13 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
                     ),
                 )
             }
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+            TextButton(
+                onClick = {
+                    viewModel.cancelAttempt()
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(stringResource(R.string.common_cancel))
             }
         }
@@ -257,21 +272,42 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
     )
     val discordance = stringResource(R.string.vault_pin_mismatch)
 
-    // ⚠️ Le code saisi est vidé après CHAQUE tentative, réussie ou non. Le laisser à l'écran
-    // permettrait de le relire par-dessus l'épaule après coup, et de rejouer la même saisie sans
-    // la connaître.
-    ResultatDeTentative(
-        attempt = state.attempt,
-        onSuccess = onDone,
-        onConsumed = {
-            saisi = ""
+    // 🔴 **Le code saisi est vidé après CHAQUE tentative, réussie OU NON.**
+    //
+    // ⚠️ Ce commentaire décrivait un comportement que le code n'avait pas. `ResultatDeTentative`
+    // n'appelait `onConsumed` que sur `Success` : après un code faux, les chiffres restaient à
+    // l'écran. Un utilisateur qui retape par-dessus obtient « 1234 » + « 5678 », valide une saisie
+    // de six chiffres qui n'est pas la sienne, et **consomme une seconde tentative**. Sur un coffre
+    // qui se détruit au cinquième échec, deux frappes suffisent à en perdre deux.
+    //
+    // Le défaut était invisible à la relecture parce que le commentaire, lui, disait le bon
+    // comportement. Relevé par une relecture externe (GPT-5.2, 2026-08-14) — motif « commentaire
+    // qui ment » de `docs/04-PIEGES.md`.
+    //
+    // ⚠️ **Afficher PUIS consommer** : sur un échec, le message doit survivre à l'effacement de
+    // la saisie. Seules les issues qui ferment la feuille sont consommées.
+    LaunchedEffect(state.attempt) {
+        val issue = state.attempt ?: return@LaunchedEffect
+        saisi = ""
+        val termine = issue is VaultAttempt.Success || (issue is VaultAttempt.Created && issue.isComplete)
+        if (termine) {
+            onDone()
             viewModel.consumeAttempt()
-        },
-    )
+        }
+    }
 
     val enConfirmation = creating && confirmation != null
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
+    ModalBottomSheet(
+        // ⚠️ Fermer la feuille ANNULE la dérivation en cours. Sans ça, le travail continue dans
+        // `viewModelScope` et le coffre s'ouvre une seconde plus tard, sans que rien à l'écran
+        // ne l'indique. Relevé par une relecture externe (GPT-5.2).
+        onDismissRequest = {
+            viewModel.cancelAttempt()
+            onDismiss()
+        },
+        sheetState = rememberModalBottomSheetState(),
+    ) {
         Column(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
@@ -340,7 +376,13 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
             ) {
                 Text(stringResource(if (creating) R.string.common_validate else R.string.vault_pass_unlock_action))
             }
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+            TextButton(
+                onClick = {
+                    viewModel.cancelAttempt()
+                    onDismiss()
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(stringResource(R.string.common_cancel))
             }
         }
@@ -520,6 +562,12 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
             stringResource(R.string.vault_pin_attempts_left, attempt.attemptsRemaining)
     }
 
+    is VaultAttempt.Created -> if (attempt.isComplete) {
+        null
+    } else {
+        stringResource(R.string.vault_convert_partial_fail, attempt.failed, attempt.encrypted + attempt.failed)
+    }
+
     is VaultAttempt.LockedOut -> stringResource(
         R.string.common_error_with,
         "${(attempt.remainingMillis + MILLIS - 1) / MILLIS} s",
@@ -539,7 +587,10 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
 @Composable
 private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: () -> Unit, onConsumed: () -> Unit) {
     LaunchedEffect(attempt) {
-        if (attempt is VaultAttempt.Success) {
+        // ⚠️ `Created` avec des échecs NE ferme PAS la feuille : l'utilisateur doit voir combien
+        // de ses notes sont restées en clair dans un dossier qui affiche désormais un cadenas.
+        val termine = attempt is VaultAttempt.Success || (attempt is VaultAttempt.Created && attempt.isComplete)
+        if (termine) {
             onSuccess()
             onConsumed()
         }
