@@ -576,3 +576,60 @@ Les deux questions à poser sont **différentes** et il faut les poser toutes le
 ⚠️ **La documentation ne prouve rien.** `docs/11-COFFRES.md` §8 affirmait que les quatre gestes
 étaient câblés, écrit le jour même où trois l'étaient. Un `grep` du nom de la fonction est le seul
 contrôle qui vaille — et il coûte deux secondes.
+
+## §31 — `NonCancellable` ne sauve rien si la PORTÉE est déjà annulée
+
+**Trouvé le 2026-08-14 par une relecture externe, sur un correctif de la phase 4 réappliqué.**
+
+L'enregistrement final de l'éditeur s'écrivait :
+
+```kotlin
+viewModelScope.launch { withContext(NonCancellable) { enregistrer() } }
+```
+
+`viewModelScope` est annulé à l'instant où l'écran disparaît — c'est-à-dire **exactement** quand ce
+geste est demandé. Et `withContext(NonCancellable)` ne protège qu'une coroutine **déjà démarrée** :
+sur une portée annulée, `launch` crée une coroutine qui n'exécute jamais son corps.
+
+⚠️ **La leçon de la phase 4 était incomplète.** Elle disait « la reprise doit être
+`NonCancellable` ». Elle est vraie et insuffisante : il faut aussi que la **portée survive au geste
+qu'elle exécute**. Un geste de sauvetage appartient à une portée applicative, pas à celle de l'objet
+en train de mourir.
+
+⚠️ **Et l'état doit être capturé AVANT**, pas relu dans la coroutine : au moment où elle s'exécute,
+l'objet dont elle lit l'état peut avoir été vidé.
+
+## §32 — Comparer l'affiché à l'entité en base est faux dès qu'il y a du chiffrement
+
+L'éditeur décidait s'il devait enregistrer ainsi :
+
+```kotlin
+if (courant.title == note.title && courant.content == note.content && !note.isLocked) return
+```
+
+Pour une note scellée, `note.title` vaut la **chaîne vide** — le titre vit dans le chiffré. La
+question « le titre a-t-il changé ? » répondait donc **toujours oui**. Et le `!note.isLocked`
+faisait sauter la garde pour les seules notes où elle comptait.
+
+Résultat : **ouvrir une note de coffre pour la lire, puis revenir, la rechiffrait** et repoussait sa
+date de modification. Elle remontait en tête de liste sans que personne n'y ait touché.
+
+⇒ **Un état d'écran se compare à ce qu'il a CHARGÉ, jamais à la représentation persistée** — celle-ci
+n'est pas la même donnée dès qu'une transformation s'intercale.
+
+## §33 — `showSnackbar` suspend le collecteur qui l'appelle
+
+Appelé directement dans un `collect`, il bloque la collecte pendant toute la durée d'affichage. Les
+événements suivants s'empilent dans le tampon, et une fois celui-ci plein, `emit` bloque l'émetteur —
+donc le ViewModel.
+
+⇒ Toujours `portee.launch { snackbars.showSnackbar(...) }` depuis un collecteur.
+
+## §34 — Le message d'une exception interne n'est pas un texte d'interface
+
+`VaultValidationException.message` valait « saisie refusee : PASSPHRASE_TOO_SHORT ». Il remontait
+jusqu'à l'écran, **en français comme en anglais**, alors que six des huit raisons avaient une chaîne
+traduite qui existait depuis le début et n'était jamais utilisée.
+
+⇒ Une exception destinée à l'interface transporte une **énumération**, pas un message. Un `when`
+exhaustif côté affichage fait alors échouer **à la compilation** l'ajout d'un cas sans traduction.

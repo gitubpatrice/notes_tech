@@ -817,3 +817,27 @@ déverrouillage suivant rescelle les notes concernées, et sa requête a été v
 correctif proposé — une transaction englobante — n'a donc **pas** été appliqué : il aurait tenu un
 verrou d'écriture SQLCipher pendant le déchiffrement de N notes pour fermer une fenêtre déjà fermée
 ailleurs. Le constat est consigné, pas exécuté.
+
+### Second lot (2026-08-14) — audit i18n + Gemini
+
+Rendus **après** le premier lot de correctifs. Sept défauts de plus, commit `e30a96b`.
+
+**L'audit i18n confirme le script de transposition** sur ses quatre contrôles durs : parité FR/EN
+316/316, 0 référence cassée sur 139, 0 argument mal compté sur 166, 0 apostrophe non échappée. Ce
+qu'il trouve est ailleurs — le pont manquant entre `VaultValidationException.Reason` et les chaînes
+traduites qui l'attendaient.
+
+**Gemini et GPT-5.2 ont trouvé le défaut du code PIN INDÉPENDAMMENT.** Deux relecteurs qui ne se
+parlent pas et le même constat : c'est le signe le plus fiable qu'un constat est réel.
+
+### Bilan de la phase 5 : treize défauts, douze après le gate vert
+
+| Trouvé par | Nombre |
+|---|---|
+| essai sur appareil (icône adaptative) | 1 |
+| audit de cohérence | 1 |
+| GPT-5.2 | 5 |
+| audit i18n | 4 |
+| Gemini | 3 (dont 1 doublon avec GPT-5.2) |
+
+Aucun n'a été vu par la compilation, ktlint, detekt, `lintDebug` ou les 70 tests JVM.
