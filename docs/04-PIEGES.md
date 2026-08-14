@@ -656,3 +656,92 @@ base, avec ses notes en clair.
 ⇒ Quand un geste A a **déjà modifié la base**, aucun échec de B ne doit produire un message qui nie
 A. Il faut une issue distincte qui dise les deux : *« le coffre est créé, son contenu n'a pas pu
 être chiffré »*.
+
+## §37 — Un compteur de références ne manque à personne tant qu'il n'y a qu'un poseur
+
+`FLAG_SECURE` était posé depuis un seul endroit en phase 5 : le réglage utilisateur. Un booléen s'y
+comportait exactement comme un compteur, et le défaut n'était pas observable — il **attendait le
+second poseur**.
+
+Dès que les feuilles de coffre et le mode panique posent le même drapeau, la fermeture de la feuille
+appelle `clearFlags` et découvre l'éditeur d'une note de coffre resté ouvert derrière. Rien ne le
+signale.
+
+⚠️ **La borne à zéro n'est pas décorative.** Un `release()` de trop laisserait le compteur négatif, et
+le `force()` **suivant** ne le ramènerait qu'à zéro : pas de protection au moment précis où quelqu'un
+vient d'en demander une. Le déséquilibre reste un défaut ; la borne décide seulement de quel côté il
+échoue.
+
+**À se demander à chaque garde partagée** : « qui d'autre pose ceci, et que se passe-t-il quand le
+premier des deux part ? »
+
+## §38 — `EXTRA_STREAM` seul ne propage aucune permission d'URI
+
+Le système ne propage une permission que pour ce qu'il **voit** dans l'intention : sa donnée
+principale et ses `ClipData`. Un fichier passé par le seul `EXTRA_STREAM` est un extra parmi
+d'autres, que rien n'inspecte.
+
+Mesuré sur le S9 le 2026-08-14 :
+
+```
+SecurityException: Permission Denial: reading FileProvider uri … from uid=1000
+ChooserActivity: extract fail
+```
+
+⚠️ **Le défaut est presque invisible** : le partage vers l'application choisie fonctionnait, seul
+l'aperçu du sélecteur manquait, et l'exception restait dans le journal. Correctif :
+`clipData = ClipData.newRawUri(null, uri)` **en plus** de `FLAG_GRANT_READ_URI_PERMISSION`.
+
+## §39 — `edit().clear()` CRÉE le fichier de préférences s'il n'existe pas
+
+Le mode panique faisait apparaître `FlutterSecureStorage.xml` et `FlutterSecureKeyStorage.xml` sur un
+appareil qui n'avait **jamais** vu la version Flutter — deux fichiers vides, portant le mot
+« SecureStorage », créés par le geste censé tout effacer, juste avant un écran qui annonce qu'il ne
+reste rien.
+
+Aucun secret n'y était. **Ce qui est faux d'un octet est faux** sur cet écran-là.
+
+Correctif : contrôler l'existence du fichier, puis `deleteSharedPreferences`, puis **vérifier** qu'il
+a disparu.
+
+## §40 — Fermer une base ne l'empêche pas de se rouvrir toute seule
+
+`DatabaseProvider.close()` oublie l'instance ; le prochain `get()` en ouvre une neuve. Pendant une
+panique, ce `get()` **arrive** — un `Flow` de Room encore abonné, une portée applicative qui n'a pas
+fini. Ne trouvant plus ni clé ni fichier, la fabrique en génère une paire NEUVE.
+
+Résultat : un fichier de base recréé quelques millisecondes après l'effacement, sur un appareil dont
+on vient d'annoncer qu'il n'en restait rien — et l'étape d'effacement, elle, avait vérifié la
+disparition **avant** la recréation et s'était déclarée réussie.
+
+⚠️ Le sceau qui l'empêche vit dans un objet unique du graphe d'injection, donc **aussi longtemps
+que le processus**. L'écran de fin doit terminer le processus (`exitProcess`) et pas seulement
+l'activité, sinon le lancement suivant trouve une base scellée et ne démarre plus, sans explication.
+
+## §41 — Deux défilements verticaux imbriqués tuent l'application
+
+L'écran de fin du mode panique portait son propre `verticalScroll` et était posé **dans** la colonne
+défilante des réglages. Contraintes de hauteur infinies, `IllegalStateException`, processus tué.
+
+⚠️ **La destruction, elle, s'était bien exécutée.** L'utilisateur se retrouvait sur son écran
+d'accueil sans savoir si ses notes avaient été effacées. Sur cet écran-là, c'est le pire échec
+possible — et aucun des quatre outils du gate ne l'a vu.
+
+Un recouvrement plein écran se pose **en frère du `Scaffold`**, jamais dans son contenu.
+
+## §42 — `git status` marque un fichier modifié sans qu'il le soit
+
+Les trois fichiers l10n de `notes_tech` ont été protégés pendant tout le portage — « modifiés avant
+mon intervention, ne jamais y toucher ». Vérification faite le 2026-08-14 : leur contenu est
+**identique à `HEAD` au caractère près**, seules les fins de ligne diffèrent. `git diff` ne rend
+rien, `git diff --numstat` non plus.
+
+La précaution était juste, sa **prémisse était fausse** — et elle a bloqué pendant deux phases un
+correctif d'i18n qui ne coûtait rien.
+
+⚠️ Avant de bâtir une règle sur un « M » de `git status`, demander à `git diff` **ce qui** a
+changé. Contrôle en une ligne :
+
+```bash
+diff <(git show HEAD:<fichier> | tr -d '') <(tr -d '' < <fichier>)
+```

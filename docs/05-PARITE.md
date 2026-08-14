@@ -203,15 +203,22 @@ Chacun est **reproduit à l'identique** dans le portage. La raison est toujours 
 est le critère de sortie de la phase 8, et un correctif silencieux est indiscernable d'un défaut de
 portage le jour de la comparaison. Les corriger est une décision, pas une évidence.
 
-### 1. 🟠 Le menu de tri affiche deux fois le même libellé
+### 1. ✅ CLOS le 2026-08-14 — le menu de tri affichait deux fois le même libellé
 
-`settings_screen.dart:169-175` fait correspondre `createdDesc` au libellé de `updatedDesc`, et
-`createdAsc` à celui de `updatedAsc`. Le menu propose donc **six entrées dont quatre portent deux
+`settings_screen.dart:169-175` faisait correspondre `createdDesc` au libellé de `updatedDesc`, et
+`createdAsc` à celui de `updatedAsc`. Le menu proposait donc **six entrées dont quatre portaient deux
 libellés**, sans que rien ne distingue le tri par date de modification de celui par date de
-création.
+création — la position du bouton radio était le seul indice de ce qu'on avait choisi.
 
-**Corriger demande deux clés i18n nouvelles**, donc une modification de l'ARB source —
-c'est-à-dire de `notes_tech`, gelé pendant le chantier.
+**Corrigé des deux côtés, sur décision de Patrice** : `notes_tech` commit `24bc67e`, portage commit
+`665da44`. Les deux clés existantes ont changé de **valeur** plutôt que d'être doublées par deux
+nouvelles — « Plus récent d'abord » à côté de « Créée — plus récente d'abord » aurait laissé
+**deviner** que la première parle de modification.
+
+⚠️ **Le blocage n'existait pas.** Ce point est resté ouvert deux phases au motif que corriger
+demandait de toucher à l'ARB de `notes_tech`, dont trois fichiers l10n étaient « modifiés avant mon
+intervention ». Vérification faite : ces trois fichiers étaient **identiques à `HEAD`**, aux fins de
+ligne près. Cf. `docs/04-PIEGES.md` §42.
 
 ### 2. 🟢 « Toutes les notes » inclut les archives, un dossier non
 
@@ -232,6 +239,39 @@ version Flutter n'a pas.
 `lintDebug` la signale sur les trois `<plurals>`. Elle ne vaut qu'à partir d'un million, et Android
 retombe sur `other` quand elle manque — le comportement est donc correct. La définir demanderait une
 forme grammaticale (« un million **de** notes ») qui ne sera jamais atteinte.
+
+## Défauts de l'application publiée **corrigés dans `notes_tech`**
+
+*Relevés en portant la phase 6, corrigés le 2026-08-14 sur demande de Patrice, branche
+`fix/defauts-releves-pendant-le-portage`. ⚠️ **Aucune publication 2.0.4 décidée** — le code est
+corrigé, la release ne l'est pas.*
+
+### `destroyKek()` ne vérifiait pas son résultat — commit `333aba1`
+
+**La seule étape de la panique dans ce cas, et celle dont dépend la garantie minimale.** `dbWipe`,
+`prefsClear`, `exportsWipe` et `tmpPurge` ont toutes été corrigées pour lever si quelque chose
+survit — deux relectures externes s'en sont chargées — mais pas celle-là. `hasKek()` existait déjà,
+dix lignes plus bas.
+
+`_storage.delete` ne rend aucun statut : un échec côté plateforme est indiscernable d'un succès. Le
+rapport portait alors « kekDestroy OK », l'écran de fin annonçait des notes irrécupérables, et
+quelqu'un se séparait de son téléphone en le croyant.
+
+⚠️ Le contrôle porte sur la **présence** d'une valeur, pas sur `hasKek()`, qui exige en plus la
+bonne longueur : une KEK survivante mais corrompue passerait pour une absence.
+
+### Après un effacement INCOMPLET, la panique n'était plus rejouable — commit `333aba1`
+
+`_running` passait à `true` au déclenchement et n'était jamais remis à `false` sur ce chemin. Il
+désactive la tuile et y laisse un indicateur d'activité : l'utilisateur lisait « effacement
+INCOMPLET, vérifiez avant de vous séparer de l'appareil » devant un bouton devenu inerte, qui tourne
+indéfiniment. **Le seul moment où il voudrait réessayer, et le seul où il ne pouvait pas.**
+
+Sur le chemin nominal la question ne se posait pas : l'écran disparaît.
+
+### Le menu de tri — commit `24bc67e`
+
+Cf. la section précédente, point 1.
 
 ## Divergence assumée, et dans le bon sens
 

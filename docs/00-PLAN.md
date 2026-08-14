@@ -1,6 +1,7 @@
 # Notes Tech — portage Flutter → Kotlin natif
 
-> **État** : phases 1 à 5 **closes** (la 4 avec une réserve écrite, cf. plus bas). Prochaine : phase 6 (services transverses). Dernière mise à jour : 2026-08-14.
+> **État** : phases 1 à 5 **closes** (la 4 avec une réserve écrite, cf. plus bas). Phase 6 : trois
+> lots sur quatre faits — reste l'interface des rétroliens. Dernière mise à jour : 2026-08-14.
 >
 > **🎯 Cible de release 3.0.0 : début septembre 2026** — fixée par Patrice le 2026-08-14.
 >
@@ -227,12 +228,21 @@ mode panique appartiennent à la phase 6.
 
 ### Phase 6 — Services transverses
 
-- [ ] Mode panique (478 l) — séquence et ordre des étapes à préserver
-- [ ] Export Markdown / ZIP (519 l)
-- [ ] Backlinks `[[titre]]` (401 l)
-- [ ] `FLAG_SECURE` avec compteur de références — ⚠️ posé en phase 5 **sans** compteur ; le mode
-      panique posera le même drapeau, et deux poseurs qui le retirent chacun de leur côté font
-      disparaître la protection du premier
+- [x] ~~`FLAG_SECURE` avec compteur de références~~ — commit `ca25568`, 8 tests JVM écrits **contre le
+      second poseur**, celui qui n'existait pas quand le code de la phase 5 a été écrit
+- [x] ~~Export Markdown / ZIP~~ — commit `1b48697`. Vecteurs de parité **relevés en exécutant le vrai
+      code Dart**, archive écrite en flux et non en mémoire, 18 tests JVM
+- [x] ~~Mode panique~~ — commit `4e8e259`. Clé détruite dans **toutes** les sources et **vérifiée**,
+      base **scellée** et pas seulement fermée, clés `vault_pin_*` orphelines comprises. Vérifié de
+      bout en bout sur le S9
+- [ ] Backlinks `[[titre]]` — **interface seulement** : panneau, autocomplétion `[[`, menu
+      d'éditeur. ✅ La couche données est **faite depuis la phase 2-3** et va plus loin que
+      l'application publiée : l'indexation se fait dans la transaction qui écrit la note, pas dans
+      un service séparé avec son propre débounce
+
+**Hors périmètre initial, fait quand même** — trois défauts de l'application **publiée** relevés en
+portant cette phase, corrigés dans `notes_tech` sur demande de Patrice (`333aba1`, `24bc67e`).
+⚠️ **Aucune publication 2.0.4 décidée.** Cf. `docs/05-PARITE.md`.
 - [x] ~~Réglages (DataStore)~~ — **faits en phase 5**, et **pas** avec DataStore : le fichier de
       préférences hérité est conservé pour que les réglages survivent à la bascule (D-015)
 
