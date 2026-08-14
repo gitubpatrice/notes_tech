@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Les chemins qu'un `FileProvider` accepte d'exposer.
+
+  ⚠️ UN SEUL, et le plus étroit possible. Un `<cache-path path="." />` — la forme qu'on trouve dans
+  la plupart des exemples — ouvrirait tout le cache de l'application à qui reçoit une permission
+  ponctuelle. Ici seul `cache/exports/` est déclaré : c'est le répertoire que `NoteExporter` crée,
+  vide avant chaque export, et que le mode panique détruit.
+
+  Rien d'autre ne doit apparaître dans ce fichier. En particulier jamais `files-path` ni
+  `external-path` : la base chiffrée et les préférences vivent dans le premier, et le second n'a
+  aucune raison d'exister dans une application qui n'écrit rien hors de son bac à sable.
+-->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>

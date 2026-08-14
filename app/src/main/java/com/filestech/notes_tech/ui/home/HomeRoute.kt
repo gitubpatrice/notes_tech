@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,7 +56,7 @@ fun HomeRoute(
     val snackbars = remember { SnackbarHostState() }
     val portee = rememberCoroutineScope()
     val messageNoteEnBoiteDeReception = stringResource(R.string.home_note_created_in_inbox)
-    val ressourcesDeLEcran = androidx.compose.ui.platform.LocalContext.current.resources
+    val ressourcesDeLEcran = LocalResources.current
 
     var dossierEnMenu by remember { mutableStateOf<Folder?>(null) }
     var dossierARenommer by remember { mutableStateOf<Folder?>(null) }

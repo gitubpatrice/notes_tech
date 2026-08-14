@@ -64,6 +64,33 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          Le seul moyen par lequel un fichier de cette application sort vers une autre.
+
+          `exported="false"` + `grantUriPermissions="true"` : aucune application ne peut interroger
+          ce fournisseur de sa propre initiative. Seule une permission ponctuelle, attachée à
+          l'intention de partage et révoquée avec elle, donne accès au fichier nommé — et à lui
+          seul.
+
+          ⚠️ L'autorité est dérivée de `applicationId`, donc suffixée `.next` pendant le chantier
+          (cf. docs/06-ISOLATION-PENDANT-LE-CHANTIER.md). C'est ce qui permet aux deux versions de
+          cohabiter : deux fournisseurs qui partageraient une autorité feraient échouer
+          l'installation de la seconde.
+
+          ⚠️ Le code construit cette autorité par `"${'$'}{context.packageName}.exports"`. Les deux
+          doivent rester alignées ; une divergence ne se voit qu'au premier partage, par une
+          exception au visage peu parlant.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.exports"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
     <queries>

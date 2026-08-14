@@ -5,13 +5,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,16 +23,22 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -39,6 +49,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
+import com.filestech.notes_tech.ui.common.MIME_ZIP
+import com.filestech.notes_tech.ui.common.partagerUnFichier
+import kotlinx.coroutines.launch
 
 /**
  * Les réglages.
@@ -60,7 +73,10 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
     var choixDeLangue by remember { mutableStateOf(false) }
     var choixDeDelai by remember { mutableStateOf(false) }
 
+    val snackbars = remember { SnackbarHostState() }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbars) },
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -116,6 +132,13 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
                 },
                 modifier = Modifier.clickable { choixDeDelai = true },
             )
+            HorizontalDivider()
+
+            // ⚠️ La section porte le libellé de son unique ligne, comme dans l'application
+            // publiée (`settings_screen.dart:121`). Inventer un titre demanderait une clé i18n
+            // nouvelle, donc une modification de l'ARB gelé de `notes_tech` — cf. docs/05-PARITE.md.
+            TitreDeSection(stringResource(R.string.settings_export_all))
+            LigneDExport(snackbars)
             HorizontalDivider()
 
             TitreDeSection(stringResource(R.string.settings_section_about))
@@ -192,6 +215,101 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
             },
         )
     }
+}
+
+/**
+ * La ligne « exporter toutes mes notes », et tout ce qui suit l'appui.
+ *
+ * ## 🔴 L'ordre des trois gestes, et pourquoi aucun autre ne marche
+ *
+ * Partager, **consommer**, puis afficher le message **depuis la portée de la composition**.
+ *
+ * - Consommer est obligatoire : sans cela, une rotation d'écran rejoue l'effet et le sélecteur de
+ *   partage se rouvre tout seul.
+ * - Mais consommer change la clé de l'effet, donc **annule l'effet lui-même**. Un `showSnackbar`
+ *   écrit après ne s'exécute jamais. C'est le piège du porteur d'événement de la phase 5, et il
+ *   s'était déjà glissé ici sous un commentaire qui affirmait le contraire de ce que le code
+ *   faisait.
+ * - Afficher **avant** de consommer ne marche pas non plus : `showSnackbar` suspend jusqu'à la
+ *   fermeture du message, et une rotation pendant ces secondes-là relancerait l'effet avec la même
+ *   issue non consommée — donc un second partage.
+ *
+ * D'où `rememberCoroutineScope`, qui est liée à la composition et non à l'effet : elle survit à
+ * l'annulation de celui-ci, et le message s'affiche après que l'issue a été consommée.
+ */
+@Composable
+private fun LigneDExport(snackbars: SnackbarHostState) {
+    val viewModel: ExportViewModel = hiltViewModel()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val portee = rememberCoroutineScope()
+
+    // ⚠️ Ces ressources-ci, pas celles de l'application : la langue choisie est posée sur le
+    // contexte de l'activité par `attachBaseContext`. Un `applicationContext.getString` rendrait la
+    // langue du système, et l'archive serait étiquetée dans une langue que l'utilisateur n'a pas
+    // choisie.
+    //
+    // ⚠️ `LocalResources` et non `LocalContext.current.getString` : le premier réagit aux
+    // changements de configuration, le second les ignore. Le contexte reste nécessaire pour lancer
+    // le partage — c'est son seul rôle ici.
+    val ressources = LocalResources.current
+    val contexte = LocalContext.current
+    val libelleBoiteDeReception = stringResource(R.string.home_folder_inbox)
+    val titreDuSelecteur = stringResource(R.string.common_share)
+
+    LaunchedEffect(state.result, state.error) {
+        val resultat = state.result
+        val erreur = state.error
+        when {
+            resultat != null -> {
+                partagerUnFichier(
+                    context = contexte,
+                    uri = resultat.uri,
+                    mimeType = MIME_ZIP,
+                    sujet = ressources.getString(R.string.export_share_subject, resultat.exported),
+                    titreDuSelecteur = titreDuSelecteur,
+                )
+                val message = if (resultat.isComplete) {
+                    ressources.getString(R.string.settings_export_done, resultat.exported)
+                } else {
+                    ressources.getString(
+                        R.string.settings_export_done_partial,
+                        resultat.exported,
+                        resultat.skippedLocked,
+                    )
+                }
+                viewModel.consume()
+                portee.launch { snackbars.showSnackbar(message) }
+            }
+
+            erreur != null -> {
+                val message = ressources.getString(R.string.settings_export_error, erreur)
+                viewModel.consume()
+                portee.launch { snackbars.showSnackbar(message) }
+            }
+        }
+    }
+
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_export_all)) },
+        supportingContent = { Text(stringResource(R.string.settings_export_subtitle)) },
+        leadingContent = { Icon(Icons.Outlined.Archive, contentDescription = null) },
+        trailingContent = {
+            if (state.busy) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            } else {
+                Icon(Icons.Outlined.Share, contentDescription = null)
+            }
+        },
+        modifier = Modifier.clickable(enabled = !state.busy) {
+            viewModel.exportAll(
+                inboxLabel = libelleBoiteDeReception,
+                // ⚠️ Une fonction, pas un gabarit pré-formaté : la chaîne traduite est résolue
+                // avec son argument au moment de l'appel, donc un paramètre ajouté plus tard
+                // échoue à la compilation et non en silence.
+                vaultMention = { dossier -> ressources.getString(R.string.export_note_from_vault, dossier) },
+            )
+        },
+    )
 }
 
 @Composable

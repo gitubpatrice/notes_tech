@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultAutoLocker
@@ -50,6 +51,13 @@ class NotesTechApplication : Application() {
 
         autoLocker.start(applicationScope)
         observerLeCycleDeVieDuProcessus()
+
+        // 🔴 Les archives d'export sont du CLAIR sur le disque, coffres ouverts compris. Elles ne
+        // doivent pas survivre à la session qui les a produites : rien dans le partage Android ne
+        // dit quand le destinataire a fini de lire, donc le seul moment sûr pour effacer est le
+        // démarrage suivant. Geste synchrone et minuscule — une suppression de répertoire — pour
+        // qu'il soit fait avant que quoi que ce soit puisse ouvrir l'écran des réglages.
+        NoteExporter.purgerLesArchives(this)
 
         // 🔴 Reprise des effacements de coffre interrompus, **au démarrage et une seule fois**.
         //
