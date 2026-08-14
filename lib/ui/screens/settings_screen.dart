@@ -166,12 +166,28 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  /// Libellé de chaque mode de tri.
+  ///
+  /// ⚠️ **Six modes, six libellés DISTINCTS.** `createdDesc` et `createdAsc`
+  /// reprenaient ceux de `updatedDesc` et `updatedAsc` : le sélecteur affichait
+  /// donc « Plus récent d'abord » deux fois et « Plus ancien d'abord » deux fois,
+  /// sur six lignes. Impossible de distinguer un tri par date de MODIFICATION d'un
+  /// tri par date de CRÉATION — l'utilisateur choisissait au hasard entre deux
+  /// lignes identiques, et le bouton radio était le seul indice de ce qu'il avait
+  /// pris.
+  ///
+  /// Les deux clés existantes ont changé de VALEUR plutôt que d'être doublées par
+  /// deux nouvelles : « Plus récent d'abord » à côté de « Créée — plus récente
+  /// d'abord » aurait laissé deviner que la première parle de modification. Les
+  /// quatre libellés de date nomment désormais leur critère.
+  ///
+  /// Relevé en portant l'écran vers Kotlin (2026-08-14).
   static String _localizedSortLabel(AppLocalizations t, NoteSortMode m) =>
       switch (m) {
         NoteSortMode.updatedDesc => t.homeSortRecentFirst,
         NoteSortMode.updatedAsc => t.homeSortOldFirst,
-        NoteSortMode.createdDesc => t.homeSortRecentFirst,
-        NoteSortMode.createdAsc => t.homeSortOldFirst,
+        NoteSortMode.createdDesc => t.homeSortCreatedRecentFirst,
+        NoteSortMode.createdAsc => t.homeSortCreatedOldFirst,
         NoteSortMode.titleAsc => t.homeSortAlphaAsc,
         NoteSortMode.titleDesc => t.homeSortAlphaDesc,
       };

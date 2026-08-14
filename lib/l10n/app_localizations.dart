@@ -221,14 +221,26 @@ abstract class AppLocalizations {
   /// No description provided for @homeSortRecentFirst.
   ///
   /// In en, this message translates to:
-  /// **'Most recent first'**
+  /// **'Modified — newest first'**
   String get homeSortRecentFirst;
 
   /// No description provided for @homeSortOldFirst.
   ///
   /// In en, this message translates to:
-  /// **'Oldest first'**
+  /// **'Modified — oldest first'**
   String get homeSortOldFirst;
+
+  /// No description provided for @homeSortCreatedRecentFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Created — newest first'**
+  String get homeSortCreatedRecentFirst;
+
+  /// No description provided for @homeSortCreatedOldFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Created — oldest first'**
+  String get homeSortCreatedOldFirst;
 
   /// No description provided for @homeSortAlphaAsc.
   ///

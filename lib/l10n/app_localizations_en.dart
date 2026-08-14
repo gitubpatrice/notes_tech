@@ -71,10 +71,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeSortMode => 'Sort';
 
   @override
-  String get homeSortRecentFirst => 'Most recent first';
+  String get homeSortRecentFirst => 'Modified — newest first';
 
   @override
-  String get homeSortOldFirst => 'Oldest first';
+  String get homeSortOldFirst => 'Modified — oldest first';
+
+  @override
+  String get homeSortCreatedRecentFirst => 'Created — newest first';
+
+  @override
+  String get homeSortCreatedOldFirst => 'Created — oldest first';
 
   @override
   String get homeSortAlphaAsc => 'A → Z';
