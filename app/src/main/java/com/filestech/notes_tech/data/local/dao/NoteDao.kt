@@ -117,6 +117,26 @@ interface NoteDao {
     suspend fun listAllAlive(): List<NoteEntity>
 
     /**
+     * Idem, en flux et dans l'ordre demandé. C'est la liste de l'écran d'accueil sans filtre.
+     *
+     * ## ⚠️ Les archives sont incluses ici et exclues de [observeInFolder]
+     *
+     * L'asymétrie est **reprise de l'application publiée**, pas introduite : `notes_dao.dart:156`
+     * filtre sur `trashed_at IS NULL` seul, quand `listByFolder` (ligne 59) ajoute `archived = 0`.
+     * Une note archivée disparaît donc de son dossier et reste dans « toutes les notes ».
+     *
+     * Elle est invisible aujourd'hui — **aucun écran de la 2.0.3 ne permet d'archiver une note**,
+     * le seul `archive` de `lib/ui/` est une icône d'export. La colonne vaut donc `0` partout.
+     *
+     * Elle est conservée telle quelle parce que la parité est le critère de sortie de la phase 8 :
+     * un « correctif » silencieux qui ferait disparaître des notes d'une liste serait indiscernable
+     * d'un défaut de portage le jour où quelqu'un compare les deux applications. Consignée dans
+     * `docs/05-PARITE.md` pour être tranchée quand l'archivage sera câblé, s'il l'est.
+     */
+    fun observeAllAlive(sort: NoteSortMode): Flow<List<NoteEntity>> =
+        observeSorted(SimpleSQLiteQuery("SELECT * FROM notes WHERE trashed_at IS NULL ORDER BY ${sort.orderBy}"))
+
+    /**
      * Les couples (identifiant, titre) qui peuvent être **cible** d'un lien `[[Titre]]`.
      *
      * ⚠️ **Les notes verrouillées en sont exclues**, et c'est une garantie de confidentialité, pas

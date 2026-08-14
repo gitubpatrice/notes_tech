@@ -1,8 +1,6 @@
 package com.filestech.notes_tech.security.vault
 
-import android.content.Context
-import androidx.core.content.edit
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -27,20 +25,24 @@ import javax.inject.Singleton
  * `vault_wipe_pending_<id>`. Lire sans le préfixe ne trouverait jamais un effacement interrompu par
  * la version Flutter — c'est-à-dire précisément le cas que ce mécanisme existe pour rattraper, au
  * premier démarrage après la bascule. Cf. `docs/02-SCHEMA-HERITE.md` §5.
+ *
+ * Ce préfixe, et le nom du fichier, sont désormais la connaissance de [LegacyPreferences] **et
+ * d'elle seule**. Cette classe les portait aussi, en copie, jusqu'au 2026-08-14 : deux endroits
+ * décidaient de l'emplacement du même fichier, et une correction sur l'un aurait laissé l'autre en
+ * arrière — le jumeau asymétrique dont `docs/04-PIEGES.md` §25 fait le motif le plus tenace du
+ * portage.
  */
 @Singleton
-class VaultWipeJournal @Inject constructor(@ApplicationContext private val context: Context) {
-
-    private val prefs get() = context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
+class VaultWipeJournal @Inject constructor(private val prefs: LegacyPreferences) {
 
     /** Note qu'un effacement commence. À appeler **avant** de toucher au Keystore. */
     fun markPending(folderId: String) {
-        prefs.edit { putBoolean(keyFor(folderId), true) }
+        prefs.putBoolean(keyFor(folderId), true)
     }
 
     /** Note qu'il s'est terminé. À appeler **après** le dernier geste, jamais avant. */
     fun clearPending(folderId: String) {
-        prefs.edit { remove(keyFor(folderId)) }
+        prefs.remove(keyFor(folderId))
     }
 
     /**
@@ -49,17 +51,8 @@ class VaultWipeJournal @Inject constructor(@ApplicationContext private val conte
      * Balaie toutes les clés plutôt que d'interroger une liste connue : au premier démarrage après
      * la bascule, la seule trace d'un effacement interrompu par la version Flutter est ici.
      */
-    fun pendingFolderIds(): List<String> = prefs.all.keys
-        .filter { it.startsWith(PREFIXED) }
-        .map { it.removePrefix(PREFIXED) }
+    fun pendingFolderIds(): List<String> = prefs.keysStartingWith(VaultParams.WIPE_PENDING_PREF_PREFIX)
+        .map { it.removePrefix(VaultParams.WIPE_PENDING_PREF_PREFIX) }
 
-    private fun keyFor(folderId: String) = "$PREFIXED$folderId"
-
-    private companion object {
-        /** Le fichier qu'écrit le greffon `shared_preferences` sur Android. */
-        const val FLUTTER_PREFS = "FlutterSharedPreferences"
-
-        /** `flutter.` + `vault_wipe_pending_`. Voir l'avertissement de la classe. */
-        const val PREFIXED = "flutter.${VaultParams.WIPE_PENDING_PREF_PREFIX}"
-    }
+    private fun keyFor(folderId: String) = "${VaultParams.WIPE_PENDING_PREF_PREFIX}$folderId"
 }

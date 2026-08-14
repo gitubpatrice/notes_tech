@@ -1,8 +1,10 @@
 package com.filestech.notes_tech.security.vault
 
+import com.filestech.notes_tech.data.prefs.AppSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,9 +34,10 @@ import javax.inject.Singleton
  * n'est ouvert.
  */
 @Singleton
-class VaultAutoLocker @Inject constructor(private val sessions: VaultSessions) {
+class VaultAutoLocker @Inject constructor(private val sessions: VaultSessions, private val settings: AppSettings) {
 
     private var job: Job? = null
+    private var reglageJob: Job? = null
 
     /**
      * Démarre la boucle sur [scope], qui doit vivre aussi longtemps que le processus.
@@ -45,6 +48,7 @@ class VaultAutoLocker @Inject constructor(private val sessions: VaultSessions) {
      */
     fun start(scope: CoroutineScope) {
         if (job?.isActive == true) return
+        suivreLeReglage(scope)
         job = scope.launch {
             while (isActive) {
                 val prochaine = sessions.sweep()
@@ -57,13 +61,43 @@ class VaultAutoLocker @Inject constructor(private val sessions: VaultSessions) {
         }
     }
 
+    /**
+     * Applique le délai choisi par l'utilisateur, **et le réapplique quand il change**.
+     *
+     * ## ⚠️ Pourquoi une lecture unique au démarrage ne suffisait pas
+     *
+     * Le délai était figé à sa valeur par défaut : `VaultSessions.autoLockMillis` portait
+     * 15 minutes et rien ne le mettait à jour. Le réglage existait dans le fichier hérité, l'écran
+     * de réglages l'écrivait, et le verrouillage continuait d'appliquer 15 minutes. Un utilisateur
+     * qui descend à 1 minute pour se protéger aurait obtenu l'affichage du choix, pas son effet.
+     *
+     * Le relire une seule fois au démarrage aurait fermé la moitié du trou : le réglage aurait pris
+     * effet **au redémarrage suivant**, c'est-à-dire pas au moment où on le change, qui est
+     * précisément celui où on en a besoin. D'où la collecte continue.
+     *
+     * `0` signifie « jamais » et [VaultSessions] le traite déjà ainsi — la conversion ne doit donc
+     * surtout pas plancher la valeur à une minute « pour éviter zéro ».
+     */
+    private fun suivreLeReglage(scope: CoroutineScope) {
+        sessions.autoLockMillis = settings.vaultAutoLockMinutesNow() * MILLIS_PER_MINUTE
+        if (reglageJob?.isActive == true) return
+        reglageJob = scope.launch {
+            settings.vaultAutoLockMinutes.collectLatest { minutes ->
+                sessions.autoLockMillis = minutes * MILLIS_PER_MINUTE
+            }
+        }
+    }
+
     /** Arrête la boucle. Ne verrouille rien — [VaultSessions.lockAll] est un geste distinct. */
     fun stop() {
         job?.cancel()
         job = null
+        reglageJob?.cancel()
+        reglageJob = null
     }
 
     private companion object {
         const val IDLE_POLL_MILLIS = 60_000L
+        const val MILLIS_PER_MINUTE = 60_000L
     }
 }

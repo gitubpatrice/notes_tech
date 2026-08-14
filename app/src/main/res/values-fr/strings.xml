@@ -2,14 +2,382 @@
 <!--
   Chaînes françaises.
 
+  ⚠️ FICHIER GÉNÉRÉ — cf. l'en-tête de `values/strings.xml`.
+
   ⚠️ Toute apostrophe dans une VALEUR est échappée `\'`. Sans l'antislash, aapt tronque la chaîne
   au caractère fautif, sans erreur ni avertissement : la ressource compile, et le texte affiché est
   amputé. C'est un défaut qui ne se voit qu'à l'écran, en français, donc jamais en test anglais.
 -->
 <resources>
+
+    <!-- ── Commun — boutons et libellés partagés ───────────────────────── -->
+    <string name="common_cancel">Annuler</string>
+    <string name="common_ok">OK</string>
+    <string name="common_close">Fermer</string>
+    <string name="common_delete">Supprimer</string>
+    <string name="common_remove">Retirer</string>
+    <string name="common_rename">Renommer</string>
+    <string name="common_share">Partager</string>
+    <string name="common_error">Erreur</string>
+    <string name="common_error_with">Erreur : %1$s</string>
+    <string name="common_loading">Chargement…</string>
+    <string name="common_validate">Valider</string>
+    <string name="common_restore">Restaurer</string>
+
+    <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
+    <string name="splash_tagline">La protection maximale\npour vos notes.</string>
+    <string name="splash_skip_hint">Toucher l\'écran pour continuer</string>
+    <string name="splash_logo_content_description">Logo Notes Tech</string>
+    <string name="splash_semantics_label">Splash de présentation Notes Tech</string>
+
+    <!-- ── Accueil — liste des notes ───────────────────────────────────── -->
+    <string name="home_all_notes">Toutes les notes</string>
+    <string name="home_folders">Dossiers</string>
+    <string name="home_new_note">Nouvelle note</string>
+    <string name="home_search_hint">Rechercher une note</string>
+    <string name="home_no_notes">Aucune note</string>
+    <string name="home_no_notes_in">Aucune note dans ce dossier</string>
+    <string name="home_start_writing">Tapez le bouton + pour créer votre première note.</string>
+    <string name="home_sort_mode">Trier</string>
+    <string name="home_sort_recent_first">Plus récent d\'abord</string>
+    <string name="home_sort_old_first">Plus ancien d\'abord</string>
+    <string name="home_sort_alpha_asc">A → Z</string>
+    <string name="home_sort_alpha_desc">Z → A</string>
+    <string name="home_folder_inbox">Boîte de réception</string>
+    <string name="home_unpin">Désépingler</string>
+    <string name="home_unfav">Retirer des favoris</string>
+    <plurals name="home_vault_lost_banner">
+        <item quantity="one">%1$d note de coffre a perdu ses dernières modifications (coffre verrouillé pendant l\'enregistrement).</item>
+        <item quantity="other">%1$d notes de coffre ont perdu leurs dernières modifications (coffre verrouillé pendant l\'enregistrement).</item>
+    </plurals>
+    <string name="home_announce_vault_unlocked">Coffre déverrouillé</string>
+    <string name="home_vault_create_error">Création du coffre échouée : %1$s</string>
+    <string name="home_note_created_in_inbox">Note créée dans la Boîte de réception</string>
+    <string name="home_load_error">Une erreur est survenue lors du chargement.</string>
+
+    <!-- ── Tiroir des dossiers ─────────────────────────────────────────── -->
+    <string name="drawer_trash">Corbeille</string>
+    <string name="drawer_remove_vault_protection">Retirer la protection</string>
+    <string name="drawer_remove_vault_protection_subtitle">Garder le dossier, déchiffrer ses notes</string>
+    <string name="drawer_header_folders">DOSSIERS</string>
+    <string name="drawer_new_folder">Nouveau dossier</string>
+    <string name="drawer_folder_options">Options du dossier</string>
+    <string name="drawer_convert_to_vault">Activer un coffre</string>
+    <string name="drawer_convert_to_vault_subtitle">Verrouiller ce dossier par passphrase ou PIN</string>
+    <string name="drawer_lock_now">Verrouiller maintenant</string>
+    <string name="drawer_lock_now_subtitle">Re-verrouille le coffre déchiffré</string>
+
+    <!-- ── Dossiers — création, renommage, suppression, protection ─────── -->
+    <string name="folder_create_title">Nouveau dossier</string>
+    <string name="folder_create_field">Nom du dossier</string>
+    <string name="folder_rename_title">Renommer le dossier</string>
+    <string name="folder_rename_field">Nouveau nom</string>
+    <string name="folder_delete_title">Supprimer le dossier ?</string>
+    <string name="folder_delete_choice_body">Que faire des notes de « %1$s » ?</string>
+    <string name="folder_remove_vault_title">Retirer la protection du coffre ?</string>
+    <string name="folder_remove_vault_body">Les notes de « %1$s » seront déchiffrées et écrites en clair dans la base. Le dossier et son contenu sont conservés, mais ils ne seront plus protégés par mot de passe. Action irréversible : les notes auront transité hors chiffrement, même si vous reprotégez le dossier ensuite.</string>
+    <string name="folder_remove_vault_confirm">Déchiffrer et retirer</string>
+    <plurals name="folder_remove_vault_done">
+        <item quantity="one">%1$d note déchiffrée. Le dossier n\'est plus un coffre.</item>
+        <item quantity="other">%1$d notes déchiffrées. Le dossier n\'est plus un coffre.</item>
+    </plurals>
+    <string name="folder_delete_vault_choice_body">« %1$s » est un coffre. Déplacer ses notes vers la Boîte de réception les DÉCHIFFRE toutes et les écrit en clair dans la base, sans protection par mot de passe. Action irréversible : elles auront transité hors chiffrement, même si vous les remettez ensuite dans un coffre.</string>
+    <string name="folder_delete_permanent">Supprimer définitivement</string>
+    <string name="folder_delete_move_to_inbox">Déplacer vers Boîte de réception</string>
+    <string name="folder_delete_move_to_inbox_vault">Déchiffrer et déplacer</string>
+    <string name="folder_delete_decrypt_failed">Déchiffrement impossible pour %1$d note(s).</string>
+    <string name="folder_delete_cancelled_error">Suppression annulée : %1$s</string>
+    <string name="folder_convert_progress_title">Conversion du coffre…</string>
+    <string name="folder_convert_progress_body">Re-chiffrement des notes verrouillées en cours.</string>
+
+    <!-- ── Éditeur de note ─────────────────────────────────────────────── -->
+    <string name="note_untitled">Sans titre</string>
+    <string name="note_editor_title">Titre</string>
+    <string name="note_editor_content">Tapez votre note (Markdown supporté)</string>
+    <string name="note_editor_saved">Enregistré</string>
+    <string name="note_editor_saving">Enregistrement…</string>
+    <string name="note_editor_tooltip_pin">Épingler la note</string>
+    <string name="note_editor_tooltip_fav">Marquer en favori</string>
+    <string name="note_editor_tooltip_insert_link">Insérer un lien interne [[Titre]]</string>
+    <string name="note_editor_tooltip_more">Plus d\'actions</string>
+    <string name="note_editor_tooltip_dictate">Dictée vocale</string>
+    <string name="note_editor_tooltip_done">Terminé</string>
+    <string name="note_editor_menu_move">Déplacer dans un dossier</string>
+    <string name="note_editor_menu_export">Exporter en Markdown</string>
+    <string name="note_editor_menu_trash">Mettre à la corbeille</string>
+    <string name="note_editor_backlinks">Notes qui mentionnent celle-ci</string>
+    <string name="note_editor_backlink_dangling">Lien vers une note inexistante : %1$s</string>
+    <string name="note_editor_announce_saved_success">Note enregistrée</string>
+    <string name="note_editor_outgoing_links">Liens (%1$d)</string>
+    <string name="note_card_locked">🔒 Note verrouillée</string>
+    <string name="note_editor_error_not_found">Note introuvable</string>
+    <string name="note_editor_error_vault_folder_missing">Dossier coffre introuvable</string>
+    <string name="note_editor_error_vault_wiped">Coffre auto-détruit après trop de tentatives ratées. Les notes du dossier sont définitivement perdues.</string>
+    <string name="note_editor_error_vault_relocked">Coffre re-verrouillé. Rouvrez la note pour réessayer.</string>
+    <string name="note_editor_error_load_generic">Une erreur est survenue lors du chargement.</string>
+    <string name="note_editor_error_vault_relocked_during_edit">Coffre re-verrouillé pendant l\'édition. Ré-ouvrez la note pour reprendre.</string>
+    <string name="note_editor_error_save_failed">Échec de sauvegarde</string>
+    <string name="note_editor_copied_to_clipboard">Copié dans le presse-papier</string>
+    <string name="note_editor_export_failed">Export impossible : %1$s</string>
+    <string name="note_editor_moved">Note déplacée</string>
+    <string name="note_editor_move_failed">Déplacement impossible : %1$s</string>
+    <string name="note_editor_exit_vault_title">Sortir cette note du coffre ?</string>
+    <string name="note_editor_exit_vault_body">Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.</string>
+    <string name="note_editor_exit_vault_confirm">Sortir du coffre</string>
+    <string name="note_editor_menu_copy_markdown">Copier le Markdown</string>
+    <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
+
+    <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
+    <string name="link_autocomplete_title">Insérer un lien</string>
+    <string name="link_autocomplete_hint">Titre de la note à lier</string>
+    <string name="link_autocomplete_empty">Aucune note ne correspond.</string>
+    <string name="link_autocomplete_create_new">Créer une nouvelle note « %1$s »</string>
+
+    <!-- ── Recherche ───────────────────────────────────────────────────── -->
+    <string name="search_title">Rechercher</string>
+    <string name="search_hint">Mot-clé, titre, ou contenu de note…</string>
+    <string name="search_empty">Aucun résultat</string>
+    <string name="search_try_other">Essayez un autre mot-clé.</string>
+    <string name="search_clear">Effacer la recherche</string>
+    <string name="search_empty_title">Tapez pour rechercher</string>
+    <string name="search_empty_subtitle_fts" formatted="false">Recherche plein texte instantanée et 100% locale.</string>
+    <string name="search_error_generic">Une erreur est survenue.</string>
+
+    <!-- ── Corbeille ───────────────────────────────────────────────────── -->
+    <string name="trash_title">Corbeille</string>
+    <string name="trash_empty_title">Corbeille vide</string>
+    <string name="trash_empty_subtitle">Les notes supprimées apparaissent ici avant leur effacement définitif.</string>
+    <string name="trash_retention_notice">Les notes en corbeille sont supprimées automatiquement après %1$d jours.</string>
+    <string name="trash_restored">Note restaurée</string>
+    <string name="trash_delete_forever">Supprimer définitivement</string>
+    <string name="trash_delete_forever_title">Supprimer définitivement ?</string>
+    <string name="trash_delete_forever_body">Cette note sera effacée définitivement. Cette action est irréversible.</string>
+    <string name="trash_deleted_forever">Note supprimée définitivement</string>
+    <string name="trash_empty_all">Vider la corbeille</string>
+    <string name="trash_empty_all_confirm">Supprimer définitivement toutes les notes de la corbeille ? Cette action est irréversible.</string>
+
+    <!-- ── Coffres — passphrase et code PIN ────────────────────────────── -->
+    <string name="vault_pass_create_title">Créer un coffre</string>
+    <string name="vault_pass_create_body">Choisissez une passphrase robuste pour ce dossier. Notez-la dans un endroit sûr — si vous l\'oubliez, les notes verrouillées seront irrécupérables.</string>
+    <string name="vault_pass_field">Passphrase</string>
+    <string name="vault_pass_confirm_field">Confirmer la passphrase</string>
+    <string name="vault_pass_min_length">Minimum %1$d caractères.</string>
+    <string name="vault_pass_mismatch">Les deux passphrases ne correspondent pas.</string>
+    <string name="vault_pass_warning_lost">Si vous oubliez cette passphrase, les notes verrouillées dans ce dossier seront IRRÉCUPÉRABLES. Notes Tech ne stocke pas la passphrase et ne peut pas la régénérer.</string>
+    <string name="vault_pass_create_action">Créer le coffre</string>
+    <string name="vault_pass_unlock_title">Déverrouiller le coffre</string>
+    <string name="vault_pass_unlock_body">Entrez la passphrase du dossier « %1$s ».</string>
+    <string name="vault_pass_wrong">Passphrase incorrecte.</string>
+    <string name="vault_pass_deriving">Dérivation Argon2id en cours…</string>
+    <string name="vault_pass_unlock_action">Déverrouiller</string>
+    <string name="vault_pin_create_title">Créer un coffre avec un PIN</string>
+    <string name="vault_pin_confirm_field">Confirmer le PIN</string>
+    <string name="vault_pin_mismatch">Les deux PIN ne correspondent pas.</string>
+    <string name="vault_pin_too_short">Le PIN doit faire entre %1$d et %2$d chiffres.</string>
+    <string name="vault_pin_warning_wipe">Attention : 5 échecs successifs de saisie du PIN effaceront définitivement les notes verrouillées de ce dossier.</string>
+    <string name="vault_pin_unlock_title">Déverrouiller le coffre (PIN)</string>
+    <string name="vault_pin_unlock_body">PIN du dossier « %1$s ».</string>
+    <string name="vault_pin_wrong">PIN incorrect.</string>
+    <string name="vault_pin_attempts_left">Tentatives restantes : %1$d</string>
+    <string name="vault_pin_wiped">Trop de tentatives — le coffre a été effacé.</string>
+    <string name="vault_pin_digits_announce">%1$d chiffres saisis sur %2$d</string>
+    <string name="vault_pin_key_label">Touche %1$s</string>
+    <string name="vault_pin_key_delete">Effacer le dernier chiffre</string>
+    <string name="vault_mode_choose">Choisir le mode de déverrouillage</string>
+    <string name="vault_mode_passphrase">Passphrase</string>
+    <string name="vault_mode_passphrase_desc">Recommandée. Plus longue à dériver mais résistante au bruteforce hors-device.</string>
+    <string name="vault_mode_pin">PIN (4-6 chiffres)</string>
+    <string name="vault_mode_pin_desc">Plus rapide. Auto-wipe après 5 échecs. Sécurité device-bound (Keystore).</string>
+    <string name="vault_convert_partial_fail">%1$d / %2$d notes n\'ont pas pu être converties.</string>
+    <string name="vault_convert_success">Coffre activé.</string>
+    <string name="vault_convert_success_with_count">Coffre activé. %1$d note(s) chiffrée(s).</string>
+    <string name="vault_convert_impossible">Conversion impossible : %1$s</string>
+
+    <!-- ── Réglages ────────────────────────────────────────────────────── -->
+    <string name="settings_title">Réglages</string>
+    <string name="settings_section_appearance">Apparence</string>
+    <string name="settings_section_security">Sécurité</string>
+    <string name="settings_section_about">À propos</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_language_system">Système</string>
+    <string name="settings_language_fr">Français</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_changed_fr">Langue changée en français</string>
+    <string name="settings_language_changed_en">Language switched to English</string>
+    <string name="settings_theme">Thème</string>
+    <string name="settings_theme_system">Système</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_secure_window">Masquer dans les apps récentes</string>
+    <string name="settings_secure_window_subtitle">Empêche la capture d\'écran et masque l\'aperçu de l\'app dans le sélecteur Android.</string>
+    <string name="settings_vault_auto_lock">Verrouillage automatique des coffres</string>
+    <plurals name="settings_vault_auto_lock_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="settings_vault_auto_lock_never">Jamais</string>
+    <string name="settings_export_all">Exporter toutes mes notes</string>
+    <string name="settings_export_subtitle">Génère une archive ZIP Markdown organisée par dossier.</string>
+    <string name="settings_export_done">Export terminé : %1$d notes</string>
+    <string name="settings_export_done_partial">Export terminé : %1$d notes (%2$d ignorées dans des coffres verrouillés)</string>
+    <string name="settings_export_error">L\'export a échoué : %1$s</string>
+    <string name="settings_panic">Mode panique</string>
+    <string name="settings_panic_subtitle">Efface définitivement notes, clé, modèles et coffres.</string>
+    <string name="settings_about">À propos de Notes Tech</string>
+    <string name="settings_about_subtitle">Confidentialité, licences, support</string>
+
+    <!-- ── Export Markdown / ZIP ─────────────────────────────────────────
+         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 6. Elles sont transposées
+         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
+         croire que la fonctionnalité existe. -->
+    <string name="export_note_from_vault">Note du coffre : %1$s</string>
+    <string name="export_share_subject">Notes Tech — export %1$d notes</string>
+
+    <!-- ── Mode panique ──────────────────────────────────────────────────
+         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 6. Elles sont transposées
+         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
+         croire que la fonctionnalité existe. -->
+    <string name="panic_confirm_title">Effacer définitivement toutes les données ?</string>
+    <string name="panic_confirm_keyword">EFFACER</string>
+    <string name="panic_confirm_yes">Tout effacer</string>
+    <string name="panic_incomplete">Effacement INCOMPLET : %1$d étape(s) ont échoué. Une partie de vos données peut avoir survécu — vérifiez avant de vous séparer de l\'appareil.</string>
+    <string name="panic_progress">Effacement en cours…</string>
+    <string name="panic_progress_subtitle">Veuillez patienter.</string>
+    <string name="panic_announce_done">Effacement terminé</string>
+    <string name="panic_complete_title">Effacement terminé</string>
+    <string name="panic_complete_body">Toutes les données ont été effacées. Notes Tech redémarre comme au premier lancement.</string>
+    <string name="panic_complete_close">Fermer l\'application</string>
+    <string name="panic_complete_footer">Au prochain lancement, Notes Tech repartira sur une base vierge.</string>
+    <string name="panic_complete_bullet_1">Clé maître Keystore : détruite</string>
+    <string name="panic_complete_bullet_2">Base de notes : effacée et écrasée</string>
+    <string name="panic_complete_bullet_3">Modèle de dictée vocale : désinstallé</string>
+    <string name="panic_complete_bullet_4">Préférences : remises à zéro</string>
+    <string name="panic_confirm_destroy_intro">Vous êtes sur le point de DÉTRUIRE de manière irréversible :</string>
+    <string name="panic_confirm_item_1">Toutes vos notes (chiffrement détruit + fichier écrasé)</string>
+    <string name="panic_confirm_item_2">Le modèle de dictée vocale installé</string>
+    <string name="panic_confirm_item_3">Toutes les préférences et l\'historique</string>
+    <string name="panic_confirm_irreversible">Cette action ne peut PAS être annulée. Aucune sauvegarde, aucune corbeille, aucune récupération forensique possible.</string>
+    <string name="panic_confirm_type_prompt">Pour confirmer, tapez exactement : %1$s</string>
+    <string name="panic_confirm_field_label">Mot de confirmation</string>
+
+    <!-- ── Dictée vocale ─────────────────────────────────────────────────
+         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 7. Elles sont transposées
+         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
+         croire que la fonctionnalité existe. -->
+    <string name="voice_mic_initializing">Initialisation du micro…</string>
+    <string name="voice_transcribing_hint">Veuillez patienter…</string>
+    <string name="voice_open_system_settings">Ouvrir les réglages</string>
+    <string name="voice_setup_title">Dictée vocale</string>
+    <string name="voice_setup_subtitle">Whisper on-device. L\'audio n\'est jamais persisté.</string>
+    <string name="voice_setup_enable">Activer la dictée vocale</string>
+    <string name="voice_setup_choose_model">Choisir un modèle Whisper</string>
+    <string name="voice_setup_download">Télécharger sur ce téléphone</string>
+    <string name="voice_setup_select_file">Sélectionner le fichier .bin</string>
+    <string name="voice_setup_verifying">Vérification de l\'empreinte…</string>
+    <string name="voice_setup_install_ok">Modèle installé : %1$s</string>
+    <string name="voice_setup_install_fail">Installation échouée : %1$s</string>
+    <string name="voice_setup_remove">Retirer le modèle installé</string>
+    <string name="voice_recording_title">Dictée en cours</string>
+    <string name="voice_recording_hint">Parlez. Tapez « Arrêter » pour transcrire.</string>
+    <string name="voice_recording_stop">Arrêter</string>
+    <string name="voice_transcribing">Transcription…</string>
+    <string name="voice_transcribed">Texte inséré.</string>
+    <string name="voice_permission_denied">Permission micro refusée.</string>
+    <string name="voice_setup_app_bar_title">Dictée vocale</string>
+    <string name="voice_setup_offline_banner" formatted="false">100 % hors-ligne. L\'audio n\'est jamais persisté.</string>
+    <string name="voice_setup_how_to_title">Comment activer la dictée</string>
+    <string name="voice_setup_step_1_title">1. Choisir un modèle</string>
+    <string name="voice_setup_step_1_text">Whisper Base (57 Mo) recommandé.</string>
+    <string name="voice_setup_step_2_title">2. Télécharger</string>
+    <string name="voice_setup_step_2_text">Le navigateur télécharge le .bin dans /Téléchargements. Notes Tech reste sans permission Internet.</string>
+    <string name="voice_setup_step_3_title">3. Importer</string>
+    <string name="voice_setup_step_3_text">Sélectionnez le .bin téléchargé. L\'app vérifie SHA-256 puis copie en privé.</string>
+    <string name="voice_setup_copy_link_tooltip">Copier le lien</string>
+    <string name="voice_setup_link_copied">Lien copié dans le presse-papiers</string>
+    <string name="voice_setup_path_unavailable">Chemin du fichier non disponible</string>
+    <string name="voice_setup_import_error_title">Import impossible</string>
+    <string name="voice_setup_checksum_mismatch_body">Empreinte SHA-256 différente. Le fichier a peut-être été corrompu pendant le téléchargement. Détails : %1$s</string>
+    <string name="voice_setup_browser_open_failed">Aucun navigateur disponible</string>
+    <string name="voice_setup_browser_open_error">Impossible d\'ouvrir le navigateur : %1$s</string>
+    <string name="voice_setup_copying">Copie en cours…</string>
+    <string name="voice_setup_import_in_progress">Import en cours, veuillez patienter.</string>
+    <string name="voice_setup_picker_dialog_title">Choisir le fichier .bin pour %1$s</string>
+    <string name="voice_setup_security_footer_label">Promesse</string>
+    <string name="voice_setup_security_footer_body">Audio capturé jamais persisté, transcription locale via whisper.cpp, modèle vérifié SHA-256 avant chaque chargement.</string>
+
+    <!-- ── À propos ────────────────────────────────────────────────────── -->
+    <string name="about_title">À propos</string>
+    <string name="about_tagline">Vos notes restent dans votre poche. Chiffrées, et hors ligne.</string>
+    <string name="about_check_updates">Vérifier les mises à jour</string>
+    <string name="about_check_updates_hint">Ouvre la page des versions sur GitHub dans votre navigateur — l\'app ne se connecte jamais à Internet elle-même.</string>
+    <string name="about_section_privacy">Confidentialité</string>
+    <string name="about_privacy_card_title" formatted="false">100 % privé — zéro surveillance</string>
+    <string name="about_privacy_1">Aucune connexion réseau — vérifiable dans le manifeste</string>
+    <string name="about_privacy_2">Aucun compte, aucune inscription</string>
+    <string name="about_privacy_3">Aucun tracker, aucune publicité</string>
+    <string name="about_privacy_4">Notes chiffrées localement (SQLCipher + Android Keystore)</string>
+    <string name="about_privacy_5">Mode « masquer dans les apps récentes » disponible</string>
+    <string name="about_section_voice">Dictée vocale</string>
+    <string name="about_voice_1">Whisper on-device (whisper.cpp via files_tech_voice)</string>
+    <string name="about_voice_2">Modèle vérifié SHA-256 au DL et avant chaque chargement</string>
+    <string name="about_voice_3">Audio capturé jamais persisté (effacé après transcription)</string>
+    <string name="about_notice_title">Notice d\'emploi — activer la dictée</string>
+    <string name="about_notice_step_1">Réglages → Dictée vocale → Activer la dictée vocale.</string>
+    <string name="about_notice_step_2">Choisissez un modèle (Whisper Base 57 Mo recommandé).</string>
+    <string name="about_notice_step_3">Tapez « Télécharger sur ce téléphone » — le navigateur système télécharge le fichier .bin dans Téléchargements. Notes Tech reste sans permission Internet : c\'est votre navigateur qui télécharge, pas l\'app.</string>
+    <string name="about_notice_step_4">Tapez « Sélectionner le fichier .bin » — l\'app vérifie l\'empreinte cryptographique puis copie le modèle dans sa zone privée.</string>
+    <string name="about_notice_step_5">Dans une note, tapez l\'icône micro 🎤 dans la barre du haut. Parlez, puis tapez « Arrêter ». Le texte transcrit s\'insère au curseur.</string>
+    <string name="about_section_licenses">Sources, licences et code ouvert</string>
+    <string name="about_link_repo">Notes Tech (cette app)</string>
+    <string name="about_link_voice">files_tech_voice (module Whisper STT)</string>
+    <string name="about_link_whisper">Source des modèles Whisper (.bin)</string>
+    <string name="about_license">Apache License 2.0 — code source ouvert, vérifiable</string>
+    <string name="about_free">Gratuit — pas de version premium, pas d\'abonnement</string>
+    <string name="about_section_contact">Auteur &amp; contact</string>
+    <string name="about_contact_email">Nous écrire</string>
+    <string name="about_contact_questions">Questions, suggestions, retours</string>
+    <string name="about_section_legal">Mentions légales</string>
+    <string name="about_legal_link">Voir les mentions légales complètes</string>
+    <string name="about_legal_subtitle">Éditeur, données collectées, permissions, droits, licence</string>
+    <string name="about_link_copied">Lien copié — collez-le dans votre navigateur.</string>
+
+    <!-- ── Mentions légales ────────────────────────────────────────────── -->
+    <string name="legal_title">Mentions légales</string>
+    <string name="legal_tab_privacy">Confidentialité</string>
+    <string name="legal_tab_terms">Conditions</string>
+
+    <!-- ── Divers ──────────────────────────────────────────────────────── -->
+    <string name="app_title">Notes Tech</string>
+    <string name="passphrase_show_tooltip">Afficher la passphrase</string>
+    <string name="passphrase_hide_tooltip">Masquer la passphrase</string>
+    <string name="move_to_folder_title">Déplacer dans un dossier</string>
+    <string name="move_to_folder_empty">Aucun autre dossier disponible.</string>
+    <string name="ai_chat_model_loaded">Modèle prêt</string>
+    <string name="error_vault_locked">Coffre verrouillé.</string>
+    <string name="error_voice_no_model_installed">Aucun modèle de transcription installé.</string>
+    <string name="error_voice_start_capture_failed">Erreur au démarrage de la capture micro.</string>
+    <string name="error_voice_transcribe_failed">Erreur pendant la transcription.</string>
+    <string name="error_voice_mic_capture_error">Erreur de capture micro.</string>
+    <string name="error_folder_name_required">Le nom du dossier est requis.</string>
+    <string name="error_inbox_not_deletable">Le dossier « Boîte de réception » ne peut pas être supprimé.</string>
+    <string name="error_note_title_too_long">Titre trop long (max 200 caractères).</string>
+    <string name="error_vault_already_enabled">Ce dossier est déjà un coffre.</string>
+    <string name="error_vault_passphrase_too_short">Passphrase trop courte (minimum 8 caractères).</string>
+    <string name="error_vault_passphrase_wrong">Passphrase incorrecte.</string>
+    <string name="error_vault_pin_too_short">PIN invalide : 4 à 6 chiffres.</string>
+    <string name="error_vault_pin_not_digits">PIN invalide : chiffres uniquement.</string>
+    <string name="error_vault_pin_wrong">PIN incorrect.</string>
+    <string name="error_vault_pin_wiped">Coffre auto-détruit après trop de tentatives ratées.</string>
+    <string name="error_vault_not_pin_vault">Le dossier n\'est pas un coffre PIN.</string>
+    <string name="error_vault_not_avault">Le dossier n\'est pas un coffre.</string>
+    <string name="error_vault_encrypted_content_invalid">Contenu chiffré invalide (trop court).</string>
+    <string name="error_vault_wrap_invalid">Wrap chiffré invalide (tag GCM tronqué).</string>
+
+    <!-- ── Écran d'échec au démarrage ───────────────────────────────────────── -->
     <string name="startup_failure_title">Vos notes n\'ont pas pu être déverrouillées</string>
     <string name="startup_failure_notes_are_safe">Vos notes sont toujours sur cet appareil et n\'ont pas été modifiées.</string>
     <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Installez d\'abord Notes Tech 2.0.4, ouvrez-la une fois, puis remettez à jour.</string>
     <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\'appareil est momentanément indisponible. Relancez l\'application ; si le problème persiste, redémarrez l\'appareil.</string>
     <string name="startup_failure_retry">Réessayer</string>
+
 </resources>

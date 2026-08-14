@@ -38,6 +38,20 @@ package com.filestech.notes_tech.core.text
  * caractères invisibles dans sa propre source. Ils survivraient mal à un copier-coller, à un
  * changement d'encodage ou à une relecture.
  */
+/**
+ * La **classe de caractères** que `\s` recouvre dans une expression rationnelle Dart.
+ *
+ * Extraite de [DartTextSemantics.WHITESPACE] le 2026-08-14, parce qu'un second usage est apparu :
+ * l'extrait de note (`NoteExcerpt`) porte un `^#{1,6}\s+` qui doit reconnaître exactement le même
+ * ensemble. Recopier la classe aurait produit deux définitions du même `\s`, dont une aurait pu
+ * être corrigée sans l'autre — le motif que `docs/04-PIEGES.md` §25 décrit.
+ *
+ * Hors de l'objet parce qu'une constante de compilation ne peut pas être référencée depuis
+ * l'initialiseur d'une propriété du même objet.
+ */
+internal const val WHITESPACE_CLASS =
+    "[\\s\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]"
+
 internal object DartTextSemantics {
 
     /**
@@ -51,8 +65,7 @@ internal object DartTextSemantics {
      * ⚠️ **U+200B (espace sans chasse) n'y est PAS**, et c'est correct : ECMAScript ne le compte pas
      * comme un espace. Mesuré — un mot coupé par U+200B reste un seul terme des deux côtés.
      */
-    val WHITESPACE: Regex =
-        Regex("[\\s\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]+")
+    val WHITESPACE: Regex = Regex("$WHITESPACE_CLASS+")
 
     /** Fin de ligne suivante : élaguée par Dart, absente de son `\s`. L'asymétrie est dans Dart. */
     private const val NEXT_LINE = 0x85

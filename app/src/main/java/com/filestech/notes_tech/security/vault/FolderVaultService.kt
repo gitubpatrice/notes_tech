@@ -4,6 +4,8 @@ import com.filestech.notes_tech.core.crypto.wipe
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.dao.FolderDao
 import com.filestech.notes_tech.data.local.dao.VaultMaterial
+import com.filestech.notes_tech.data.local.entity.NoteEntity
+import com.filestech.notes_tech.data.local.mapper.toDomain
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
@@ -391,6 +393,19 @@ class FolderVaultService @Inject constructor(
         sessions.clearFailures(folderId)
         // La propriété du tableau passe à la session : ne plus l'effacer ici.
         sessions.open(folderId, folderKey)
+
+        // 🔴 **Le seul point du code où les réparations sont déclenchées**, et c'est délibéré.
+        //
+        // Cette méthode est appelée par les deux chemins de déverrouillage, et par eux seuls — la
+        // création de coffre, elle, ouvre sa session directement. La distinction n'est pas
+        // cosmétique : à la création, les notes déjà présentes doivent être chiffrées par un geste
+        // que l'utilisateur voit, avec son décompte et ses échecs. Les faire chiffrer ici, en
+        // silence et en meilleur effort, ferait annoncer « 0 note chiffrée » à l'écran suivant et
+        // avalerait les échecs.
+        //
+        // Accrocher les réparations aux deux appelants plutôt qu'ici marcherait aujourd'hui et
+        // produirait le jumeau asymétrique au premier chemin ajouté. Cf. `docs/04-PIEGES.md` §25.
+        onSessionOpened(folderId)
     }
 
     private suspend fun pinFailure(folderId: String, attemptsAfter: Int): Nothing {
@@ -469,6 +484,278 @@ class FolderVaultService @Inject constructor(
             // Format 1 : le chiffré ne porte que le contenu, le titre est resté dans sa colonne.
             note.copy(content = String(clear, Charsets.UTF_8), encrypted = null)
         }
+    }
+
+    // ── Les gestes de masse : convertir, déprotéger, réparer ─────────────────────────────────────
+    //
+    // 🔴 Ces quatre méthodes étaient hors périmètre de la phase 4, et le fait qu'elles n'étaient
+    // pas encore écrites était consigné dans `docs/11-COFFRES.md` §7 — pas pour mémoire, mais parce
+    // que ce sont des **gestes de sécurité** et qu'un geste de sécurité qui n'appartient à aucune
+    // phase finit dans les oublis d'une bascule. Elles entrent ici avec l'interface qui les appelle.
+
+    /**
+     * Le bilan d'un traitement par lot. `failed > 0` veut dire **dossier dans un état mixte**.
+     *
+     * ⚠️ L'appelant DOIT le montrer. Sans ça, l'utilisateur croit son dossier entièrement protégé
+     * alors qu'une partie de ses notes est restée en clair — et c'est le genre de croyance sur
+     * laquelle on fonde une décision de confidentialité.
+     */
+    data class BatchOutcome(val done: Int, val failed: Int) {
+        val isComplete: Boolean get() = failed == 0
+    }
+
+    /**
+     * Chiffre les notes déjà présentes quand un dossier devient un coffre.
+     *
+     * Aucune transaction globale, et ce n'est pas un renoncement : elle engloberait la réindexation
+     * des liens, qui n'appartient pas à ce service. À la place, le bilan est honnête et l'appelant
+     * décide — un échec partiel laisse un dossier utilisable, une transaction avortée laisserait un
+     * dossier converti sans qu'aucune note le soit.
+     *
+     * ⚠️ **Archives comprises.** Les exclure laisserait en clair, dans un dossier annoncé protégé,
+     * exactement les notes qu'on ne regarde plus — donc celles dont on ne remarquerait jamais
+     * qu'elles n'ont pas été chiffrées.
+     */
+    suspend fun encryptAllNotesInFolder(folderId: String): BatchOutcome {
+        requireOpenSession(folderId)
+        val database = databases.get()
+        return surChaqueNote(database.noteDao().findPlaintextInFolder(folderId)) { note ->
+            val scellee = runOrNull { seal(note) } ?: return@surChaqueNote false
+            val blob = scellee.encrypted?.toByteArray() ?: return@surChaqueNote false
+            !echoue {
+                database.noteWriteDao().lockNote(
+                    id = note.id,
+                    encryptedContent = blob,
+                    encVersion = scellee.encVersion,
+                    plainTitle = "",
+                    tags = null,
+                    // ⚠️ `null` : convertir un dossier en coffre ne modifie pas les notes du point
+                    // de vue de l'utilisateur. Écrire l'instant courant ferait remonter tout le
+                    // dossier en tête de la liste « modifiées récemment », d'un coup.
+                    updatedAt = null,
+                )
+            }
+        }
+    }
+
+    /**
+     * Déchiffre toutes les notes verrouillées d'un dossier. Exige la session ouverte.
+     *
+     * 🔴 **C'est le seul endroit du code qui remet volontairement du clair au repos dans un
+     * coffre.** Il existe parce que l'alternative est pire : supprimer le coffre en laissant ses
+     * notes chiffrées les rendrait illisibles pour toujours, la clé partant avec le dossier.
+     */
+    suspend fun decryptAllNotesInFolder(folderId: String): BatchOutcome {
+        requireOpenSession(folderId)
+        val database = databases.get()
+        return surChaqueNote(database.noteDao().findLockedInFolder(folderId)) { note ->
+            val claire = runOrNull { decrypt(note) } ?: return@surChaqueNote false
+            !echoue {
+                database.noteWriteDao().unlockNote(
+                    id = note.id,
+                    content = claire.content,
+                    plainTitle = claire.title,
+                )
+            }
+        }
+    }
+
+    /**
+     * Retire la protection d'un dossier : déchiffre tout, puis efface son matériel de coffre.
+     *
+     * ## 🔴 L'ordre, et le refus d'aller plus loin en cas d'échec partiel
+     *
+     * Si une seule note résiste au déchiffrement, **rien n'est effacé** : le dossier reste un
+     * coffre, ses notes restent lisibles, l'utilisateur peut réessayer. Effacer le matériel malgré
+     * un échec transformerait un incident réparable en perte définitive — les notes restées
+     * chiffrées n'auraient plus de clé.
+     *
+     * La clé Keystore d'un coffre à code est supprimée **après** l'effacement en base, en meilleur
+     * effort : sans son scellé côté base, elle ne protège plus rien, et la laisser ne ferait qu'un
+     * orphelin dans le TEE.
+     */
+    suspend fun removeVaultProtection(folderId: String): BatchOutcome {
+        requireOpenSession(folderId)
+        val folderDao = databases.get().folderDao()
+        val material = folderDao.vaultMaterial(folderId)
+            ?: throw VaultValidationException(VaultValidationException.Reason.NOT_A_VAULT)
+
+        // 🔴 **TOUTE sortie qui n'efface pas le coffre doit RESCELLER ce qui vient d'être
+        // déchiffré**, et il y en a trois : l'échec rapporté, l'exception, l'annulation.
+        //
+        // `decryptAllNotesInFolder` écrit en clair note par note. S'arrêter en chemin laisse la
+        // première moitié du coffre lisible au repos, dans un dossier qui arbore toujours son
+        // cadenas — l'utilisateur croit l'opération annulée proprement.
+        //
+        // La session est encore ouverte à cet instant : c'est le seul moment où la réparation est
+        // possible sans redemander le secret. Attendre le prochain déverrouillage laisserait du
+        // clair au repos pour une durée que personne ne contrôle.
+        //
+        // ⚠️ **La réparation est `NonCancellable`.** Rattraper une annulation avec du code
+        // annulable ne rattrape rien : la première suspension de la réparation relèverait
+        // aussitôt, et le clair resterait. Leçon de la phase 4, `docs/04-PIEGES.md`.
+        //
+        // Le défaut a existé dans l'application publiée, relevé par deux relectures externes
+        // successives — sur l'échec rapporté d'abord, sur l'exception ensuite. Le troisième
+        // chemin, l'annulation, n'y était pas couvert du tout.
+        // Le drapeau bascule **exactement** au moment où le dossier cesse d'être un coffre. Tant
+        // qu'il est faux, du clair peut traîner et la réparation doit passer ; une fois vrai, il
+        // n'y a plus rien à resceller — et plus de clé pour le faire.
+        var protectionRetiree = false
+        try {
+            val bilan = decryptAllNotesInFolder(folderId)
+            if (!bilan.isComplete) return bilan
+
+            folderDao.clearVault(folderId, clock.millis())
+            protectionRetiree = true
+
+            if (material.effectiveMode == VaultMode.PIN) {
+                // La clé Keystore n'a plus d'objet : sans son scellé en base, elle ne protège
+                // rien. Après l'effacement en base, et en meilleur effort — un échec ici laisse un
+                // orphelin dans le TEE, pas une perte de données.
+                echoue { keystore.deleteKey(VaultParams.pinKeystoreAlias(folderId)) }
+            }
+            sessions.lock(folderId)
+            sessions.clearFailures(folderId)
+            return bilan
+        } finally {
+            if (!protectionRetiree) {
+                withContext(NonCancellable) { echoue { reprotectPlaintextNotes(folderId) } }
+            }
+        }
+    }
+
+    /**
+     * Les réparations qui n'ont lieu **qu'une session ouverte**, seul moment où la clé existe.
+     *
+     * ⚠️ **Point d'entrée unique, appelé par les DEUX chemins de déverrouillage.** C'est
+     * précisément le genre d'endroit où naît un jumeau divergent : brancher un nouveau traitement
+     * sur le seul chemin qu'on avait sous les yeux, et laisser l'autre en arrière. Tout geste
+     * ajouté ici l'est pour le coffre à code comme pour celui à phrase secrète.
+     *
+     * L'ordre compte : on reprotège d'abord ce qui est en clair — ces notes ressortent directement
+     * au format 2 — puis on migre ce qui était déjà chiffré au format 1.
+     *
+     * **Jamais bloquant.** Un déverrouillage légitime ne doit pas échouer parce qu'une réparation
+     * d'arrière-plan a raté ; elle sera retentée à la prochaine ouverture.
+     */
+    suspend fun onSessionOpened(folderId: String) {
+        echoue { reprotectPlaintextNotes(folderId) }
+        echoue { migrateLegacyEncryptedNotes(folderId) }
+    }
+
+    /**
+     * Rechiffre les notes d'un coffre restées en clair dans la colonne `content`.
+     *
+     * La requête est **étroite** : dans le cas normal elle ne ramène rien, et l'ouverture d'un
+     * coffre ne paie qu'un `SELECT`. Charger tout le dossier ferait payer à chaque déverrouillage
+     * la lecture de toutes les notes.
+     *
+     * ⚠️ **État mixte — un blob ET du clair : le blob fait foi.** On efface la colonne claire au
+     * lieu de la rechiffrer. Rechiffrer le clair écraserait un blob potentiellement plus récent,
+     * c'est-à-dire ferait perdre la dernière modification pour réparer une incohérence.
+     *
+     * ⚠️ **`updatedAt = null`.** Une réparation silencieuse ne doit pas faire remonter les notes en
+     * tête de la liste « modifiées récemment » à chaque ouverture du coffre.
+     */
+    suspend fun reprotectPlaintextNotes(folderId: String): Int {
+        val database = databases.get()
+        return surChaqueNote(database.noteDao().findPlaintextInFolder(folderId)) { note ->
+            val scellee = if (note.encrypted != null) note else runOrNull { seal(note) }
+            val blob = scellee?.encrypted?.toByteArray() ?: return@surChaqueNote false
+            !echoue {
+                database.noteWriteDao().lockNote(
+                    id = note.id,
+                    encryptedContent = blob,
+                    encVersion = scellee.encVersion,
+                    plainTitle = if (scellee.encVersion == EncryptedFormat.TITLE_AND_CONTENT) "" else scellee.title,
+                    tags = null,
+                    updatedAt = null,
+                )
+            }
+        }.done
+    }
+
+    /**
+     * Fait passer les notes chiffrées du format 1 au format 2 : le titre quitte sa colonne pour
+     * rejoindre le chiffré.
+     *
+     * Ne peut se faire qu'ici. Déplacer le titre exige de déchiffrer puis de rechiffrer, donc la
+     * clé — dont une migration de schéma ne dispose pas. Une note dont le coffre n'est jamais
+     * rouvert garde donc son titre en clair : c'est le prix d'une migration qui ne peut pas perdre
+     * de données, et il est payé en connaissance de cause.
+     *
+     * ⚠️ Le déchiffrement est fait **avant** toute écriture, et l'écriture est un `UPDATE` unique
+     * qui pose ensemble le nouveau blob, le titre vidé et la nouvelle version. Une interruption
+     * laisse la note intacte au format 1, jamais dans un état hybride où le titre serait perdu des
+     * deux côtés.
+     */
+    suspend fun migrateLegacyEncryptedNotes(folderId: String): Int {
+        val database = databases.get()
+        return surChaqueNote(database.noteDao().findLegacyEncryptedInFolder(folderId)) { note ->
+            val blob = runOrNull { seal(decrypt(note)) }?.encrypted?.toByteArray() ?: return@surChaqueNote false
+            !echoue {
+                database.noteWriteDao().lockNote(
+                    id = note.id,
+                    encryptedContent = blob,
+                    encVersion = EncryptedFormat.TITLE_AND_CONTENT,
+                    plainTitle = "",
+                    tags = null,
+                    updatedAt = null,
+                )
+            }
+        }.done
+    }
+
+    /**
+     * Supprime la clé Keystore d'un coffre à code, en meilleur effort.
+     *
+     * ⚠️ **À appeler APRÈS la suppression du dossier en base, jamais avant.** L'ordre inverse a
+     * existé dans l'application publiée et a été relevé en critique : si la suppression en base
+     * échouait ensuite — base verrouillée, stockage plein —, le dossier et ses notes chiffrées
+     * restaient, mais la clé qui permettait de les ouvrir avait disparu. Le coffre devenait
+     * définitivement inaccessible, sur une opération qui n'était même pas censée échouer.
+     *
+     * Dans l'ordre correct, un échec de la suppression en base laisse le coffre intact et ouvrable,
+     * et un échec ici laisse un alias orphelin dans le TEE — inexploitable sans son scellé.
+     */
+    suspend fun deletePinKey(folderId: String) {
+        echoue { keystore.deleteKey(VaultParams.pinKeystoreAlias(folderId)) }
+    }
+
+    /**
+     * Applique [action] à chaque note et compte les succès et les échecs.
+     *
+     * Extrait pour une raison qui n'est pas cosmétique : les quatre traitements par lot avaient
+     * chacun leur boucle, leurs deux compteurs et leurs `continue`. Quatre copies d'une même
+     * mécanique, c'est quatre endroits où corriger le jour où la règle change — et trois qu'on
+     * oublie. Le comptage vit ici, une fois ; chaque traitement ne dit plus que ce qu'il fait d'une
+     * note, et s'il a réussi.
+     *
+     * ⚠️ **[action] rend `false` sur échec, elle ne lève pas.** Un lot est un meilleur effort par
+     * construction : une note qui résiste ne doit pas empêcher les suivantes. L'annulation, elle,
+     * traverse — elle passe par [runOrNull] et [echoue], qui la laissent remonter.
+     */
+    private suspend fun surChaqueNote(entities: List<NoteEntity>, action: suspend (Note) -> Boolean): BatchOutcome {
+        var done = 0
+        var failed = 0
+        for (entity in entities) {
+            if (action(entity.toDomain())) done++ else failed++
+        }
+        return BatchOutcome(done = done, failed = failed)
+    }
+
+    /** Exécute [block], ou rend `null` s'il échoue. **L'annulation remonte** — cf. [echoue]. */
+    private suspend inline fun <T> runOrNull(block: () -> T): T? = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
+
+    private fun requireOpenSession(folderId: String) {
+        if (!sessions.isUnlocked(folderId)) throw VaultSessionClosedException(folderId)
     }
 
     // ── Auto-effacement ──────────────────────────────────────────────────────────────────────────
