@@ -10,13 +10,17 @@ import com.filestech.notes_tech.data.repository.SearchRepository
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.domain.repository.VaultLockedException
+import com.filestech.notes_tech.security.vault.FolderVaultService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -43,6 +47,21 @@ data class HomeUiState(
     val showFolderBadge: Boolean get() = currentFolder == null || query.isNotEmpty()
 }
 
+/**
+ * Ce que l'accueil doit faire savoir a l'ecran apres une action.
+ *
+ * Un canal d'evenements, pas un champ d'etat : ces trois-la se produisent une fois. Les mettre dans
+ * l'etat les ferait rejouer a chaque rotation.
+ */
+sealed interface HomeEvent {
+    data class NoteCreated(val note: Note, val inInbox: Boolean) : HomeEvent
+
+    /** Le dossier vise est un coffre ferme : il faut le secret avant de pouvoir y ecrire. */
+    data class VaultLocked(val folder: Folder) : HomeEvent
+
+    data class CreationFailed(val message: String) : HomeEvent
+}
+
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -50,6 +69,7 @@ class HomeViewModel @Inject constructor(
     private val folders: FoldersRepository,
     private val search: SearchRepository,
     private val settings: AppSettings,
+    private val vaults: FolderVaultService,
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
 
@@ -64,6 +84,9 @@ class HomeViewModel @Inject constructor(
     private val folderId = MutableStateFlow(savedState.get<String>(CLE_DOSSIER))
     private val query = MutableStateFlow(savedState.get<String>(CLE_RECHERCHE).orEmpty())
     private val vaultLostCount = MutableStateFlow(settings.vaultLostDrafts().size)
+
+    private val events = MutableSharedFlow<HomeEvent>(extraBufferCapacity = 4)
+    val eventFlow = events.asSharedFlow()
 
     /**
      * Le texte de recherche **freiné**, et lui seul déclenche une requête.
@@ -112,6 +135,47 @@ class HomeViewModel @Inject constructor(
     }
 
     fun onSortSelected(mode: NoteSortMode) = settings.setSort(mode)
+
+    /**
+     * Crée une note dans le dossier affiché, ou dans la boîte de réception en vue « toutes ».
+     *
+     * ## 🔴 Le coffre verrouillé est refusé AVANT toute écriture
+     *
+     * `NotesRepository.create` scelle la note dans la même transaction que son insertion. Si le
+     * coffre est fermé, le scellement lève et **la transaction est annulée** : aucune note en clair
+     * ne subsiste dans un dossier protégé.
+     *
+     * C'est un écart avec l'application publiée, et il va dans le bon sens. Elle créait la note,
+     * puis la chiffrait, puis la supprimait si le chiffrement échouait — une réparation qui devait
+     * elle-même réussir pour que l'invariant tienne. La garde est ici structurelle : le chemin qui
+     * établit l'invariant est le même que celui qui écrit.
+     *
+     * Le contrôle `isUnlocked` ci-dessous n'est donc PAS la protection, seulement la **courtoisie**
+     * qui propose la saisie du secret au lieu d'un message d'erreur. La protection, c'est la
+     * transaction.
+     */
+    fun createNote() {
+        viewModelScope.launch {
+            val cible = folderId.value ?: Folder.INBOX_ID
+            val dossier = folders.find(cible)
+            if (dossier?.isVault == true && !vaults.isUnlocked(cible)) {
+                events.emit(HomeEvent.VaultLocked(dossier))
+                return@launch
+            }
+            try {
+                val creee = notes.create(folderId = cible)
+                events.emit(HomeEvent.NoteCreated(creee, inInbox = folderId.value == null))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: VaultLockedException) {
+                // Le coffre s'est refermé entre le contrôle et l'écriture — la garde échantillonnée
+                // ne peut pas l'empêcher, seule la transaction le peut. Elle l'a fait.
+                if (dossier != null) events.emit(HomeEvent.VaultLocked(dossier))
+            } catch (e: Exception) {
+                events.emit(HomeEvent.CreationFailed(e.message ?: e::class.java.simpleName))
+            }
+        }
+    }
 
     fun dismissVaultLostBanner() {
         vaultLostCount.value = 0

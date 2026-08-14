@@ -1,0 +1,336 @@
+package com.filestech.notes_tech.ui.home
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.NoteAlt
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.outlined.TravelExplore
+import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.filestech.notes_tech.R
+import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.common.EmptyState
+
+/**
+ * L'écran d'accueil : la liste des notes, filtrée par dossier ou par recherche.
+ *
+ * Portage de `ui/screens/home_screen.dart`. Le composable est **sans état** — tout vient de
+ * [HomeUiState] et repart par les fonctions passées en argument. C'est ce qui rend la liste
+ * testable sans base, sans Hilt et sans appareil.
+ */
+@Composable
+fun HomeScreen(
+    state: HomeUiState,
+    onQueryChange: (String) -> Unit,
+    onSortSelected: (NoteSortMode) -> Unit,
+    onOpenNote: (Note) -> Unit,
+    onNewNote: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
+    onDismissVaultLostBanner: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var menuOuvert by remember { mutableStateOf(false) }
+    var triOuvert by remember { mutableStateOf(false) }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(
+                            imageVector = Icons.Outlined.Sort,
+                            contentDescription = stringResource(R.string.home_folders),
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        // Le titre porte le nom du dossier quand un filtre est actif — c'est le
+                        // seul endroit où l'utilisateur voit ce qu'il regarde.
+                        text = state.currentFolder?.name ?: stringResource(R.string.app_title),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                },
+                actions = {
+                    IconButton(onClick = { triOuvert = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Sort,
+                            contentDescription = stringResource(R.string.home_sort_mode),
+                        )
+                    }
+                    MenuDeTri(
+                        ouvert = triOuvert,
+                        actif = state.sort,
+                        onDismiss = { triOuvert = false },
+                        onSelect = {
+                            triOuvert = false
+                            onSortSelected(it)
+                        },
+                    )
+                    IconButton(onClick = onOpenSearch) {
+                        Icon(
+                            imageVector = Icons.Outlined.TravelExplore,
+                            contentDescription = stringResource(R.string.search_title),
+                        )
+                    }
+                    IconButton(onClick = { menuOuvert = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = stringResource(R.string.settings_title),
+                        )
+                    }
+                    DropdownMenu(expanded = menuOuvert, onDismissRequest = { menuOuvert = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.settings_title)) },
+                            leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                            onClick = {
+                                menuOuvert = false
+                                onOpenSettings()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.about_title)) },
+                            leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                            onClick = {
+                                menuOuvert = false
+                                onOpenAbout()
+                            },
+                        )
+                    }
+                },
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onNewNote,
+                icon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
+                text = { Text(stringResource(R.string.home_new_note)) },
+            )
+        },
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (state.vaultLostCount > 0) {
+                BanniereBrouillonsPerdus(state.vaultLostCount, onDismissVaultLostBanner)
+            }
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = onQueryChange,
+                label = { Text(stringResource(R.string.home_search_hint)) },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (state.query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.search_clear),
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 4.dp),
+            )
+
+            when {
+                state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+
+                state.failed -> Box(Modifier.fillMaxSize(), Alignment.Center) {
+                    Text(
+                        text = stringResource(R.string.home_load_error),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                }
+
+                state.notes.isEmpty() -> ListeVide(state, onNewNote)
+
+                else -> LazyColumn(
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = 12.dp,
+                        top = 4.dp,
+                        end = 12.dp,
+                        // Assez de marge basse pour que la dernière note ne finisse pas sous le
+                        // bouton flottant, où elle serait invisible et intouchable.
+                        bottom = 96.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // `key = { it.id }` stabilise l'identité des éléments entre recompositions.
+                    // Sans clé, un changement de filtre réassocie les états par position, et les
+                    // cartes se réutilisent pour la mauvaise note.
+                    items(state.notes, key = { it.id }) { note ->
+                        NoteCard(
+                            note = note,
+                            onClick = { onOpenNote(note) },
+                            folderName = if (state.showFolderBadge) state.folderNamesById[note.folderId] else null,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ListeVide(state: HomeUiState, onNewNote: () -> Unit) {
+    val enRecherche = state.query.isNotEmpty()
+    EmptyState(
+        icon = if (enRecherche) Icons.Outlined.SearchOff else Icons.Outlined.NoteAlt,
+        title = when {
+            enRecherche -> stringResource(R.string.search_empty)
+            state.currentFolder != null -> stringResource(R.string.home_no_notes_in)
+            else -> stringResource(R.string.home_no_notes)
+        },
+        subtitle = if (enRecherche) {
+            stringResource(R.string.search_try_other)
+        } else {
+            stringResource(R.string.home_start_writing)
+        },
+        action = if (enRecherche) {
+            null
+        } else {
+            {
+                // Le bouton flottant existe déjà, mais il reste peu visible au premier lancement
+                // et sur tablette. Un appel à l'action dans l'état vide est ce qui fait créer la
+                // première note.
+                TextButton(onClick = onNewNote) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.home_new_note),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+        },
+    )
+}
+
+/**
+ * La bannière des modifications perdues parce qu'un coffre s'est verrouillé pendant une sauvegarde.
+ *
+ * ⚠️ C'est le seul signalement d'une **perte de données silencieuse** : l'utilisateur a tapé,
+ * l'écran s'est comporté normalement, et le texte n'existe nulle part. Sans cette bannière, il ne
+ * l'apprendrait qu'en rouvrant la note.
+ */
+@Composable
+private fun BanniereBrouillonsPerdus(count: Int, onDismiss: () -> Unit) {
+    val couleurs = MaterialTheme.colorScheme
+    Surface(color = couleurs.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, top = 10.dp, end = 8.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.WarningAmber,
+                contentDescription = null,
+                tint = couleurs.onErrorContainer,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = pluralStringResource(R.plurals.home_vault_lost_banner, count, count),
+                style = MaterialTheme.typography.bodySmall,
+                color = couleurs.onErrorContainer,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.common_ok), color = couleurs.onErrorContainer)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuDeTri(ouvert: Boolean, actif: NoteSortMode, onDismiss: () -> Unit, onSelect: (NoteSortMode) -> Unit) {
+    DropdownMenu(expanded = ouvert, onDismissRequest = onDismiss) {
+        for (mode in NoteSortMode.entries) {
+            DropdownMenuItem(
+                text = { Text(stringResource(libelleDeTri(mode))) },
+                leadingIcon = {
+                    RadioButton(selected = mode == actif, onClick = null)
+                },
+                onClick = { onSelect(mode) },
+            )
+        }
+    }
+}
+
+/**
+ * Le libellé d'un mode de tri.
+ *
+ * ⚠️ `when` **exhaustif** et non une table : ajouter un mode sans lui donner de libellé doit échouer
+ * à la compilation. Une table aurait rendu un menu avec une entrée vide.
+ *
+ * ## 🔴 Deux entrées portent le même libellé, et c'est REPRIS de l'application publiée
+ *
+ * `settings_screen.dart:169-175` fait correspondre `createdDesc` à `homeSortRecentFirst` — le
+ * libellé de `updatedDesc` — et `createdAsc` à celui de `updatedAsc`. Le menu de la 2.0.3 affiche
+ * donc « Plus récent d'abord » **deux fois**, sans que rien ne distingue le tri par date de
+ * modification de celui par date de création.
+ *
+ * C'est un défaut réel de l'application publiée, pas un choix. Il est reproduit ici parce que la
+ * parité est le critère de sortie de la phase 8 : un menu qui n'a pas les mêmes entrées des deux
+ * côtés est indiscernable d'un défaut de portage le jour de la comparaison.
+ *
+ * ⚠️ **Le corriger demande deux clés i18n nouvelles**, donc une modification de l'ARB source —
+ * c'est-à-dire de `notes_tech`, gelé pendant le chantier. La décision appartient à Patrice ;
+ * consignée dans `docs/05-PARITE.md`.
+ */
+private fun libelleDeTri(mode: NoteSortMode): Int = when (mode) {
+    NoteSortMode.UPDATED_DESC, NoteSortMode.CREATED_DESC -> R.string.home_sort_recent_first
+    NoteSortMode.UPDATED_ASC, NoteSortMode.CREATED_ASC -> R.string.home_sort_old_first
+    NoteSortMode.TITLE_ASC -> R.string.home_sort_alpha_asc
+    NoteSortMode.TITLE_DESC -> R.string.home_sort_alpha_desc
+}

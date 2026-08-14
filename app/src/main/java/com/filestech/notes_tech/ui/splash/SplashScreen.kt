@@ -139,7 +139,19 @@ fun SplashScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.Center,
         ) {
             Image(
-                painter = painterResource(R.mipmap.ic_launcher),
+                // 🔴 `R.drawable.ic_launcher_foreground` et **surtout pas** `R.mipmap.ic_launcher`.
+                //
+                // À partir de l'API 26, `ic_launcher` résout vers `mipmap-anydpi-v26/ic_launcher.xml`,
+                // qui est une icône **adaptative** — un conteneur `<adaptive-icon>`, pas une image.
+                // `painterResource` ne sait charger que du VectorDrawable ou du bitmap, et lève
+                // `IllegalArgumentException: Only VectorDrawables and rasterized asset types are
+                // supported`. L'application se ferme au premier lancement, sur l'écran de
+                // présentation, donc **uniquement à la première installation**.
+                //
+                // Rien ne l'attrapait : ni la compilation, ni ktlint, ni detekt, ni `lintDebug`,
+                // ni les 70 tests JVM. Sur un appareil API 24 ou 25 il n'y a même pas de défaut,
+                // puisque la résolution retombe sur le PNG. Trouvé en installant sur le S9.
+                painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = null,
                 modifier = Modifier
                     .size(tailleLogo)
