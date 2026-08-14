@@ -179,6 +179,16 @@ class PanicService @Inject constructor(
         // 0. Le drapeau d'abord : ce qui suit ne doit pas se retrouver dans l'aperçu des
         //    applications récentes, où il survivrait jusqu'au redémarrage de l'appareil.
         //    Demande PERMANENTE — la séquence est sans retour, il n'y a rien à rendre.
+        //
+        //    ⚠️ **Cette étape ne peut pas échouer, et ce n'est pas un mensonge.** Elle enregistre
+        //    une DEMANDE dans le compteur ; c'est `MainActivity` qui pose le drapeau sur la fenêtre,
+        //    de façon réactive et depuis la composition. Vérifier ici que la fenêtre l'a reçu
+        //    supposerait d'en détenir une référence — c'est-à-dire de faire remonter un objet
+        //    d'interface dans un service de sécurité, pour une garantie que le compteur donne déjà.
+        //
+        //    L'asymétrie avec les autres étapes est donc voulue et bornée : signalée par un audit
+        //    de sécurité (2026-08-14), qui concluait lui-même à l'absence de chemin d'exploitation
+        //    dans une application mono-activité.
         issues += etape(PanicStep.FORCE_SECURE_WINDOW) { secureWindow.forcePermanently() }
 
         // 1. Le presse-papiers, tôt : une note copiée y est en clair, et lisible par toute

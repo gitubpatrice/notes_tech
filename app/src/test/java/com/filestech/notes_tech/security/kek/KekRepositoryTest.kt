@@ -143,13 +143,86 @@ class KekRepositoryTest {
         assertThrows<KekFailure.MalformedKey> { repository.acquire() }
     }
 
+    // ── Destruction : le point de non-retour du mode panique ─────────────────
+
+    /**
+     * 🔴 Ces doublures existaient depuis l'écriture de `destroy()` **et aucun test ne s'en
+     * servait**. Le motif du chemin mort, appliqué aux tests : l'échafaudage était là, la
+     * vérification manquait. Relevé par un audit de sécurité (2026-08-14).
+     */
+    @Test
+    @DisplayName("détruire vide TOUTES les sources, pas seulement la première")
+    fun `destroy vide toutes les sources`() {
+        val couche1 = FakeWritableSource("keystore", kek)
+        val couche2 = FakeSource("flutter_secure_storage", kek)
+        val repository = KekRepository(listOf(couche1, couche2), couche1, databaseExists = { true })
+
+        repository.destroy()
+
+        assertThat(couche1.destructions).isEqualTo(1)
+        assertThat(couche2.destructions).isEqualTo(1)
+    }
+
+    /**
+     * 🔴 **Le cas de l'utilisateur venu de la version Flutter.**
+     *
+     * Sa KEK vit dans la couche ②. Si l'échec de la couche ① interrompait le parcours, la panique
+     * paraîtrait avoir fonctionné sans rien protéger : la base resterait parfaitement déchiffrable
+     * par quiconque réinstalle l'ancienne version.
+     */
+    @Test
+    @DisplayName("l'échec d'une source n'empêche pas la destruction des suivantes")
+    fun `destroy poursuit apres un echec`() {
+        val couche1 = FakeWritableSource("keystore", kek).apply { refuseLaDestruction = true }
+        val couche2 = FakeSource("flutter_secure_storage", kek)
+        val repository = KekRepository(listOf(couche1, couche2), couche1, databaseExists = { true })
+
+        assertThrows<KekFailure.SourceUnavailable> { repository.destroy() }
+
+        // L'échec est bien remonté — mais APRÈS que la seconde source a été détruite.
+        assertThat(couche2.destructions).isEqualTo(1)
+    }
+
+    /**
+     * 🔴 **Le défaut que l'application publiée avait, et que la vérification ferme.**
+     *
+     * `_storage.delete` ne rend aucun statut : un échec côté plateforme est indiscernable d'un
+     * succès. Sans relecture, le rapport porterait « clé détruite » et l'écran de fin annoncerait
+     * des notes irrécupérables à quelqu'un dont les notes restent lisibles.
+     */
+    @Test
+    @DisplayName("une suppression silencieusement inopérante fait ÉCHOUER la destruction")
+    fun `destroy echoue si la cle survit`() {
+        val source = FakeWritableSource("keystore", kek).apply { destructionInoperante = true }
+        val repository = KekRepository(listOf(source), source, databaseExists = { true })
+
+        assertThrows<KekFailure.SourceUnavailable> { repository.destroy() }
+
+        // La destruction a bien été TENTÉE : c'est la relecture qui a refusé de la déclarer faite.
+        assertThat(source.destructions).isEqualTo(1)
+    }
+
+    /**
+     * ⚠️ Sur tout autre chemin, « je n'ai pas pu regarder » ne prouve rien et l'on s'abstient. Ici
+     * c'est l'inverse : **ne pas pouvoir vérifier qu'une clé a disparu est un motif de ne pas
+     * annoncer sa disparition.** Le doute tombe du côté de l'utilisateur.
+     */
+    @Test
+    @DisplayName("une source devenue illisible après destruction fait échouer la destruction")
+    fun `destroy echoue si la verification est impossible`() {
+        val source = FakeWritableSource("keystore", kek).apply { illisibleApresDestruction = true }
+        val repository = KekRepository(listOf(source), source, databaseExists = { true })
+
+        assertThrows<KekFailure.SourceUnavailable> { repository.destroy() }
+    }
+
     // ── Doublures ────────────────────────────────────────────────────────────
 
-    private open class FakeSource(
-        override val name: String,
-        private val kek: ByteArray?,
-        private val echecsAvantSucces: Int = 0,
-    ) : KekSource {
+    private open class FakeSource(override val name: String, kek: ByteArray?, private val echecsAvantSucces: Int = 0) :
+        KekSource {
+        /** Muable : une destruction réussie doit se **voir** à la relecture, comme en production. */
+        private var cle: ByteArray? = kek
+
         var lectures = 0
             private set
 
@@ -159,17 +232,32 @@ class KekRepositoryTest {
         /** Simule une source qui résiste à la destruction — un Keystore muet, par exemple. */
         var refuseLaDestruction = false
 
+        /**
+         * Simule une suppression **silencieusement inopérante** : elle ne lève pas, et la clé reste.
+         *
+         * 🔴 C'est exactement le cas que la vérification de [KekRepository.destroy] existe pour
+         * attraper, et celui que l'application publiée ne détectait pas.
+         */
+        var destructionInoperante = false
+
+        /** Simule une source devenue illisible **après** la destruction : on ne peut plus vérifier. */
+        var illisibleApresDestruction = false
+
         override fun load(): ByteArray? {
             lectures++
             if (lectures <= echecsAvantSucces) {
                 throw KekFailure.SourceUnavailable(name, null)
             }
-            return kek?.copyOf()
+            if (destructions > 0 && illisibleApresDestruction) {
+                throw KekFailure.SourceUnavailable(name, null)
+            }
+            return cle?.copyOf()
         }
 
         override fun destroy() {
             if (refuseLaDestruction) throw KekFailure.SourceUnavailable(name, null)
             destructions++
+            if (!destructionInoperante) cle = null
         }
     }
 

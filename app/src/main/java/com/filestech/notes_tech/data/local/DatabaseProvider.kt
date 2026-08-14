@@ -52,16 +52,27 @@ class DatabaseProvider @Inject constructor(
      *   inaccessible. **La base sur le disque n'est jamais touchée** dans ce cas — l'échec est
      *   rejouable une fois la cause levée.
      */
-    suspend fun get(): NotesDatabase {
+    suspend fun get(): NotesDatabase = mutex.withLock {
+        // 🔴 **Tout passe par le verrou, y compris le cas où l'instance existe déjà.**
+        //
+        // Une version antérieure lisait `scelle` puis `instance` hors du verrou, pour éviter de le
+        // prendre sur le chemin courant. Ces deux lectures ne sont pas atomiques ensemble, et
+        // `sealForPanic` écrit les deux champs de part et d'autre d'une **suspension** — la
+        // fermeture SQLCipher, qui rabat le journal WAL et peut durer plusieurs millisecondes sur
+        // une grosse base.
+        //
+        // Un appelant qui franchissait le premier contrôle juste avant la panique lisait donc
+        // `instance` pendant cette fenêtre, la trouvait encore non nulle, et repartait avec une
+        // base **en cours de fermeture**, sans jamais repasser par le verrou ni par la seconde
+        // lecture du sceau. `get()` est appelé à chaque opération de chaque dépôt, y compris depuis
+        // des `Flow` froids qui le réinvoquent à chaque nouvelle collecte : la fenêtre est étroite,
+        // elle n'est pas théorique.
+        //
+        // ⚠️ Le verrou ne coûte rien ici : `Mutex.withLock` sans contention ne suspend pas, et
+        // aucun appel sous le verrou ne réentre dans `get()` — `NotesDatabaseFactory` passe par
+        // `KekRepository`, jamais par ce fournisseur. Relevé par un audit de sécurité (2026-08-14).
         if (scelle) throw DatabaseSealedException()
-        return instance ?: mutex.withLock {
-            // ⚠️ Le sceau est relu SOUS LE VERROU. Un appelant peut avoir franchi le contrôle
-            // ci-dessus juste avant la panique, puis attendu ici pendant que `sealForPanic` fermait
-            // la base : sans cette seconde lecture, il rouvrirait le fichier qu'on vient d'effacer.
-            if (scelle) throw DatabaseSealedException()
-            // Relecture sous verrou : un appelant a pu ouvrir pendant qu'on attendait.
-            instance ?: withContext(ioDispatcher) { factory.build(context) }.also { instance = it }
-        }
+        instance ?: withContext(ioDispatcher) { factory.build(context) }.also { instance = it }
     }
 
     /**
