@@ -633,3 +633,26 @@ traduite qui existait depuis le début et n'était jamais utilisée.
 
 ⇒ Une exception destinée à l'interface transporte une **énumération**, pas un message. Un `when`
 exhaustif côté affichage fait alors échouer **à la compilation** l'ajout d'un cas sans traduction.
+
+## §35 — « Le geste s'exécute » n'est pas « le geste s'exécute EN DERNIER »
+
+Annuler un travail différé (`Job.cancel()`) n'arrête pas une écriture de base **déjà engagée**. La
+sauvegarde différée de l'éditeur pouvait donc se terminer **après** la sauvegarde finale et réécrire
+une version plus ancienne.
+
+Le correctif précédent avait garanti que la finale s'exécute — en la déplaçant dans une portée
+applicative. Il n'avait rien garanti sur l'**ordre**. Les deux propriétés sont distinctes, et une
+seule était traitée.
+
+⇒ Deux écritures concurrentes sur la même donnée se **sérialisent** (`Mutex`), elles ne s'annulent
+pas l'une l'autre.
+
+## §36 — Un enchaînement de deux gestes ne doit pas laisser le second décider du message du premier
+
+`créer le coffre` puis `chiffrer les notes existantes` étaient enchaînés dans une même tentative.
+L'échec du second faisait afficher « création impossible » — alors que le coffre existait déjà en
+base, avec ses notes en clair.
+
+⇒ Quand un geste A a **déjà modifié la base**, aucun échec de B ne doit produire un message qui nie
+A. Il faut une issue distincte qui dise les deux : *« le coffre est créé, son contenu n'a pas pu
+être chiffré »*.

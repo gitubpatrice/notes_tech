@@ -841,3 +841,38 @@ parlent pas et le même constat : c'est le signe le plus fiable qu'un constat es
 | Gemini | 3 (dont 1 doublon avec GPT-5.2) |
 
 Aucun n'a été vu par la compilation, ktlint, detekt, `lintDebug` ou les 70 tests JVM.
+
+### Troisième lot — la relecture DES CORRECTIFS (2026-08-14), commit `939a16b`
+
+Lancée sur `git diff c2c13a8~1..HEAD`, c'est-à-dire sur mes propres correctifs. **Dixième fois
+d'affilée que cette passe trouve un vrai défaut.**
+
+| Constat | Verdict |
+|---|---|
+| un coffre **créé** annoncé comme un échec de création | **réel** — corrigé |
+| après une conversion partielle, « Annuler » et le bouton principal mentent | **réel** — corrigé |
+| la sauvegarde différée peut écraser la sauvegarde finale | **réel** — `Mutex` |
+| `cancelAttempt` produirait un `Failed` mensonger | ❌ **faux** |
+| `PIN_LENGTH_OUT_OF_RANGE` mappé sur un message « trop court » | ❌ **faux** |
+
+### Les deux faux, et ce qu'ils apprennent
+
+Le premier suppose que `CancellationException` tombe dans le `catch (e: Exception)`. Elle n'y tombe
+pas : `catch (e: CancellationException) { throw e }` est le **premier** catch de `tenter`.
+
+Le second juge sur le **nom** de la clé (`error_vault_pin_too_short`) sans en lire la **valeur** —
+qui est neutre : « PIN invalide : 4 à 6 chiffres ». Le nom est un mauvais indice, la valeur est le
+contrat.
+
+⇒ **Taux de constats faux : 2/5 ici, 1/4 au tour précédent.** Un relecteur externe qui n'exécute
+rien raisonne sur ce qu'il lit ; il faut lire ce qu'il n'a pas lu. Appliquer sans vérifier aurait
+ajouté du code inutile sur un chemin de sécurité.
+
+### Ce que le troisième lot dit du deuxième
+
+Les trois défauts réels ont été **introduits par les correctifs eux-mêmes**, et deux d'entre eux
+contredisaient l'objectif du correctif qui les portait : celui qui devait empêcher les notes en
+clair annonçait un échec sur un coffre bien créé, celui qui devait garantir l'exécution de la
+sauvegarde finale ne garantissait pas qu'elle s'exécute **en dernier**.
+
+⇒ **Un correctif est du code neuf.** Il mérite exactement la même défiance.
