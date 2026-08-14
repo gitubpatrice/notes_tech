@@ -153,12 +153,23 @@ class KekRepositoryTest {
         var lectures = 0
             private set
 
+        var destructions = 0
+            private set
+
+        /** Simule une source qui résiste à la destruction — un Keystore muet, par exemple. */
+        var refuseLaDestruction = false
+
         override fun load(): ByteArray? {
             lectures++
             if (lectures <= echecsAvantSucces) {
                 throw KekFailure.SourceUnavailable(name, null)
             }
             return kek?.copyOf()
+        }
+
+        override fun destroy() {
+            if (refuseLaDestruction) throw KekFailure.SourceUnavailable(name, null)
+            destructions++
         }
     }
 
@@ -253,7 +264,14 @@ class KekRepositoryTest {
     }
 
     private class SourceSimple(override val name: String, private val cle: ByteArray?) : KekSource {
+        var detruite = false
+            private set
+
         override fun load(): ByteArray? = cle?.copyOf()
+
+        override fun destroy() {
+            detruite = true
+        }
     }
 
     private class SourceEnregistreuse(
@@ -278,6 +296,10 @@ class KekRepositoryTest {
         override fun replaceKeyAndStore(kek: ByteArray) {
             remplacements++
             stockee = kek.copyOf()
+        }
+
+        override fun destroy() {
+            stockee = null
         }
     }
 }

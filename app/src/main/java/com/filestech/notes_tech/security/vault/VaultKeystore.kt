@@ -58,6 +58,26 @@ interface VaultKeystore {
     /** Supprime la clé. Idempotent : un alias absent n'est pas une erreur. */
     fun deleteKey(alias: String)
 
+    /**
+     * Supprime **toutes** les clés dont l'alias commence par [prefix].
+     *
+     * ## 🔴 Pourquoi le mode panique ne peut pas se contenter de [deleteKey]
+     *
+     * Effacer les clés une par une supposerait de savoir quels coffres existent — donc de lire la
+     * base. Or la base est ce qu'on est en train de détruire, et elle a pu devenir illisible avant
+     * cette étape, ou l'être depuis le début.
+     *
+     * Pire : un alias `vault_pin_*` peut survivre à la disparition du dossier qui l'a créé — une
+     * suppression interrompue, une restauration partielle. Cette clé orpheline n'apparaît dans
+     * aucune requête, et c'est précisément elle qui permettrait de déchiffrer un coffre à code
+     * extrait d'une sauvegarde antérieure. Le magasin est la seule source qui les connaisse toutes.
+     *
+     * @return le nombre de clés effacées.
+     * @throws KeystoreUnavailableException si le magasin n'a pas pu être énuméré. ⚠️ Un échec ici
+     *   **ne doit pas** être avalé : il signifie que des clés de coffre survivent à la panique.
+     */
+    fun deleteKeysWithPrefix(prefix: String): Int
+
     /** `true` si l'alias existe. Sert au diagnostic et aux tests d'effacement. */
     fun hasKey(alias: String): Boolean
 }

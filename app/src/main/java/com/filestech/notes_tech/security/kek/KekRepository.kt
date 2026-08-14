@@ -201,6 +201,83 @@ class KekRepository(
         }
     }
 
+    /**
+     * 🔴 **Détruit la KEK dans TOUTES les sources. Point de non-retour du mode panique.**
+     *
+     * À partir du retour de cette méthode, la base chiffrée en AES-256 est cryptographiquement
+     * illisible, même récupérée bit à bit sur le support. C'est la **garantie minimale** de la
+     * panique : les étapes qui suivent — effacement du fichier, des préférences, des caches — sont
+     * de la défense en profondeur, et une interruption après ce point ne perd plus rien d'essentiel.
+     *
+     * ## ⚠️ Toutes les sources, et l'échec de l'une n'arrête pas les autres
+     *
+     * S'arrêter à la première qui résiste laisserait la clé intacte dans les suivantes. Or c'est la
+     * **seconde** couche qui compte pour l'utilisateur venu de la version Flutter : sa KEK vit dans
+     * `flutter_secure_storage`, et une couche ① récalcitrante ne doit pas la protéger.
+     *
+     * L'échec est conservé et relancé **à la fin**. Le taire ferait annoncer à l'utilisateur une
+     * destruction qui n'a pas eu lieu — sur cet écran-là, précisément, un mensonge se paie en
+     * sécurité physique.
+     *
+     * @throws KekFailure.SourceUnavailable si au moins une source a résisté. Les autres ont bien
+     *   été détruites.
+     */
+    @Synchronized
+    fun destroy() {
+        var premierEchec: KekFailure.SourceUnavailable? = null
+        for (source in sources) {
+            try {
+                source.destroy()
+                Timber.i("KEK détruite dans la source « %s »", source.name)
+            } catch (e: KekFailure.SourceUnavailable) {
+                Timber.e(e, "KEK NON détruite dans la source « %s » — la panique est incomplète", source.name)
+                if (premierEchec == null) premierEchec = e
+            }
+        }
+        premierEchec?.let { throw it }
+        verifierQuAucuneSourceNeDetientPlusRien()
+    }
+
+    /**
+     * 🔴 Relit **toutes** les sources et exige qu'aucune ne rende de clé.
+     *
+     * ## Pourquoi ce contrôle existe
+     *
+     * L'étape la plus importante de la panique était la seule à se déclarer réussie sans rien
+     * relire. C'est le cas de l'application publiée : son `destroyKek()` appelle la suppression de
+     * la bibliothèque de stockage et rend la main, alors que `hasKek()` est écrit dix lignes plus
+     * bas et répondrait à la question. Ses étapes d'effacement de base, de préférences et de cache
+     * ont toutes été corrigées pour lever si quelque chose survit — deux relectures s'en sont
+     * chargées — mais pas celle-là.
+     *
+     * Une suppression qui échoue en silence donne exactement le pire résultat possible : un écran
+     * qui annonce des notes irrécupérables à quelqu'un dont les notes sont encore lisibles.
+     *
+     * ## ⚠️ Une source illisible compte comme un échec
+     *
+     * Sur tout autre chemin, « je n'ai pas pu regarder » ne prouve rien et l'on s'abstient. Ici,
+     * c'est l'inverse : ne pas pouvoir vérifier qu'une clé a disparu **est** un motif de ne pas
+     * annoncer sa disparition. Le doute doit tomber du côté de l'utilisateur, pas du nôtre.
+     */
+    private fun verifierQuAucuneSourceNeDetientPlusRien() {
+        for (source in sources) {
+            val restante = try {
+                source.load()
+            } catch (e: KekFailure) {
+                throw KekFailure.SourceUnavailable(source.name, e)
+            }
+            if (restante != null) {
+                restante.wipe()
+                Timber.e("la source « %s » détient ENCORE une clé après destruction", source.name)
+                throw KekFailure.SourceUnavailable(
+                    source.name,
+                    IllegalStateException("cle encore presente apres destruction"),
+                )
+            }
+        }
+        Timber.i("panique : aucune source ne détient plus de clé — base cryptographiquement illisible")
+    }
+
     private fun validated(kek: ByteArray, sourceName: String): ByteArray {
         if (kek.size != SqlCipherRawKey.KEY_SIZE_BYTES) {
             kek.wipe()

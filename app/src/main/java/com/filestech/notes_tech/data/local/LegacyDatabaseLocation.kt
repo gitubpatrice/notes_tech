@@ -41,11 +41,19 @@ object LegacyDatabaseLocation {
     const val DATABASE_FILE_NAME = "notes_tech.db"
 
     /**
-     * Suffixes des fichiers annexes du journal WAL. Toute opération sur le fichier de base doit
-     * les traiter comme un ensemble : un `-wal` désaccordé avec son `.db` se lit comme une
-     * corruption.
+     * Suffixes des fichiers annexes du journal. Toute opération sur le fichier de base doit les
+     * traiter comme un ensemble : un `-wal` désaccordé avec son `.db` se lit comme une corruption.
+     *
+     * La chaîne vide désigne le fichier principal lui-même — c'est ce qui permet d'écrire une
+     * boucle unique plutôt qu'un cas particulier suivi de trois autres.
+     *
+     * ⚠️ **`-journal` y figure alors que la base tourne en mode WAL.** SQLite y revient de
+     * lui-même — un `PRAGMA journal_mode` refusé, une reprise après incident, une version future
+     * qui change de mode — et un `notes_tech.db-journal` oublié contiendrait des pages de la base.
+     * Chiffrées, certes ; mais le mode panique s'appuie sur cette liste pour n'en laisser aucune, et
+     * une liste de suppression n'a rien à gagner à être minimale.
      */
-    val SIDECAR_SUFFIXES = listOf("", "-wal", "-shm")
+    val SIDECAR_SUFFIXES = listOf("", "-journal", "-wal", "-shm")
 
     fun databaseFile(context: Context): File =
         File(context.getDir(FLUTTER_DOCUMENTS_DIR, Context.MODE_PRIVATE), DATABASE_FILE_NAME)

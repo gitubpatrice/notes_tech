@@ -117,6 +117,34 @@ class AndroidVaultKeystore @Inject constructor() : VaultKeystore {
         }
     }
 
+    override fun deleteKeysWithPrefix(prefix: String): Int {
+        val store = keyStore()
+        val vises = try {
+            // ⚠️ La liste est matérialisée AVANT la première suppression. Supprimer pendant qu'on
+            // énumère laisse le comportement à la discrétion de l'implémentation du magasin — au
+            // mieux une exception, au pire des alias sautés en silence. Sur ce chemin-là, « sauté
+            // en silence » veut dire une clé de coffre qui survit à une panique.
+            store.aliases().toList().filter { it.startsWith(prefix) }
+        } catch (e: Exception) {
+            throw KeystoreUnavailableException(e)
+        }
+
+        var effacees = 0
+        var premierEchec: Exception? = null
+        for (alias in vises) {
+            try {
+                store.deleteEntry(alias)
+                effacees++
+            } catch (e: Exception) {
+                // On continue : une clé récalcitrante ne doit pas empêcher d'effacer les suivantes.
+                // Mais on ne se tait pas — c'est à la fin qu'on signale, et l'étape doit échouer.
+                if (premierEchec == null) premierEchec = e
+            }
+        }
+        premierEchec?.let { throw KeystoreUnavailableException(it) }
+        return effacees
+    }
+
     override fun hasKey(alias: String): Boolean = containsAlias(keyStore(), alias)
 
     private fun containsAlias(store: KeyStore, alias: String): Boolean = try {

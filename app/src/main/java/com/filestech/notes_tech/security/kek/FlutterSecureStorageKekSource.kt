@@ -139,6 +139,44 @@ class FlutterSecureStorageKekSource(
     }
 
     /**
+     * Détruit le stockage de `flutter_secure_storage` : la valeur scellée, la clé AES enveloppée,
+     * et la clé RSA de l'`AndroidKeyStore` qui l'enveloppait.
+     *
+     * ## 🔴 L'exception à « cette source n'écrit rien, jamais »
+     *
+     * La règle du reste de ce fichier — on lit, on recopie dans la couche ①, on ne touche pas à
+     * l'original — protège l'utilisateur qui reviendrait à la version Flutter. Le mode panique a
+     * exactement le but opposé : **il n'y a plus de retour en arrière à préserver**.
+     *
+     * Et c'est bien ici que la panique se joue pour l'utilisateur qui migre. Sa KEK vit encore dans
+     * ce stockage-là ; ne détruire que la couche ① laisserait la base parfaitement déchiffrable par
+     * quiconque réinstalle la version Flutter. La panique aurait paru fonctionner sans rien
+     * protéger — le pire des deux mondes, puisque l'utilisateur, lui, la croirait faite.
+     *
+     * Les deux fichiers de préférences sont vidés **entièrement** : ils n'appartiennent qu'à cette
+     * bibliothèque, qui n'y range rien d'autre que ses secrets.
+     */
+    override fun destroy() {
+        try {
+            // Les données d'abord, la clé qui les ouvre ensuite — même raison que pour la couche ① :
+            // une interruption entre les deux doit laisser un état cohérent, jamais un scellé
+            // orphelin qui ressemble à un secret protégé.
+            // ⚠️ SUPPRIMER le fichier, pas le vider. `getSharedPreferences(...).edit().clear()`
+            // **crée** le fichier s'il n'existe pas : sur un appareil qui n'a jamais vu la version
+            // Flutter, la panique faisait apparaître deux fichiers nommés « SecureStorage » —
+            // vides, mais créés par le geste censé tout effacer. Mesuré sur le S9 le 2026-08-14.
+            for (fichier in listOf(DATA_PREFS, KEY_STORAGE_PREFS)) {
+                supprimerLeFichierDePreferences(context, fichier)
+            }
+            val alias = "$keyAliasBase$KEY_ALIAS_SUFFIX"
+            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            if (keyStore.containsAlias(alias)) keyStore.deleteEntry(alias)
+        } catch (e: Exception) {
+            throw KekFailure.SourceUnavailable(name, e)
+        }
+    }
+
+    /**
      * Déballe la clé AES-128 de la bibliothèque, scellée par une clé RSA de l'`AndroidKeyStore`.
      *
      * ⚠️ **16 octets, pas 32** (`StorageCipherImplementationGCM.java:18`). La taille surprend sur un

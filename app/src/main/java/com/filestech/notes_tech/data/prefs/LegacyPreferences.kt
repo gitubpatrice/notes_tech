@@ -86,6 +86,36 @@ class LegacyPreferences @Inject constructor(@ApplicationContext private val cont
     }
 
     /**
+     * Efface **tout**, sauf les clés Dart nues listées dans [conserver].
+     *
+     * ## 🔴 Une liste blanche, jamais une liste noire
+     *
+     * L'appel sert au mode panique. Y énumérer ce qu'on veut effacer laisserait survivre toute clé
+     * ajoutée plus tard sans qu'on y pense — c'est-à-dire exactement les clés qu'on n'a pas en tête
+     * au moment d'écrire la liste. Ici, une préférence nouvelle est effacée par défaut, et la
+     * conserver demande une décision.
+     *
+     * ⚠️ `commit()` et non `apply()` : la panique doit savoir si l'effacement a réellement abouti
+     * avant d'annoncer quoi que ce soit. Un `apply()` rend la main tout de suite et écrit plus tard,
+     * ce qui ferait annoncer un effacement pendant qu'il reste à faire.
+     *
+     * @return le nombre de clés effacées.
+     * @throws IllegalStateException si le fichier de préférences a refusé l'écriture. ⚠️ Ne pas
+     *   avaler : des traces d'usage survivraient à une panique qui se déclarerait complète.
+     */
+    fun clearAllExcept(conserver: Set<String>): Int {
+        val preservees = conserver.map(::prefixed).toSet()
+        val aEffacer = prefs.all.keys - preservees
+        if (aEffacer.isEmpty()) return 0
+        val edition = prefs.edit()
+        aEffacer.forEach(edition::remove)
+        if (!edition.commit()) {
+            error("effacement des preferences refuse (${aEffacer.size} cles)")
+        }
+        return aEffacer.size
+    }
+
+    /**
      * Une liste de chaînes, dans l'un des **trois** états qu'on peut trouver sur le disque.
      *
      * L'application a plus de deux ans et le greffon a changé de format en route. Une installation

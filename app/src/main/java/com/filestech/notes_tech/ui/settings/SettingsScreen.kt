@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -51,7 +52,12 @@ import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.ui.common.MIME_ZIP
 import com.filestech.notes_tech.ui.common.partagerUnFichier
+import com.filestech.notes_tech.ui.panic.PanicConfirmDialog
+import com.filestech.notes_tech.ui.panic.PanicOverlay
+import com.filestech.notes_tech.ui.panic.PanicUiState
+import com.filestech.notes_tech.ui.panic.PanicViewModel
 import kotlinx.coroutines.launch
+import kotlin.system.exitProcess
 
 /**
  * Les réglages.
@@ -74,6 +80,11 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
     var choixDeDelai by remember { mutableStateOf(false) }
 
     val snackbars = remember { SnackbarHostState() }
+
+    // ⚠️ Le modèle de panique est obtenu ICI, et non dans la ligne qui le déclenche : son
+    // recouvrement doit être posé en frère du `Scaffold`, hors de la colonne défilante.
+    val panique: PanicViewModel = hiltViewModel()
+    val etatDePanique by panique.state.collectAsStateWithLifecycle()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbars) },
@@ -141,6 +152,10 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
             LigneDExport(snackbars)
             HorizontalDivider()
 
+            TitreDeSection(stringResource(R.string.settings_panic))
+            LigneDePanique(onDeclencher = panique::trigger)
+            HorizontalDivider()
+
             TitreDeSection(stringResource(R.string.settings_section_about))
             ListItem(
                 // `settings_about` et son sous-titre existaient et n'etaient jamais utilises : la
@@ -158,6 +173,8 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
             )
         }
     }
+
+    RecouvrementDePanique(etatDePanique)
 
     if (choixDeTheme) {
         DialogueDeChoix(
@@ -310,6 +327,95 @@ private fun LigneDExport(snackbars: SnackbarHostState) {
             )
         },
     )
+}
+
+/**
+ * La ligne qui ouvre la confirmation du mode panique.
+ *
+ * ⚠️ **Elle ne porte PAS le recouvrement de destruction**, et c'est le correctif d'un plantage
+ * mesuré sur le S9 le 2026-08-14 : cette ligne vit dans une colonne à défilement vertical, et un
+ * second défilement vertical imbriqué se mesure avec une hauteur infinie — `IllegalStateException`,
+ * application tuée. La destruction, elle, s'était bien exécutée : l'utilisateur se retrouvait sur
+ * son écran d'accueil sans savoir si ses notes avaient été effacées.
+ *
+ * Le recouvrement est donc posé par [SettingsRoute], en frère du `Scaffold`. Cf. `docs/04-PIEGES.md`.
+ */
+@Composable
+private fun LigneDePanique(onDeclencher: () -> Unit) {
+    var confirmation by remember { mutableStateOf(false) }
+
+    ListItem(
+        headlineContent = {
+            Text(
+                text = stringResource(R.string.settings_panic),
+                color = MaterialTheme.colorScheme.error,
+            )
+        },
+        supportingContent = { Text(stringResource(R.string.settings_panic_subtitle)) },
+        leadingContent = {
+            Icon(
+                imageVector = Icons.Outlined.LocalFireDepartment,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        modifier = Modifier.clickable { confirmation = true },
+    )
+
+    if (confirmation) {
+        PanicConfirmDialog(
+            onDismiss = { confirmation = false },
+            onConfirmed = {
+                confirmation = false
+                onDeclencher()
+            },
+        )
+    }
+}
+
+/**
+ * Le recouvrement plein écran de la destruction.
+ *
+ * ## ⚠️ Posé en frère du `Scaffold`, jamais dans son contenu
+ *
+ * Il défile verticalement, et le contenu des réglages aussi. Imbriquer les deux fait mesurer le
+ * second avec une hauteur infinie et tue l'application — mesuré sur appareil, après que la
+ * destruction avait déjà eu lieu.
+ *
+ * ## ⚠️ Un recouvrement, pas une destination de navigation
+ *
+ * Une destination serait quittable par le bouton retour, par le geste système, par une restauration
+ * d'état. Or il n'y a rien à quitter : la clé est détruite, les notes ne reviendront pas, et une
+ * sortie ne ferait que laisser croire à une annulation.
+ */
+@Composable
+private fun RecouvrementDePanique(state: PanicUiState) {
+    val activite = LocalActivity.current
+
+    if (state.running || state.report != null) {
+        PanicOverlay(
+            running = state.running,
+            report = state.report,
+            // 🔴 Fermer l'activité NE SUFFIT PAS, et l'oublier casserait le lancement suivant.
+            //
+            // `finishAndRemoveTask` d'abord : `finish` seul laisserait la tâche dans l'aperçu des
+            // applications récentes. `FLAG_SECURE` en noircit la vignette, mais l'entrée resterait
+            // — une trace visible de l'application, juste après avoir passé dix secondes à en
+            // effacer les traces.
+            //
+            // Puis `exitProcess`, et c'est le point non évident : la base est **scellée** dans un
+            // objet unique du graphe d'injection, qui vit aussi longtemps que le processus. Un
+            // relancement sans mort du processus retrouverait ce sceau et refuserait d'ouvrir la
+            // base, sans rien expliquer. Terminer le processus rend au lancement suivant sa
+            // qualité de premier lancement — ce que l'écran promet juste au-dessus.
+            //
+            // Aucune écriture n'est en attente : la panique a tout confirmé par `commit()`.
+            onClose = {
+                activite?.finishAndRemoveTask()
+                exitProcess(0)
+            },
+        )
+    }
 }
 
 @Composable

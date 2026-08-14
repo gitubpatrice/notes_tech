@@ -532,6 +532,12 @@ class FolderVaultServiceTest {
             cles.remove(alias)
         }
 
+        override fun deleteKeysWithPrefix(prefix: String): Int {
+            val vises = cles.keys.filter { it.startsWith(prefix) }
+            vises.forEach(cles::remove)
+            return vises.size
+        }
+
         override fun hasKey(alias: String): Boolean = cles.containsKey(alias)
 
         private fun garde() {

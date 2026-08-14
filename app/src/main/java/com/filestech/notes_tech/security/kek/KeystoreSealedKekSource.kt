@@ -200,6 +200,37 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
         store(kek)
     }
 
+    /**
+     * Détruit le scellé **puis** la clé qui l'ouvrait.
+     *
+     * ## ⚠️ Cet ordre-ci, et pas l'inverse
+     *
+     * La clé de l'`AndroidKeyStore` est ce qu'un attaquant ne peut ni extraire ni recalculer : la
+     * détruire suffit à rendre le scellé illisible. Mais l'ordre inverse — clé d'abord — laisserait,
+     * si le processus meurt entre les deux, un scellé orphelin dans les préférences, c'est-à-dire un
+     * fichier qui ressemble à un secret protégé et n'en est plus un. Rien ne pourrait plus le
+     * distinguer d'un scellé valide, et une version future pourrait s'y casser les dents.
+     *
+     * Effacer d'abord la donnée, ensuite le moyen de la lire, laisse à chaque interruption possible
+     * un état cohérent.
+     *
+     * ⚠️ `commit()` et non `apply()` : la panique doit savoir si l'effacement a **réellement**
+     * abouti avant d'annoncer quoi que ce soit à l'utilisateur.
+     */
+    @Synchronized
+    override fun destroy() {
+        try {
+            // ⚠️ Le FICHIER est supprimé, pas seulement ses deux clés : un `notes_tech.kek.xml`
+            // vide resterait dans le répertoire de l'application après une panique qui vient
+            // d'annoncer qu'il ne restait rien.
+            supprimerLeFichierDePreferences(context, PREFS_NAME)
+            val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+            if (ks.containsAlias(KEY_ALIAS)) ks.deleteEntry(KEY_ALIAS)
+        } catch (e: Exception) {
+            throw KekFailure.SourceUnavailable(name, e)
+        }
+    }
+
     private fun existingKey(): SecretKey? = try {
         val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         ks.getKey(KEY_ALIAS, null) as? SecretKey

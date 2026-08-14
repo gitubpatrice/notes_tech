@@ -39,6 +39,32 @@ interface KekSource {
      *   pas l'absence de clé — indisponibilité du Keystore, appareil verrouillé, erreur d'E/S.
      */
     fun load(): ByteArray?
+
+    /**
+     * Détruit **tout** ce que cette source détient : le scellé, la clé qui le protège, les
+     * préférences qui le portent.
+     *
+     * ## 🔴 Réservé au mode panique, et à rien d'autre
+     *
+     * Toute la conception de [KekRepository] tient à ne jamais détruire une clé sur un doute. Cet
+     * appel est l'exception, et la seule : il est déclenché par un geste explicite de l'utilisateur
+     * dont la finalité **est** de rendre les notes irrécupérables. Après lui, la base chiffrée
+     * AES-256 est du bruit, même récupérée bit à bit sur le support.
+     *
+     * ⚠️ **Toutes les sources doivent être détruites, pas seulement la première.** En détruire une
+     * et s'arrêter laisse la KEK intacte dans une autre couche — précisément le cas de l'utilisateur
+     * qui vient de la version Flutter, dont la clé vit encore dans `flutter_secure_storage`. La
+     * panique paraîtrait avoir fonctionné et n'aurait rien protégé. C'est la raison pour laquelle
+     * cette méthode est sur l'interface et non sur la seule source autoritaire en écriture :
+     * ajouter une source oblige à décider comment on la détruit, **à la compilation**.
+     *
+     * Idempotent : détruire ce qui n'existe pas n'est pas une erreur.
+     *
+     * @throws KekFailure.SourceUnavailable si quelque chose a résisté. ⚠️ **Ne jamais avaler cet
+     *   échec** : il signifie que la clé de la base a survécu à la panique, et l'écran de fin ne
+     *   doit pas annoncer le contraire.
+     */
+    fun destroy()
 }
 
 /**
