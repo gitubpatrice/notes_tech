@@ -58,6 +58,7 @@ import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.security.vault.VaultValidationException
+import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 
 /**
  * La feuille qui déverrouille un coffre, **du bon mode**.
@@ -129,6 +130,11 @@ fun CreateVaultSheet(folder: Folder, mode: VaultMode, onDismiss: () -> Unit, onC
 
 @Composable
 private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, onDone: () -> Unit) {
+    // ⚠️ Le drapeau est forcé pour la durée de la feuille, **même si l'utilisateur l'a désactivé**.
+    // Ce qui s'affiche ici est une phrase secrète en clair quand il choisit de la rendre visible ;
+    // une capture, volontaire ou par une application de projection d'écran, la donnerait entière.
+    SecureWindowGuard()
+
     val viewModel: VaultViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -263,6 +269,12 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
 
 @Composable
 private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, onDone: () -> Unit) {
+    // ⚠️ Même raison que la feuille à phrase secrète, avec un motif propre au pavé numérique : la
+    // position des touches enfoncées est stable d'une saisie à l'autre, donc une capture de la
+    // séquence donne le code. `vault_pin_sheets.dart:185` note que ce garde manquait ici dans la
+    // version publiée alors qu'il protégeait déjà la création — un jumeau asymétrique.
+    SecureWindowGuard()
+
     val viewModel: VaultViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 

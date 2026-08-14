@@ -39,6 +39,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.common.EmptyState
+import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 
 /**
@@ -51,6 +52,13 @@ import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 fun NoteEditorRoute(onBack: () -> Unit) {
     val viewModel: NoteEditorViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // ⚠️ Le contenu déchiffré d'une note de coffre est à l'écran, en clair, pendant tout le temps
+    // où on la lit. Le drapeau est donc forcé pour cet écran-là, même si le réglage est désactivé —
+    // c'est le seul moment de l'application où le secret d'un coffre est lisible.
+    //
+    // La condition suit l'état : une note qui cesse d'être coffrée rend la demande d'elle-même.
+    SecureWindowGuard(active = state.isVaultNote)
 
     // ⚠️ L'enregistrement au départ passe par `DisposableEffect`, pas par le bouton retour seul :
     // on quitte aussi par le geste système, par une navigation, ou parce que le processus se

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +32,8 @@ import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
+import com.filestech.notes_tech.ui.secure.LocalSecureWindow
+import com.filestech.notes_tech.ui.secure.SecureWindowController
 import com.filestech.notes_tech.ui.splash.SplashScreen
 import com.filestech.notes_tech.ui.startup.StartupFailureScreen
 import com.filestech.notes_tech.ui.startup.StartupState
@@ -46,6 +49,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settings: AppSettings
 
+    @Inject
+    lateinit var secureWindow: SecureWindowController
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Posé AVANT `super.onCreate` : c'est la condition pour que l'écran de démarrage prenne la
         // main. Après, la fenêtre est déjà créée et l'appel n'a plus d'effet.
@@ -53,7 +59,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            NotesTechApp(settings)
+            CompositionLocalProvider(LocalSecureWindow provides secureWindow) {
+                NotesTechApp(settings, secureWindow)
+            }
         }
     }
 
@@ -92,16 +100,16 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun NotesTechApp(settings: AppSettings) {
+private fun NotesTechApp(settings: AppSettings, secureWindow: SecureWindowController) {
     val theme by settings.theme.collectAsStateWithLifecycle(initialValue = settings.themeNow())
-    val secureWindow by settings.secureWindow.collectAsStateWithLifecycle(
+    val fenetreProtegee by secureWindow.active.collectAsStateWithLifecycle(
         // ⚠️ La valeur initiale est LUE. Un défaut à `false` laisserait la fenêtre capturable
         // pendant la fraction de seconde qui précède la première émission du flux — c'est-à-dire
         // exactement le temps que met l'aperçu des applications récentes à se prendre.
-        initialValue = settings.secureWindowNow(),
+        initialValue = secureWindow.activeNow(),
     )
 
-    FenetreProtegee(secureWindow)
+    FenetreProtegee(fenetreProtegee)
 
     NotesTechTheme(
         darkTheme = when (theme) {
@@ -164,10 +172,10 @@ private fun ContenuPrincipal(settings: AppSettings) {
  * désactivation du réglage jusqu'au prochain redémarrage — l'utilisateur verrait l'interrupteur à
  * « désactivé » et les captures continueraient d'échouer, sans explication.
  *
- * ⚠️ Ce n'est PAS un compteur de références ici, et ce sera à revoir en phase 6 : le mode panique
- * et l'éditeur poseront le même drapeau pour leurs propres raisons, et deux poseurs indépendants
- * qui le retirent chacun de leur côté font disparaître la protection du premier quand le second se
- * termine. Le compteur est listé dans `docs/00-PLAN.md` phase 6.
+ * [active] ne vient plus du réglage seul : c'est la décision de
+ * [SecureWindowController], qui compose le réglage utilisateur avec les demandes ponctuelles des
+ * écrans sensibles et du mode panique. **Ce composable est le seul endroit du programme qui touche
+ * la fenêtre** — c'est ce qui permet au compteur de rester la seule autorité.
  */
 @Composable
 private fun FenetreProtegee(active: Boolean) {
