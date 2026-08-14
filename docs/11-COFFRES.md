@@ -136,3 +136,39 @@ Volontairement hors périmètre, et à câbler avec l'interface :
 
 ⚠️ Ces trois points sont des **gestes de sécurité**, pas des agréments. Ils sont listés ici pour
 qu'ils entrent dans le périmètre d'une phase, et non dans les oublis d'une bascule.
+
+
+## §8 — Les quatre gestes différés sont ÉCRITS (phase 5, 2026-08-14)
+
+Le §7 les listait comme hors périmètre de la phase 4. Ils sont entrés avec l'interface qui les
+appelle — un geste de sécurité qui n'appartient à aucune phase finit dans les oublis d'une bascule.
+
+| Geste | Où |
+|---|---|
+| `encryptAllNotesInFolder` | conversion d'un dossier en coffre |
+| `decryptAllNotesInFolder` | retrait de protection |
+| `reprotectPlaintextNotes` | réparation à l'ouverture de session |
+| `migrateLegacyEncryptedNotes` | format 1 → 2, le titre entre dans le chiffré |
+
+🔴 **`removeVaultProtection` rescelle sur TOUTE sortie qui n'a pas effacé le coffre.** Il y en a
+trois — l'échec rapporté, l'exception, l'annulation — et l'application publiée n'en couvrait que
+deux, après deux relectures externes successives. Le troisième chemin n'y était pas couvert du tout.
+
+⚠️ **La réparation est `NonCancellable`.** Rattraper une annulation avec du code annulable ne
+rattrape rien : la première suspension relèverait aussitôt, et le clair resterait au repos dans un
+dossier qui arbore toujours son cadenas.
+
+⚠️ **Les réparations sont déclenchées depuis `openVerifiedSession`**, seul point commun aux deux
+chemins de déverrouillage, et **pas** à la création d'un coffre — où les notes doivent être
+chiffrées par un geste visible, avec son décompte et ses échecs. Les accrocher aux deux appelants
+marcherait aujourd'hui et produirait le jumeau asymétrique au premier chemin ajouté.
+
+## §9 — Le délai d'auto-verrouillage est enfin appliqué
+
+`VaultSessions.autoLockMillis` était figé à 15 minutes et rien ne le mettait à jour. Le réglage
+existait dans le fichier hérité, l'écran l'écrivait, et le verrouillage continuait d'appliquer sa
+valeur par défaut.
+
+⚠️ Le relire **une seule fois au démarrage** aurait fermé la moitié du trou : le réglage aurait pris
+effet au redémarrage suivant, c'est-à-dire pas au moment où on le change — qui est précisément
+celui où on en a besoin. `VaultAutoLocker` le collecte donc en continu.

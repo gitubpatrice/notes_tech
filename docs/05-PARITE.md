@@ -193,3 +193,50 @@ horloges séparées, et je les avais confondues en écrivant cette section une p
 
 ⚠️ Le bump touche `pubspec.yaml` **et** `AppConstants.appVersion`, plus fastlane FR+EN, les trois
 surfaces du site, et le `.yml` F-Droid.
+
+
+## Écarts relevés dans l'application publiée — REPRODUITS, à trancher par Patrice
+
+*Relevés pendant la phase 5, le 2026-08-14.*
+
+Chacun est **reproduit à l'identique** dans le portage. La raison est toujours la même : la parité
+est le critère de sortie de la phase 8, et un correctif silencieux est indiscernable d'un défaut de
+portage le jour de la comparaison. Les corriger est une décision, pas une évidence.
+
+### 1. 🟠 Le menu de tri affiche deux fois le même libellé
+
+`settings_screen.dart:169-175` fait correspondre `createdDesc` au libellé de `updatedDesc`, et
+`createdAsc` à celui de `updatedAsc`. Le menu propose donc **six entrées dont quatre portent deux
+libellés**, sans que rien ne distingue le tri par date de modification de celui par date de
+création.
+
+**Corriger demande deux clés i18n nouvelles**, donc une modification de l'ARB source —
+c'est-à-dire de `notes_tech`, gelé pendant le chantier.
+
+### 2. 🟢 « Toutes les notes » inclut les archives, un dossier non
+
+`notes_dao.dart:156` filtre sur `trashed_at IS NULL` seul ; `listByFolder` (ligne 59) ajoute
+`archived = 0`. Une note archivée disparaît donc de son dossier et reste dans « toutes les notes ».
+
+**Invisible aujourd'hui** : aucun écran de la 2.0.3 ne permet d'archiver une note — le seul
+`archive` de `lib/ui/` est une icône d'export. La colonne vaut `0` partout.
+
+### 3. 🟢 Renommer ou supprimer un dossier n'affiche aucun message
+
+Et c'est défendable : le tiroir se met à jour sous les yeux de l'utilisateur. Noté parce que la
+tentation d'ajouter « Dossier renommé » était forte, et qu'y céder aurait créé deux clés i18n que la
+version Flutter n'a pas.
+
+### 4. ℹ️ Pluriel français : la catégorie CLDR `many` n'est pas définie
+
+`lintDebug` la signale sur les trois `<plurals>`. Elle ne vaut qu'à partir d'un million, et Android
+retombe sur `other` quand elle manque — le comportement est donc correct. La définir demanderait une
+forme grammaticale (« un million **de** notes ») qui ne sera jamais atteinte.
+
+## Divergence assumée, et dans le bon sens
+
+**La branche `=1` des pluriels.** ICU `=1` ne vaut que pour 1 ; la catégorie CLDR `one` du français
+couvre aussi zéro. Le « 1 » écrit en dur dans l'ARB devient donc l'argument : le portage affiche
+« 0 note a perdu… », singulier avec zéro, ce qui est la règle française. La version Flutter y
+affiche « 0 notes ont perdu… ». **L'anglais est rigoureusement identique** dans les deux, `one` n'y
+valant que pour 1.

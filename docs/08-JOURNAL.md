@@ -353,3 +353,35 @@ pareil. Le **format** se ferme par des vecteurs pris sur le vrai Dart. Le **juge
 code conclut d'un échec — ne se ferme que par une relecture adversariale et par des tests qui
 vérifient qu'il ne se passe *rien*. Un vecteur ne dira jamais qu'un coffre s'est détruit pour la
 mauvaise raison.
+
+## 2026-08-14 — phase 5, l'interface Compose
+
+Deux commits : `db3682b` (i18n, préférences héritées, gestes de coffre différés) et `6751d17`
+(les neuf écrans).
+
+**Ce que la journée a appris, et qui vaut au-delà de cette phase :**
+
+🔴 **Un contrôle vert n'est pas une preuve de fonctionnement.** ktlint, detekt, `lintDebug` et
+70 tests JVM étaient verts sur une application qui se fermait au premier lancement. Le défaut —
+`painterResource` sur une icône adaptative — n'existe même pas sur un appareil API 24-25, et ne se
+manifeste qu'à la **première** installation. C'est la énième fois que ce sont les essais sur
+appareil qui trouvent les vrais défauts, et la première où le gate complet était vert.
+
+⚠️ **Un chiffre non vérifié survit à toutes les relectures.** Le plan annonçait 436 clés i18n
+depuis le relevé initial. Il y en a 311. Personne ne l'avait mesuré, et le nombre a été recopié dans
+trois documents.
+
+⚠️ **Un format d'interopérabilité se LIT, il ne se devine pas.** `shared_preferences` écrit les
+entiers Dart en `putLong`. Une lecture par `getInt` aurait fait planter le premier démarrage après
+la bascule, sur le chemin des coffres, chez les seuls utilisateurs ayant changé le réglage
+d'auto-verrouillage. La réponse était dans le source du greffon, à quinze lignes de lecture.
+
+⚠️ **Vérifier une transposition dans le sens inverse.** Le script i18n produit du XML depuis l'ARB ;
+un second script refait le chemin XML → ARB et confronte à la source. 628 segments, 4 divergences
+expliquées, 0 inexpliquée. Relire le XML produit n'aurait rien prouvé — c'est le même raisonnement
+qui l'a écrit.
+
+⚠️ **Reproduire un défaut de l'application publiée est parfois le bon geste.** Deux écarts relevés
+(menu de tri à libellés dupliqués, archives asymétriques) sont reproduits et consignés dans
+`05-PARITE.md`. La parité est le critère de sortie de la phase 8 : un correctif silencieux est
+indiscernable d'un défaut de portage le jour de la comparaison.

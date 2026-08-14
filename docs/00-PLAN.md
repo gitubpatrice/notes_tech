@@ -1,6 +1,6 @@
 # Notes Tech — portage Flutter → Kotlin natif
 
-> **État** : phases 1 à 4 **closes** (la 4 avec une réserve écrite, cf. plus bas). Prochaine : phase 5 (interface Compose). Dernière mise à jour : 2026-08-14.
+> **État** : phases 1 à 5 **closes** (la 4 avec une réserve écrite, cf. plus bas). Prochaine : phase 6 (services transverses). Dernière mise à jour : 2026-08-14.
 >
 > **🎯 Cible de release 3.0.0 : début septembre 2026** — fixée par Patrice le 2026-08-14.
 >
@@ -43,7 +43,7 @@ Source : `j:\applications\notes_tech`, version publiée **2.0.3 (versionCode 51)
 | Tests Dart | 2 817 lignes, 13 fichiers |
 | Écrans | 10 |
 | Widgets | 16 |
-| Clés i18n | 436 × {fr, en} |
+| Clés i18n | **311** × {fr, en} |
 | Tables | `folders`, `notes`, `note_links` + `notes_fts` (FTS5) + 3 triggers |
 | Version de schéma | **9** |
 
@@ -189,23 +189,52 @@ un `applicationId` suffixé `.next`. Le contrôle appartient donc à la phase 8,
 deux par mes propres tests. Cinq sur six portaient sur le **classement des échecs**, pas sur la
 cryptographie. Cf. [07-RELECTURES.md](07-RELECTURES.md), R-008.
 
-### Phase 5 — Interface Compose
-
-Dans l'ordre de dépendance, pas dans l'ordre du dossier :
+### Phase 5 — Interface Compose ✅ close le 2026-08-14
 
 `splash` → `home` + tiroir dossiers → `éditeur` → `recherche` → `coffres` (feuilles PIN et
 passphrase) → `corbeille` → `réglages` → `à propos` → `mentions légales`
 
-- [ ] i18n : 436 clés ARB → `strings.xml` fr/en **par script**, jamais à la main
-      (⚠️ apostrophes : `\'` obligatoire dans une valeur)
+- [x] i18n : **311** clés ARB → `strings.xml` fr/en **par script** (`outils/arb_vers_strings.py`)
+- [x] Contrôle **en sens inverse** : `outils/verif_i18n_retour_arriere.py` regénère l'ARB depuis le
+      XML produit et le confronte à la source
+- [x] Préférences héritées lues et écrites dans leur format d'origine (`LegacyPreferences`)
+- [x] Les quatre gestes de coffre différés de la phase 4 (cf. [11-COFFRES.md](11-COFFRES.md) §7)
+- [x] Navigation, thème, langue, `FLAG_SECURE`
+
+⚠️ **Le décompte de clés annoncé ici était FAUX** : 436, alors que les deux ARB en portent 311. Le
+chiffre traînait depuis le relevé initial et n'avait jamais été vérifié. Mesuré le 2026-08-14.
+
+**Mesuré** :
+
+| Vérification | Résultat |
+|---|---|
+| Segments i18n confrontés en sens inverse | **628**, 4 divergences expliquées, **0 inexpliquée** |
+| Tests JVM | **70**, 0 échec |
+| ktlint · detekt · lintDebug | verts, **aucune baseline ajoutée** |
+| Boucle complète sur Galaxy S9 (API 29) | ✅ splash → accueil → création → éditeur → retour |
+
+🔴 **Un défaut qu'aucun contrôle statique n'a vu** : `painterResource(R.mipmap.ic_launcher)` sur
+l'écran de présentation. À partir de l'API 26, `ic_launcher` résout vers une icône **adaptative**,
+que Compose refuse de charger. L'application se fermait **au premier lancement, et seulement au
+premier**. Ni la compilation, ni ktlint, ni detekt, ni lint, ni les 70 tests JVM ne l'ont vu — et
+sur un appareil API 24-25 il n'existe même pas. Trouvé en installant sur le S9.
+
+**Deux défauts de l'application publiée sont REPRODUITS et consignés**, pas corrigés en silence.
+Cf. [05-PARITE.md](05-PARITE.md).
+
+**Ce qui n'est PAS dans cette phase, et c'est le plan qui le dit** : les rétroliens, l'export et le
+mode panique appartiennent à la phase 6.
 
 ### Phase 6 — Services transverses
 
 - [ ] Mode panique (478 l) — séquence et ordre des étapes à préserver
 - [ ] Export Markdown / ZIP (519 l)
 - [ ] Backlinks `[[titre]]` (401 l)
-- [ ] `FLAG_SECURE` avec compteur de références
-- [ ] Réglages (DataStore)
+- [ ] `FLAG_SECURE` avec compteur de références — ⚠️ posé en phase 5 **sans** compteur ; le mode
+      panique posera le même drapeau, et deux poseurs qui le retirent chacun de leur côté font
+      disparaître la protection du premier
+- [x] ~~Réglages (DataStore)~~ — **faits en phase 5**, et **pas** avec DataStore : le fichier de
+      préférences hérité est conservé pour que les réglages survivent à la bascule (D-015)
 
 ### Phase 7 — Dictée vocale
 

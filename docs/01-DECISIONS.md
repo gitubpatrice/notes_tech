@@ -388,3 +388,41 @@ Le point 2 ferme une course qui n'existe pas côté Dart, mono-fil : rendre le t
 permettait à un verrouillage concurrent de le vider pendant qu'un chiffrement s'en servait. La note
 serait partie en base **scellée sous une clé nulle** — présentée comme protégée, et
 irrécupérable. Trente-deux octets recopiés par opération sont un prix négligeable pour ça.
+
+
+## D-015 — Les réglages restent dans le fichier de préférences **de la version Flutter**
+
+**Décidé le 2026-08-14.**
+
+Le portage lit et écrit `shared_prefs/FlutterSharedPreferences.xml`, avec le préfixe `flutter.` et
+les formats du greffon, plutôt que DataStore.
+
+**Pourquoi** : à la bascule, les réglages de l'utilisateur doivent survivre. Écrire ailleurs
+obligerait à une migration — c'est-à-dire à un chemin de code qui ne s'exécute qu'une fois, chez les
+autres, et qu'aucun test ne rejoue jamais dans les conditions réelles. `VaultWipeJournal` lisait
+déjà ce fichier depuis la phase 4 : deux magasins de préférences auraient fait deux sources de
+vérité pour l'état d'une même application.
+
+**Écarté** : DataStore, qui est l'API moderne et que le projet embarque déjà. Le coût de la
+migration l'emporte sur le bénéfice, et la dépendance reste pour la phase 7.
+
+⚠️ **Les formats ont été LUS dans le greffon** (`shared_preferences_android-2.4.26`, version figée
+par `pubspec.lock`), pas supposés. Le piège cher : `setInt` écrit un **`putLong`**. Le délai
+d'auto-verrouillage des coffres est un `int` ; `getInt` aurait levé `ClassCastException` au premier
+démarrage après la bascule, sur le chemin des coffres, chez les seuls utilisateurs ayant changé le
+réglage.
+
+## D-016 — Routes de navigation écrites à la main, sans `kotlinx-serialization`
+
+**Décidé le 2026-08-14.**
+
+`Destination` est une hiérarchie scellée qui fabrique les chaînes de route. Aucune route n'est
+écrite ailleurs.
+
+**Pourquoi pas les routes typées de `navigation-compose`** : elles exigent le greffon
+`kotlinx-serialization` et sa dépendance, pour sept écrans dont un seul porte un argument. Elles
+portent en outre un piège connu — `launchSingleTop` ignore les arguments d'une route typée, si bien
+que naviguer d'une note vers une autre ne recompose rien.
+
+**Ce que la décision garantit** : un `navigate("editor/$id")` dispersé dans un écran compilerait
+parfaitement et se casserait au premier renommage, sans que rien ne le signale avant l'exécution.

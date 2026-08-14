@@ -490,3 +490,47 @@ qui n'existe plus.
 préférences ou le magasin de clés — `security/kek/`, `AndroidVaultKeystore` — sont corrects et
 restent : aucune `CancellationException` ne peut y naître. Appliquer un piège en aveugle produit du
 bruit, ce qui finit par le faire ignorer là où il compte.
+
+
+## §27 — `painterResource(R.mipmap.ic_launcher)` fait planter l'application sur API 26+
+
+**Trouvé le 2026-08-14, sur appareil, et par rien d'autre.**
+
+À partir de l'API 26, `ic_launcher` résout vers `mipmap-anydpi-v26/ic_launcher.xml`, qui est un
+conteneur `<adaptive-icon>` — pas une image. Compose lève :
+
+```
+java.lang.IllegalArgumentException: Only VectorDrawables and rasterized asset types are supported
+```
+
+**Ce qui rend ce défaut particulier**, et pourquoi il mérite une entrée :
+
+| Contrôle | L'a-t-il vu ? |
+|---|---|
+| compilation Kotlin | non |
+| ktlint, detekt | non |
+| `lintDebug` | non |
+| 70 tests JVM | non |
+| appareil API 24-25 | **le défaut n'existe pas** — la résolution retombe sur le PNG |
+| appareil API 26+ | plantage immédiat |
+
+Il ne se manifestait qu'à la **première installation**, l'écran de présentation ne rejouant jamais
+ensuite. Un essai sur un appareil déjà équipé ne l'aurait pas montré.
+
+**Le remède** : `R.drawable.ic_launcher_foreground`, qui est un PNG.
+
+**La leçon transférable** : une ressource dont la résolution dépend du palier d'API n'est pas une
+constante. `R.mipmap.ic_launcher` désigne deux choses différentes selon l'appareil, et un seul des
+deux est chargeable par Compose.
+
+## §28 — Un `%` littéral dans une chaîne SANS argument fait échouer `lintDebug`
+
+« 100 % hors-ligne » n'est pas une chaîne de format, mais aapt et lint la lisent comme telle et
+voient `% h` comme une conversion inachevée.
+
+⚠️ **La correction n'est PAS de doubler en `%%`.** `getString(int)` n'appelle jamais
+`String.format` : le doublement s'afficherait tel quel. La seule réponse juste est
+`formatted="false"` sur l'élément.
+
+Le contrôle est légitime, pas un faux positif : la même chaîne avec un argument planterait à
+l'exécution.
