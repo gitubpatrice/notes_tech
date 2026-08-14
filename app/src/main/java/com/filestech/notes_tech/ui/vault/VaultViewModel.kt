@@ -59,6 +59,20 @@ sealed interface VaultAttempt {
      * chaîne, et un `when` exhaustif fait échouer à la compilation l'ajout d'une raison sans
      * traduction.
      */
+    /**
+     * Le coffre est cree, mais le chiffrement de son contenu n'a pas pu commencer.
+     *
+     * 🔴 **Distinct de [Failed], et c'est tout l'enjeu.** Un correctif precedent enchainait la
+     * creation et le chiffrement dans la meme tentative : si le second levait, l'ecran annoncait
+     * « creation impossible » alors que le dossier etait **deja un coffre en base**, avec ses notes
+     * en clair. Un message qui ment sur l'etat reel, sur le chemin le plus sensible de
+     * l'application.
+     *
+     * Trouve en relisant les correctifs de relecture — la regle qui dit de le faire
+     * systematiquement a encore paye.
+     */
+    data class CreatedButNotEncrypted(val message: String?) : VaultAttempt
+
     data class Invalid(val reason: VaultValidationException.Reason) : VaultAttempt
 
     data class Failed(val message: String?) : VaultAttempt
@@ -126,12 +140,23 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
         _state.value = VaultSheetState()
     }
 
+    /**
+     * Chiffre les notes deja presentes, et **ne laisse jamais l'echec de ce geste passer pour un
+     * echec de la creation**.
+     *
+     * ⚠️ Le coffre existe deja quand cette fonction est appelee. Quoi qu'il arrive ici, le dossier
+     * EST un coffre : le dire autrement serait mentir sur l'etat de la base.
+     */
     private suspend fun chiffrerLExistant(folderId: String) {
-        val bilan = vaults.encryptAllNotesInFolder(folderId)
-        _state.value = VaultSheetState(
-            busy = false,
-            attempt = VaultAttempt.Created(encrypted = bilan.done, failed = bilan.failed),
-        )
+        val issue = try {
+            val bilan = vaults.encryptAllNotesInFolder(folderId)
+            VaultAttempt.Created(encrypted = bilan.done, failed = bilan.failed)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            VaultAttempt.CreatedButNotEncrypted(e.message ?: e::class.java.simpleName)
+        }
+        _state.value = VaultSheetState(busy = false, attempt = issue)
     }
 
     /** Le temps restant avant qu'une nouvelle tentative soit acceptée. `0` s'il n'y en a pas. */
@@ -177,9 +202,19 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
             }
             // ⚠️ Le chiffrement de l'existant a deja pose son propre bilan : ne pas l'ecraser
             // par un `Success` qui perdrait le decompte des notes restees en clair.
-            if (_state.value.attempt !is VaultAttempt.Created) {
+            if (!_state.value.attempt.coffreExiste()) {
                 _state.value = VaultSheetState(busy = false, attempt = issue)
             }
         }
     }
 }
+
+/**
+ * `true` quand le coffre est en base, quelle que soit la suite.
+ *
+ * Empeche l'ecrasement d'un bilan de conversion par un `Success` ou un `Failed` qui perdrait ce que
+ * l'utilisateur doit savoir — et sert a l'ecran pour cesser de proposer « Annuler » sur une creation
+ * qui a deja eu lieu.
+ */
+internal fun VaultAttempt?.coffreExiste(): Boolean =
+    this is VaultAttempt.Created || this is VaultAttempt.CreatedButNotEncrypted

@@ -219,37 +219,41 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
 
             MessageDEtat(erreurLocale ?: messageDeTentative(state.attempt), busy = state.busy)
 
-            Button(
-                onClick = {
-                    erreurLocale = when {
-                        secret.length < VaultParams.PASSPHRASE_MIN_LENGTH -> tropCourte
-                        creating && secret != confirmation -> discordance
-                        else -> null
-                    }
-                    if (erreurLocale != null) return@Button
-                    if (creating) {
-                        viewModel.createPassphraseVault(folder.id, secret)
-                    } else {
-                        viewModel.unlockWithPassphrase(folder.id, secret)
-                    }
-                },
-                enabled = !state.busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    stringResource(
-                        if (creating) R.string.vault_pass_create_action else R.string.vault_pass_unlock_action,
-                    ),
-                )
-            }
-            TextButton(
-                onClick = {
-                    viewModel.cancelAttempt()
-                    onDismiss()
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.common_cancel))
+            if (state.attempt.coffreExiste()) {
+                BoutonDeFermeture(onDone)
+            } else {
+                Button(
+                    onClick = {
+                        erreurLocale = when {
+                            secret.length < VaultParams.PASSPHRASE_MIN_LENGTH -> tropCourte
+                            creating && secret != confirmation -> discordance
+                            else -> null
+                        }
+                        if (erreurLocale != null) return@Button
+                        if (creating) {
+                            viewModel.createPassphraseVault(folder.id, secret)
+                        } else {
+                            viewModel.unlockWithPassphrase(folder.id, secret)
+                        }
+                    },
+                    enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        stringResource(
+                            if (creating) R.string.vault_pass_create_action else R.string.vault_pass_unlock_action,
+                        ),
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        viewModel.cancelAttempt()
+                        onDismiss()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.common_cancel))
+                }
             }
         }
     }
@@ -578,6 +582,9 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
         "${(attempt.remainingMillis + MILLIS - 1) / MILLIS} s",
     )
 
+    is VaultAttempt.CreatedButNotEncrypted ->
+        stringResource(R.string.vault_convert_impossible, attempt.message.orEmpty())
+
     is VaultAttempt.Invalid -> stringResource(messageDeRefus(attempt.reason))
 
     is VaultAttempt.Failed -> attempt.message?.let { stringResource(R.string.common_error_with, it) }
@@ -605,7 +612,24 @@ private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: () -> Unit, o
 }
 
 /**
- * La chaîne qui explique un refus de saisie.
+ * 🔴 Ce que « le coffre existe deja » change a l'ecran.
+ *
+ * « Annuler » disparait : le proposer laisserait croire qu'on peut revenir en arriere, alors
+ * qu'aucun retrait de protection n'est fait et que le dossier EST un coffre. Et le bouton principal
+ * cesse de relancer une creation, qui echouerait sur `ALREADY_A_VAULT` et ecraserait le message qui
+ * compte — celui qui dit combien de notes sont restees en clair.
+ *
+ * Releve en relisant les correctifs de relecture (GPT-5.2, 2026-08-14).
+ */
+@Composable
+private fun BoutonDeFermeture(onDone: () -> Unit) {
+    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+        Text(stringResource(R.string.common_close))
+    }
+}
+
+/**
+ * La chaine qui explique un refus de saisie.
  *
  * ⚠️ `when` **exhaustif** : ajouter une raison sans décider de ce qu'on en dit à l'utilisateur
  * doit échouer à la compilation. C'est exactement ce qui manquait — la raison existait, la chaîne

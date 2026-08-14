@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import javax.inject.Inject
@@ -88,6 +90,18 @@ class NoteEditorViewModel @Inject constructor(
     val state: StateFlow<EditorUiState> = _state.asStateFlow()
 
     private var sauvegardeDifferee: Job? = null
+
+    /**
+     * Serialise les ecritures de cette note.
+     *
+     * 🔴 `sauvegardeDifferee?.cancel()` n'arrete PAS une ecriture Room deja engagee. Sans ce
+     * verrou, la sauvegarde differee peut se terminer APRES la finale et reecrire une version plus
+     * ancienne — une perte silencieuse, exactement ce que la sauvegarde finale existe pour empecher.
+     *
+     * Releve en relisant les correctifs de relecture (GPT-5.2, 2026-08-14) : le correctif precedent
+     * garantissait que la finale s'execute, pas qu'elle s'execute EN DERNIER.
+     */
+    private val ecriture = Mutex()
 
     init {
         charger()
@@ -201,7 +215,7 @@ class NoteEditorViewModel @Inject constructor(
         }
     }
 
-    private suspend fun enregistrer(instantane: EditorUiState? = null) {
+    private suspend fun enregistrer(instantane: EditorUiState? = null) = ecriture.withLock {
         val courant = instantane ?: _state.value
         val note = courant.note ?: return
         if (courant.lockedVault != null) return
@@ -210,7 +224,10 @@ class NoteEditorViewModel @Inject constructor(
         // garde pour les seules notes où elle comptait.
         if (courant.title == courant.originalTitle && courant.content == courant.originalContent) return
 
-        _state.value = courant.copy(saving = true, saveFailed = false)
+        // ⚠️ `_state.value` et non `courant` : l'instantane sert a savoir QUOI persister, jamais a
+        // reecrire l'etat de l'ecran. Le recopier reinjecterait un titre et un contenu peut-etre
+        // plus anciens que ce que l'utilisateur a sous les yeux.
+        _state.value = _state.value.copy(saving = true, saveFailed = false)
         try {
             notes.saveEdits(
                 id = noteId,
@@ -220,6 +237,7 @@ class NoteEditorViewModel @Inject constructor(
             )
             _state.value = _state.value.copy(
                 saving = false,
+                // Ce qui vient d'etre persiste devient la nouvelle reference de comparaison.
                 originalTitle = courant.title,
                 originalContent = courant.content,
             )
