@@ -935,3 +935,111 @@ Pendant le parcours, le champ refusait la passphrase. L'œil, tout juste ajouté
 `passe-secrete6` — un « 6 » entré par un tap égaré sur le clavier. Sans lui, la saisie était
 indéboguable : c'est précisément le service qu'il rend à un utilisateur dont l'erreur coûte un coffre
 irrécupérable.
+
+## 2026-08-15 (suite) — quatre relectures sur le lot de sortie de coffre
+
+Audit de cohérence + audit par motifs + GPT-5.2 + Gemini 3.1 Pro sur `0228486..2795b45`. Deux
+constats sont arrivés **en double, trouvés indépendamment**, ce qui est le meilleur signal qu'un
+rapport puisse donner.
+
+### 🔴 CONFIRMÉ deux fois — vider une note de coffre n'effaçait rien
+
+`sealIfVault` sortait tôt quand la note ne portait plus de lisible. Or une note **déjà scellée**
+qu'on vient de vider est exactement dans cet état : plus de titre, plus de contenu, mais un blob.
+Aucun rescellement n'avait lieu, et `lockNote` réécrivait l'**ancien** chiffré. L'utilisateur
+effaçait un secret, l'application confirmait l'enregistrement, et le texte réapparaissait intact à
+la réouverture.
+
+Deux raisons de sceller, et n'en voir qu'une : la confidentialité (« la note porte du lisible ») et
+l'exactitude (« la note porte déjà un blob, et pour elle ce blob **est** le contenu »). La condition
+est désormais `!carriesPlaintext(note) && !note.isLocked`.
+
+⚠️ Effet de bord voulu : vider une note dont le coffre s'est refermé **échoue** maintenant
+bruyamment au lieu de « réussir » sans rien changer. C'est la vérité, et l'éditeur sait déjà la dire.
+
+### 🔴 CONFIRMÉ — retirer la protection d'un coffre ENTIER ne demandait rien
+
+Les chaînes `folder_remove_vault_*` étaient traduites dans les deux langues et **référencées nulle
+part** — le signal exact qui avait déjà révélé le manque « sortir une note d'un coffre ».
+L'application publiée pose bien la question (`folders_drawer.dart:545-571`) : le dialogue avait été
+oublié en portant, pas les mots.
+
+L'entrée n'apparaît que sur un coffre **déverrouillé**, voisine de « Verrouiller maintenant » et de
+la même teinte rouge. Deux entrées côte à côte, l'une qui protège, l'autre qui déchiffre tout le
+dossier définitivement — et aucune des deux ne demandait confirmation.
+
+Le jumeau, `ConfirmDeleteFolderDialog`, avait reçu ce soin ; celui-ci passe par un autre chemin et
+ne l'avait jamais reçu. ⚠️ La session se relit **après** la confirmation, jamais avant : le dialogue
+prend du temps, et le verrouillage automatique peut tomber pendant. Et le geste **reprend** après le
+déverrouillage — sans quoi l'utilisateur confirmait, saisissait son secret, et rien ne se passait.
+
+### 🔴 Ce que ma propre relecture a trouvé, avant les rapports
+
+- **`tenterUneAction` laissait le menu inerte pour toujours.** Un bloc qui se termine sans poser
+  d'issue — un retour anticipé, parce que la note a disparu — laissait `enCours` levé, et la garde
+  du dessus refusait alors *toute* action suivante. Silencieusement, et jusqu'à la fermeture de
+  l'écran.
+- **« Déplacer » ne vidait pas la sauvegarde en attente**, là où « exporter » le fait et où
+  l'application publiée le fait aussi. Fenêtre de 500 ms pendant laquelle la note en base est encore
+  vide et non scellée : la confirmation de sortie n'était pas due, et la note quittait le coffre sans
+  que la question soit posée. GPT-5.2 a relevé le même point de son côté.
+
+### 🟠 Constats retenus des audits, corrigés
+
+- **Mon KDoc mentait.** `VaultOpener` annonçait « l'unique appelant » ; c'est vrai du **type**, faux
+  de la **capacité** — six classes injectent `FolderVaultService` en entier et trois déchiffrent
+  légitimement. Réécrit pour dire ce qui est vrai, et ce que la séparation ne garantit pas.
+- **L'épingle et le favori se figeaient** au premier appui : l'écriture en base n'était pas recopiée
+  dans l'état, donc `setPinned(!note.pinned)` renvoyait la même valeur et il devenait impossible de
+  désépingler. Même motif que `note.isLocked`, sur les deux champs voisins qui l'avaient échappé.
+  ⚠️ La recopie passe par `update` et non par `value = value.copy(…)` : lire puis réécrire pouvait
+  écraser une note **plus fraîche** — donc ressusciter la péremption qu'on venait de corriger.
+- **`deleteKeepingNotes` lisait `isVault(x) != true`** : le `null` d'un dossier inconnu passait pour
+  « ce n'est pas un coffre », alors que le contrat du DAO dit de le traiter comme un coffre. Lu
+  `== false` désormais. Non atteignable aujourd'hui, mais c'est un repli qui échoue du mauvais côté,
+  sur les deux gardes qui tiennent les invariants du coffre.
+- **`moveToFolder` réimplémentait à la main** ce que `reindexLinks`/`resolveIncoming` font :
+  troisième site portant la même règle, que le prochain correctif aurait laissé en arrière.
+
+### 🚫 Un constat REFUSÉ, et pourquoi
+
+GPT-5.2 relève que `relocateLockedNote` écrit le clair **avant** de déplacer la ligne : pendant la
+transaction, `content` est lisible alors que `folder_id` désigne encore le coffre. Le constat est
+exact. Le remède proposé — un `UPDATE` unique portant `folder_id`, `content`, `title`,
+`encrypted_content` et `enc_v` — est **refusé** : c'est précisément l'écriture de ligne large que le
+DAO interdit, et dont l'absence est l'invariant le plus important de cette couche. Il n'effacerait
+même pas le résidu qu'il vise, le WAL contenant de toute façon la page réécrite. Le fichier et son
+journal sont chiffrés par SQLCipher, et l'utilisateur vient de consentir explicitement à ce que ce
+contenu devienne lisible. L'analyse est écrite dans le KDoc de la méthode.
+
+### 🚫 Un faux positif
+
+GPT-5.2 signale `estDeverrouille` déclaré deux fois et une compilation impossible. La fonction
+n'est déclarée qu'**une** fois : le prompt contenait le diff **et** le fichier entier, donc la
+fonction y apparaissait deux fois. Le gate compile, ce qui suffisait à trancher. **5ᵉ faux positif**
+d'une relecture sur ce dépôt.
+
+### 🔴 Trois défauts d'interface relevés par Patrice, sur son écran
+
+1. **L'œil manquait au second champ de phrase secrète** — deux champs écrits à la main,
+   `trailingIcon` sur un seul, quand l'application publiée utilise le **même** widget deux fois.
+   Factorisé : un troisième champ ne peut plus naître sans son œil.
+2. **La feuille de création ne défilait pas** : champ de confirmation écrasé à 66 px au lieu de 192,
+   « Créer le coffre » et « Annuler » hors écran.
+3. **La feuille de code s'ouvrait à mi-hauteur** : **trois touches sur dix** posées à l'écran, les
+   six autres et la validation en dehors. Le pavé est dessiné dans l'application — rien ne pousse la
+   feuille vers le haut comme le fait le clavier système sur un champ texte.
+
+⚠️⚠️ Le point 2 voisine le faux positif `imePadding()` du 2026-08-14 et l'affine : la feuille remonte
+bien seule, le constat était faux. Mais je m'étais arrêté à « le champ est-il visible ? » au lieu de
+« **la feuille entière reste-t-elle utilisable ?** ». Et les points 2 et 3 sont deux questions
+différentes qu'il fallait toutes les deux : le défilement rend le contenu **atteignable**, il ne le
+rend pas **visible**.
+
+**Ajout demandé par Patrice** : un œil sur la saisie du code **et** sur sa confirmation. Il retombe à
+chaque étape — laisser le code révélé d'une saisie à l'autre l'afficherait en clair sur un écran
+qu'on peut lire par-dessus l'épaule.
+
+**Splash** : le portage affichait `ic_launcher_foreground`, la couche avant de l'icône adaptative —
+le même dessin, réduit d'un tiers par sa zone de sécurité et recadré. Il affiche désormais l'image
+exacte de l'application publiée.

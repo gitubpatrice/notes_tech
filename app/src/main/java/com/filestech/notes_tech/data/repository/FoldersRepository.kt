@@ -198,11 +198,27 @@ class FoldersRepository @Inject constructor(private val databases: DatabaseProvi
         // elle ne passe ni par le scellement, ni par la garde de déplacement des notes verrouillées.
         // Sans eux, cette méthode est le trou par lequel les deux invariants du coffre tombent.
         val folders = database.folderDao()
-        require(folders.isVault(destinationId) != true) {
-            "destination refusee : $destinationId est un coffre, les notes y entreraient EN CLAIR"
+
+        // ⚠️ **`== false` et non `!= true`**, et l'écart n'est pas cosmétique.
+        //
+        // `FolderDao.isVault` a trois réponses : oui, non, et `null` pour un dossier inconnu — dont
+        // son KDoc dit explicitement que l'appelant doit le traiter **comme un coffre**. Écrit
+        // `!= true`, le `null` satisfaisait le `require` : « je ne sais pas » passait pour « ce n'est
+        // pas un coffre », sur les deux gardes qui tiennent les deux invariants du coffre. C'est le
+        // repli qui échoue du mauvais côté, et `isVaultFolder` respecte la règle deux cents lignes
+        // plus haut, avec son `?: true`.
+        //
+        // On n'appelle pas `isVaultFolder` ici : il rouvrirait la base par `databases.get()` au
+        // milieu d'une transaction déjà ouverte. Le DAO local exprime la même règle sans ce détour.
+        //
+        // Le seul appelant actuel passe la boîte de réception, qui existe toujours : le trou n'est
+        // pas atteignable aujourd'hui. Il le redeviendrait au premier appelant dont la destination
+        // n'est pas garantie. Relevé par l'audit par motifs du 2026-08-15.
+        require(folders.isVault(destinationId) == false) {
+            "destination refusee : $destinationId est un coffre ou inconnu, les notes y entreraient EN CLAIR"
         }
-        require(folders.isVault(id) != true) {
-            "source refusee : $id est un coffre, ses notes chiffrees lui survivraient sans leur cle"
+        require(folders.isVault(id) == false) {
+            "source refusee : $id est un coffre ou inconnu, ses notes chiffrees lui survivraient sans leur cle"
         }
 
         val moved = database.noteWriteDao().reassignFolder(

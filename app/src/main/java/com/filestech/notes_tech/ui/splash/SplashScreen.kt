@@ -139,19 +139,29 @@ fun SplashScreen(onFinished: () -> Unit, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.Center,
         ) {
             Image(
-                // 🔴 `R.drawable.ic_launcher_foreground` et **surtout pas** `R.mipmap.ic_launcher`.
+                // 🔴 **L'image exacte de l'application publiée**, et ni l'icône adaptative, ni sa
+                // couche avant. Les trois sont différentes, et cet écran est une signature de marque.
                 //
-                // À partir de l'API 26, `ic_launcher` résout vers `mipmap-anydpi-v26/ic_launcher.xml`,
-                // qui est une icône **adaptative** — un conteneur `<adaptive-icon>`, pas une image.
-                // `painterResource` ne sait charger que du VectorDrawable ou du bitmap, et lève
+                // `ic_splash_logo.png` est la copie octet pour octet de `assets/icon/app_icon.png`
+                // (772 × 772), le fichier que la 2.0.3 affiche ici. Le portage montrait
+                // `ic_launcher_foreground`, c'est-à-dire la **couche avant de l'icône adaptative** :
+                // le même dessin, mais dessiné dans une zone de sécurité qui le réduit d'un tiers et
+                // le recadre. À l'écran, un logo plus petit et cadré autrement que sur les huit
+                // autres applications du portefeuille. Relevé par Patrice le 2026-08-15.
+                //
+                // ⚠️ **Et surtout pas `R.mipmap.ic_launcher`.** À partir de l'API 26, il résout vers
+                // `mipmap-anydpi-v26/ic_launcher.xml`, un conteneur `<adaptive-icon>` et non une
+                // image. `painterResource` ne charge que du VectorDrawable ou du bitmap, et lève
                 // `IllegalArgumentException: Only VectorDrawables and rasterized asset types are
-                // supported`. L'application se ferme au premier lancement, sur l'écran de
-                // présentation, donc **uniquement à la première installation**.
+                // supported` — l'application se ferme au premier lancement, donc **uniquement à la
+                // première installation**. Rien ne l'attrapait : ni la compilation, ni ktlint, ni
+                // detekt, ni `lintDebug`, ni les tests JVM ; et sur un appareil API 24 ou 25 il n'y
+                // a même pas de défaut, la résolution retombant sur le PNG. Trouvé en installant sur
+                // le S9, et la leçon vaut pour la ressource choisie ici.
                 //
-                // Rien ne l'attrapait : ni la compilation, ni ktlint, ni detekt, ni `lintDebug`,
-                // ni les 70 tests JVM. Sur un appareil API 24 ou 25 il n'y a même pas de défaut,
-                // puisque la résolution retombe sur le PNG. Trouvé en installant sur le S9.
-                painter = painterResource(R.drawable.ic_launcher_foreground),
+                // `drawable-nodpi` : le composable impose déjà la taille, la mise à l'échelle par
+                // densité ne ferait que dégrader une source de 772 px.
+                painter = painterResource(R.drawable.ic_splash_logo),
                 contentDescription = null,
                 modifier = Modifier
                     .size(tailleLogo)

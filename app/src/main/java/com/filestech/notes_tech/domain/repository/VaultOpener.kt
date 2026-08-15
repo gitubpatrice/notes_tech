@@ -15,11 +15,25 @@ import com.filestech.notes_tech.domain.model.Note
  * C'est la même règle que le DAO applique une couche plus bas, où `lockNote` et `unlockNote` sont
  * séparés pour que le déverrouillage exige d'appeler une méthode qui porte ce nom.
  *
- * ## L'unique appelant, et ce qu'il en fait
+ * ## ⚠️ Ce que cette séparation garantit — et ce qu'elle ne garantit PAS
  *
- * `NotesRepository.relocateLockedNote` — sortir une note d'un coffre, ou la faire passer d'un coffre
- * à un autre. Dans les deux cas il faut la clé d'origine : le blob ne se transporte pas tel quel,
- * chaque coffre ayant la sienne.
+ * Le seul appelant à passer par **ce type** est `NotesRepository.relocateLockedNote` : sortir une
+ * note d'un coffre, ou la faire passer d'un coffre à un autre. Dans les deux cas il faut la clé
+ * d'origine, le blob ne se transportant pas tel quel.
+ *
+ * 🔴 **Cela ne veut pas dire que c'est le seul code capable de déchiffrer**, et une première version
+ * de ce commentaire l'affirmait — à tort. Six classes injectent `FolderVaultService` **en entier**,
+ * dont l'éditeur et l'exporteur, qui appellent `decrypt` pour afficher et pour exporter. Ces usages
+ * sont légitimes et antérieurs : lire une note de coffre demande de la déchiffrer.
+ *
+ * Ce que la séparation garantit est plus étroit, et c'est déjà utile : **à la couture qui compte** —
+ * celle où la couche d'écriture rencontre les coffres — sceller et ouvrir sont deux dépendances
+ * distinctes. `NotesRepository` ne peut pas ouvrir par la dépendance qui scelle, ni l'inverse.
+ *
+ * ⚠️ Le corollaire, pour qui ajoutera un geste : `FolderVaultService.seal` est déjà à portée de six
+ * classes. L'appeler directement contournerait `NotesRepository.sealIfVault`, donc la post-condition
+ * qui vérifie que le scelleur a bien vidé le clair. **Sceller passe par le dépôt, jamais par le
+ * service.**
  *
  * L'interface existe pour la même raison que [VaultSealer] : casser le cycle entre le service de
  * coffres, qui dépend de la base, et la couche d'écriture, qui a besoin de lui.

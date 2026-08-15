@@ -378,6 +378,39 @@ class NotesRepositoryTest {
             .isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
     }
 
+    /**
+     * 🔴 **Effacer le contenu d'une note de coffre doit détruire le secret, pas l'ignorer.**
+     *
+     * Le défaut : `sealIfVault` sortait tôt quand la note ne portait plus de lisible — ce qui est le
+     * cas d'une note qu'on vient de **vider** — et `lockNote` réécrivait alors l'**ancien blob**.
+     * L'effacement était ignoré en silence, et le secret réapparaissait intact à la réouverture.
+     *
+     * Ce test lit le blob **à travers le coffre factice** : vérifier que la note est toujours
+     * verrouillée ne prouverait rien, puisqu'elle l'était déjà avec l'ancien chiffré.
+     *
+     * Relevé par une relecture externe (Gemini 3.1 Pro, 2026-08-15).
+     */
+    @Test
+    fun vider_une_note_de_coffre_rescelle_et_n_oublie_pas_l_effacement(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val note = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+            title = "Codes bancaires",
+            content = "Le code est 4242",
+        )
+        assertThat(coffre.decrypt(notes.find(note.id)!!).content).isEqualTo("Le code est 4242")
+
+        notes.saveEdits(note.id, title = "", content = "", tags = emptyList())
+
+        val relue = notes.find(note.id)!!
+        assertThat(relue.isLocked).isTrue()
+        val ouverte = coffre.decrypt(relue)
+        assertThat(ouverte.content).isEmpty()
+        assertThat(ouverte.title).isEmpty()
+    }
+
     // ── Sortir une note d'un coffre ──────────────────────────────────────────
     //
     // 🔴 `relocateLockedNote` est le seul geste qui retire la protection d'UNE note. Tout ce qui
@@ -704,18 +737,33 @@ class NotesRepositoryTest {
 
     /**
      * Même exigence pour un dossier inexistant : la transaction est annulée, pas seulement stérile.
+     *
+     * ⚠️ **Le refus vient maintenant de la garde de coffre, et c'est le durcissement du 2026-08-15.**
+     *
+     * `FolderDao.isVault` rend `null` pour un dossier inconnu, et son contrat dit de traiter ce cas
+     * **comme un coffre**. Les deux gardes lisaient `!= true`, ce qui laissait passer le `null` :
+     * « je ne sais pas » valait « ce n'est pas un coffre », sur les deux conditions qui empêchent
+     * des notes d'entrer en clair dans un coffre ou d'en sortir sans leur clé. Elles lisent
+     * désormais `== false`.
+     *
+     * La conséquence visible ici est le **type** de l'exception : le refus tombe plus tôt, sur un
+     * `require` et non plus sur le `check` de la suppression. Ce que le test garantit n'a pas
+     * changé — rien n'est modifié — et il garantit en plus, maintenant, que le doute ferme la garde
+     * au lieu de l'ouvrir. Relevé par l'audit par motifs du 2026-08-15.
      */
     @Test
     fun supprimer_un_dossier_inconnu_en_gardant_ses_notes_annule_tout(): Unit = runBlocking {
         val avant = notes.countInFolder(LegacyDatabaseFixture.Fixtures.FOLDER_WORK)
 
-        assertThrows(IllegalStateException::class.java) {
+        assertThrows(IllegalArgumentException::class.java) {
             runBlocking {
                 dossiers.deleteKeepingNotes("dossier-inconnu", LegacyDatabaseFixture.Fixtures.FOLDER_WORK)
             }
         }
 
         assertThat(notes.countInFolder(LegacyDatabaseFixture.Fixtures.FOLDER_WORK)).isEqualTo(avant)
+        // Le dossier de destination est intact : aucune note n'y a été réassignée avant le refus.
+        assertThat(dossiers.find(LegacyDatabaseFixture.Fixtures.FOLDER_WORK)).isNotNull()
     }
 
     /**

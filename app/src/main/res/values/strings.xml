@@ -363,6 +363,9 @@
     <string name="app_title">Notes Tech</string>
     <string name="passphrase_show_tooltip">Show passphrase</string>
     <string name="passphrase_hide_tooltip">Hide passphrase</string>
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Show PIN</string>
+    <string name="pin_hide_tooltip">Hide PIN</string>
     <string name="move_to_folder_title">Move to folder</string>
     <string name="move_to_folder_empty">No other folder available.</string>
     <string name="ai_chat_model_loaded">Model ready</string>

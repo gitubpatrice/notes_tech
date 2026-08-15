@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -128,6 +130,27 @@ private fun Modifier.contenuDeFeuilleDeCoffre(): Modifier = this
     .navigationBarsPadding()
     .verticalScroll(rememberScrollState())
 
+/**
+ * L'état d'une feuille de coffre : **ouverte entière, jamais à mi-hauteur**.
+ *
+ * ## 🔴 Ce que `skipPartiallyExpanded` répare, vu par Patrice sur le S9 le 2026-08-15
+ *
+ * Par défaut, `ModalBottomSheet` s'ouvre **à demi** et attend qu'on la tire vers le haut. Sur la
+ * feuille de code, le résultat était sans appel : **trois touches sur dix** étaient posées à
+ * l'écran, les six autres et le bouton de validation en dehors. Le pavé n'est pas un clavier
+ * système — il est dessiné dans l'application, donc rien ne pousse la feuille vers le haut comme le
+ * fait le clavier sur un champ texte. Elle restait là où elle s'était ouverte.
+ *
+ * Le défilement ajouté juste au-dessus rend le contenu **atteignable** ; il ne le rend pas
+ * **visible**. Ce sont deux questions différentes, et il fallait les deux : un pavé numérique dont
+ * il faut deviner qu'on peut le faire défiler pour voir le chiffre 7 n'est pas utilisable.
+ *
+ * Les deux feuilles à saisie ouvrent donc en pleine hauteur. Le défilement reste utile pour les
+ * petits écrans, où même la pleine hauteur ne suffit pas.
+ */
+@Composable
+private fun etatDeFeuilleDeCoffre() = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
 /** Le choix du mode, à la création d'un coffre. */
 @Composable
 fun ChooseVaultModeSheet(onDismiss: () -> Unit, onChosen: (VaultMode) -> Unit) {
@@ -190,7 +213,7 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
             viewModel.cancelAttempt()
             onDismiss()
         },
-        sheetState = rememberModalBottomSheetState(),
+        sheetState = etatDeFeuilleDeCoffre(),
     ) {
         Column(
             modifier = Modifier
@@ -388,7 +411,7 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
             viewModel.cancelAttempt()
             onDismiss()
         },
-        sheetState = rememberModalBottomSheetState(),
+        sheetState = etatDeFeuilleDeCoffre(),
     ) {
         Column(
             modifier = Modifier
@@ -415,7 +438,15 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
             }
             if (creating) BanniereDAvertissement(stringResource(R.string.vault_pin_warning_wipe))
 
-            PointsDeSaisie(saisi.length)
+            // 🔴 **La visibilité retombe à chaque étape, et ce n'est pas une commodité.**
+            //
+            // `saisi` est vidé entre la première saisie et sa confirmation, et après chaque
+            // tentative. Laisser l'œil ouvert d'une étape à l'autre afficherait en clair, sur un
+            // écran qu'on peut lire par-dessus l'épaule, un code que l'utilisateur avait révélé
+            // pour une saisie précédente. La clé du `remember` est donc l'étape elle-même.
+            var codeVisible by remember(enConfirmation, state.attempt) { mutableStateOf(false) }
+
+            PointsDeSaisie(saisi = saisi, visible = codeVisible, onBasculer = { codeVisible = !codeVisible })
 
             MessageDEtat(erreurLocale ?: messageDeTentative(state.attempt), busy = state.busy)
 
@@ -572,19 +603,47 @@ private fun MessageDEtat(message: String?, busy: Boolean) {
 }
 
 @Composable
-private fun PointsDeSaisie(saisis: Int) {
+private fun PointsDeSaisie(saisi: String, visible: Boolean, onBasculer: () -> Unit) {
     val couleurs = MaterialTheme.colorScheme
-    val annonce = stringResource(R.string.vault_pin_digits_announce, saisis, VaultParams.PIN_MAX_LENGTH)
+    val annonce = stringResource(R.string.vault_pin_digits_announce, saisi.length, VaultParams.PIN_MAX_LENGTH)
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(vertical = 8.dp).semantics { contentDescription = annonce },
+        modifier = Modifier.padding(vertical = 8.dp),
     ) {
-        repeat(VaultParams.PIN_MAX_LENGTH) { index ->
-            Surface(
-                modifier = Modifier.size(14.dp).clip(CircleShape).clearAndSetSemantics { },
-                shape = CircleShape,
-                color = if (index < saisis) couleurs.primary else couleurs.surfaceContainerHighest,
-            ) {}
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.semantics { contentDescription = annonce },
+        ) {
+            repeat(VaultParams.PIN_MAX_LENGTH) { index ->
+                val chiffre = saisi.getOrNull(index)
+                if (visible && chiffre != null) {
+                    // ⚠️ Même largeur qu'une pastille : sans cela, la rangée change de longueur au
+                    // basculement et le pavé numérique sautille sous les doigts.
+                    Text(
+                        text = chiffre.toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center,
+                        color = couleurs.primary,
+                        modifier = Modifier.width(14.dp).clearAndSetSemantics { },
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.size(14.dp).clip(CircleShape).clearAndSetSemantics { },
+                        shape = CircleShape,
+                        color = if (index < saisi.length) couleurs.primary else couleurs.surfaceContainerHighest,
+                    ) {}
+                }
+            }
+        }
+        IconButton(onClick = onBasculer) {
+            Icon(
+                imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                contentDescription = stringResource(
+                    if (visible) R.string.pin_hide_tooltip else R.string.pin_show_tooltip,
+                ),
+            )
         }
     }
 }

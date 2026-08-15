@@ -127,6 +127,55 @@ fun FolderNameDialog(
 }
 
 /**
+ * La confirmation avant de **retirer la protection d'un coffre entier**.
+ *
+ * ## 🔴 Ce dialogue n'existait pas, et son absence était une régression
+ *
+ * Ses trois chaînes (`folder_remove_vault_title/body/confirm`) étaient traduites dans les deux
+ * langues et **référencées nulle part** — le signal exact qui avait déjà révélé le manque « sortir
+ * une note d'un coffre ». L'application publiée, elle, pose bien cette question
+ * (`folders_drawer.dart:545-571`) : le dialogue avait été oublié en portant, pas les mots.
+ *
+ * ⚠️ **C'est le geste le plus destructeur du portefeuille de coffres** : il déchiffre **toutes** les
+ * notes du dossier et écrit leur clair au repos. Il partageait, dans un menu à cinq entrées, la même
+ * teinte rouge que « Verrouiller maintenant » — deux entrées voisines, l'une qui protège, l'autre
+ * qui déprotège définitivement, et aucune des deux ne demandait rien.
+ *
+ * Le jumeau de ce geste, `ConfirmDeleteFolderDialog` juste en dessous, avait reçu ce soin ; celui-ci
+ * passe par un chemin différent (`FolderAction.REMOVE_VAULT_PROTECTION`) et ne l'avait jamais reçu.
+ * Jumeau asymétrique, relevé par l'audit par motifs du 2026-08-15.
+ *
+ * Même disposition que [ConfirmDeleteFolderDialog] et que le dialogue de sortie d'une note :
+ * l'action destructrice est le bouton discret en rouge, « Annuler » celui qu'on touche par réflexe.
+ */
+@Composable
+fun ConfirmRemoveVaultProtectionDialog(folder: Folder, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Outlined.LockOpen,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        title = { Text(stringResource(R.string.folder_remove_vault_title)) },
+        text = { Text(stringResource(R.string.folder_remove_vault_body, folder.name)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(R.string.folder_remove_vault_confirm),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
+    )
+}
+
+/**
  * La confirmation de suppression d'un dossier.
  *
  * ## 🔴 Pour un coffre, l'option « déplacer » est la plus destructrice pour la confidentialité

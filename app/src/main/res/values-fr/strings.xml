@@ -360,6 +360,9 @@
     <string name="app_title">Notes Tech</string>
     <string name="passphrase_show_tooltip">Afficher la passphrase</string>
     <string name="passphrase_hide_tooltip">Masquer la passphrase</string>
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Afficher le code</string>
+    <string name="pin_hide_tooltip">Masquer le code</string>
     <string name="move_to_folder_title">Déplacer dans un dossier</string>
     <string name="move_to_folder_empty">Aucun autre dossier disponible.</string>
     <string name="ai_chat_model_loaded">Modèle prêt</string>

@@ -129,8 +129,13 @@ object DatabaseModule {
      * L'ouvreur de coffres — le même service, par un **contrat distinct**.
      *
      * Deux liaisons plutôt qu'une, alors qu'elles rendent le même objet : sceller et ouvrir ne sont
-     * pas symétriques. Une dépendance à `VaultSealer` ne doit pas donner, en prime, la capacité de
-     * déchiffrer. Le seul appelant de celle-ci est `NotesRepository.relocateLockedNote`.
+     * pas symétriques, et à la couture entre la couche d'écriture et les coffres, une dépendance à
+     * `VaultSealer` ne doit pas donner en prime la capacité de déchiffrer.
+     *
+     * ⚠️ **La portée exacte est écrite sur [VaultOpener], et elle est plus étroite qu'il n'y paraît**
+     * : six autres classes injectent `FolderVaultService` en entier et déchiffrent légitimement pour
+     * afficher ou exporter. Ces liaisons disciplinent une couture, elles ne réduisent pas la surface
+     * globale.
      */
     @Provides
     @Singleton

@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -402,6 +403,24 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun deplacerVers(folderId: String, sortieDeCoffreConfirmee: Boolean = false) =
         tenterUneAction(ActionDEditeur.OrigineDErreur.DEPLACEMENT) {
+            // 🔴🔴 **Vider la sauvegarde en attente AVANT de décider quoi que ce soit.**
+            //
+            // L'enregistrement est freiné à 500 ms. Pendant cette fenêtre, la note en base peut être
+            // en retard d'un état entier sur ce que l'utilisateur a sous les yeux — et le cas qui
+            // compte est celui-ci : une note **créée dans un coffre** naît vide, donc non scellée.
+            // Taper « code : 4242 » puis toucher « déplacer » dans la demi-seconde présentait une
+            // note que la base croit encore vide et en clair. Aucune confirmation de sortie n'était
+            // due, et la note quittait le coffre sans que la question soit posée.
+            //
+            // C'est ce que fait l'application publiée au même endroit (« Flush avant la mutation »),
+            // et c'est déjà ce que fait l'export deux fonctions plus bas. Le déplacement était le
+            // jumeau qui ne le faisait pas.
+            enregistrer()
+            val apresEnregistrement = _state.value
+            if (apresEnregistrement.saveFailed || apresEnregistrement.lostToVaultLock) {
+                error("enregistrement prealable echoue")
+            }
+
             // ⚠️ **Relire la note, ne pas croire l'état.** L'écran décide d'afficher la confirmation sur
             // `state.note`, qui peut avoir été scellée depuis — une note créée vide dans un coffre l'est
             // au premier caractère. L'état est tenu à jour par `enregistrer`, mais une garde qui dépend
@@ -502,6 +521,19 @@ class NoteEditorViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.w(e, "action de menu sur $noteId")
                 _action.value = ActionDEditeur(erreur = e.message ?: e::class.java.simpleName, origine = origine)
+            } finally {
+                // 🔴 **Sans ce retour à zéro, un menu entier devient inerte, définitivement et en
+                // silence.**
+                //
+                // La garde du dessus refuse toute action tant que `enCours` est vrai. Un bloc qui se
+                // termine **sans poser d'issue** — un `return@tenterUneAction` anticipé, typiquement
+                // parce que la note a disparu pendant l'édition, ce que le dépôt traite en cas
+                // nominal — laissait donc l'indicateur levé pour la durée de vie de l'écran. Plus
+                // aucune entrée du menu ne répondait, et rien ne le disait.
+                //
+                // La condition est nécessaire : un bloc qui a réussi a déjà posé son issue, dont
+                // `enCours` vaut faux. On ne remet à zéro que ce que personne n'a rempli.
+                if (_action.value.enCours) _action.value = ActionDEditeur()
             }
         }
     }
@@ -546,9 +578,38 @@ class NoteEditorViewModel @Inject constructor(
         programmerLaSauvegarde()
     }
 
-    fun setPinned(pinned: Boolean) = enArrierePlan { notes.setPinned(noteId, pinned) }
+    /**
+     * 🔴 **L'état recopie le drapeau écrit — sans quoi l'icône se fige au premier appui.**
+     *
+     * Rien ici n'observe la note en continu : `state.note` n'est réécrit que par le chargement, par
+     * l'enregistrement et par le déplacement. Écrire en base sans le recopier laissait donc
+     * `note.pinned` à sa valeur de chargement, et l'écran calcule l'appui suivant à partir d'elle :
+     * `setPinned(!note.pinned)` renvoyait **la même valeur**. L'icône ne changeait pas, et il
+     * devenait impossible de désépingler depuis l'éditeur.
+     *
+     * C'est le motif corrigé le même jour sur `note.isLocked`, sur les deux champs voisins qui
+     * l'avaient échappé — un champ posé une fois et relu plus tard comme s'il était frais. Relevé
+     * par l'audit par motifs du 2026-08-15.
+     *
+     * ⚠️ La recopie est faite **après** l'écriture, dans le même bloc : si le dépôt échoue,
+     * [enArrierePlan] saute la ligne et l'état reste celui de la base.
+     *
+     * ⚠️⚠️ **`update` et non `value = value.copy(...)`**, seul endroit du fichier où l'écart compte.
+     * Lire l'état puis le réécrire laisse une fenêtre pendant laquelle un enregistrement peut avoir
+     * posé une note **plus fraîche** — scellée, par exemple. L'écraser avec la précédente et un
+     * drapeau à jour ressusciterait exactement la péremption de `note.isLocked` corrigée ce jour-là,
+     * par le geste le plus anodin de l'écran. `update` boucle jusqu'à écrire sur ce qu'il a lu.
+     */
+    fun setPinned(pinned: Boolean) = enArrierePlan {
+        notes.setPinned(noteId, pinned)
+        _state.update { etat -> etat.copy(note = etat.note?.copy(pinned = pinned)) }
+    }
 
-    fun setFavorite(favorite: Boolean) = enArrierePlan { notes.setFavorite(noteId, favorite) }
+    /** Le jumeau de [setPinned], et il porte la même recopie pour la même raison. */
+    fun setFavorite(favorite: Boolean) = enArrierePlan {
+        notes.setFavorite(noteId, favorite)
+        _state.update { etat -> etat.copy(note = etat.note?.copy(favorite = favorite)) }
+    }
 
     /**
      * 🔴 **Passe par [tenterUneAction], comme ses deux voisines du même menu.**

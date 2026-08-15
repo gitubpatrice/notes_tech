@@ -387,8 +387,16 @@ class NotesRepository @Inject constructor(
                 // écritures pour un seul geste, dont l'une serait aussitôt écrasée.
                 updatedAt = null,
             )
-            database.linkWriter.deleteLinksOf(id)
-            database.linkWriter.unresolveByMismatch(noteId = id, newTitleNorm = "")
+            // ⚠️ Les deux **aides**, et non les deux écritures à la main qu'elles produisent.
+            //
+            // Le résultat est identique — `reindexLinks` d'une note verrouillée efface ses liens,
+            // `resolveIncoming` d'une note verrouillée force la clé de titre à vide — mais l'écrire
+            // à la main créait un troisième site portant la même règle. Le prochain correctif de
+            // l'indexation aurait corrigé les deux aides et laissé celui-ci en arrière.
+            //
+            // Relevé par l'audit de cohérence du 2026-08-15, sans conséquence fonctionnelle.
+            reindexLinks(database, relocated)
+            resolveIncoming(database, relocated)
         }
         database.noteWriteDao().moveToFolder(id = id, folderId = folderId, updatedAt = clock.millis()) > 0
     }
@@ -411,6 +419,30 @@ class NotesRepository @Inject constructor(
      * Un plantage au mauvais moment le figerait sur le disque, sous un cadenas qui ne protège plus
      * rien. La transaction rend cet instant inobservable, et son échec rend la note à son état
      * scellé d'origine.
+     *
+     * ## ⚠️ L'état intermédiaire dans la transaction : analysé, assumé, et le correctif proposé REFUSÉ
+     *
+     * Une relecture externe (GPT-5.2, 2026-08-15) note à juste titre que l'écriture du clair précède
+     * le déplacement de la ligne : pendant la transaction, `content` est lisible alors que
+     * `folder_id` désigne encore le coffre. Le constat est exact. La conclusion qu'il en tire ne
+     * l'est pas, et son remède serait une régression :
+     *
+     * - Le fichier de base **et son journal WAL** sont chiffrés par SQLCipher. Un résidu n'est donc
+     *   pas « du clair au repos » : il est sous la même couche que tout le reste de la base.
+     * - L'utilisateur vient de **consentir explicitement** à ce que ce contenu devienne lisible.
+     *   L'état final est celui qu'il a demandé ; l'état intermédiaire ne l'expose à rien de plus.
+     * - Le seul écart réel est un échec de transaction : la note reste scellée logiquement alors
+     *   qu'une image de son clair peut subsister dans le WAL jusqu'à recyclage. Fenêtre étroite,
+     *   sous SQLCipher, sur une donnée que l'utilisateur voulait déchiffrer.
+     * - 🔴 **Le remède proposé — un `UPDATE` unique portant `folder_id`, `content`, `title`,
+     *   `encrypted_content` et `enc_v` — est exactement l'écriture de ligne large que le DAO
+     *   interdit**, et dont l'absence est l'invariant le plus important de cette couche : c'est ce
+     *   type d'écriture qui a détruit la protection d'une note dans l'application publiée. Il
+     *   n'effacerait même pas le résidu qu'il prétend viser, le WAL contenant de toute façon la
+     *   page réécrite.
+     *
+     * Réordonner n'aide pas davantage : déplacer d'abord produirait la faute symétrique, un blob de
+     * la clé d'origine dans un dossier qui n'est plus le sien.
      *
      * ## ⚠️ L'ouvreur est VÉRIFIÉ, comme le scelleur l'est dans [sealIfVault]
      *
@@ -501,15 +533,38 @@ class NotesRepository @Inject constructor(
     }
 
     /**
-     * Chiffre la note si son dossier est un coffre et qu'elle porte encore du lisible.
+     * Chiffre la note si son dossier est un coffre et qu'il y a une raison de le faire.
      *
      * ⚠️ **La présence d'un blob ne suffit pas à conclure que tout est protégé**, et c'était le trou
      * de la version publiée : elle sortait dès qu'un chiffré existait, donc une note portant un blob
      * **et** du clair ajouté à côté traversait toutes les défenses. Relevé en critique par une
      * relecture externe, sur le correctif lui-même.
+     *
+     * ## 🔴🔴 Deux raisons de sceller, et n'en voir qu'une PERDAIT un effacement
+     *
+     * La première est la confidentialité : la note porte du lisible. La seconde est l'exactitude :
+     * **la note porte déjà un blob**, et pour elle ce blob *est* le contenu — le laisser tel quel
+     * revient à ignorer l'écriture en cours.
+     *
+     * Ne tester que la première produisait ceci, mesuré sur le chemin réel : l'utilisateur ouvre une
+     * note de coffre, **efface tout** pour détruire un secret, l'enregistrement se déclenche. La note
+     * n'a alors plus ni titre ni contenu lisibles — donc « rien à protéger » — donc pas de
+     * scellement, donc `lockNote` réécrivait **l'ancien blob**. L'effacement était ignoré en silence,
+     * et le secret réapparaissait intact à la réouverture.
+     *
+     * Une note vide **jamais scellée** reste, elle, hors du chiffrement : c'est le cas d'une note
+     * qu'on vient de créer dans un coffre avant d'avoir tapé quoi que ce soit, et c'est la parité
+     * avec l'application publiée.
+     *
+     * ⚠️ Effet de bord voulu : vider une note de coffre dont la session s'est refermée **échoue**
+     * désormais bruyamment au lieu de « réussir » sans rien changer. C'est la vérité — l'effacement
+     * n'a pas eu lieu — et l'éditeur sait déjà le dire (`signalerLaPerte`).
+     *
+     * Relevé CONFIRMÉ par une relecture externe (Gemini 3.1 Pro, 2026-08-15), vérifié ligne à ligne
+     * avant correction.
      */
     private suspend fun sealIfVault(note: Note): Note {
-        if (!carriesPlaintext(note)) return note
+        if (!carriesPlaintext(note) && !note.isLocked) return note
         if (!folders.isVaultFolder(note.folderId)) return note
 
         val sealed = sealer.seal(note)

@@ -21,6 +21,7 @@ import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
+import com.filestech.notes_tech.ui.folders.ConfirmRemoveVaultProtectionDialog
 import com.filestech.notes_tech.ui.folders.FolderAction
 import com.filestech.notes_tech.ui.folders.FolderActionSheet
 import com.filestech.notes_tech.ui.folders.FolderDeletionChoice
@@ -61,6 +62,16 @@ fun HomeRoute(
     var dossierEnMenu by remember { mutableStateOf<Folder?>(null) }
     var dossierARenommer by remember { mutableStateOf<Folder?>(null) }
     var dossierASupprimer by remember { mutableStateOf<Folder?>(null) }
+    var dossierADeproteger by remember { mutableStateOf<Folder?>(null) }
+
+    /**
+     * Le dossier dont la déprotection a été **confirmée** et n'attend plus que le secret.
+     *
+     * ⚠️ Sans ce report, l'utilisateur confirmait le geste le plus destructeur de l'application,
+     * saisissait sa phrase secrète… et il ne se passait rien. Un geste accepté puis abandonné en
+     * silence, ce que ce dépôt refuse partout ailleurs.
+     */
+    var deprotectionEnAttente by remember { mutableStateOf<String?>(null) }
     var creationDeDossier by remember { mutableStateOf(false) }
     var dossierAOuvrir by remember { mutableStateOf<Folder?>(null) }
     var dossierAProteger by remember { mutableStateOf<Folder?>(null) }
@@ -145,14 +156,14 @@ fun HomeRoute(
                     FolderAction.RENAME -> dossierARenommer = dossier
                     FolderAction.CONVERT_TO_VAULT -> dossierAProteger = dossier
                     FolderAction.LOCK_NOW -> foldersViewModel.lockNow(dossier.id)
-                    FolderAction.REMOVE_VAULT_PROTECTION ->
-                        // ⚠️ Le retrait de protection exige la session ouverte : sans elle, aucune
-                        // note ne peut être déchiffrée. On ouvre d'abord, on retire ensuite.
-                        if (dossier.id in foldersState.unlockedFolderIds) {
-                            foldersViewModel.removeVaultProtection(dossier.id)
-                        } else {
-                            dossierAOuvrir = dossier
-                        }
+                    // 🔴 **On demande AVANT de regarder la session, pas après.**
+                    //
+                    // La question posée est « voulez-vous déchiffrer tout ce dossier ? » ; elle ne
+                    // dépend pas de l'état de la session. Vérifier d'abord et confirmer ensuite
+                    // ferait apparaître une demande de secret pour un geste que l'utilisateur n'a
+                    // pas encore accepté — et, sur un coffre déjà ouvert, ne demanderait rien du
+                    // tout, ce qui était le défaut.
+                    FolderAction.REMOVE_VAULT_PROTECTION -> dossierADeproteger = dossier
 
                     FolderAction.DELETE -> dossierASupprimer = dossier
                 }
@@ -206,11 +217,46 @@ fun HomeRoute(
         )
     }
 
+    dossierADeproteger?.let { dossier ->
+        ConfirmRemoveVaultProtectionDialog(
+            folder = dossier,
+            onDismiss = { dossierADeproteger = null },
+            onConfirm = {
+                dossierADeproteger = null
+                // ⚠️ **La session se relit ICI**, après la confirmation, jamais avant.
+                //
+                // Le dialogue prend le temps qu'il prend, et le verrouillage automatique peut
+                // tomber pendant ce temps-là. Une décision prise à l'ouverture du dialogue serait
+                // périmée à sa fermeture — c'est le même motif que l'état d'écran périmé de
+                // l'éditeur, à une échelle où il coûterait un dossier entier.
+                if (dossier.id in foldersState.unlockedFolderIds) {
+                    foldersViewModel.removeVaultProtection(dossier.id)
+                } else {
+                    deprotectionEnAttente = dossier.id
+                    dossierAOuvrir = dossier
+                }
+            },
+        )
+    }
+
     dossierAOuvrir?.let { dossier ->
         UnlockVaultSheet(
             folder = dossier,
-            onDismiss = { dossierAOuvrir = null },
-            onUnlocked = { dossierAOuvrir = null },
+            onDismiss = {
+                dossierAOuvrir = null
+                // Renoncer au secret, c'est renoncer au geste : la déprotection en attente tombe
+                // avec la feuille. La laisser armée la ferait partir au prochain déverrouillage,
+                // pour une tout autre raison.
+                deprotectionEnAttente = null
+            },
+            onUnlocked = {
+                dossierAOuvrir = null
+                // ⚠️ Comparer l'identifiant, pas se contenter d'un booléen : la feuille peut avoir
+                // été ouverte pour un autre dossier que celui dont la déprotection est en attente.
+                val aDeproteger = deprotectionEnAttente
+                deprotectionEnAttente = null
+                if (aDeproteger == dossier.id) foldersViewModel.removeVaultProtection(dossier.id)
+            },
         )
     }
 
