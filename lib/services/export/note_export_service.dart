@@ -206,7 +206,7 @@ class NoteExportService {
     //    car on a déjà strippé les `/` plus haut.
     if (clean == '.' || clean == '..') clean = '';
     // 6. Garde-fou noms réservés Windows (case-insensitive).
-    if (clean.isEmpty || _kWindowsReserved.contains(clean.toUpperCase())) {
+    if (clean.isEmpty || _isWindowsReserved(clean)) {
       clean = 'note-${fallbackId.replaceAll('-', '').substring(0, 8)}';
     }
     if (unlockedVaultSuffix) {
@@ -421,13 +421,36 @@ class NoteExportService {
     // chez les destinataires utilisant un dézippeur naïf (ZipSlip).
     clean = clean.replaceAll(_bidiPattern, '');
     clean = clean.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (clean.isEmpty ||
-        clean == '.' ||
-        clean == '..' ||
-        _kWindowsReserved.contains(clean.toUpperCase())) {
+    // `trimRight` sur les points et espaces : couvre `.` et `..`, mais aussi
+    // `...` et `. `, que Windows refuse tout autant comme nom de dossier.
+    if (_stripTrailingDotsAndSpaces(clean).isEmpty || _isWindowsReserved(clean)) {
       clean = 'sans-dossier';
     }
     return clean;
+  }
+
+  /// Un nom de périphérique reste réservé sous Windows **quelle que soit son
+  /// extension** : `CON`, `CON.txt` et `CON.` désignent tous le même
+  /// périphérique et ne peuvent être créés ni comme fichier ni comme dossier.
+  /// Windows ignore par ailleurs les points et espaces **finaux** d'un nom
+  /// avant de le résoudre.
+  ///
+  /// Les deux appelants testaient l'égalité stricte avec [_kWindowsReserved],
+  /// si bien qu'une note titrée `CON.txt` produisait `CON.txt.md` : l'archive
+  /// devenait inextractible **en entier** chez un destinataire Windows, et pas
+  /// seulement ce fichier-là. Relevé le 2026-08-15 pendant le portage Kotlin,
+  /// par une relecture externe ; le portage porte le même correctif.
+  static bool _isWindowsReserved(String name) {
+    final base = _stripTrailingDotsAndSpaces(name).split('.').first;
+    return _kWindowsReserved.contains(base.toUpperCase());
+  }
+
+  static String _stripTrailingDotsAndSpaces(String name) {
+    var end = name.length;
+    while (end > 0 && (name[end - 1] == '.' || name[end - 1] == ' ')) {
+      end--;
+    }
+    return name.substring(0, end);
   }
 
   String _disambiguate(Map<String, int> used, String path) {
