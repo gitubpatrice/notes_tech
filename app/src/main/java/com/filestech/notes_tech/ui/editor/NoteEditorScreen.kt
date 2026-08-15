@@ -3,8 +3,10 @@ package com.filestech.notes_tech.ui.editor
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -49,9 +51,23 @@ import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
  * non à un formulaire — c'est la mise en page de la version publiée.
  */
 @Composable
-fun NoteEditorRoute(onBack: () -> Unit) {
+fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val viewModel: NoteEditorViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val liens by viewModel.liens.collectAsStateWithLifecycle()
+
+    // ⚠️ **Pas de vidage explicite avant de naviguer**, contrairement à l'application publiée qui
+    // appelle `_flushSave()` dans `_openLinkedNote`. Ici, ouvrir une note empile une entrée et
+    // **dispose** ce composable-ci : le `DisposableEffect` ci-dessous déclenche l'enregistrement, sur
+    // la portée applicative et sous `NonCancellable`, donc il aboutit quoi qu'il arrive ensuite.
+    // Ajouter un second appel ne ferait que dupliquer un geste que la comparaison de texte rendrait
+    // sans effet — et ferait croire, à la relecture, que le premier chemin ne suffit pas.
+    val ouvrirUneAutreNote: (String) -> Unit = { cible ->
+        // Une note qui se cite elle-même ne s'ouvre pas par-dessus elle-même. Le cas ne devrait pas
+        // remonter — l'indexation annule le lien d'une note vers elle-même — mais la garde coûte une
+        // ligne et l'empilement qu'elle évite serait déroutant.
+        if (cible != state.note?.id) onOpenNote(cible)
+    }
 
     // ⚠️ Le contenu déchiffré d'une note de coffre est à l'écran, en clair, pendant tout le temps
     // où on la lit. Le drapeau est donc forcé pour cet écran-là, même si le réglage est désactivé —
@@ -167,8 +183,18 @@ fun NoteEditorRoute(onBack: () -> Unit) {
                         placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
                         textStyle = MaterialTheme.typography.bodyLarge,
                         colors = champSansDecor(),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 48.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
+                    // ⚠️ Le panneau est DANS la colonne défilante : il ne doit donc porter aucun
+                    // défilement propre. Cf. son KDoc — c'est la configuration qui a fait planter
+                    // l'écran de fin du mode panique.
+                    LiensDeLaNote(
+                        liens = liens,
+                        onOuvrirNote = ouvrirUneAutreNote,
+                        onLienFantome = { /* la création arrive avec l'autocomplétion */ },
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                    Spacer(Modifier.height(48.dp))
                 }
             }
         }

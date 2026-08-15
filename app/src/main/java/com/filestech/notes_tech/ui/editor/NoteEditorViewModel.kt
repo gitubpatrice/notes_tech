@@ -4,8 +4,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filestech.notes_tech.data.local.dao.NoteLinkRow
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.repository.FoldersRepository
+import com.filestech.notes_tech.data.repository.LinksRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.model.Folder
@@ -17,12 +19,20 @@ import com.filestech.notes_tech.ui.navigation.Destination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -72,6 +82,22 @@ data class EditorUiState(
 }
 
 /**
+ * Ce que le panneau de liens a besoin de montrer.
+ *
+ * ⚠️ Les deux listes sont vides tant que rien n'a été lu, et le panneau **disparaît** dans ce cas
+ * plutôt que d'afficher deux sections creuses. C'est le comportement de l'application publiée, et
+ * c'est aussi le bon : une note sans lien ne doit pas payer de place à l'écran pour le dire.
+ */
+data class PanneauDeLiens(
+    /** Les liens **partant** de la note, résolus comme fantômes, dans l'ordre du texte. */
+    val sortants: List<NoteLinkRow> = emptyList(),
+    /** Les notes qui **mentionnent** celle-ci. */
+    val mentions: List<Note> = emptyList(),
+) {
+    val estVide: Boolean get() = sortants.isEmpty() && mentions.isEmpty()
+}
+
+/**
  * L'éditeur d'une note.
  *
  * ## 🔴 Le clair ne vit qu'ici, et il ne redescend jamais tel quel
@@ -90,6 +116,7 @@ data class EditorUiState(
 @HiltViewModel
 class NoteEditorViewModel @Inject constructor(
     private val notes: NotesRepository,
+    private val links: LinksRepository,
     private val folders: FoldersRepository,
     private val vaults: FolderVaultService,
     private val settings: AppSettings,
@@ -117,6 +144,53 @@ class NoteEditorViewModel @Inject constructor(
      * garantissait que la finale s'execute, pas qu'elle s'execute EN DERNIER.
      */
     private val ecriture = Mutex()
+
+    /**
+     * Les liens de la note, relus par la base à chaque changement.
+     *
+     * ## ⚠️⚠️ La clé de réabonnement n'est PAS l'état entier
+     *
+     * `_state` change à **chaque frappe**. Un `flatMapLatest` posé dessus rouvrirait deux curseurs
+     * SQLCipher par caractère tapé. La clé est donc réduite à ce dont les deux requêtes dépendent
+     * réellement : l'identifiant de la note, son titre — qui sert d'appariement aux liens fantômes —
+     * et son état de verrouillage.
+     *
+     * ⚠️ Ce titre est celui de l'**entité persistée**, pas celui du champ de saisie : les liens
+     * fantômes ne s'accrochent qu'après un enregistrement, jamais pendant la frappe. C'est aussi ce
+     * que fait l'application publiée, qui compare `widget.note.title`.
+     *
+     * ## Confidentialité — vérifié, pas supposé
+     *
+     * Une note de coffre verrouillé ne peut apparaître ni comme cible ni comme source : les liens
+     * sortants d'une note scellée sont **supprimés** à l'indexation (`NotesRepository.reindexLinks`),
+     * `titlesForLinking()` filtre sur `encrypted_content IS NULL`, et `observeBacklinks` court-
+     * circuite sur `isLocked`. Les trois chemins ont été relus le 2026-08-15 avant d'afficher quoi
+     * que ce soit ici.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val liens: StateFlow<PanneauDeLiens> = _state
+        .map { it.note }
+        .distinctUntilChanged { ancienne, nouvelle ->
+            ancienne?.id == nouvelle?.id &&
+                ancienne?.title == nouvelle?.title &&
+                ancienne?.isLocked == nouvelle?.isLocked
+        }
+        .flatMapLatest { note ->
+            if (note == null) {
+                flowOf(PanneauDeLiens())
+            } else {
+                combine(links.observeOutgoing(note.id), links.observeBacklinks(note)) { sortants, mentions ->
+                    PanneauDeLiens(sortants = sortants, mentions = mentions)
+                }
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            // `WhileSubscribed(5 s)` et non `Eagerly`, pour la même raison qu'à l'accueil : sans
+            // abonné, ces flux garderaient des curseurs ouverts sur une base chiffrée.
+            started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
+            initialValue = PanneauDeLiens(),
+        )
 
     init {
         charger()
@@ -332,5 +406,8 @@ class NoteEditorViewModel @Inject constructor(
     private companion object {
         /** `AppConstants.autoSaveDebounce` — le même demi-seconde que la version publiée. */
         const val DELAI_AUTO_SAVE_MILLIS = 500L
+
+        /** Aligne sur l'accueil : les curseurs se ferment 5 s apres le dernier abonne. */
+        const val ARRET_ABONNEMENT_MILLIS = 5_000L
     }
 }

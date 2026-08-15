@@ -42,7 +42,12 @@ fun NotesTechNavHost(navController: NavHostController) {
             // L'identifiant n'est pas relu ici : `SavedStateHandle` le remet au ViewModel, qui est
             // le seul à en avoir besoin. Le faire transiter par le composable ajouterait un second
             // chemin pour la même valeur.
-            NoteEditorRoute(onBack = { navController.popBackStack() })
+            NoteEditorRoute(
+                onBack = { navController.popBackStack() },
+                // Ouvrir une note liée **empile** une entrée, comme l'application publiée : le
+                // chemin parcouru se remonte lien par lien avec le bouton retour.
+                onOpenNote = { navController.navigate(Destination.Editor(it).route) },
+            )
         }
 
         composable(Destination.Search.route) {
