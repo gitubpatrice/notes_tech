@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.editor
 
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,7 +35,21 @@ data class EditorUiState(
     val loading: Boolean = true,
     val notFound: Boolean = false,
     val title: String = "",
-    val content: String = "",
+    /**
+     * Le contenu **et la position du curseur**, dans un seul porteur.
+     *
+     * ⚠️ Une `String` ne suffisait pas : insérer un `[[Titre]]` là où l'utilisateur écrit demande de
+     * savoir où il écrit, et rien dans l'état ne le disait. Garder la sélection à l'écran, dans un
+     * `remember`, et ne remonter que le texte est le montage qui fait sauter le curseur — deux
+     * sources de vérité pour un même champ finissent toujours par diverger, et ici le symptôme est
+     * un curseur qui revient au début à chaque frappe.
+     *
+     * ⚠️ **Comparer ce champ pour décider d'enregistrer serait un piège** : un simple déplacement du
+     * curseur produit une nouvelle valeur avec le même texte. Toute comparaison porte sur
+     * [TextFieldValue.text], jamais sur la valeur entière — cf. [originalContent], qui reste une
+     * `String` exprès.
+     */
+    val content: TextFieldValue = TextFieldValue(),
     val note: Note? = null,
     val folder: Folder? = null,
     val lockedVault: Folder? = null,
@@ -112,8 +127,34 @@ class NoteEditorViewModel @Inject constructor(
         programmerLaSauvegarde()
     }
 
-    fun onContentChange(value: String) {
+    /**
+     * ⚠️⚠️ **L'enregistrement n'est programmé que si le TEXTE a changé.**
+     *
+     * Depuis que le champ porte aussi la sélection, ce rappel se déclenche sur un simple déplacement
+     * du curseur — un appui dans le texte, un glissement de sélection, un aller-retour de clavier. En
+     * programmant à chaque fois, on **repousse** l'enregistrement en attente : quelqu'un qui tape une
+     * phrase puis déplace lentement son curseur peut retarder indéfiniment l'écriture du texte qu'il
+     * vient de taper, et le perdre si le coffre se referme entre-temps.
+     *
+     * Le garde de [enregistrer] ne suffit pas à couvrir ça : il empêche l'écriture inutile, pas le
+     * report de l'écriture utile.
+     */
+    fun onContentChange(value: TextFieldValue) {
+        val texteAChange = value.text != _state.value.content.text
         _state.value = _state.value.copy(content = value)
+        if (texteAChange) programmerLaSauvegarde()
+    }
+
+    /**
+     * Insère [fragment] à l'endroit où l'utilisateur écrit, et programme l'enregistrement.
+     *
+     * La mécanique du remplacement vit dans [InsertionDeTexte], à part et testée : c'est la seule
+     * partie qui puisse se tromper d'un caractère sans que rien ne le montre.
+     */
+    fun insererAuCurseur(fragment: String) {
+        _state.value = _state.value.copy(
+            content = InsertionDeTexte.dansLaSelection(_state.value.content, fragment),
+        )
         programmerLaSauvegarde()
     }
 
@@ -167,7 +208,7 @@ class NoteEditorViewModel @Inject constructor(
                 _state.value = EditorUiState(
                     loading = false,
                     title = note.title,
-                    content = note.content,
+                    content = TextFieldValue(note.content),
                     note = note,
                     folder = dossier,
                     originalTitle = note.title,
@@ -191,7 +232,7 @@ class NoteEditorViewModel @Inject constructor(
             _state.value = EditorUiState(
                 loading = false,
                 title = claire.title,
-                content = claire.content,
+                content = TextFieldValue(claire.content),
                 note = note,
                 folder = dossier,
                 originalTitle = claire.title,
@@ -222,7 +263,10 @@ class NoteEditorViewModel @Inject constructor(
         // ⚠️ Comparer au texte CHARGÉ, pas à l'entité en base : pour une note scellée, l'entité ne
         // porte pas le clair. Et **pas** de `!note.isLocked` ici : cette condition faisait sauter la
         // garde pour les seules notes où elle comptait.
-        if (courant.title == courant.originalTitle && courant.content == courant.originalContent) return
+        // ⚠️ `.text` : comparer la valeur entière ferait passer un déplacement de curseur pour une
+        // modification, et rechiffrerait une note de coffre ouverte pour la seule lecture — c'est le
+        // défaut que `originalTitle`/`originalContent` existent pour fermer, sous une autre forme.
+        if (courant.title == courant.originalTitle && courant.content.text == courant.originalContent) return
 
         // ⚠️ `_state.value` et non `courant` : l'instantane sert a savoir QUOI persister, jamais a
         // reecrire l'etat de l'ecran. Le recopier reinjecterait un titre et un contenu peut-etre
@@ -232,14 +276,14 @@ class NoteEditorViewModel @Inject constructor(
             notes.saveEdits(
                 id = noteId,
                 title = courant.title,
-                content = courant.content,
+                content = courant.content.text,
                 tags = note.tags,
             )
             _state.value = _state.value.copy(
                 saving = false,
                 // Ce qui vient d'etre persiste devient la nouvelle reference de comparaison.
                 originalTitle = courant.title,
-                originalContent = courant.content,
+                originalContent = courant.content.text,
             )
         } catch (e: CancellationException) {
             throw e
