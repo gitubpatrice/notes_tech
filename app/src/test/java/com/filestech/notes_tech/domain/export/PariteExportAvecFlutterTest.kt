@@ -125,6 +125,31 @@ class PariteExportAvecFlutterTest {
         // *commence* par un nom réservé est parfaitement valable et ne doit pas être renommée.
         assertThat(NoteMarkdown.safeFileName("Console", id)).isEqualTo("Console.md")
         assertThat(NoteMarkdown.safeFileName("CONTRAT.pdf", id)).isEqualTo("CONTRAT.pdf.md")
+
+        // ⚠️ En revanche `CON.TRAT.pdf` **est** réservé, et le renommer est correct : Windows résout
+        // un nom de périphérique en coupant au **premier** point, donc ce nom-là désigne CON. Une
+        // relecture externe a signalé ce cas comme un faux positif de notre prédicat le 2026-08-15 ;
+        // c'est la relecture qui se trompait, et ce test fige la réponse pour la prochaine fois.
+        assertThat(NoteMarkdown.safeFileName("CON.TRAT.pdf", id)).isEqualTo("note-11111111.md")
+    }
+
+    /**
+     * ⚠️ La liste qui circule s'arrête à `COM1`. Celle que Microsoft publie commence à `COM0` et
+     * comporte en plus les variantes en exposants Unicode — `COM¹` désigne le même périphérique que
+     * `COM1`. Relevé par la relecture externe du 2026-08-15, qui n'avait vu que les exposants.
+     */
+    @Test
+    @DisplayName("COM0, LPT0 et les variantes en exposants sont réservés eux aussi")
+    fun nomsReservesOublies() {
+        val id = note().id
+        assertThat(NoteMarkdown.safeFileName("COM0", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFileName("LPT0", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFileName("COM¹", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFileName("lpt³.txt", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFolderName(null, "COM0")).isEqualTo("sans-dossier")
+
+        // COM10 n'existe pas comme périphérique : la liste s'arrête à un seul chiffre.
+        assertThat(NoteMarkdown.safeFileName("COM10", id)).isEqualTo("COM10.md")
     }
 
     @Test

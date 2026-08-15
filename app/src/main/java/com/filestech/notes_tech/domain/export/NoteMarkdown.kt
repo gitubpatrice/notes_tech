@@ -48,10 +48,17 @@ object NoteMarkdown {
      */
     private val WINDOWS_RESERVED: Set<String> = buildSet {
         addAll(listOf("CON", "PRN", "AUX", "NUL"))
-        for (n in 1..9) {
+        // ⚠️ **De 0 à 9, et pas de 1 à 9.** `COM0` et `LPT0` sont réservés eux aussi ; la liste
+        // s'arrêtait à 1 parce que c'est celle qui circule, pas celle que Microsoft publie.
+        for (n in 0..9) {
             add("COM$n")
             add("LPT$n")
         }
+        // ⚠️ Les variantes en **exposants Unicode** sont réservées au même titre : `COM¹` désigne le
+        // même périphérique que `COM1`. Improbable comme titre de note — mais le coût est une ligne,
+        // et le coût de l'oubli est une archive que le destinataire ne peut pas ouvrir du tout.
+        // Signalé par la relecture externe du 2026-08-15.
+        addAll(listOf("COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³"))
     }
 
     /** Caractères interdits par les systèmes de fichiers, et caractères de contrôle. */

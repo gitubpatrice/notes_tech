@@ -17,6 +17,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Clock
+import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,9 +45,10 @@ data class ExportResult(val uri: Uri, val fileName: String, val exported: Int, v
  *
  * Trois conséquences, toutes délibérées :
  *
- * 1. Un seul répertoire, `cache/exports/`, pour que **un seul geste** suffise à tout effacer.
- * 2. Le répertoire est vidé **avant** chaque export : deux archives ne s'accumulent jamais, et une
- *    tentative interrompue ne laisse pas de moitié de fichier derrière elle.
+ * 1. Un seul répertoire racine, `cache/exports/`, pour que **un seul geste** suffise à tout effacer.
+ * 2. Chaque export écrit dans **son propre sous-répertoire**, et rien n'est purgé en cours de
+ *    session. Voir [preparerRepertoire] : la règle précédente — vider la racine avant chaque export
+ *    — retirait le fichier d'un partage encore ouvert.
  * 3. Une note de coffre **fermé** n'est pas exportée. Écrire son blob dans un `.md` produirait un
  *    fichier illisible que l'utilisateur croirait être sa note ; l'omettre et le **dire** est la
  *    seule issue honnête — d'où [ExportResult.skippedLocked].
@@ -61,22 +63,25 @@ class NoteExporter @Inject constructor(
 ) {
 
     /**
-     * ⚠️⚠️ **Un seul export à la fois, et ce n'est pas du confort.**
+     * Un seul export écrit à la fois.
      *
-     * `preparerRepertoire()` commence par `deleteRecursively()` sur `cache/exports/`, qui est
-     * partagé par les deux chemins d'export. Cet objet étant unique dans le graphe d'injection, deux
-     * exports partis de deux endroits — l'archive des réglages pendant qu'un éditeur exporte sa
-     * note — se marchent dessus : le second efface le fichier que le premier est en train d'écrire,
-     * ou celui qu'il vient de rendre. L'utilisateur reçoit alors une adresse de partage qui ne
-     * désigne plus rien, sans erreur pour le lui dire.
+     * Cet objet est unique dans le graphe d'injection, et les deux chemins d'export partagent la
+     * racine `cache/exports/`. Sans verrou, l'archive des réglages et l'export d'une note depuis
+     * l'éditeur peuvent se chevaucher.
      *
-     * Le verrou porte de la préparation du répertoire jusqu'à la fabrication de l'adresse, c'est-à-
-     * dire toute la fenêtre pendant laquelle le fichier doit exister. Sérialiser coûte une attente
-     * sur un geste que l'utilisateur déclenche à la main et rarement — le prix est nul.
+     * ⚠️⚠️ **Ce verrou sérialise les écritures. Il ne protège PAS la durée de vie du fichier**, et
+     * la première version de ce commentaire prétendait le contraire — « toute la fenêtre pendant
+     * laquelle le fichier doit exister ». C'est faux : le verrou tombe quand la fonction rend son
+     * [ExportResult], et le partage Android commence **après**. Rien n'empêchait un second export
+     * d'acquérir le verrou et de purger le fichier qu'un partage encore ouvert désignait.
      *
-     * Signalé comme PROBABLE par la relecture externe du 2026-08-15 ; le second chemin n'a pas
-     * encore d'appelant, la course est donc latente et non observée. Elle s'ouvrirait à la phase 6.4
-     * avec le menu de l'éditeur.
+     * Le scénario était atteignable dès aujourd'hui, avec le seul `exportAll` : exporter, laisser le
+     * sélecteur de partage ouvert, revenir, exporter à nouveau. Relevé par la relecture externe du
+     * 2026-08-15 — sur le correctif écrit le matin même, et sur son commentaire.
+     *
+     * Ce qui ferme réellement le trou est [preparerRepertoire], qui ne purge plus rien. Le verrou
+     * reste utile pour ce qu'il sait faire : deux exports n'écrivent pas en même temps, et le coût
+     * est nul sur un geste déclenché à la main.
      */
     private val verrou = Mutex()
 
@@ -103,7 +108,7 @@ class NoteExporter @Inject constructor(
 
             val (exportables, dechiffres) = dechiffrerCeQuiPeutLEtre(toutes, ouverts)
 
-            val repertoire = preparerRepertoire()
+            val repertoire = preparerRepertoire(instant)
             val nom = "notes-tech-export-${instant.toEpochMilli()}.zip"
             val fichier = File(repertoire, nom)
 
@@ -162,7 +167,7 @@ class NoteExporter @Inject constructor(
         val instant = clock.instant()
         val venaitDunCoffre = note.isLocked
         val claire = if (venaitDunCoffre) vaults.decrypt(note) else note
-        val repertoire = preparerRepertoire()
+        val repertoire = preparerRepertoire(instant)
         val nom = NoteMarkdown.safeFileName(claire.title, claire.id, fromUnlockedVault = venaitDunCoffre)
         val fichier = File(repertoire, nom)
 
@@ -227,15 +232,43 @@ class NoteExporter @Inject constructor(
     }
 
     /**
-     * Vide et recrée `cache/exports/`.
+     * Crée un sous-répertoire **propre à cet export**, sans rien purger.
      *
-     * ⚠️ Le vidage est la moitié qui compte. Sans lui, chaque export laisserait le précédent en
-     * place : au bout de quelques mois, le cache contiendrait l'historique complet des notes en
-     * clair, que plus personne ne se rappelle avoir créé.
+     * ## ⚠️⚠️ Pourquoi on ne vide plus la racine avant chaque export
+     *
+     * C'était la règle précédente, et elle avait sa raison : ne jamais laisser s'accumuler du clair
+     * dans le cache. Mais elle retirait le fichier sous les pieds d'un partage encore ouvert —
+     * exporter, laisser le sélecteur affiché, revenir, exporter à nouveau, et la première adresse ne
+     * désignait plus rien. Aucun message : le partage échouait chez l'application destinataire.
+     *
+     * Un verrou ne pouvait pas fermer ça, parce que la fenêtre à protéger n'est pas l'écriture mais
+     * **la durée de vie de l'adresse partagée**, qui commence quand l'exporteur a fini et dont rien
+     * ne signale la fin.
+     *
+     * ## Ce qu'on a gardé, et ce qu'on a lâché
+     *
+     * **Gardé** — la propriété qui protège vraiment : rien ne survit à la session. La racine est
+     * effacée au démarrage ([purgerLesArchives]) et par le mode panique, tous deux par le même
+     * chemin. Aucune archive n'attend dans le cache d'un jour sur l'autre.
+     *
+     * **Lâché** — « une seule archive à la fois ». Une session où l'utilisateur exporte trois fois
+     * garde trois archives en clair jusqu'à la fermeture, au lieu d'une. C'est une exposition en
+     * plus, bornée par les gestes de l'utilisateur, dans un répertoire privé, et que la panique
+     * efface. Contre un partage cassé en silence, l'échange est bon.
      */
-    private fun preparerRepertoire(): File = repertoireDExport(context).apply {
-        deleteRecursively()
-        mkdirs()
+    private fun preparerRepertoire(instant: Instant): File {
+        val racine = repertoireDExport(context)
+        // ⚠️ L'horloge est injectée, donc figée dans les tests : deux exports peuvent porter le même
+        // instant. Le suffixe évite qu'ils se retrouvent dans le même répertoire, où le second
+        // écraserait le fichier du premier — la course qu'on vient de fermer, en plus petit.
+        var candidat = File(racine, instant.toEpochMilli().toString())
+        var suffixe = 1
+        while (candidat.exists()) {
+            candidat = File(racine, "${instant.toEpochMilli()}-$suffixe")
+            suffixe++
+        }
+        candidat.mkdirs()
+        return candidat
     }
 
     companion object {
@@ -257,8 +290,10 @@ class NoteExporter @Inject constructor(
          * fixe après l'envoi, comme le fait la version publiée, la retire sous les pieds de qui met
          * quarante secondes à choisir une application.
          *
-         * La règle retenue est donc **une archive à la fois, effacée au démarrage suivant et avant
-         * chaque nouvel export**. Le fichier vit tant que la session dure, jamais au-delà.
+         * La règle retenue est donc : **le fichier vit tant que la session dure, jamais au-delà**.
+         * Rien n'est purgé pendant la session — cf. [preparerRepertoire], où vider la racine avant
+         * chaque export retirait le fichier d'un partage encore ouvert. C'est cet appel-ci, au
+         * démarrage, qui borne la durée de vie, avec le mode panique et **par le même chemin**.
          *
          * ⚠️ À appeler au démarrage du processus. Sans cet appel, une archive survit à la fermeture
          * de l'application et attend indéfiniment dans le cache — et personne ne se rappelle

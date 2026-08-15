@@ -141,27 +141,45 @@ class AndroidVaultKeystore @Inject constructor() : VaultKeystore {
                 if (premierEchec == null) premierEchec = e
             }
         }
-        premierEchec?.let { throw KeystoreUnavailableException(it) }
-
-        // ⚠️⚠️ **On relit.** `deleteEntry` qui rend la main sans lever ne prouve pas que l'alias a
-        // disparu — c'est une promesse de l'implémentation du magasin, pas une observation.
+        // ⚠️⚠️ **On relit, et on relit AVANT de lever.** `deleteEntry` qui rend la main sans lever ne
+        // prouve pas que l'alias a disparu — c'est une promesse de l'implémentation du magasin, pas
+        // une observation.
         //
         // Les deux autres destructions critiques de la séquence de panique relisent déjà :
         // `KekRepository.destroy()` rappelle chaque source, `supprimerLeFichierDePreferences`
         // contrôle l'existence du fichier. Celle-ci ne relisait rien, alors qu'elle porte l'étape
         // `PIN_KEYS_WIPE` — c'est-à-dire la seule barrière d'un coffre à code contre une attaque
-        // menée hors de l'appareil.
+        // menée hors de l'appareil. Le commentaire de `KekRepository` reproche mot pour mot ce
+        // défaut à l'application publiée : « `hasKey()` est écrit dix lignes plus bas et répondrait
+        // à la question ». Il l'était ici aussi, et personne ne l'appelait.
         //
-        // Le commentaire de `KekRepository` reproche mot pour mot ce défaut à l'application
-        // publiée : « `hasKey()` est écrit dix lignes plus bas et répondrait à la question ». Il
-        // l'était ici aussi, et personne ne l'appelait. Relevé par l'audit de cohérence du
-        // 2026-08-15 — c'est exactement ce qu'un audit de cohérence trouve et qu'une relecture de
-        // sécurité, qui lit chaque site isolément, ne cherche pas.
-        val survivants = vises.filter { containsAlias(store, it) }
-        if (survivants.isNotEmpty()) {
+        // ⚠️ **Le premier correctif plaçait `throw premierEchec` juste au-dessus de cette
+        // relecture** — donc sur le seul chemin où une suppression a protesté, c'est-à-dire
+        // exactement celui où l'on veut savoir ce qui a survécu, la relecture ne s'exécutait
+        // jamais. Un correctif inatteignable là où il sert. Relevé par la relecture externe du
+        // 2026-08-15, sur le correctif du matin même.
+        //
+        // ⚠️ On **ré-énumère**, on ne filtre pas `vises` : relire l'instantané pris avant la boucle
+        // ne contrôlerait que les alias qui existaient déjà, et un alias créé depuis — le préfixe
+        // visé ici est celui des coffres à code — ne serait ni supprimé ni vu.
+        val survivants = try {
+            store.aliases().toList().filter { it.startsWith(prefix) }
+        } catch (e: Exception) {
+            throw KeystoreUnavailableException(e)
+        }
+
+        // ⚠️ **Le moindre doute fait échouer l'étape**, et les deux doutes ne sont pas de même
+        // nature. Des survivants, c'est une observation : des clés sont là. Un échec de suppression
+        // sans survivant, c'est un magasin qui a protesté puis annoncé n'avoir plus rien — et on ne
+        // fait pas confiance à un oracle qui vient de se tromper. Les deux échouent.
+        //
+        // Échouer à tort ne coûte plus ce que ça coûtait : depuis que l'écran de fin distingue
+        // `minimalGuarantee` de `isComplete`, une étape ratée hors destruction de clé s'affiche
+        // « protégé, nettoyage incomplet » et non plus en alarme.
+        if (survivants.isNotEmpty() || premierEchec != null) {
             // ⚠️ Le nombre, jamais les alias : ils portent l'identifiant du dossier de coffre.
             throw KeystoreUnavailableException(
-                IllegalStateException("clés de coffre survivantes : ${survivants.size}"),
+                premierEchec ?: IllegalStateException("clés de coffre survivantes : ${survivants.size}"),
             )
         }
         return effacees
