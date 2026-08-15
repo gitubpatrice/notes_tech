@@ -240,15 +240,18 @@ mode panique appartiennent à la phase 6.
       était faite depuis la phase 2-3 et va plus loin que l'application publiée : l'indexation se
       fait dans la transaction qui écrit la note, pas dans un service séparé avec son propre débounce
 
-  **Un manque assumé restant, à ouvrir plus tard** (le second est clos, cf. ci-dessous) **:**
+  **Les deux manques assumés sont clos :**
 
-  - 🔴 **Copier en Markdown** — hors de ce lot **délibérément**. Ce n'est pas une entrée de menu mais
-    le portage d'un service de sécurité de 261 lignes (`note_actions.dart`) : canal natif de
-    presse-papiers *sensible*, repli que la note de coffre **refuse** plutôt que de dégrader la
-    protection, et un **jeton de génération** contre une réinjection du clair *après* la purge du
-    mode panique. Deux défauts CRITIQUES y ont été trouvés par relecture externe côté publié — dont
-    un **dans le correctif du premier**. Le noyer dans un lot d'interface serait le meilleur moyen
-    d'en perdre un.
+  - ✅ ~~**Copier en Markdown**~~ — **fait le 2026-08-15**, commit `5edbc2b`, et sorti d'un lot
+    d'interface exprès : c'est un service de sécurité, pas une entrée de menu. Marquage
+    `EXTRA_IS_SENSITIVE` (Android 13+), effacement différé d'une minute qui **ne s'exécute que si le
+    presse-papiers porte encore notre valeur**, et un **compteur de génération unique** partagé par
+    les copies et les purges — sans lui, une minuterie périmée efface l'état d'une copie plus
+    récente et le clair de celle-ci reste indéfiniment exposé.
+    ⚠️ Trois défauts y ont été trouvés **par relecture externe croisée, dans le code du jour même** :
+    génération incrémentée avant l'écriture, réarmement borné qui **oubliait** le clair resté dans le
+    presse-papiers public, et un `null` confondant « illisible » et « pas du texte » — ce dernier
+    rendu grave *par le correctif du premier*. Cf. `04-PIEGES.md` §43-§45.
   - ✅ ~~**Sortir une note d'un coffre**~~ — **fait le 2026-08-15**. `relocateLockedNote` déchiffre
     avec la clé d'origine, écrit le clair et déplace **dans une seule transaction** ; si la
     destination est un autre coffre, la note est **rescellée avec la clé de celui-là**, jamais
@@ -274,11 +277,24 @@ l'interface de domaine `SpeechToText` dès la phase 1 pour que son absence ne co
 
 ### Phase 8 — Parité et bascule
 
-- [ ] Checklist de parité écran par écran ([05-PARITE.md](05-PARITE.md))
-- [ ] Tests instrumentés sur le S9 (⚠️ **jamais sur le S24 FE** — `connectedAndroidTest` efface
-      les données de l'application)
-- [ ] Revue externe sur le delta complet
+- [ ] **Checklist de parité écran par écran** ([05-PARITE.md](05-PARITE.md)) — **39 cases vides** :
+      10 écrans, 16 composants, 8 services, 5 promesses publiques. ⚠️ Une case cochée veut dire
+      « vérifié **sur appareil** », pas « le code existe » — c'est ce qui rend ce point long, et
+      c'est ce qui le rend utile. La colonne « Kotlin » est vide partout : aucune ligne ne nomme
+      encore son homologue de portage
+- [x] ~~Tests instrumentés sur le S9~~ — **118 tests, 0 échec, 0 ignoré**, relancés le 2026-08-15.
+      ⚠️ Le compte d'ignorés est vérifié sur le code `-3` de l'instrumentation, pas sur le `OK`
+      final : six tests ont déjà été ignorés ici pendant que la sortie affichait `OK` (`04-PIEGES.md`
+      §45). ⚠️ **Jamais sur le S24 FE** — `connectedAndroidTest` efface les données de l'application
+- [x] ~~Revue externe sur le delta complet~~ — passée le 2026-08-15, **deux relecteurs en parallèle
+      et plusieurs tours**, y compris sur les correctifs issus des tours précédents. C'est là que
+      les défauts les plus graves sont sortis, et **jamais les mêmes chez les deux**
+      (`07-RELECTURES.md`)
 - [ ] Release 3.0.0
+
+⚠️ **Trois cases de migration restent, et aucune ne se coche depuis un poste de travail** : elles
+demandent une installation 2.0.3 réelle sur le S9 et le drapeau `replaceInstalledApp`. Cf.
+`05-PARITE.md` §Migration.
 
 ## 4. Règles de travail
 
