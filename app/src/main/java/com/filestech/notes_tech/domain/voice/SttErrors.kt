@@ -16,15 +16,21 @@ package com.filestech.notes_tech.domain.voice
  *
  * ⚠️ Scellée : un `when` exhaustif fera **échouer la compilation** le jour où un cas s'ajoutera sans
  * chaîne pour le dire. C'est le même mécanisme que `VaultValidationException.Reason`.
+ *
+ * ⚠️⚠️ **Chaque cas porte une [cause] facultative, et ce n'est pas de la décoration.** Le message
+ * seul suffit à l'écran ; il ne suffit pas à un diagnostic. Une `SecurityException` du micro ou une
+ * panne de bibliothèque native perdue en route, c'est un rapport d'incident où il ne reste que
+ * « capture impossible ». Ce que l'utilisateur voit et ce que la trace retient sont deux besoins
+ * différents — le premier ne doit pas amputer le second.
  */
-sealed class SttException(message: String) : Exception(message)
+sealed class SttException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
  * Le modèle n'est pas — ou plus — sur l'appareil.
  *
  * L'interface doit conduire vers l'import, jamais proposer de réessayer : rien ne changera.
  */
-class SttModelMissingException(message: String) : SttException(message)
+class SttModelMissingException(message: String, cause: Throwable? = null) : SttException(message, cause)
 
 /**
  * L'empreinte du fichier ne correspond plus à celle attendue.
@@ -34,7 +40,7 @@ class SttModelMissingException(message: String) : SttException(message)
  * corruption disque, remplacement, import interrompu. Le garder, c'est laisser l'utilisateur
  * réessayer avec exactement le même fichier.
  */
-class SttModelChecksumMismatchException(message: String) : SttException(message)
+class SttModelChecksumMismatchException(message: String, cause: Throwable? = null) : SttException(message, cause)
 
 /**
  * La permission `RECORD_AUDIO` a été refusée.
@@ -45,10 +51,11 @@ class SttModelChecksumMismatchException(message: String) : SttException(message)
  *   réglages système, et l'interface doit alors proposer *ça* — la chaîne
  *   `voice_open_system_settings` existe et attend exactement ce cas.
  */
-class SttPermissionDeniedException(message: String, val permanently: Boolean = false) : SttException(message)
+class SttPermissionDeniedException(message: String, val permanently: Boolean = false, cause: Throwable? = null) :
+    SttException(message, cause)
 
 /** La bibliothèque native n'a pas démarré : absente, modèle illisible, mémoire insuffisante. */
-class SttEngineUnavailableException(message: String) : SttException(message)
+class SttEngineUnavailableException(message: String, cause: Throwable? = null) : SttException(message, cause)
 
 /**
  * La capture micro a échoué.
@@ -57,7 +64,7 @@ class SttEngineUnavailableException(message: String) : SttException(message)
  * [SttPermissionDeniedException] : ici la permission est **accordée**, et proposer d'ouvrir les
  * réglages n'aurait aucun sens.
  */
-class SttRecordingFailedException(message: String) : SttException(message)
+class SttRecordingFailedException(message: String, cause: Throwable? = null) : SttException(message, cause)
 
 /** La transcription a échoué : audio illisible, délai dépassé, mémoire insuffisante. */
-class SttTranscriptionFailedException(message: String) : SttException(message)
+class SttTranscriptionFailedException(message: String, cause: Throwable? = null) : SttException(message, cause)

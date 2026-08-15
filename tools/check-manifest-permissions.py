@@ -63,9 +63,13 @@ FORBIDDEN = {
 # est un changement en DEUX parties — la permission doit AUSSI être documentée dans la table de
 # PRIVACY.md et PRIVACY.fr.md. C'est cet appariement qui fait la valeur de la liste.
 #
-# ⚠️ En phase 7, la dictée vocale ajoutera `android.permission.RECORD_AUDIO`. La faire entrer ici
-# sans l'écrire dans PRIVACY.md serait précisément la dérive que ce fichier existe pour empêcher.
-ALLOWED: set[str] = set()
+# ⚠️ `RECORD_AUDIO` y est entrée le 2026-08-15, avec la capture audio de la phase 7 — et après
+# vérification que la table de `app/src/main/res/raw/privacy.md` et de `res/raw-fr/privacy.md` la
+# documente déjà dans les deux langues. C'est l'appariement décrit ci-dessus : la liste ne vaut que
+# si l'entrée s'accompagne de sa ligne dans le document que l'utilisateur peut lire.
+ALLOWED: set[str] = {
+    "android.permission.RECORD_AUDIO",
+}
 
 # Permissions de niveau signature générées par androidx pour ses propres receivers non exportés.
 # Leur nom dérive de l'applicationId, qui varie selon que la build s'installe à côté de

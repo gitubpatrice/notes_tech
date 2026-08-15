@@ -25,13 +25,20 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
 
     <!--
-      RECORD_AUDIO n'est PAS déclarée à ce stade, et c'est délibéré : la dictée vocale arrive en
-      phase 7 (cf. docs/00-PLAN.md). Déclarer une permission qu'aucun code n'exerce l'expose à
-      l'utilisateur sans contrepartie.
+      RECORD_AUDIO — déclarée le 2026-08-15 avec la capture audio de la phase 7, et pas avant.
 
-      ⚠️ Elle doit être rétablie avec la dictée, sans quoi la parité 2.0.3 n'est pas atteinte :
-          <uses-permission android:name="android.permission.RECORD_AUDIO" />
+      La note précédente disait qu'une permission qu'aucun code n'exerce s'expose à l'utilisateur
+      sans contrepartie. Le code qui l'exerce existe désormais (`data/voice/VoiceCapture.kt`), donc
+      la contrepartie aussi.
+
+      ⚠️ Elle ne remet pas en cause la promesse publique. Celle-ci n'a jamais été « aucune
+      permission » mais **aucune permission réseau** : l'application publiée déclare déjà
+      RECORD_AUDIO, et la table de `res/raw*/privacy.md` la documente dans les deux langues. Cet
+      appariement est exigé par `tools/check-manifest-permissions.py`, qui refuse toute permission
+      qu'il ne connaît pas — cf. décision D-018.
     -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
 
     <application
         android:name=".NotesTechApplication"
