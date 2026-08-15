@@ -156,6 +156,31 @@ implémentation. Chaque groupe se relit ; le verdict brut ne s'applique pas.
 
 Aucune n'est supprimée : cf. `04-PIEGES.md` §48.
 
+## Phase 8 — deuxième instrument : le relevé des GESTES
+
+La revue des chaînes ne voit que ce qui a du texte. **Un appui long n'en a pas, un balayage non
+plus.** D'où un second relevé, tout aussi mécanique :
+
+```bash
+# côté publié
+grep -rEoh "onLongPress|Dismissible|onDoubleTap|GestureDetector|onReorder" lib --include=*.dart | sort | uniq -c
+# côté portage
+grep -rEoh "combinedClickable|onLongClick|SwipeToDismiss|detectDragGestures|pointerInput" app/src/main/java --include=*.kt | sort | uniq -c
+```
+
+⚠️ Lire les occurrences, pas les compter : les 9 « Dismissible » du publié étaient des
+`barrierDismissible` et des `isDismissible` — **aucun balayage** dans l'application publiée.
+
+| Geste du publié | Sort dans le portage |
+|---|---|
+| Appui long sur la **boîte de réception** → renommer | 🔴 **manquait entièrement** — corrigé par un bouton visible (`769be09`) |
+| Appui long sur un **dossier** → menu | 🟠 non porté : `NavigationDrawerItem` ne le prend pas, et le bouton ⋮ couvre le besoin. **Écart assumé** |
+| `NoteCard.onLongPress` | paramètre **mort des deux côtés** — retiré ici |
+
+⚠️ Le premier n'était signalé par **aucune** chaîne orpheline : `folder_rename_title` et
+`folder_rename_field` servent déjà aux autres dossiers. Un manque peut être parfaitement invisible
+au relevé des chaînes.
+
 ## ⚠️ Correctifs appliqués à l'application Flutter le 2026-08-13
 
 > Branche `fix/defauts-releves-pendant-le-portage` dans `notes_tech`, commit `ca72f2c`.
