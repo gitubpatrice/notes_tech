@@ -36,10 +36,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # Les quatre outils du gate local en une commande, pour que la CI et le poste du développeur
-      # ne puissent jamais diverger sur ce que « vert » veut dire.
+      # Les outils du gate local en une commande, pour que la CI et le poste du développeur ne
+      # puissent jamais diverger sur ce que « vert » veut dire.
+      #
+      # 🔴 `compileDebugAndroidTestKotlin` en fait partie depuis le 2026-08-15, et il n'y était pas.
+      #
+      # Le source set instrumenté avait **cessé de compiler** pendant la phase 5 — une interface de
+      # clé avait gagné un membre, cinq doubles de test ne l'avaient pas suivi. Les 91 tests
+      # instrumentés ne pouvaient donc plus tourner, et rien ne le disait : le gate compile
+      # `main` et `test`, pas `androidTest`. Le job d'émulateur plus bas l'aurait vu, mais ce dépôt
+      # n'a **aucun remote** — cette CI n'a jamais tourné une seule fois.
+      #
+      # Compiler ce source set coûte quelques secondes et n'exige ni appareil ni émulateur. C'est le
+      # contrôle qui manquait, au seul endroit où il est gratuit.
       - name: Gate
-        run: ./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt
+        run: >
+          ./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt
+          :app:compileDebugAndroidTestKotlin
 
       # Le schéma que Room attend doit décrire EXACTEMENT la base créée par la version Flutter.
       # Une divergence ne se verrait qu'à l'ouverture, chez l'utilisateur, sous la forme d'un refus

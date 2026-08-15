@@ -280,16 +280,31 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                 actions = {
                     val note = state.note
                     if (note != null && state.lockedVault == null) {
+                        // 🔴 **La description suit l'état, comme l'icône.**
+                        //
+                        // Elle était figée : l'icône passait de l'épingle vide à l'épingle pleine, et
+                        // un lecteur d'écran continuait d'annoncer « Épingler la note » sur une note
+                        // **déjà épinglée** — donc l'inverse de ce que le bouton allait faire.
+                        // `home_unpin` et `home_unfav` existaient exactement pour cet état, et
+                        // n'étaient lues nulle part.
+                        //
+                        // C'est le jumeau asymétrique dans sa forme la plus littérale : ce que le
+                        // code fait, et ce que l'utilisateur **entend**. Relevé par l'audit i18n du
+                        // 2026-08-15.
                         IconButton(onClick = { viewModel.setPinned(!note.pinned) }) {
                             Icon(
                                 imageVector = if (note.pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                                contentDescription = stringResource(R.string.note_editor_tooltip_pin),
+                                contentDescription = stringResource(
+                                    if (note.pinned) R.string.home_unpin else R.string.note_editor_tooltip_pin,
+                                ),
                             )
                         }
                         IconButton(onClick = { viewModel.setFavorite(!note.favorite) }) {
                             Icon(
                                 imageVector = if (note.favorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                contentDescription = stringResource(R.string.note_editor_tooltip_fav),
+                                contentDescription = stringResource(
+                                    if (note.favorite) R.string.home_unfav else R.string.note_editor_tooltip_fav,
+                                ),
                             )
                         }
                         // ⚠️ « Insérer un lien » est un bouton d'icône, **pas** une entrée de menu :
