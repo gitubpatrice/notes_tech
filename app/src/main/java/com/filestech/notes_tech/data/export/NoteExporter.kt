@@ -140,9 +140,13 @@ class NoteExporter @Inject constructor(
                     skippedLocked = bilan.skippedLocked,
                 )
             } catch (e: Throwable) {
-                // ⚠️ Un demi-fichier ne doit pas rester : il porterait du clair sans être partagé,
-                // et le prochain export le laisserait là. `Throwable` et non `Exception` parce
-                // qu'une annulation doit nettoyer elle aussi — puis repartir telle quelle.
+                // ⚠️ On **tente** de retirer le demi-fichier : il porterait du clair sans être
+                // partagé. « Tente » et non « garantit » — cf. [effacerOuSignaler], dont l'échec est
+                // journalisé et non propagé ; le commentaire promettait auparavant qu'aucun
+                // demi-fichier ne restait, ce que `delete()` ne garantit pas.
+                //
+                // `Throwable` et non `Exception` parce qu'une annulation doit nettoyer elle aussi —
+                // puis repartir telle quelle.
                 effacerOuSignaler(fichier)
                 throw e
             }
@@ -183,7 +187,7 @@ class NoteExporter @Inject constructor(
         //
         // ⚠️ Le déchiffrement, lui, reste conditionné à `isLocked` : une note déjà en clair n'a rien
         // à déchiffrer, et l'envoyer au coffre lèverait sur une note qui n'a jamais été scellée.
-        val venaitDunCoffre = note.isLocked || folders.find(note.folderId)?.isVault == true
+        val venaitDunCoffre = note.isLocked || dossierEstUnCoffre(note.folderId)
         val claire = if (note.isLocked) vaults.decrypt(note) else note
         val repertoire = preparerRepertoire(instant)
         val nom = NoteMarkdown.safeFileName(claire.title, claire.id, fromUnlockedVault = venaitDunCoffre)
@@ -213,6 +217,29 @@ class NoteExporter @Inject constructor(
     }
 
     /**
+     * Le dossier d'une note est-il un coffre ? **Une question qui ne doit jamais faire échouer un
+     * export.**
+     *
+     * ⚠️ Elle interroge la base, là où le critère précédent (`note.isLocked`) se lisait en mémoire.
+     * Une base fermée, indisponible ou corrompue ferait donc échouer un export d'une seule note qui
+     * aurait parfaitement abouti avant ce correctif — une régression introduite par un correctif de
+     * marquage, sur un chemin qui n'a rien à voir. Relevé par les DEUX relectures externes du
+     * 2026-08-15.
+     *
+     * En cas de refus, on retombe sur ce que la note dit d'elle-même : le marquage ` [unlocked]` est
+     * alors éventuellement omis, ce qui est exactement le comportement d'avant. **Perdre une
+     * mention vaut mieux que perdre l'export.**
+     */
+    private suspend fun dossierEstUnCoffre(folderId: String): Boolean = try {
+        folders.find(folderId)?.isVault == true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Timber.w(e, "export : origine coffre indeterminee pour le dossier %s", folderId)
+        false
+    }
+
+    /**
      * Efface un fichier d'export raté, et **dit** s'il n'y arrive pas.
      *
      * ⚠️ `File.delete()` rend un booléen que les deux chemins de rattrapage jetaient. Un effacement
@@ -221,13 +248,27 @@ class NoteExporter @Inject constructor(
      * C'est la règle du dépôt appliquée à un cas de plus : un contrôle qui ne regarde pas son
      * résultat n'en dit rien. Relevé CONFIRMÉ par une relecture externe (GPT-5.2, 2026-08-15).
      *
-     * ⚠️ **On ne lève pas ici** : cette fonction est appelée depuis un `catch` dont l'exception
-     * d'origine est la vraie cause. La remplacer par une exception de nettoyage ferait disparaître
-     * la raison pour laquelle l'export a échoué. La trace, elle, garde les deux.
+     * ⚠️⚠️ **Le `try` interne n'est pas décoratif, et sa première version manquait.**
+     *
+     * Cette fonction est appelée depuis un `catch` dont l'exception d'origine est la vraie cause. Or
+     * `exists()` comme `delete()` peuvent lever une `SecurityException` : sans cette garde, elle
+     * remontait **à la place** de l'exception d'origine, et l'appelant recevait un refus de
+     * permission là où il fallait lire « espace insuffisant » ou « annulation ». Le KDoc affirmait
+     * pourtant « on ne lève pas ici ». Relevé CONFIRMÉ par les DEUX relectures externes du
+     * 2026-08-15 — sur un correctif écrit vingt minutes plus tôt, et sur son commentaire.
+     *
+     * ⚠️ **Ce nettoyage est un « au mieux », et il faut le dire.** Un `delete()` refusé laisse le
+     * fichier ; on le journalise et on continue. Les `catch` appelants ne peuvent donc pas promettre
+     * qu'aucun demi-fichier ne reste — seulement qu'on a essayé et qu'on sait si on a échoué. La
+     * borne réelle reste la purge au démarrage.
      */
     private fun effacerOuSignaler(fichier: File) {
-        if (fichier.exists() && !fichier.delete()) {
-            Timber.e("export : le fichier en clair %s n'a PAS pu etre efface", fichier.name)
+        try {
+            if (fichier.exists() && !fichier.delete()) {
+                Timber.e("export : le fichier en clair %s n'a PAS pu etre efface", fichier.name)
+            }
+        } catch (e: SecurityException) {
+            Timber.e(e, "export : effacement du fichier en clair %s refuse", fichier.name)
         }
     }
 

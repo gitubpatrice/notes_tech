@@ -92,7 +92,22 @@ data class PanicOutcome(val step: PanicStep, val failure: String? = null) {
  * ce soit à la protection. À l'inverse, si c'est **elle** qui a échoué, dix étapes réussies ne
  * protègent rien.
  */
-data class PanicReport(val outcomes: List<PanicOutcome>) {
+data class PanicReport(
+    val outcomes: List<PanicOutcome>,
+    /**
+     * 🔴 **Mesuré à la fin de la séquence**, pas déduit d'une étape.
+     *
+     * Le répertoire d'export existe-t-il encore une fois tout terminé ? Se fier à l'issue de
+     * [PanicStep.EXPORTS_WIPE] donnait deux réponses fausses en sens inverse : l'étape peut échouer
+     * et [PanicStep.CACHE_PURGE] emporter quand même le répertoire — elle traite `exports` comme un
+     * artefact sensible — et le contraire reste concevable. Un état se **regarde**, il ne se déduit
+     * pas d'un journal d'étapes. Relevé par une relecture externe (GPT-5.2, 2026-08-15).
+     *
+     * ⚠️ Vaut `true` quand la mesure elle-même est impossible : le doute penche du côté qui
+     * n'annonce pas une protection qu'on n'a pas constatée.
+     */
+    val exportsSurLeDisque: Boolean = false,
+) {
 
     /** Toutes les étapes ont abouti. */
     val isComplete: Boolean get() = outcomes.all(PanicOutcome::succeeded)
@@ -111,21 +126,30 @@ data class PanicReport(val outcomes: List<PanicOutcome>) {
     /**
      * 🔴 Du contenu **lisible** peut être resté sur l'appareil.
      *
-     * Toutes les étapes de nettoyage ne laissent pas le même résidu. Une purge de cache ou un
-     * effacement de base qui échouent laissent des octets **chiffrés sous une clé détruite** — du
-     * bruit. [PanicStep.EXPORTS_WIPE] est la seule dont l'échec laisse du **clair** : une archive
-     * d'export contient le texte intégral des notes, coffres ouverts compris.
+     * Toutes les étapes ratées ne laissent pas le même résidu. Une purge de cache ou un effacement
+     * de base qui échouent laissent des octets **chiffrés sous une clé détruite** — du bruit. Deux
+     * choses seulement sont du **clair** : une archive d'export, qui porte le texte intégral des
+     * notes, coffres ouverts compris ; et le presse-papiers, où une note copiée attend en clair.
+     *
+     * ⚠️⚠️ **Le presse-papiers manquait ici, et le KDoc affirmait que l'export était « la seule ».**
+     * Un effacement de presse-papiers raté laissait donc l'écran annoncer « des fichiers illisibles
+     * peuvent subsister » avec une note en clair à portée de n'importe quelle application au premier
+     * plan. Le commentaire fautif avait été écrit dix minutes plus tôt, dans le correctif même qui
+     * introduisait cette propriété. Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15),
+     * et l'autre relecture attaquait la même affirmation par un autre angle.
+     *
+     * ⚠️ L'export se juge sur [exportsSurLeDisque] — un état mesuré — et le presse-papiers sur
+     * l'issue de son étape, parce qu'il ne se relit pas : Android refuse la lecture à une
+     * application qui n'a pas le focus.
      *
      * ⚠️ **Ce n'est pas une quatrième issue.** [minimalGuarantee] reste acquise — la base est du
      * bruit, et le dire autrement affolerait quelqu'un qui est en réalité protégé pour l'essentiel.
      * Ce que cette propriété change, c'est **la nature du résidu annoncée à l'écran**, donc la
      * décision de se séparer ou non de l'appareil.
-     *
-     * Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15) : l'écran affichait « des
-     * fichiers illisibles peuvent subsister » y compris quand ce qui subsistait était lisible.
      */
     val clairPeutSubsister: Boolean
-        get() = outcomes.any { it.step == PanicStep.EXPORTS_WIPE && !it.succeeded }
+        get() = exportsSurLeDisque ||
+            outcomes.any { it.step == PanicStep.CLIPBOARD_CLEAR && !it.succeeded }
 }
 
 /**
@@ -292,7 +316,16 @@ class PanicService @Inject constructor(
         // 9. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
         issues += etape(PanicStep.CACHE_PURGE) { viderLeCache() }
 
-        val bilan = PanicReport(issues)
+        // ⚠️ **Regarder, pas déduire.** L'état du disque après la séquence entière, y compris ce que
+        // la purge du cache a pu emporter en plus. `true` si la mesure échoue : on n'annonce pas une
+        // protection qu'on n'a pas constatée.
+        val exportsRestants = try {
+            NoteExporter.repertoireDExport(context).exists()
+        } catch (e: SecurityException) {
+            Timber.w(e, "panique : etat du repertoire d'export illisible")
+            true
+        }
+        val bilan = PanicReport(issues, exportsSurLeDisque = exportsRestants)
         Timber.w(
             "panique terminée — garantie minimale : %s, étapes en échec : %s",
             bilan.minimalGuarantee,

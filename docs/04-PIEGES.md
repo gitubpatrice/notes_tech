@@ -982,3 +982,41 @@ une quatrième issue globale : la garantie minimale reste acquise, seule la natu
 ⚠️ La relecture qui a trouvé ça avait été précédée d'une autre concluant « rien trouvé » sur le même
 axe. La seconde avait regardé la **logique des branches** — correcte — et pas le **texte** qu'elles
 affichent. *Vérifier qu'un `when` choisit la bonne branche ne vérifie pas que la branche dit vrai.*
+
+## §53 — Un état se REGARDE ; le journal des étapes ne le remplace pas
+
+`clairPeutSubsister` répondait « du clair reste-t-il ? » en lisant l'issue d'une étape :
+`EXPORTS_WIPE a-t-elle échoué ?`. Deux réponses fausses, en sens inverse :
+
+- **faux positif** — l'étape échoue, puis `CACHE_PURGE` emporte quand même le répertoire (elle traite
+  `exports` comme un artefact sensible). Plus rien de lisible, et l'écran alarme quand même ;
+- **faux négatif** — l'étape réussit, mais **le presse-papiers**, lui, a échoué. Une note copiée y
+  attend en clair, lisible par toute application au premier plan, et l'écran affiche « des fichiers
+  illisibles peuvent subsister ».
+
+La propriété mesure désormais le disque à la fin de la séquence, et prend l'issue de l'étape
+seulement pour ce qui ne se mesure pas — le presse-papiers, qu'Android refuse de relire sans focus.
+
+> ⚠️ **« Cette étape a échoué » n'est pas « cet état est vrai ».** Entre les deux, tout ce que les
+> étapes suivantes ont pu faire.
+
+⚠️ En cas de mesure impossible (`SecurityException`), la propriété vaut **`true`** : on n'annonce pas
+une protection qu'on n'a pas constatée.
+
+## §54 — Trois défauts de plus, tous nés du correctif de la veille au soir
+
+Les cinq correctifs de l'audit export/panique ont été relus à leur tour. Résultat :
+
+| Ce que le correctif introduisait | Ce que la relecture a trouvé |
+|---|---|
+| `effacerOuSignaler`, pour ne plus jeter le retour de `delete()` | `exists()` et `delete()` lèvent `SecurityException` — la fonction **masquait l'exception d'origine**, alors que son KDoc promettait « on ne lève pas ici » |
+| `clairPeutSubsister`, pour ne plus mentir sur le résidu | **oubliait le presse-papiers**, et son KDoc affirmait que l'export était « la seule » source de clair |
+| `folders.find` pour marquer une note claire d'un dossier coffre | **nouvel accès base hors du `try`** : un export d'une seule note qui marchait pouvait désormais échouer |
+
+> 🔴 **Deux des trois défauts étaient des commentaires écrits vingt minutes plus tôt, dans le
+> correctif même.** Écrire « on ne lève pas ici » ne fait pas que le code ne lève pas. La phrase qui
+> décrit une garantie doit être vérifiée comme du code — c'est la troisième fois de la journée.
+
+⚠️ **Un correctif de marquage a failli coûter un export.** Ajouter une lecture de base pour enrichir
+un libellé, c'est ajouter un mode de panne à un chemin qui n'en avait pas. La lecture est désormais
+enveloppée et retombe sur l'ancien critère : *perdre une mention vaut mieux que perdre l'export.*

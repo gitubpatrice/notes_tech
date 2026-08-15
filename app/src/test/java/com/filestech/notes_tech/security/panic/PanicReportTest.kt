@@ -216,19 +216,52 @@ class PanicReportTest {
     }
 
     /**
-     * 🔴 Toutes les etapes ratees ne laissent pas le meme residu.
+     * 🔴 Le residu se MESURE, il ne se deduit pas d'une etape ratee.
      *
-     * `panic_incomplete` dit « des fichiers ILLISIBLES peuvent subsister », ce qui est vrai de
-     * toutes les etapes sauf une : une archive d'export est du clair. L'ecran doit donc distinguer,
-     * sinon il rassure quelqu'un dont les notes sont restees lisibles.
+     * Le repertoire d'export encore la a la fin de la sequence, quelle que soit l'etape qui a
+     * echoue : c'est ca, du clair sur le disque.
      */
     @Test
-    @DisplayName("un effacement d'export rate signale que du CLAIR peut subsister")
-    fun exportRateSignaleDuClair() {
-        val bilan = rapport(PanicStep.EXPORTS_WIPE)
+    @DisplayName("le repertoire d'export encore present signale du CLAIR, meme sans etape ratee")
+    fun exportsRestantsSignalentDuClair() {
+        val bilan = PanicReport(
+            PanicStep.entries.map { PanicOutcome(it) },
+            exportsSurLeDisque = true,
+        )
 
         assertThat(bilan.minimalGuarantee).isTrue()
+        assertThat(bilan.isComplete).isTrue()
+        assertThat(bilan.clairPeutSubsister).isTrue()
+    }
+
+    /**
+     * ⚠️ Le symetrique, et c'est lui qui justifie la mesure : `EXPORTS_WIPE` peut echouer et
+     * `CACHE_PURGE` emporter quand meme le repertoire — elle traite `exports` comme un artefact
+     * sensible. Se fier a l'issue de l'etape aurait annonce du clair la ou il n'y en a plus.
+     */
+    @Test
+    @DisplayName("export rate mais repertoire parti : aucun clair annonce")
+    fun exportRateMaisRepertoireParti() {
+        val bilan = rapport(PanicStep.EXPORTS_WIPE)
+
         assertThat(bilan.isComplete).isFalse()
+        assertThat(bilan.clairPeutSubsister).isFalse()
+    }
+
+    /**
+     * 🔴 **Le presse-papiers est du clair lui aussi**, et il manquait.
+     *
+     * Une note copiee y attend en clair, lisible par toute application au premier plan. Le KDoc de
+     * `clairPeutSubsister` affirmait pourtant que l'export etait « la seule » etape dont l'echec
+     * laisse du lisible. Il ne se relit pas — Android refuse la lecture sans focus — donc c'est
+     * l'issue de son etape qui fait foi.
+     */
+    @Test
+    @DisplayName("un effacement de presse-papiers rate signale du CLAIR")
+    fun pressePapiersRateSignaleDuClair() {
+        val bilan = rapport(PanicStep.CLIPBOARD_CLEAR)
+
+        assertThat(bilan.minimalGuarantee).isTrue()
         assertThat(bilan.clairPeutSubsister).isTrue()
     }
 
@@ -242,9 +275,9 @@ class PanicReportTest {
         }
     }
 
-    /** Une sequence entierement reussie ne signale evidemment aucun clair. */
+    /** Une sequence entierement reussie, disque propre : aucun clair. */
     @Test
-    @DisplayName("aucune etape ratee : aucun clair signale")
+    @DisplayName("aucune etape ratee et aucun export sur le disque : aucun clair signale")
     fun aucunEchecAucunClair() {
         assertThat(rapport().clairPeutSubsister).isFalse()
     }
