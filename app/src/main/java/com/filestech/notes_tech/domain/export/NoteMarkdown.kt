@@ -146,7 +146,7 @@ object NoteMarkdown {
         clean = DartTextSemantics.trim(DartTextSemantics.WHITESPACE.replace(clean, " "))
         clean = DartTextSemantics.trim(tronque(clean))
         if (clean == "." || clean == "..") clean = ""
-        if (clean.isEmpty() || clean.uppercase(Locale.ROOT) in WINDOWS_RESERVED) {
+        if (clean.isEmpty() || estReserveWindows(clean)) {
             clean = "note-" + fallbackId.replace("-", "").take(8)
         }
         if (fromUnlockedVault) clean = "$clean [unlocked]"
@@ -183,14 +183,36 @@ object NoteMarkdown {
     /**
      * Les trois façons dont un nom de dossier peut être inutilisable dans une archive.
      *
-     * Vide après nettoyage ; `.` ou `..`, que les outils de décompression interprètent comme le
-     * répertoire courant ou parent ; ou un nom réservé de Windows, qui fait échouer l'extraction
+     * Vide après nettoyage ; réduit à des points et des espaces — ce qui couvre `.` et `..`, que les
+     * outils de décompression interprètent comme le répertoire courant ou parent, mais aussi `...`
+     * ou `. `, que Windows refuse tout autant ; ou un nom réservé, qui fait échouer l'extraction
      * **entière** chez le destinataire et pas seulement celle du dossier fautif.
      */
     private fun estUnNomDeDossierUtilisable(nom: String): Boolean {
-        if (nom.isEmpty() || nom == "." || nom == "..") return false
-        return nom.uppercase(Locale.ROOT) !in WINDOWS_RESERVED
+        if (nom.trimEnd(' ', '.').isEmpty()) return false
+        return !estReserveWindows(nom)
     }
+
+    /**
+     * ⚠️⚠️ **Un nom de périphérique reste réservé sous Windows quelle que soit son extension.**
+     *
+     * `CON`, `CON.txt`, `CON.txt.md` et `CON.` désignent tous le même périphérique : aucun ne peut
+     * être créé comme fichier ni comme dossier. Windows ignore par ailleurs les points et espaces
+     * **finaux** d'un nom avant de le résoudre, si bien que `CON. ` retombe lui aussi sur `CON`.
+     *
+     * Les deux sites testaient l'égalité stricte avec la liste (`clean.uppercase() in
+     * WINDOWS_RESERVED`). Une note titrée `CON.txt` produisait donc `CON.txt.md`, et un dossier
+     * nommé `CON.txt` passait de même : l'archive devenait inextractible chez un destinataire
+     * Windows, c'est-à-dire au moment précis où l'export sert.
+     *
+     * ⚠️ Le KDoc de [WINDOWS_RESERVED] se félicitait d'avoir corrigé un jumeau asymétrique — un site
+     * appliquait la liste, l'autre l'ignorait — et concluait que « la question ne se repose pas ».
+     * Les deux sites partageaient bien la même constante, mais avec le **même prédicat incomplet**.
+     * Partager la donnée ne suffisait pas : c'est la décision qu'il fallait partager. Relevé par la
+     * relecture externe du 2026-08-15.
+     */
+    private fun estReserveWindows(nom: String): Boolean =
+        nom.trimEnd(' ', '.').substringBefore('.').uppercase(Locale.ROOT) in WINDOWS_RESERVED
 
     /**
      * Le fichier d'accueil de l'archive, pour l'utilisateur qui la rouvre dans six mois.

@@ -242,7 +242,15 @@
     <string name="panic_confirm_title">Effacer définitivement toutes les données ?</string>
     <string name="panic_confirm_keyword">EFFACER</string>
     <string name="panic_confirm_yes">Tout effacer</string>
-    <string name="panic_incomplete">Effacement INCOMPLET : %1$d étape(s) ont échoué. Une partie de vos données peut avoir survécu — vérifiez avant de vous séparer de l\'appareil.</string>
+    <!--
+        Trois issues, pas deux. `panic_key_survived*` est la seule qui veuille dire « vous n'êtes PAS
+        protégé » : la clé a survécu, donc les notes restent déchiffrables. `panic_incomplete` est le
+        cas bien plus doux où la clé est détruite et où seul un nettoyage a échoué — y écrire « vos
+        données peuvent avoir survécu » effraierait quelqu'un qui est en réalité à l'abri.
+    -->
+    <string name="panic_key_survived_title">La clé n\'a PAS été détruite</string>
+    <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\'appareil.</string>
+    <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\'appareil.</string>
     <string name="panic_progress">Effacement en cours…</string>
     <string name="panic_progress_subtitle">Veuillez patienter.</string>
     <string name="panic_announce_done">Effacement terminé</string>

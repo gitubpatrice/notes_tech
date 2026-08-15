@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.panic
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -146,6 +147,24 @@ fun PanicConfirmDialog(onDismiss: () -> Unit, onConfirmed: () -> Unit) {
 fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
     SecureWindowGuard()
 
+    // ⚠️⚠️ **Le garde de retour vit ici, dans le recouvrement, pas chez son hôte.**
+    //
+    // Le KDoc ci-dessus promettait « ni bouton retour, ni fermeture » et rien ne le tenait : un
+    // appui sur Retour dépilait la route des réglages, le recouvrement disparaissait, et la
+    // séquence continuait dans la portée applicative sans que plus personne ne la voie. L'
+    // utilisateur retombait dans une application qui a l'air intacte, en croyant avoir annulé une
+    // destruction irréversible et déjà commencée — et sans jamais lire si la clé est tombée.
+    //
+    // L'application publiée ferme ce chemin depuis toujours (`panic_complete_screen.dart:47`,
+    // `canPop: false`), comme son écran de démarrage. Le portage avait transposé le garde sur
+    // `SplashScreen` et sur l'éditeur, et l'avait perdu sur le seul écran où il protège autre chose
+    // que du confort. Relevé par la relecture externe du 2026-08-15.
+    //
+    // Pendant la séquence, le geste est **avalé**. Une fois le rapport affiché, il fait ce que fait
+    // le bouton : fermer. Ne rien faire à ce moment-là enfermerait l'utilisateur devant un écran à
+    // bouton unique, sans raison — la destruction est terminée, il n'y a plus rien à protéger.
+    BackHandler { if (!running && report != null) onClose() }
+
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -167,38 +186,83 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                 return@Column
             }
 
-            // ⚠️ `liveRegion` : la fin de la séquence doit être **annoncée** au lecteur d'écran.
-            // Sans cela, quelqu'un qui n'a pas les yeux sur l'appareil ne sait pas si la
-            // destruction est terminée — au moment précis où cette information compte le plus.
+            // 🔴🔴 **`minimalGuarantee`, et non `isComplete`.**
+            //
+            // Ce sont deux questions différentes, et cet écran doit poser la seconde. `isComplete`
+            // demande « tout s'est-il bien passé » ; `minimalGuarantee` demande « suis-je protégé »,
+            // c'est-à-dire uniquement « la clé est-elle détruite ». Un nettoyage de cache qui échoue
+            // ne retire rien à la protection : la base est déjà du bruit.
+            //
+            // L'écran lisait `isComplete`. Il en résultait les deux erreurs symétriques, aux deux
+            // extrémités de ce qui compte :
+            //  • une purge de cache ratée déclenchait « une partie de vos données peut avoir
+            //    survécu » alors que la garantie cryptographique était acquise — une alarme fausse,
+            //    adressée à quelqu'un sous contrainte ;
+            //  • une clé NON détruite n'était pas distinguée : même écran, même phrase, un simple
+            //    compteur d'étapes. C'est le seul cas où l'utilisateur doit comprendre qu'il ne
+            //    doit PAS se séparer de l'appareil, et rien ne le lui disait.
+            //
+            // ⚠️ `PanicReportTest.sequenceInterrompue` affirmait déjà en commentaire que « l'écran
+            // de fin s'appuie sur `minimalGuarantee` et non sur `isComplete` ». C'était vrai du
+            // domaine, faux de l'écran : un test juste dont le commentaire décrivait une production
+            // qui ne l'était pas. Relevé indépendamment par les deux relectures externes et par
+            // l'audit de cohérence du 2026-08-15.
+            val protege = report.minimalGuarantee
+
+            // ⚠️ `liveRegion` : l'issue doit être **annoncée** au lecteur d'écran. Sans cela,
+            // quelqu'un qui n'a pas les yeux sur l'appareil ne sait pas ce qui s'est passé — au
+            // moment précis où cette information compte le plus. Le titre porte l'annonce, donc il
+            // doit porter la vérité : « effacement terminé » sur une clé survivante serait
+            // exactement le mensonge que tout le reste de cette séquence s'interdit.
             Text(
-                text = stringResource(R.string.panic_complete_title),
+                text = stringResource(
+                    if (protege) R.string.panic_complete_title else R.string.panic_key_survived_title,
+                ),
                 style = MaterialTheme.typography.headlineSmall,
+                color = if (protege) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Assertive },
             )
             Spacer(Modifier.height(16.dp))
 
-            if (report.isComplete) {
-                Text(stringResource(R.string.panic_complete_body))
-                Spacer(Modifier.height(16.dp))
-                // ⚠️ `panic_complete_bullet_3` — « modèle de dictée vocale : désinstallé » — n'est
-                // PAS affiché, pour la même raison que l'item 2 du dialogue.
-                Puce(stringResource(R.string.panic_complete_bullet_1))
-                Puce(stringResource(R.string.panic_complete_bullet_2))
-                Puce(stringResource(R.string.panic_complete_bullet_4))
-            } else {
-                // 🔴 Le message d'échec est le seul de l'application qu'on ne doit jamais adoucir :
-                // quelqu'un est peut-être sur le point de se séparer de son appareil.
-                Text(
-                    text = stringResource(R.string.panic_incomplete, report.failedSteps.size),
+            when {
+                // 🔴 Le seul message de l'application qu'on ne doit jamais adoucir : les notes
+                // restent déchiffrables, et quelqu'un est peut-être sur le point de se séparer de
+                // son appareil en croyant le contraire.
+                !protege -> Text(
+                    text = stringResource(R.string.panic_key_survived, report.failedSteps.size),
                     color = MaterialTheme.colorScheme.error,
                 )
+
+                report.isComplete -> {
+                    Text(stringResource(R.string.panic_complete_body))
+                    Spacer(Modifier.height(16.dp))
+                    // ⚠️ `panic_complete_bullet_3` — « modèle de dictée vocale : désinstallé » —
+                    // n'est PAS affiché, pour la même raison que l'item 2 du dialogue.
+                    Puce(stringResource(R.string.panic_complete_bullet_1))
+                    Puce(stringResource(R.string.panic_complete_bullet_2))
+                    Puce(stringResource(R.string.panic_complete_bullet_4))
+                }
+
+                // La clé est tombée, donc l'essentiel est acquis ; seul un nettoyage a échoué. Pas
+                // de rouge ici : l'alarme est réservée au cas au-dessus, sans quoi elle ne veut
+                // plus rien dire quand elle sert.
+                else -> Text(stringResource(R.string.panic_incomplete, report.failedSteps.size))
             }
 
-            Spacer(Modifier.height(24.dp))
-            Text(
-                text = stringResource(R.string.panic_complete_footer),
-                style = MaterialTheme.typography.bodySmall,
-            )
+            // ⚠️ Le pied de page promet un prochain lancement « sur une base vierge ». Il n'est
+            // affiché que si la clé est bien détruite — le promettre à côté d'un avertissement
+            // disant que les notes restent lisibles ferait douter de celui des deux qui compte.
+            if (protege) {
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = stringResource(R.string.panic_complete_footer),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Spacer(Modifier.height(24.dp))
             Button(onClick = onClose) { Text(stringResource(R.string.panic_complete_close)) }
         }

@@ -245,7 +245,15 @@
     <string name="panic_confirm_title">Permanently wipe all data?</string>
     <string name="panic_confirm_keyword">WIPE</string>
     <string name="panic_confirm_yes">Wipe everything</string>
-    <string name="panic_incomplete">Wipe INCOMPLETE: %1$d step(s) failed. Some of your data may have survived — check before parting with the device.</string>
+    <!--
+        Three outcomes, not two. `panic_key_survived*` is the only one that means "you are NOT
+        protected": the key survived, so the notes are still decryptable. `panic_incomplete` is the
+        far milder case where the key IS gone and only a cleanup step failed — saying "your data may
+        have survived" there would frighten someone who is in fact safe.
+    -->
+    <string name="panic_key_survived_title">The key was NOT destroyed</string>
+    <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
+    <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
     <string name="panic_progress">Wiping…</string>
     <string name="panic_progress_subtitle">Please wait.</string>
     <string name="panic_announce_done">Wipe complete</string>

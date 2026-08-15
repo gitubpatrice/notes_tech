@@ -183,6 +183,15 @@ class PanicReportTest {
         assertThat(bilan.minimalGuarantee).isFalse()
         // ⚠️ `isComplete` est vrai — les trois étapes présentes ont abouti. C'est bien pour cela
         // que l'écran de fin s'appuie sur `minimalGuarantee` et non sur `isComplete`.
+        //
+        // ⚠️⚠️ **Cette phrase a été fausse de la production pendant tout le temps où elle était
+        // écrite ici.** `PanicOverlay` branchait sur `isComplete` seul : un test juste, dont le
+        // commentaire décrivait un écran qui n'existait pas. Corrigé le 2026-08-15, après que les
+        // deux relectures externes et l'audit de cohérence l'ont relevé chacun de leur côté.
+        //
+        // La leçon vaut plus que le défaut : un commentaire de test qui affirme quelque chose de la
+        // production ne le vérifie pas. Il le **cache**, en donnant à lire une garantie là où il n'y
+        // a qu'une intention.
         assertThat(bilan.isComplete).isTrue()
     }
 

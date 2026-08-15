@@ -99,6 +99,45 @@ class PariteExportAvecFlutterTest {
         assertThat(NoteMarkdown.safeFileName("LPT9", note().id)).isEqualTo("note-11111111.md")
     }
 
+    /**
+     * 🔴 **Un nom de périphérique reste réservé avec une extension**, et les deux contrôles ne le
+     * voyaient pas : ils comparaient la chaîne entière à la liste, si bien que `CON.txt` passait.
+     *
+     * Ce n'est pas un cas tordu. `CON.txt` est un titre de note plausible, et le fichier produit —
+     * `CON.txt.md` — rend l'archive **entière** inextractible chez un destinataire Windows, pas
+     * seulement ce fichier-là. L'export échoue donc au moment précis où il sert.
+     *
+     * ⚠️ Le KDoc de la constante se félicitait d'avoir corrigé un jumeau asymétrique. Les deux sites
+     * partageaient bien la même liste — avec le **même prédicat incomplet**. Partager la donnée ne
+     * suffisait pas : c'est la décision qu'il fallait partager, et c'est maintenant le cas
+     * (`estReserveWindows`). Ce test verrouille les deux sites.
+     */
+    @Test
+    @DisplayName("un nom réservé le reste avec une extension, un point final ou une espace finale")
+    fun nomReserveAvecExtension() {
+        val id = note().id
+        assertThat(NoteMarkdown.safeFileName("CON.txt", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFileName("nul.md", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFileName("COM1.tar.gz", id)).isEqualTo("note-11111111.md")
+        assertThat(NoteMarkdown.safeFileName("PRN.", id)).isEqualTo("note-11111111.md")
+
+        // ⚠️ Le contrôle porte sur le nom de base, pas sur un préfixe : une note dont le titre
+        // *commence* par un nom réservé est parfaitement valable et ne doit pas être renommée.
+        assertThat(NoteMarkdown.safeFileName("Console", id)).isEqualTo("Console.md")
+        assertThat(NoteMarkdown.safeFileName("CONTRAT.pdf", id)).isEqualTo("CONTRAT.pdf.md")
+    }
+
+    @Test
+    @DisplayName("un dossier réservé le reste avec une extension — le jumeau du test ci-dessus")
+    fun dossierReserveAvecExtension() {
+        assertThat(NoteMarkdown.safeFolderName(null, "CON.txt")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "aux.old")).isEqualTo("sans-dossier")
+        // Réduit à des points : « . » et « .. » étaient déjà rejetés, « ... » ne l'était pas, et
+        // Windows le refuse tout autant.
+        assertThat(NoteMarkdown.safeFolderName(null, "...")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "Contrats")).isEqualTo("Contrats")
+    }
+
     @Test
     @DisplayName("un titre trop long est tronqué à 80 caractères")
     fun nomLong() {

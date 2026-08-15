@@ -24,6 +24,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
+import java.io.RandomAccessFile
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -319,18 +320,41 @@ class PanicService @Inject constructor(
         }
     }
 
+    /**
+     * ⚠️⚠️ **`RandomAccessFile` et non `outputStream()`, et ce n'est pas un détail de style.**
+     *
+     * `File.outputStream()` construit un `FileOutputStream` sans mode ajout, donc ouvre avec
+     * `O_TRUNC` : le fichier est ramené à zéro octet **avant** que le premier zéro soit écrit. Le
+     * système libère alors les blocs qui portaient la donnée, et les seize mégaoctets qui suivent
+     * vont dans des blocs **fraîchement alloués**. L'en-tête SQLite et les premières pages ne sont
+     * jamais recouverts — ils sont seulement marqués libres, c'est-à-dire exactement l'état où les
+     * laisserait un `delete()` seul. L'étape écrivait seize mégaoctets pour rien.
+     *
+     * `RandomAccessFile(fichier, "rw")` ouvre sans tronquer, au décalage zéro, et écrit **par
+     * dessus**.
+     *
+     * ⚠️ **`sync()` et non `flush()`.** `flush()` sur un `FileOutputStream` ne fait rien — il n'y a
+     * aucun tampon applicatif à vider. Les zéros restaient donc des pages sales du noyau, et le
+     * `delete()` qui suit immédiatement autorise le noyau à les abandonner sans jamais les écrire.
+     * Le second défaut annulait ce qui restait du premier.
+     *
+     * Ce que cet écrasement ne peut pas promettre est dit plus haut : sur une mémoire flash à
+     * répartition d'usure, écrire au décalage zéro ne garantit pas d'atteindre les blocs physiques
+     * d'origine. C'est une seconde ligne, pas la protection — celle-ci vient de la clé détruite à
+     * l'étape précédente. Mais une seconde ligne qui ne s'exécute pas ne vaut rien du tout.
+     */
     private fun ecraserPuisSupprimer(fichier: File) {
         try {
             val aEcraser = minOf(fichier.length(), OCTETS_ECRASES.toLong())
-            fichier.outputStream().use { flux ->
+            RandomAccessFile(fichier, "rw").use { acces ->
                 val bloc = ByteArray(TAILLE_DE_BLOC)
                 var ecrits = 0L
                 while (ecrits < aEcraser) {
                     val n = minOf(TAILLE_DE_BLOC.toLong(), aEcraser - ecrits).toInt()
-                    flux.write(bloc, 0, n)
+                    acces.write(bloc, 0, n)
                     ecrits += n
                 }
-                flux.flush()
+                acces.fd.sync()
             }
         } catch (e: Exception) {
             // Au mieux effort : la clé détruite suffit déjà à rendre le contenu illisible. On

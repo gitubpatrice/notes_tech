@@ -12,6 +12,8 @@ import com.filestech.notes_tech.security.vault.FolderVaultService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.Clock
@@ -59,6 +61,26 @@ class NoteExporter @Inject constructor(
 ) {
 
     /**
+     * ⚠️⚠️ **Un seul export à la fois, et ce n'est pas du confort.**
+     *
+     * `preparerRepertoire()` commence par `deleteRecursively()` sur `cache/exports/`, qui est
+     * partagé par les deux chemins d'export. Cet objet étant unique dans le graphe d'injection, deux
+     * exports partis de deux endroits — l'archive des réglages pendant qu'un éditeur exporte sa
+     * note — se marchent dessus : le second efface le fichier que le premier est en train d'écrire,
+     * ou celui qu'il vient de rendre. L'utilisateur reçoit alors une adresse de partage qui ne
+     * désigne plus rien, sans erreur pour le lui dire.
+     *
+     * Le verrou porte de la préparation du répertoire jusqu'à la fabrication de l'adresse, c'est-à-
+     * dire toute la fenêtre pendant laquelle le fichier doit exister. Sérialiser coûte une attente
+     * sur un geste que l'utilisateur déclenche à la main et rarement — le prix est nul.
+     *
+     * Signalé comme PROBABLE par la relecture externe du 2026-08-15 ; le second chemin n'a pas
+     * encore d'appelant, la course est donc latente et non observée. Elle s'ouvrirait à la phase 6.4
+     * avec le menu de l'éditeur.
+     */
+    private val verrou = Mutex()
+
+    /**
      * Fabrique l'archive et rend de quoi la partager.
      *
      * @param inboxLabel le nom affiché de la boîte de réception, dans la langue de l'interface.
@@ -68,6 +90,9 @@ class NoteExporter @Inject constructor(
      *   commentaire YAML des notes qui en viennent.
      */
     suspend fun exportAll(inboxLabel: String, vaultMention: (String) -> String): ExportResult =
+        verrou.withLock { fabriquerLArchive(inboxLabel, vaultMention) }
+
+    private suspend fun fabriquerLArchive(inboxLabel: String, vaultMention: (String) -> String): ExportResult =
         withContext(Dispatchers.IO) {
             val instant = clock.instant()
             val zone = ZoneId.systemDefault()
@@ -111,16 +136,45 @@ class NoteExporter @Inject constructor(
             )
         }
 
-    /** Le fichier Markdown d'**une seule** note, prêt à partager. */
-    suspend fun exportOne(note: Note, folderLabel: String): ExportResult = withContext(Dispatchers.IO) {
+    /**
+     * Le fichier Markdown d'**une seule** note, prêt à partager.
+     *
+     * ⚠️⚠️ **L'origine « coffre » se lit AVANT le déchiffrement.**
+     *
+     * Une fois `vaults.decrypt` passé, la note en main est du clair ordinaire : plus rien en elle ne
+     * dit qu'elle sortait d'un coffre. C'est précisément ce que le suffixe ` [unlocked]` et la
+     * mention YAML servent à dire — et cette fonction les omettait tous les deux, là où le chemin
+     * archive les pose. Un même secret exporté seul ou dans un lot ne portait pas la même marque :
+     * jumeau asymétrique, relevé par la relecture externe du 2026-08-15.
+     *
+     * @param vaultMention appelé avec le nom du dossier coffre, comme dans [exportAll]. C'est une
+     *   **fonction** et non un gabarit : passer `"%s"` puis formater casserait en silence le jour où
+     *   la chaîne traduite gagne un paramètre.
+     */
+    suspend fun exportOne(note: Note, folderLabel: String, vaultMention: (String) -> String): ExportResult =
+        verrou.withLock { fabriquerLeFichier(note, folderLabel, vaultMention) }
+
+    private suspend fun fabriquerLeFichier(
+        note: Note,
+        folderLabel: String,
+        vaultMention: (String) -> String,
+    ): ExportResult = withContext(Dispatchers.IO) {
         val instant = clock.instant()
-        val claire = if (note.isLocked) vaults.decrypt(note) else note
+        val venaitDunCoffre = note.isLocked
+        val claire = if (venaitDunCoffre) vaults.decrypt(note) else note
         val repertoire = preparerRepertoire()
-        val nom = NoteMarkdown.safeFileName(claire.title, claire.id)
+        val nom = NoteMarkdown.safeFileName(claire.title, claire.id, fromUnlockedVault = venaitDunCoffre)
         val fichier = File(repertoire, nom)
 
         try {
-            fichier.writeText(NoteMarkdown.render(claire, folderLabel, zone = ZoneId.systemDefault()))
+            fichier.writeText(
+                NoteMarkdown.render(
+                    note = claire,
+                    folderLabel = folderLabel,
+                    vaultMention = if (venaitDunCoffre) vaultMention(folderLabel) else null,
+                    zone = ZoneId.systemDefault(),
+                ),
+            )
         } catch (e: Throwable) {
             fichier.delete()
             throw e

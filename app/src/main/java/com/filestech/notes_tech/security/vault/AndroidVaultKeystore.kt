@@ -142,6 +142,28 @@ class AndroidVaultKeystore @Inject constructor() : VaultKeystore {
             }
         }
         premierEchec?.let { throw KeystoreUnavailableException(it) }
+
+        // ⚠️⚠️ **On relit.** `deleteEntry` qui rend la main sans lever ne prouve pas que l'alias a
+        // disparu — c'est une promesse de l'implémentation du magasin, pas une observation.
+        //
+        // Les deux autres destructions critiques de la séquence de panique relisent déjà :
+        // `KekRepository.destroy()` rappelle chaque source, `supprimerLeFichierDePreferences`
+        // contrôle l'existence du fichier. Celle-ci ne relisait rien, alors qu'elle porte l'étape
+        // `PIN_KEYS_WIPE` — c'est-à-dire la seule barrière d'un coffre à code contre une attaque
+        // menée hors de l'appareil.
+        //
+        // Le commentaire de `KekRepository` reproche mot pour mot ce défaut à l'application
+        // publiée : « `hasKey()` est écrit dix lignes plus bas et répondrait à la question ». Il
+        // l'était ici aussi, et personne ne l'appelait. Relevé par l'audit de cohérence du
+        // 2026-08-15 — c'est exactement ce qu'un audit de cohérence trouve et qu'une relecture de
+        // sécurité, qui lit chaque site isolément, ne cherche pas.
+        val survivants = vises.filter { containsAlias(store, it) }
+        if (survivants.isNotEmpty()) {
+            // ⚠️ Le nombre, jamais les alias : ils portent l'identifiant du dossier de coffre.
+            throw KeystoreUnavailableException(
+                IllegalStateException("clés de coffre survivantes : ${survivants.size}"),
+            )
+        }
         return effacees
     }
 

@@ -112,9 +112,20 @@ class DatabaseProvider @Inject constructor(
     fun isOpen(): Boolean = instance?.isOpen == true
 
     /**
-     * Ferme la base et oublie l'instance.
+     * Ferme la base et oublie l'instance. Idempotent.
      *
-     * Utilisé par le mode panique, qui doit fermer avant d'effacer le fichier. Idempotent.
+     * ⚠️⚠️ **Ce n'est PAS ce qu'utilise le mode panique**, et le KDoc l'a prétendu jusqu'au
+     * 2026-08-15. C'est [sealForPanic] qu'il appelle, précisément parce que fermer ne suffit pas :
+     * fermer ne fait qu'oublier l'instance, et le prochain `get()` — un `Flow` de Room encore
+     * abonné, une portée applicative en cours — rouvrirait la base et en fabriquerait une neuve avec
+     * une clé neuve, quelques millisecondes après l'effacement. Voir `docs/04-PIEGES.md` §40, qui
+     * documente ce défaut comme la raison d'être de [sealForPanic].
+     *
+     * Un commentaire qui désigne le mauvais appelant est pire qu'un commentaire absent : il invite à
+     * réutiliser ici la fonction qu'on a justement écrit [sealForPanic] pour remplacer.
+     *
+     * Seul emploi réel : le démontage des tests instrumentés, qui doivent rendre la base entre deux
+     * cas sans sceller le fournisseur pour le reste du processus.
      */
     suspend fun close() = mutex.withLock {
         instance?.let { withContext(ioDispatcher) { it.close() } }
