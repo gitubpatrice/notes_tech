@@ -1,5 +1,7 @@
 package com.filestech.notes_tech.ui.editor
 
+import android.content.Context
+import android.content.res.Resources
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -78,6 +80,7 @@ import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -137,59 +140,16 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val mentionDeCoffre: (String) -> String = { nom -> ressources.getString(R.string.export_note_from_vault, nom) }
     val titreDuSelecteur = stringResource(R.string.common_share)
 
-    // ⚠️ **Afficher PUIS consommer**, jamais l'inverse : un `LaunchedEffect` dont la clé change par
-    // son propre effet s'annule, et le message ne s'afficherait jamais. Le partage part d'abord, le
-    // porteur est vidé ensuite, et le message est posté sur une portée qui ne dépend pas de la clé.
-    LaunchedEffect(action) {
-        val export = action.export
-        val erreur = action.erreur
-        when {
-            export != null -> {
-                partagerUnFichier(
-                    context = contexte,
-                    uri = export.uri,
-                    mimeType = MIME_MARKDOWN,
-                    sujet = export.fileName,
-                    titreDuSelecteur = titreDuSelecteur,
-                )
-                viewModel.consommerLAction()
-            }
-
-            action.misAlaCorbeille -> {
-                viewModel.consommerLAction()
-                onBack()
-            }
-
-            action.deplacee -> {
-                viewModel.consommerLAction()
-                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_moved)) }
-            }
-
-            action.copiee -> {
-                viewModel.consommerLAction()
-                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copied_to_clipboard)) }
-            }
-
-            // ⚠️ Le presse-papiers n'a PAS été touché : le dire, plutôt que laisser croire à une
-            // copie vide réussie. Un geste sans effet se signale.
-            action.copieVide -> {
-                viewModel.consommerLAction()
-                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copy_empty)) }
-            }
-
-            erreur != null -> {
-                val gabarit = when (action.origine) {
-                    ActionDEditeur.OrigineDErreur.EXPORT -> R.string.note_editor_export_failed
-                    ActionDEditeur.OrigineDErreur.DEPLACEMENT -> R.string.note_editor_move_failed
-                    // Création et corbeille n'ont pas de phrase dédiée : « Erreur : … » dit ce
-                    // qu'il faut sans inventer une chaîne qui n'existe dans aucune des deux langues.
-                    else -> R.string.common_error_with
-                }
-                viewModel.consommerLAction()
-                portee.launch { messages.showSnackbar(ressources.getString(gabarit, erreur)) }
-            }
-        }
-    }
+    IssueDUneAction(
+        action = action,
+        contexte = contexte,
+        ressources = ressources,
+        titreDuSelecteur = titreDuSelecteur,
+        messages = messages,
+        portee = portee,
+        onConsommer = viewModel::consommerLAction,
+        onBack = onBack,
+    )
 
     if (deplacementOuvert) {
         FeuilleDeDeplacement(
@@ -302,12 +262,21 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                     TitreDeLEditeur(
                         dossier = state.folder?.name.orEmpty(),
                         enregistrement = state.saving,
-                        echec = state.saveFailed || state.lostToVaultLock,
+                        // 🔴 **`loadError` compte comme un échec pour cette ligne.** Sans lui,
+                        // l'écran affichait « Enregistré », coche comprise, **par-dessus un état
+                        // vide qui dit « impossible d'ouvrir »** — deux récits concurrents, et le
+                        // rassurant était le faux. Relevé CONFIRMÉ par une relecture externe
+                        // (GPT-5.2, 2026-08-15).
+                        echec = state.saveFailed || state.lostToVaultLock || state.loadError != null,
                     )
                 },
                 actions = {
                     val note = state.note
-                    if (note != null && state.lockedVault == null) {
+                    // ⚠️ **Rien à faire sur une note qu'on n'a pas pu ouvrir.** `loadError` laisse
+                    // `note` renseignée — c'est utile au diagnostic — mais épingler, mettre en
+                    // favori ou insérer un lien dans un contenu qu'on n'a jamais déchiffré n'a aucun
+                    // sens, et « Terminé » n'aurait rien à enregistrer. Même relecture.
+                    if (note != null && state.lockedVault == null && state.loadError == null) {
                         // 🔴 **Un bouton « Terminé » visible, alors que l'enregistrement est
                         // automatique.**
                         //
@@ -573,6 +542,80 @@ private fun champSansDecor() = TextFieldDefaults.colors(
     unfocusedIndicatorColor = Color.Transparent,
     disabledIndicatorColor = Color.Transparent,
 )
+
+/**
+ * Ce qu'il faut faire de l'issue d'une action de menu : partager, quitter, ou annoncer.
+ *
+ * ⚠️ **Extrait de [NoteEditorRoute] parce que detekt a refusé la fonction**, arrivée au seuil de
+ * complexité en gagnant une condition de plus. Le seuil n'est pas à relever : c'est le signal qui
+ * dit qu'une fonction porte trop de décisions, et il a raison — cet effet-ci se lit seul.
+ *
+ * ⚠️ **Afficher PUIS consommer**, jamais l'inverse : un `LaunchedEffect` dont la clé change par son
+ * propre effet s'annule, et le message ne s'afficherait jamais. Le partage part d'abord, le porteur
+ * est vidé ensuite, et le message est posté sur une portée qui ne dépend pas de la clé.
+ */
+@Composable
+private fun IssueDUneAction(
+    action: ActionDEditeur,
+    contexte: Context,
+    ressources: Resources,
+    titreDuSelecteur: String,
+    messages: SnackbarHostState,
+    portee: CoroutineScope,
+    onConsommer: () -> Unit,
+    onBack: () -> Unit,
+) {
+    LaunchedEffect(action) {
+        val export = action.export
+        val erreur = action.erreur
+        when {
+            export != null -> {
+                partagerUnFichier(
+                    context = contexte,
+                    uri = export.uri,
+                    mimeType = MIME_MARKDOWN,
+                    sujet = export.fileName,
+                    titreDuSelecteur = titreDuSelecteur,
+                )
+                onConsommer()
+            }
+
+            action.misAlaCorbeille -> {
+                onConsommer()
+                onBack()
+            }
+
+            action.deplacee -> {
+                onConsommer()
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_moved)) }
+            }
+
+            action.copiee -> {
+                onConsommer()
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copied_to_clipboard)) }
+            }
+
+            // ⚠️ Le presse-papiers n'a PAS été touché : le dire, plutôt que laisser croire à une
+            // copie vide réussie. Un geste sans effet se signale.
+            action.copieVide -> {
+                onConsommer()
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copy_empty)) }
+            }
+
+            erreur != null -> {
+                val gabarit = when (action.origine) {
+                    ActionDEditeur.OrigineDErreur.EXPORT -> R.string.note_editor_export_failed
+                    ActionDEditeur.OrigineDErreur.DEPLACEMENT -> R.string.note_editor_move_failed
+                    // Création et corbeille n'ont pas de phrase dédiée : « Erreur : … » dit ce
+                    // qu'il faut sans inventer une chaîne qui n'existe dans aucune des deux langues.
+                    else -> R.string.common_error_with
+                }
+                onConsommer()
+                portee.launch { messages.showSnackbar(ressources.getString(gabarit, erreur)) }
+            }
+        }
+    }
+}
 
 /**
  * Annonce « Note enregistrée » au lecteur d'écran, **au plus une fois toutes les cinq secondes**.

@@ -191,14 +191,18 @@ fun CreateVaultSheet(
      */
     onCreated: (chiffrees: Int) -> Unit,
     /**
-     * 🔴 Appelé quand on quitte la feuille sur une conversion **partielle**.
+     * 🔴 Appelé quand on quitte la feuille sur une conversion **incomplète**, partielle ou pas
+     * commencée du tout.
      *
-     * L'avertissement « N notes sur M n'ont pas pu être converties » n'existait que dans la feuille :
-     * la refermer, par le bouton ou par un geste, l'effaçait sans laisser de trace. Le dossier
-     * affiche alors un cadenas, une partie de son contenu est lisible au repos, et **plus rien nulle
-     * part ne le dit**. Relevé CONFIRMÉ par une relecture externe (GPT-5.2, 2026-08-15).
+     * L'avertissement n'existait que dans la feuille : la refermer, par le bouton ou par un geste,
+     * l'effaçait sans laisser de trace. Le dossier affiche alors un cadenas, tout ou partie de son
+     * contenu est lisible au repos, et **plus rien nulle part ne le dit**. Relevé CONFIRMÉ par une
+     * relecture externe (GPT-5.2, 2026-08-15).
+     *
+     * L'issue est passée telle quelle : c'est l'appelant qui choisit la phrase, là où il choisit
+     * déjà celle de la réussite.
      */
-    onPartiellementChiffre: (echouees: Int, total: Int) -> Unit,
+    onConversionIncomplete: (VaultAttempt) -> Unit,
 ) {
     when (mode) {
         VaultMode.PIN -> PinSheet(
@@ -206,7 +210,7 @@ fun CreateVaultSheet(
             creating = true,
             onDismiss = onDismiss,
             onDone = onCreated,
-            onPartiellementChiffre = onPartiellementChiffre,
+            onConversionIncomplete = onConversionIncomplete,
         )
 
         else -> PassphraseSheet(
@@ -214,7 +218,7 @@ fun CreateVaultSheet(
             creating = true,
             onDismiss = onDismiss,
             onDone = onCreated,
-            onPartiellementChiffre = onPartiellementChiffre,
+            onConversionIncomplete = onConversionIncomplete,
         )
     }
 }
@@ -227,7 +231,7 @@ private fun PassphraseSheet(
     creating: Boolean,
     onDismiss: () -> Unit,
     onDone: (chiffrees: Int) -> Unit,
-    onPartiellementChiffre: (echouees: Int, total: Int) -> Unit = { _, _ -> },
+    onConversionIncomplete: (VaultAttempt) -> Unit = {},
 ) {
     // ⚠️ Le drapeau est forcé pour la durée de la feuille, **même si l'utilisateur l'a désactivé**.
     // Ce qui s'affiche ici est une phrase secrète en clair quand il choisit de la rendre visible ;
@@ -262,7 +266,7 @@ private fun PassphraseSheet(
             // (`folders_drawer.dart:654`). Pendant la dérivation, en revanche, fermer annule
             // vraiment : rien n'a encore été écrit.
             if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
-            rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
+            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
             viewModel.cancelAttempt()
             onDismiss()
         },
@@ -323,7 +327,7 @@ private fun PassphraseSheet(
                 // le dire. Passer par le chemin de réussite ferait afficher « Coffre activé »
                 // par-dessus, c'est-à-dire contredire l'avertissement qu'on vient de lire.
                 BoutonDeFermeture {
-                    rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
+                    rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
                     viewModel.consumeAttempt()
                     onDismiss()
                 }
@@ -426,7 +430,7 @@ private fun PinSheet(
     creating: Boolean,
     onDismiss: () -> Unit,
     onDone: (chiffrees: Int) -> Unit,
-    onPartiellementChiffre: (echouees: Int, total: Int) -> Unit = { _, _ -> },
+    onConversionIncomplete: (VaultAttempt) -> Unit = {},
 ) {
     // ⚠️ Même raison que la feuille à phrase secrète, avec un motif propre au pavé numérique : la
     // position des touches enfoncées est stable d'une saisie à l'autre, donc une capture de la
@@ -489,7 +493,7 @@ private fun PinSheet(
             // (`folders_drawer.dart:654`). Pendant la dérivation, en revanche, fermer annule
             // vraiment : rien n'a encore été écrit.
             if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
-            rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
+            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
             viewModel.cancelAttempt()
             onDismiss()
         },
@@ -548,7 +552,7 @@ private fun PinSheet(
             // avait été écrit une fois, sur une seule des deux feuilles.
             if (state.attempt.coffreExiste()) {
                 BoutonDeFermeture {
-                    rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
+                    rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
                     // ⚠️ **Consommer.** Ce ViewModel vit plus longtemps que la feuille : sans ça,
                     // l'issue survit et le message de conversion partielle réapparaît à l'ouverture
                     // de la feuille d'un AUTRE dossier. Relevé PROBABLE par une relecture externe
@@ -874,14 +878,23 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
  * consommation est le dernier geste.
  */
 /**
- * Remonte l'issue d'une conversion **partielle** avant que la feuille ne disparaisse.
+ * Remonte une conversion **incomplète** avant que la feuille ne disparaisse.
  *
- * ⚠️ Ne dit rien dans tous les autres cas — un déverrouillage, un mauvais secret, une conversion
- * complète : ceux-là ont déjà leur propre retour, et en ajouter un second serait du bruit.
+ * 🔴 **Deux issues, pas une.** Cette fonction ne traitait que la conversion partielle
+ * ([VaultAttempt.Created] avec des échecs). Or [coffreExiste] — la condition qui mène ici — couvre
+ * **aussi** [VaultAttempt.CreatedButNotEncrypted], c'est-à-dire le cas où le chiffrement n'a même
+ * pas pu commencer : le dossier est un coffre et **toutes** ses notes sont en clair. Le fermer
+ * effaçait ce message-là sans rien remonter. Relevé par une relecture externe (GPT-5.2, 2026-08-15),
+ * qui a vu que le commentaire disait « partielle » là où le code en acceptait deux.
+ *
+ * ⚠️ Ne dit rien dans les autres cas — déverrouillage, mauvais secret, conversion complète : ceux-là
+ * ont déjà leur propre retour, et en ajouter un second serait du bruit.
  */
-private fun rapporterUneConversionPartielle(attempt: VaultAttempt?, onPartiel: (Int, Int) -> Unit) {
-    val bilan = (attempt as? VaultAttempt.Created)?.takeIf { !it.isComplete } ?: return
-    onPartiel(bilan.failed, bilan.encrypted + bilan.failed)
+private fun rapporterUneConversionIncomplete(attempt: VaultAttempt?, onIncomplete: (VaultAttempt) -> Unit) {
+    when {
+        attempt is VaultAttempt.Created && !attempt.isComplete -> onIncomplete(attempt)
+        attempt is VaultAttempt.CreatedButNotEncrypted -> onIncomplete(attempt)
+    }
 }
 
 /**

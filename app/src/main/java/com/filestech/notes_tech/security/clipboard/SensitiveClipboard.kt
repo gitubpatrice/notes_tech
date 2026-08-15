@@ -133,25 +133,11 @@ class SensitiveClipboard @Inject constructor(
 
             repeat(NB_ESSAIS) { essai ->
                 try {
-                    vider()
-                    // ⚠️ **On RELIT.** Un `vider()` qui ne lève pas ne prouve pas que le
-                    // presse-papiers a changé : une implémentation constructeur peut l'ignorer en
-                    // silence. Déclarer l'étape réussie sur la seule absence d'exception, c'est
-                    // annoncer un effacement qu'on n'a pas vérifié — le défaut même que cette
-                    // méthode existe pour empêcher, déplacé d'un cran.
-                    //
-                    // ⚠️ Une lecture impossible n'est PAS un échec : la panique tourne au premier
-                    // plan, donc elle lit normalement, et refuser l'étape sur un doute de lecture
-                    // ferait échouer une purge qui a très probablement abouti.
-                    val etat = lire()
-                    val subsiste = aRetirer != null &&
-                        etat is EtatDuPressePapiers.Texte &&
-                        etat.valeur == aRetirer
-                    if (!subsiste) {
+                    if (viderEtVerifier()) {
                         texteDepose = null
                         return
                     }
-                    Timber.w("purge du presse-papiers : la valeur subsiste après l'essai %d", essai + 1)
+                    Timber.w("purge du presse-papiers : du texte subsiste après l'essai %d", essai + 1)
                 } catch (e: Exception) {
                     Timber.w(e, "purge du presse-papiers : essai %d", essai + 1)
                 }
@@ -180,8 +166,13 @@ class SensitiveClipboard @Inject constructor(
                 is EtatDuPressePapiers.Texte ->
                     if (etat.valeur == notre) {
                         try {
-                            vider()
-                            texteDepose = null
+                            // 🔴 **Vérifier ici AUSSI.** L'échéance se contentait de l'absence
+                            // d'exception, alors que la purge de panique relisait. Deux chemins qui
+                            // effacent la même chose, un seul qui vérifie : jumeau asymétrique.
+                            // Un `vider()` ignoré en silence laissait le clair dans le presse-papiers
+                            // **et** le service l'oubliait — plus aucune minuterie ne repassait.
+                            // Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15).
+                            if (viderEtVerifier()) texteDepose = null else rearmer(generationAttendue)
                         } catch (e: Exception) {
                             Timber.w(e, "effacement différé du presse-papiers")
                             rearmer(generationAttendue)
@@ -240,6 +231,31 @@ class SensitiveClipboard @Inject constructor(
             delay(DELAI_EFFACEMENT_MS)
             effacerSiCestEncoreLeNotre(generationAttendue)
         }
+    }
+
+    /**
+     * Vide, **relit**, et dit si le presse-papiers ne porte plus de texte.
+     *
+     * ⚠️ Un `vider()` qui ne lève pas ne prouve pas que le presse-papiers a changé : une
+     * implémentation constructeur peut l'ignorer en silence. Déclarer l'effacement acquis sur la
+     * seule absence d'exception, c'est annoncer ce qu'on n'a pas vérifié.
+     *
+     * ⚠️⚠️ **Le test porte sur « du texte non vide subsiste », pas sur « c'est encore le nôtre ».**
+     * La comparaison à notre instantané ne marche pas quand il n'y en a pas — après un redémarrage
+     * du processus, le singleton a perdu son état alors que le presse-papiers, lui, a gardé le
+     * contenu de la session précédente. Le contrôle passait alors **toujours**, et la panique
+     * déclarait l'étape réussie sans rien avoir regardé. Relevé CONFIRMÉ par une relecture externe
+     * (Gemini, 2026-08-15).
+     *
+     * ⚠️ **Une lecture impossible n'est pas une preuve d'échec.** Sur API 28+, `clearPrimaryClip`
+     * fait justement rendre `null` à la lecture suivante : traiter ce cas comme un échec ferait
+     * échouer **toutes** les purges réussies. On rend donc `true` — l'effacement n'est pas réfuté —
+     * et l'appelant garde par ailleurs son instantané tant que rien ne l'a confirmé.
+     */
+    private fun viderEtVerifier(): Boolean {
+        vider()
+        val etat = lire()
+        return !(etat is EtatDuPressePapiers.Texte && etat.valeur.isNotEmpty())
     }
 
     private fun presse(): ClipboardManager = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager

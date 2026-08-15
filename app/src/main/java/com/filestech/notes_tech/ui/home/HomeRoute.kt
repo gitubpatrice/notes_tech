@@ -37,6 +37,7 @@ import com.filestech.notes_tech.ui.folders.FoldersDrawerViewModel
 import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
+import com.filestech.notes_tech.ui.vault.VaultAttempt
 import kotlinx.coroutines.launch
 
 /**
@@ -313,15 +314,25 @@ fun HomeRoute(
                     portee.launch { snackbars.showSnackbar(message) }
                 },
                 // 🔴 L'avertissement ne doit pas mourir avec la feuille : le dossier porte un
-                // cadenas et une partie de son contenu reste lisible au repos.
-                onPartiellementChiffre = { echouees, total ->
+                // cadenas et tout ou partie de son contenu reste lisible au repos.
+                onConversionIncomplete = { issue ->
                     dossierAProteger = null
                     modeChoisi = null
-                    val message = ressourcesDeLEcran.getString(
-                        R.string.vault_convert_partial_fail,
-                        echouees,
-                        total,
-                    )
+                    val message = when (issue) {
+                        is VaultAttempt.Created -> ressourcesDeLEcran.getString(
+                            R.string.vault_convert_partial_fail,
+                            issue.failed,
+                            issue.encrypted + issue.failed,
+                        )
+
+                        // ⚠️ Le chiffrement n'a pas commencé : **toutes** les notes sont en clair,
+                        // pas seulement quelques-unes. Réutiliser la phrase du partiel donnerait un
+                        // décompte, donc l'illusion que le reste est protégé.
+                        else -> ressourcesDeLEcran.getString(
+                            R.string.vault_convert_impossible,
+                            (issue as? VaultAttempt.CreatedButNotEncrypted)?.message.orEmpty(),
+                        )
+                    }
                     portee.launch { snackbars.showSnackbar(message) }
                 },
             )
