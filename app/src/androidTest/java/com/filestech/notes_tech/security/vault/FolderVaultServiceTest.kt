@@ -9,6 +9,7 @@ import com.filestech.notes_tech.data.local.LegacyDatabaseFixture
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.data.local.SqlCipherRawKey
+import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
@@ -155,6 +156,118 @@ class FolderVaultServiceTest {
         val blob = String(ligne.encryptedContent!!, Charsets.ISO_8859_1)
         assertThat(blob).doesNotContain("Codes")
         assertThat(blob).doesNotContain("secret")
+    }
+
+    // ── Conversion d'un dossier existant ─────────────────────────────────────────────────────────
+
+    /**
+     * Le geste central de la conversion : les notes **déjà présentes** passent sous la clé.
+     *
+     * ⚠️ `encryptAllNotesInFolder` n'a eu **aucun appelant** jusqu'au 2026-08-14 alors que la
+     * documentation affirmait le contraire — un chemin mort trouvé par l'audit de cohérence, et qui
+     * n'avait jusqu'ici aucun test pour le tenir.
+     */
+    @Test
+    fun convertir_un_dossier_chiffre_les_notes_deja_presentes(): Unit = runBlocking {
+        val avant = notes.create(folderId = DOSSIER, title = "Ancienne", content = "texte en clair")
+        assertThat(provider.get().noteDao().findById(avant.id)!!.encryptedContent).isNull()
+
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val bilan = coffres.encryptAllNotesInFolder(DOSSIER)
+
+        assertThat(bilan.failed).isEqualTo(0)
+        assertThat(bilan.done).isAtLeast(1)
+
+        val ligne = provider.get().noteDao().findById(avant.id)!!
+        assertThat(ligne.encryptedContent).isNotNull()
+        assertThat(ligne.title).isEmpty()
+        assertThat(ligne.content).isEmpty()
+    }
+
+    /** Le chiffrement de masse est borné à SON dossier. Un `WHERE` oublié emporterait la base. */
+    @Test
+    fun le_chiffrement_de_masse_ne_touche_pas_aux_notes_dun_autre_dossier(): Unit = runBlocking {
+        val ailleurs = notes.create(
+            folderId = FolderEntity.INBOX_ID,
+            title = "Hors coffre",
+            content = "doit rester lisible",
+        )
+
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        coffres.encryptAllNotesInFolder(DOSSIER)
+
+        val ligne = provider.get().noteDao().findById(ailleurs.id)!!
+        assertThat(ligne.encryptedContent).isNull()
+        assertThat(ligne.content).isEqualTo("doit rester lisible")
+    }
+
+    /**
+     * 🔴 **Le rattrapage**, celui qui tourne juste après une conversion partielle.
+     *
+     * Le dossier est déjà marqué coffre : une note restée en clair y est lisible au repos **sous un
+     * cadenas**. C'est l'état que cette méthode existe pour ne pas laisser durer.
+     */
+    @Test
+    fun la_reprotection_reprend_une_note_restee_en_clair(): Unit = runBlocking {
+        val oubliee = notes.create(folderId = DOSSIER, title = "Oubliée", content = "en clair")
+        // Le dossier devient un coffre SANS que le contenu soit chiffré : exactement ce que laisse
+        // une conversion dont le premier passage a échoué sur cette note.
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        assertThat(provider.get().noteDao().findById(oubliee.id)!!.content).isEqualTo("en clair")
+
+        val reprises = coffres.reprotectPlaintextNotes(DOSSIER)
+
+        assertThat(reprises).isAtLeast(1)
+        val ligne = provider.get().noteDao().findById(oubliee.id)!!
+        assertThat(ligne.encryptedContent).isNotNull()
+        assertThat(ligne.content).isEmpty()
+        assertThat(ligne.title).isEmpty()
+    }
+
+    /**
+     * 🔴🔴 **État mixte — un blob ET du clair : le blob fait foi.**
+     *
+     * L'invariant est écrit dans le code depuis le début et n'avait aucun test. Rechiffrer la
+     * colonne claire écraserait un blob **potentiellement plus récent** : ce serait perdre la
+     * dernière modification pour réparer une incohérence. On efface le clair, on garde le blob.
+     */
+    @Test
+    fun un_etat_mixte_garde_le_blob_et_efface_le_clair(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val note = notes.create(folderId = DOSSIER, title = "Scellée", content = "version chiffrée")
+        val blobAvant = provider.get().noteDao().findById(note.id)!!.encryptedContent!!.copyOf()
+
+        // On réinjecte du clair À CÔTÉ du blob, sans y toucher : l'incohérence que la réparation
+        // doit résoudre sans rien perdre.
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE notes SET content = ?, title = ? WHERE id = ?",
+            arrayOf<Any?>("clair reinjecte", "Titre reinjecte", note.id),
+        )
+
+        val reprises = coffres.reprotectPlaintextNotes(DOSSIER)
+
+        assertThat(reprises).isAtLeast(1)
+        val ligne = provider.get().noteDao().findById(note.id)!!
+        assertThat(ligne.encryptedContent).isEqualTo(blobAvant)
+        assertThat(ligne.content).isEmpty()
+        assertThat(ligne.title).isEmpty()
+    }
+
+    /**
+     * ⚠️ Une réparation silencieuse ne doit pas faire remonter les notes en tête de « modifiées
+     * récemment ». Sans ce test, `updatedAt = null` pourrait devenir `clock.millis()` sans que rien
+     * ne le signale — et tout le dossier remonterait à chaque ouverture du coffre.
+     */
+    @Test
+    fun la_reprotection_ne_remonte_pas_les_notes_dans_la_liste(): Unit = runBlocking {
+        val note = notes.create(folderId = DOSSIER, title = "Oubliée", content = "en clair")
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val avant = provider.get().noteDao().findById(note.id)!!.updatedAt
+
+        horloge.avance(60_000)
+        coffres.reprotectPlaintextNotes(DOSSIER)
+
+        assertThat(provider.get().noteDao().findById(note.id)!!.updatedAt).isEqualTo(avant)
     }
 
     @Test
@@ -554,6 +667,11 @@ class FolderVaultServiceTest {
         override fun getZone(): ZoneId = ZoneOffset.UTC
         override fun withZone(zone: ZoneId): Clock = this
         override fun instant(): Instant = maintenant
+
+        /** Faire avancer le temps est la seule facon de prouver qu'une ecriture N'A PAS touche `updated_at`. */
+        fun avance(millis: Long) {
+            maintenant = maintenant.plusMillis(millis)
+        }
     }
 
     private class HorlogeMonotoneReglable : MonotonicClock {
