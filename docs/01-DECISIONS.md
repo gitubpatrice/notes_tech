@@ -59,6 +59,19 @@ temporaire ne contamine aucune autre couche.
 plus incertain du projet en charge de travail ; il est donc placé après la parité fonctionnelle du
 reste, pas avant.
 
+> ⚠️⚠️ **Rectification du 2026-08-15.** Cette décision affirmait au passé que la dictée « est isolée
+> dès la phase 1 derrière une interface de domaine `SpeechToText` ». **Cette interface n'existait
+> pas** : le paquet `domain/` ne contenait que `export`, `links`, `model` et `repository`. La
+> décision décrivait une isolation que le code ne portait pas — du même genre qu'un commentaire qui
+> ment, un étage au-dessus, et d'autant plus trompeur qu'une décision se lit comme un acquis.
+>
+> Le contrat est posé depuis, **avant** le moteur : `domain/voice/SpeechToText.kt` et
+> `domain/voice/SttErrors.kt`, avec le test de la barrière de chemin de `SttModel.fileName`. C'est
+> l'ordre que la décision annonçait ; il est simplement tenu six semaines plus tard.
+>
+> **La leçon vaut au-delà de ce cas** : une décision au passé (« est isolée ») se vérifie comme une
+> affirmation de code. Au futur (« sera isolée »), elle n'aurait trompé personne.
+
 ---
 
 ## D-003 — La base reste dans `app_flutter/`
@@ -426,3 +439,63 @@ que naviguer d'une note vers une autre ne recompose rien.
 
 **Ce que la décision garantit** : un `navigate("editor/$id")` dispersé dans un écran compilerait
 parfaitement et se casserait au premier renommage, sans que rien ne le signale avant l'exécution.
+
+
+---
+
+## D-017 — Le portage **n'a pas** de téléchargeur de modèle, et c'est une absence d'API
+
+**2026-08-15 · acceptée**
+
+**Contexte.** Le contrat Dart d'origine (`files_tech_voice`) expose un `SttModelDownloader` capable
+de descendre un modèle Whisper depuis HuggingFace, empreinte SHA-256 vérifiée. L'application
+publiée l'embarque — mais ne l'appelle **jamais** pour descendre quoi que ce soit : elle n'en
+utilise que `fileFor`, `isInstalled`, `uninstall` et `purgeTempCaptures`. Le modèle s'obtient par
+`SttModelImporter.importFromPath`, c'est-à-dire un fichier que l'utilisateur choisit lui-même.
+
+C'est cohérent avec son manifeste, qui ne se contente pas d'omettre `INTERNET` : il l'**enlève**,
+avec six autres permissions, par `tools:node="remove"`.
+
+**Décision.** Le portage ne porte **aucune API de téléchargement**. `SttModel` n'a même pas de champ
+`url`. L'acquisition d'un modèle se fait par import d'un fichier local, et par rien d'autre.
+
+**Écarté.**
+
+- *Porter le téléchargeur et ne pas l'appeler*, comme le publié. Une capacité présente finit par
+  être utilisée : il a suffi d'un champ `url` dans le modèle pour que la question se pose ici. Ce
+  qui était une **discipline d'appel** devient une **absence d'API**, qui ne se contourne pas par
+  inadvertance.
+- *Porter le téléchargeur derrière un drapeau*. Un drapeau se retourne ; le manifeste, lui, devrait
+  alors déclarer `INTERNET`, et la promesse publique tomberait au moment du build.
+
+**Ce que la décision garantit.** Ajouter un téléchargement demanderait d'écrire l'API, de déclarer
+la permission **et** de retirer son refus explicite du manifeste. Trois gestes visibles en revue,
+là où un appel oublié n'en est aucun.
+
+⚠️ **La contrepartie est réelle et assumée** : l'utilisateur doit trouver le fichier du modèle
+lui-même. C'est déjà l'expérience de la version publiée, et les chaînes de l'écran de configuration
+— déjà traduites — sont écrites pour ça.
+
+---
+
+## D-018 — `RECORD_AUDIO` sera la première permission, et elle passe par l'outil de contrôle
+
+**2026-08-15 · acceptée**
+
+**Contexte.** Le manifeste fusionné du portage ne déclare aujourd'hui **aucune** permission hors
+celle qu'androidx s'accorde à lui-même — vérifié par `tools/check-manifest-permissions.py`, qui
+analyse le XML fusionné et non le source, parce qu'un `grep` y matche les **exemples commentés**.
+
+La phase 7 introduira `RECORD_AUDIO`. L'application publiée la déclare déjà : la promesse tenue
+n'est pas « aucune permission » mais « **aucune permission réseau** ».
+
+**Décision.** `RECORD_AUDIO` s'ajoute à la **liste revue** de l'outil, dans le même commit que la
+déclaration au manifeste, avec sa justification. L'outil doit continuer d'échouer sur toute
+permission qu'il ne connaît pas.
+
+**Écarté.** *Assouplir l'outil pour qu'il ignore les permissions non réseau.* Il deviendrait un
+contrôle de deux permissions nommées au lieu d'un inventaire : c'est précisément ce qui laisse
+passer la troisième.
+
+**Ce que la décision garantit.** Une permission ajoutée sans décision fait **échouer le contrôle**,
+au lieu d'entrer en silence dans un manifeste que personne ne relit ligne à ligne.
