@@ -13,8 +13,10 @@ import com.filestech.notes_tech.data.local.SqlCipherRawKey
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.repository.UnavailableVaultOpener
 import com.filestech.notes_tech.domain.repository.UnavailableVaultSealer
 import com.filestech.notes_tech.domain.repository.VaultLockedException
+import com.filestech.notes_tech.domain.repository.VaultOpener
 import com.filestech.notes_tech.domain.repository.VaultSealer
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.WritableKekSource
@@ -59,6 +61,7 @@ class NotesRepositoryTest {
 
     private val horloge = HorlogeReglable(Instant.ofEpochMilli(1_700_000_000_000L))
     private var scelleur: VaultSealer = UnavailableVaultSealer()
+    private var ouvreur: VaultOpener = UnavailableVaultOpener()
 
     private lateinit var provider: DatabaseProvider
     private lateinit var dossiers: FoldersRepository
@@ -77,6 +80,7 @@ class NotesRepositoryTest {
             override fun load(): ByteArray = kek.copyOf()
             override fun store(kek: ByteArray) = Unit
             override fun replaceKeyAndStore(kek: ByteArray) = Unit
+            override fun destroy() = Unit
         }
         provider = DatabaseProvider(
             context = context,
@@ -88,7 +92,7 @@ class NotesRepositoryTest {
             ioDispatcher = Dispatchers.IO,
         )
         dossiers = FoldersRepository(provider, horloge)
-        notes = NotesRepository(provider, dossiers, ScelleurDelegue { scelleur }, horloge)
+        notes = NotesRepository(provider, dossiers, ScelleurDelegue { scelleur }, OuvreurDelegue { ouvreur }, horloge)
         liens = LinksRepository(provider)
     }
 
@@ -372,6 +376,180 @@ class NotesRepositoryTest {
 
         assertThat(notes.find(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!.folderId)
             .isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
+    }
+
+    // ── Sortir une note d'un coffre ──────────────────────────────────────────
+    //
+    // 🔴 `relocateLockedNote` est le seul geste qui retire la protection d'UNE note. Tout ce qui
+    // suit cherche à lui faire écrire du clair là où il ne faut pas, ou à lui faire perdre le texte.
+
+    @Test
+    fun sortir_une_note_dun_coffre_ecrit_le_clair_le_deplace_et_indexe_ses_liens(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val note = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+            title = "Codes bancaires",
+            content = "Voir [[Réunion budget]] pour le contexte.",
+        )
+        assertThat(notes.find(note.id)!!.isLocked).isTrue()
+        // Verrouillée, elle ne cite personne : ses liens ont été effacés à l'écriture.
+        assertThat(liens.observeOutgoing(note.id).first()).isEmpty()
+
+        assertThat(notes.relocateLockedNote(note.id, LegacyDatabaseFixture.Fixtures.FOLDER_WORK)).isTrue()
+
+        val relue = notes.find(note.id)!!
+        assertThat(relue.isLocked).isFalse()
+        assertThat(relue.folderId).isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_WORK)
+        assertThat(relue.title).isEqualTo("Codes bancaires")
+        assertThat(relue.content).isEqualTo("Voir [[Réunion budget]] pour le contexte.")
+        // Redevenue lisible, elle redevient indexable : son lien est résolu vers la note du jeu d'essai.
+        assertThat(liens.observeOutgoing(note.id).first().single().targetId)
+            .isEqualTo(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)
+    }
+
+    /**
+     * L'autre sens, celui qu'on oublie : la note **redevient une cible**.
+     *
+     * Le jeu d'essai porte un lien fantôme vers « Archive 2025 ». Tant que la note de ce titre est
+     * au coffre, il doit le rester — `resolveIncoming` force la clé de titre à vide pour une note
+     * verrouillée, précisément pour qu'un rétrolien ne révèle ni son titre ni son existence. En
+     * sortant du coffre, elle cesse d'être secrète, et le lien doit enfin l'atteindre.
+     */
+    @Test
+    fun sortir_une_note_dun_coffre_la_rend_visible_aux_liens_qui_la_visaient(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val note = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT, title = "Archive 2025")
+        val source = LegacyDatabaseFixture.Fixtures.NOTE_LINK_SOURCE
+        assertThat(liens.observeOutgoing(source).first().single { it.targetTitle == "Archive 2025" }.targetId)
+            .isNull()
+
+        notes.relocateLockedNote(note.id, LegacyDatabaseFixture.Fixtures.FOLDER_WORK)
+
+        assertThat(liens.observeOutgoing(source).first().single { it.targetTitle == "Archive 2025" }.targetId)
+            .isEqualTo(note.id)
+    }
+
+    /**
+     * ⚠️ Le test le plus important de la série : un ouvreur qui **ne déchiffre pas** ne doit pas
+     * pouvoir vider la note.
+     *
+     * `unlockNote` écrit `content` et `title` depuis ce que l'ouvreur a rendu, et efface le blob en
+     * dur. Si l'ouvreur rend la note inchangée — encore scellée, donc titre et contenu vides — la
+     * note perdrait à la fois son texte et sa protection. C'est le jumeau du scelleur négligent, et
+     * il détruit là où l'autre laisse fuir.
+     */
+    @Test
+    fun un_ouvreur_qui_ne_dechiffre_pas_est_refuse_et_ne_vide_pas_la_note(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val note = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+            title = "Codes bancaires",
+            content = "0000",
+        )
+        ouvreur = OuvreurNegligent()
+
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { notes.relocateLockedNote(note.id, LegacyDatabaseFixture.Fixtures.FOLDER_WORK) }
+        }
+
+        val relue = notes.find(note.id)!!
+        assertThat(relue.isLocked).isTrue()
+        assertThat(relue.folderId).isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
+        assertThat(coffre.coffreDOrigine(relue)).isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_VAULT)
+    }
+
+    @Test
+    fun sortir_est_refuse_si_le_coffre_dorigine_est_ferme(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val note = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+            title = "Codes bancaires",
+            content = "0000",
+        )
+        // Plus aucune session : c'est ce que rend l'ouvreur quand la clé n'existe pas en mémoire.
+        ouvreur = UnavailableVaultOpener()
+
+        assertThrows(VaultLockedException::class.java) {
+            runBlocking { notes.relocateLockedNote(note.id, LegacyDatabaseFixture.Fixtures.FOLDER_WORK) }
+        }
+
+        assertThat(notes.find(note.id)!!.isLocked).isTrue()
+    }
+
+    /**
+     * Un geste nommé « sortir du coffre » sur une note qui n'y est pas veut dire que l'appelant
+     * s'est trompé de chemin — ou que l'état de son écran est périmé. Le silence y masquerait une
+     * confirmation demandée à l'utilisateur pour une action qui n'était pas celle-là.
+     */
+    @Test
+    fun sortir_une_note_qui_nest_pas_verrouillee_est_refuse(): Unit = runBlocking {
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                notes.relocateLockedNote(
+                    LegacyDatabaseFixture.Fixtures.NOTE_PLAIN,
+                    LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+                )
+            }
+        }
+
+        assertThat(notes.find(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)!!.folderId)
+            .isEqualTo(LegacyDatabaseFixture.Fixtures.FOLDER_WORK)
+    }
+
+    /**
+     * D'un coffre à l'autre : le blob doit être **refait avec la clé de destination**, jamais
+     * transporté tel quel. Une note déplacée avec un blob que la clé du dossier d'arrivée n'ouvre
+     * pas est une note perdue, sans le moindre message — c'est pour cela que `moveToFolder` refuse.
+     */
+    @Test
+    fun passer_dun_coffre_a_lautre_rescelle_avec_la_cle_de_destination(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val note = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+            title = "Codes bancaires",
+            content = "0000",
+        )
+
+        assertThat(notes.relocateLockedNote(note.id, second)).isTrue()
+
+        val relue = notes.find(note.id)!!
+        assertThat(relue.folderId).isEqualTo(second)
+        assertThat(relue.isLocked).isTrue()
+        assertThat(relue.title).isEmpty()
+        assertThat(relue.content).isEmpty()
+        assertThat(coffre.coffreDOrigine(relue)).isEqualTo(second)
+        // Et elle reste lisible avec la clé du dossier où elle est désormais.
+        assertThat(coffre.decrypt(relue).content).isEqualTo("0000")
+    }
+
+    /**
+     * Un dossier ordinaire promu coffre par le même chemin que le service de coffres, avec du
+     * matériel factice : ces tests ne déchiffrent rien pour de vrai, ils vérifient que le blob écrit
+     * est bien celui de la destination.
+     */
+    private suspend fun provisionnerUnSecondCoffre(): String {
+        val dossier = dossiers.create("Second coffre")
+        val converti = provider.get().folderDao().provisionPassphraseVault(
+            id = dossier.id,
+            salt = ByteArray(16) { (it + 40).toByte() },
+            kekWrapped = ByteArray(60) { (it + 9).toByte() },
+            iv = ByteArray(12) { (it + 2).toByte() },
+            verifier = ByteArray(32) { (it * 3).toByte() },
+            updatedAt = horloge.millis(),
+        )
+        check(converti == 1) { "le second coffre n'a pas ete provisionne" }
+        return dossier.id
     }
 
     /**
@@ -849,5 +1027,56 @@ class NotesRepositoryTest {
     /** Permet de changer de scelleur au milieu d'un test, le repository étant construit une fois. */
     private class ScelleurDelegue(private val courant: () -> VaultSealer) : VaultSealer {
         override suspend fun seal(note: Note): Note = courant().seal(note)
+    }
+
+    /** Le jumeau de [ScelleurDelegue], pour la même raison. */
+    private class OuvreurDelegue(private val courant: () -> VaultOpener) : VaultOpener {
+        override suspend fun decrypt(note: Note): Note = courant().decrypt(note)
+    }
+
+    /**
+     * Un coffre factice qui **lie le chiffré à son dossier**, comme la vraie cryptographie le fait
+     * par sa clé et son AAD.
+     *
+     * Sans ce lien, un test de passage d'un coffre à l'autre serait vacant : n'importe quel blob
+     * s'ouvrirait n'importe où, et « rescellé avec la clé de destination » ne pourrait pas se
+     * distinguer de « blob transporté tel quel » — qui est précisément la faute à empêcher.
+     *
+     * Le séparateur est l'octet nul : il ne peut pas apparaître dans un titre ou un contenu saisis.
+     */
+    private class CoffreFactice :
+        VaultSealer,
+        VaultOpener {
+
+        override suspend fun seal(note: Note): Note = note.copy(
+            title = "",
+            content = "",
+            encrypted = EncryptedBody("${note.folderId}\u0000${note.title}\u0000${note.content}".toByteArray()),
+            encVersion = EncryptedFormat.TITLE_AND_CONTENT,
+        )
+
+        override suspend fun decrypt(note: Note): Note {
+            val blob = note.encrypted ?: return note
+            val morceaux = String(blob.toByteArray()).split('\u0000', limit = 3)
+            check(morceaux[0] == note.folderId) {
+                "blob scelle par ${morceaux[0]}, presente comme appartenant a ${note.folderId}"
+            }
+            return note.copy(title = morceaux[1], content = morceaux[2], encrypted = null)
+        }
+
+        /** Le dossier qui a scellé ce blob — ce que l'assertion regarde. */
+        fun coffreDOrigine(note: Note): String =
+            String(requireNotNull(note.encrypted).toByteArray()).substringBefore('\u0000')
+    }
+
+    /**
+     * Un ouvreur qui rend la note **inchangée**, donc encore scellée.
+     *
+     * C'est le jumeau de [ScelleurNegligent], et il est plus dangereux que lui : un scelleur
+     * négligent laisse fuir, un ouvreur négligent **détruit**. `unlockNote` écrirait alors
+     * `content = ""` et `title = ""` — la note serait vidée, et son blob effacé avec.
+     */
+    private class OuvreurNegligent : VaultOpener {
+        override suspend fun decrypt(note: Note): Note = note
     }
 }

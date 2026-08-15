@@ -38,10 +38,15 @@ import com.filestech.notes_tech.ui.common.HAUTEUR_MAXIMALE_LISTE_DE_CHOIX
  *
  * Y déplacer une note la **scelle** : `NotesRepository.moveToFolder` chiffre avant d'écrire, purge
  * ses liens sortants et détache ceux qui la visaient. C'est une protection qu'on gagne, pas une
- * qu'on perd — l'inverse, sortir une note d'un coffre, est ce qui demande une confirmation, et ce
- * chemin-là n'est pas encore ouvert ici.
+ * qu'on perd.
  *
  * L'icône de cadenas dit lesquels scellent, pour que le geste ne surprenne pas.
+ *
+ * ## Cette feuille ne décide rien — elle rend un identifiant
+ *
+ * Les deux détours possibles se jouent chez l'appelant, et c'est voulu : demander le secret d'un
+ * coffre **fermé** choisi comme destination, et confirmer la **sortie** d'un coffre. Les porter ici
+ * ferait d'un sélecteur de dossier l'endroit où l'on retire une protection.
  */
 @Composable
 fun FeuilleDeDeplacement(

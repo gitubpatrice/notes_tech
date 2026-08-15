@@ -240,7 +240,7 @@ mode panique appartiennent à la phase 6.
       était faite depuis la phase 2-3 et va plus loin que l'application publiée : l'indexation se
       fait dans la transaction qui écrit la note, pas dans un service séparé avec son propre débounce
 
-  **Deux manques assumés, à ouvrir plus tard :**
+  **Un manque assumé restant, à ouvrir plus tard** (le second est clos, cf. ci-dessous) **:**
 
   - 🔴 **Copier en Markdown** — hors de ce lot **délibérément**. Ce n'est pas une entrée de menu mais
     le portage d'un service de sécurité de 261 lignes (`note_actions.dart`) : canal natif de
@@ -249,12 +249,17 @@ mode panique appartiennent à la phase 6.
     mode panique. Deux défauts CRITIQUES y ont été trouvés par relecture externe côté publié — dont
     un **dans le correctif du premier**. Le noyer dans un lot d'interface serait le meilleur moyen
     d'en perdre un.
-  - 🔴 **Sortir une note d'un coffre** — l'entrée « déplacer » est **désactivée** pour une note de
-    coffre. `moveToFolder` lève `VaultRelocationException` sur une note verrouillée, et il n'existe
-    pas d'opération de dépôt qui déchiffre vers du clair. L'application publiée fait précéder ce
-    geste d'une confirmation dédiée ; ses chaînes sont déjà présentes ici
-    (`note_editor_exit_vault_*`), inutilisées. **C'est un manque de la couche données, pas de
-    l'interface.**
+  - ✅ ~~**Sortir une note d'un coffre**~~ — **fait le 2026-08-15**. `relocateLockedNote` déchiffre
+    avec la clé d'origine, écrit le clair et déplace **dans une seule transaction** ; si la
+    destination est un autre coffre, la note est **rescellée avec la clé de celui-là**, jamais
+    transportée telle quelle. `moveToFolder` continue de refuser une note verrouillée : sortir d'un
+    coffre est un geste **nommé**, et l'y router en silence ferait exactement ce que toute la couche
+    s'emploie à rendre impossible. Le contrat d'ouverture (`VaultOpener`) est séparé de
+    `VaultSealer` pour qu'une dépendance à « sceller » ne donne pas « déchiffrer » en prime.
+    L'interface pose la confirmation dont les chaînes traînaient inutilisées
+    (`note_editor_exit_vault_*`), et **demande le secret d'un coffre fermé choisi comme
+    destination** — ce dernier cas échouait par une exception brute, y compris pour une note en
+    clair. 6 tests instrumentés, dont celui de l'ouvreur négligent, qui **viderait** la note.
 
 **Hors périmètre initial, fait quand même** — trois défauts de l'application **publiée** relevés en
 portant cette phase, corrigés dans `notes_tech` sur demande de Patrice (`333aba1`, `24bc67e`).

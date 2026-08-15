@@ -5,11 +5,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Visibility
@@ -93,6 +96,38 @@ fun UnlockVaultSheet(folder: Folder, onDismiss: () -> Unit, onUnlocked: () -> Un
     }
 }
 
+/**
+ * La mise en page commune aux feuilles de coffre à saisie : **elle défile, et elle laisse la place
+ * au clavier**.
+ *
+ * ## 🔴 Ce que ce modificateur répare, mesuré sur le S9 le 2026-08-15
+ *
+ * La feuille de création de coffre à phrase secrète ne tenait pas au-dessus du clavier : titre,
+ * texte d'explication, bannière d'avertissement, deux champs, deux boutons. Sans défilement, la
+ * colonne était **coupée** — le second champ ne mesurait plus que 66 px de haut au lieu de 192, et
+ * « Créer le coffre » comme « Annuler » se trouvaient hors écran, donc **inatteignables** tant que
+ * le clavier restait ouvert.
+ *
+ * ⚠️ Ce n'est pas le défaut que l'audit de cohérence signalait la veille. Celui-là disait que le
+ * champ serait *recouvert* faute d'`imePadding()` ; vérifié sur l'appareil, il ne l'est pas — la
+ * feuille remonte d'elle-même. La question qui manquait n'était pas « le champ est-il visible ? »
+ * mais « **la feuille entière reste-t-elle utilisable ?** ». Constater qu'un élément est visible ne
+ * dit rien de ceux qui ont été poussés dehors.
+ *
+ * ⚠️ `imePadding()` **avant** le défilement dans la chaîne : la zone visible du défilement doit être
+ * réduite par le clavier, sinon on peut défiler sous lui. Les insets consommés ne s'additionnent
+ * pas — `navigationBarsPadding()` n'applique ensuite que ce que le clavier n'a pas déjà pris.
+ *
+ * ⚠️ Un `verticalScroll` sous une contrainte de hauteur **non bornée** plante. Ici la contrainte
+ * vient de `ModalBottomSheet`, qui la borne — c'est la même règle que le panneau de liens de
+ * l'éditeur, dans l'autre sens.
+ */
+@Composable
+private fun Modifier.contenuDeFeuilleDeCoffre(): Modifier = this
+    .imePadding()
+    .navigationBarsPadding()
+    .verticalScroll(rememberScrollState())
+
 /** Le choix du mode, à la création d'un coffre. */
 @Composable
 fun ChooseVaultModeSheet(onDismiss: () -> Unit, onChosen: (VaultMode) -> Unit) {
@@ -140,7 +175,6 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
 
     var secret by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
-    var visible by remember { mutableStateOf(false) }
     var erreurLocale by remember { mutableStateOf<String?>(null) }
 
     val tropCourte = stringResource(R.string.vault_pass_min_length, VaultParams.PASSPHRASE_MIN_LENGTH)
@@ -160,9 +194,9 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
     ) {
         Column(
             modifier = Modifier
+                .contenuDeFeuilleDeCoffre()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-                .navigationBarsPadding(),
+                .padding(bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             TitreDeFeuille(
@@ -178,48 +212,26 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
             )
             if (creating) BanniereDAvertissement(stringResource(R.string.vault_pass_warning_lost))
 
-            OutlinedTextField(
-                value = secret,
-                onValueChange = {
+            ChampDePhraseSecrete(
+                valeur = secret,
+                onValeurChange = {
                     secret = it
                     erreurLocale = null
                 },
-                label = { Text(stringResource(R.string.vault_pass_field)) },
-                singleLine = true,
-                enabled = !state.busy,
-                visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = if (creating) ImeAction.Next else ImeAction.Done,
-                ),
-                trailingIcon = {
-                    IconButton(onClick = { visible = !visible }) {
-                        Icon(
-                            imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                            contentDescription = stringResource(
-                                if (visible) R.string.passphrase_hide_tooltip else R.string.passphrase_show_tooltip,
-                            ),
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
+                label = stringResource(R.string.vault_pass_field),
+                actionClavier = if (creating) ImeAction.Next else ImeAction.Done,
+                actif = !state.busy,
             )
             if (creating) {
-                OutlinedTextField(
-                    value = confirmation,
-                    onValueChange = {
+                ChampDePhraseSecrete(
+                    valeur = confirmation,
+                    onValeurChange = {
                         confirmation = it
                         erreurLocale = null
                     },
-                    label = { Text(stringResource(R.string.vault_pass_confirm_field)) },
-                    singleLine = true,
-                    enabled = !state.busy,
-                    visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.vault_pass_confirm_field),
+                    actionClavier = ImeAction.Done,
+                    actif = !state.busy,
                 )
             }
 
@@ -263,6 +275,59 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
             }
         }
     }
+}
+
+/**
+ * Un champ de phrase secrète, avec **son** œil.
+ *
+ * ## 🔴 Un seul composable pour les deux champs, et c'est le correctif
+ *
+ * La feuille de création portait deux `OutlinedTextField` écrits à la main : le premier avec son
+ * `trailingIcon` de visibilité, **le second sans**. Saisir une phrase longue puis la confirmer à
+ * l'aveugle, sans aucun moyen de relire ce qu'on vient de taper, sur un écran dont l'erreur coûte
+ * un coffre irrécupérable. Relevé par Patrice sur le S9 le 2026-08-15.
+ *
+ * L'application publiée n'a jamais eu ce défaut : ses deux champs sont le **même** widget
+ * (`PassphraseTextField`, `vault_passphrase_sheets.dart:145` et `:155`). La divergence est née en
+ * portant deux fois à la main ce qui était factorisé une fois.
+ *
+ * D'où ce composable : un troisième champ ne peut plus naître sans son œil, parce qu'il n'y a plus
+ * de chemin pour en écrire un à côté. C'est le motif du **jumeau asymétrique**, et la seule
+ * correction qui tient est celle qui supprime le jumeau.
+ *
+ * ⚠️ La visibilité est propre à chaque champ, comme dans l'application publiée : révéler la
+ * confirmation ne révèle pas la phrase au-dessus.
+ */
+@Composable
+private fun ChampDePhraseSecrete(
+    valeur: String,
+    onValeurChange: (String) -> Unit,
+    label: String,
+    actionClavier: ImeAction,
+    actif: Boolean,
+) {
+    var visible by remember { mutableStateOf(false) }
+
+    OutlinedTextField(
+        value = valeur,
+        onValueChange = onValeurChange,
+        label = { Text(label) },
+        singleLine = true,
+        enabled = actif,
+        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = actionClavier),
+        trailingIcon = {
+            IconButton(onClick = { visible = !visible }) {
+                Icon(
+                    imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = stringResource(
+                        if (visible) R.string.passphrase_hide_tooltip else R.string.passphrase_show_tooltip,
+                    ),
+                )
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 // ── Code à quatre-six chiffres ───────────────────────────────────────────────────────────────────
@@ -327,9 +392,9 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
     ) {
         Column(
             modifier = Modifier
+                .contenuDeFeuilleDeCoffre()
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-                .navigationBarsPadding(),
+                .padding(bottom = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

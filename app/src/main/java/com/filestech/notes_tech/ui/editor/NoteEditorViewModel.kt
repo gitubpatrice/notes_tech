@@ -376,42 +376,78 @@ class NoteEditorViewModel @Inject constructor(
         _action.value = ActionDEditeur()
     }
 
+    /** Le coffre [folderId] a-t-il une session ouverte ? Sert à demander le secret **avant** d'agir. */
+    fun estDeverrouille(folderId: String): Boolean = vaults.isUnlocked(folderId)
+
     /**
      * Déplace la note vers [folderId].
      *
-     * ⚠️ **Impossible depuis un coffre**, et le dépôt le refuse par une exception typée
-     * (`VaultRelocationException`). Sortir une note d'un coffre écrit son contenu en clair dans la
-     * base : c'est irréversible au sens qui compte — la note aura transité hors chiffrement même si
-     * on la remet ensuite ailleurs — et cela demande une confirmation explicite que l'application
-     * publiée pose (`note_editor_exit_vault_*`). Ni cette confirmation ni l'opération de dépôt qui
-     * la suit n'existent encore ici : l'entrée de menu est donc **désactivée** pour une note de
-     * coffre, plutôt que de mener à un échec ou à un dialogue sans effet.
+     * ## Deux chemins de dépôt, et c'est l'état de la note qui tranche — pas l'appelant
+     *
+     * `moveToFolder` **refuse** une note verrouillée : déchiffrer avec la clé d'origine est un autre
+     * geste, qui porte un autre nom (`relocateLockedNote`) parce qu'il peut retirer une protection.
+     * Router ici sur `note.isLocked` garde ce choix hors de l'interface : un écran ne décide pas
+     * qu'on déchiffre, il constate qu'il le faut.
+     *
+     * ⚠️ **`note.isLocked` et non `isVaultNote`.** Le second regarde le dossier ; une note en clair
+     * survivant dans un dossier coffre — ce que `reprotectPlaintextNotes` existe pour réparer —
+     * passerait alors par le chemin qui déchiffre, sur une note qui n'a rien à déchiffrer. Et
+     * `state.note` porte bien la note **scellée** telle qu'elle est en base : l'éphémère déchiffrée
+     * ne vit que dans `title` et `content`. C'est le `_wasLocked` de l'application publiée, dont le
+     * commentaire raconte le défaut jumeau — elle avait d'abord testé `encryptedContent != null`
+     * sur l'éphémère, condition **toujours fausse**, et sa confirmation ne s'affichait jamais.
+     *
+     * La confirmation de sortie de coffre, elle, est posée par l'écran avant l'appel : c'est un
+     * geste d'interface, et le dépôt ne doit pas dépendre d'un dialogue pour être sûr.
      */
-    fun deplacerVers(folderId: String) = tenterUneAction(ActionDEditeur.OrigineDErreur.DEPLACEMENT) {
-        notes.moveToFolder(noteId, folderId)
+    fun deplacerVers(folderId: String, sortieDeCoffreConfirmee: Boolean = false) =
+        tenterUneAction(ActionDEditeur.OrigineDErreur.DEPLACEMENT) {
+            // ⚠️ **Relire la note, ne pas croire l'état.** L'écran décide d'afficher la confirmation sur
+            // `state.note`, qui peut avoir été scellée depuis — une note créée vide dans un coffre l'est
+            // au premier caractère. L'état est tenu à jour par `enregistrer`, mais une garde qui dépend
+            // du bon fonctionnement d'un autre chemin n'est pas une garde.
+            val actuelle = notes.find(noteId) ?: return@tenterUneAction
+            if (actuelle.isLocked) {
+                // 🔴 Sortir d'un coffre **exige** que la confirmation ait été posée. Si l'écran ne l'a
+                // pas fait — parce qu'il croyait la note en clair — on refuse bruyamment plutôt que de
+                // déprotéger en silence. L'utilisateur réessaie, et l'état étant alors à jour, il obtient
+                // sa question. Un échec visible se répare ; une note sortie du chiffrement, non.
+                val estUneSortie = folders.find(folderId)?.isVault != true
+                check(!estUneSortie || sortieDeCoffreConfirmee) {
+                    "sortie de coffre demandee sans confirmation prealable"
+                }
+                notes.relocateLockedNote(noteId, folderId)
+            } else {
+                notes.moveToFolder(noteId, folderId)
+            }
 
-        // 🔴🔴 **Relire la note et son dossier, sinon l'écran reste celui d'une note non protégée.**
-        //
-        // Déplacer vers un coffre **scelle** la note dans la même transaction. Sans cette relecture,
-        // `state.note` et `state.folder` gardent le dossier d'avant, donc `isVaultNote` reste faux —
-        // et c'est lui qui commande `SecureWindowGuard`. Le contenu, désormais chiffré au repos,
-        // resterait affiché dans une fenêtre **non marquée protégée** : capturable, et visible dans
-        // l'aperçu des applications récentes. L'entrée « déplacer » resterait active par-dessus le
-        // marché, alors qu'elle doit se fermer dès que la note est au coffre.
-        //
-        // ⚠️ On recopie **uniquement** `note` et `folder` : passer par `charger()` remplacerait tout
-        // l'état, donc le texte en cours de frappe et la position du curseur. Le déplacement ne doit
-        // rien coûter à ce que l'utilisateur est en train d'écrire.
-        //
-        // Relevé PROBABLE par la relecture externe du 2026-08-15 ; le chemin est confirmé —
-        // `moveToFolder` appelle `sealIfVault` avant d'écrire.
-        val fraiche = notes.find(noteId)
-        _state.value = _state.value.copy(
-            note = fraiche ?: _state.value.note,
-            folder = fraiche?.let { folders.find(it.folderId) } ?: _state.value.folder,
-        )
-        _action.value = ActionDEditeur(deplacee = true)
-    }
+            // 🔴🔴 **Relire la note et son dossier, sinon l'écran reste celui d'une note non protégée.**
+            //
+            // Déplacer vers un coffre **scelle** la note dans la même transaction. Sans cette relecture,
+            // `state.note` et `state.folder` gardent le dossier d'avant, donc `isVaultNote` reste faux —
+            // et c'est lui qui commande `SecureWindowGuard`. Le contenu, désormais chiffré au repos,
+            // resterait affiché dans une fenêtre **non marquée protégée** : capturable, et visible dans
+            // l'aperçu des applications récentes. L'entrée « déplacer » resterait active par-dessus le
+            // marché, alors qu'elle doit se fermer dès que la note est au coffre.
+            //
+            // ⚠️ On recopie **uniquement** `note` et `folder` : passer par `charger()` remplacerait tout
+            // l'état, donc le texte en cours de frappe et la position du curseur. Le déplacement ne doit
+            // rien coûter à ce que l'utilisateur est en train d'écrire.
+            //
+            // Relevé PROBABLE par la relecture externe du 2026-08-15 ; le chemin est confirmé —
+            // `moveToFolder` appelle `sealIfVault` avant d'écrire.
+            //
+            // ⚠️ La relecture vaut **dans les deux sens** depuis que sortir d'un coffre est possible :
+            // sans elle, une note qui vient d'en sortir garderait un dossier coffre dans l'état, donc
+            // une fenêtre marquée protégée pour un contenu qui ne l'est plus, et une entrée de menu qui
+            // continuerait de proposer une confirmation de sortie déjà honorée.
+            val fraiche = notes.find(noteId)
+            _state.value = _state.value.copy(
+                note = fraiche ?: _state.value.note,
+                folder = fraiche?.let { folders.find(it.folderId) } ?: _state.value.folder,
+            )
+            _action.value = ActionDEditeur(deplacee = true)
+        }
 
     /**
      * Exporte la note en Markdown et rend de quoi la partager.
@@ -643,13 +679,30 @@ class NoteEditorViewModel @Inject constructor(
         // plus anciens que ce que l'utilisateur a sous les yeux.
         _state.value = _state.value.copy(saving = true, saveFailed = false)
         try {
-            notes.saveEdits(
+            val persistee = notes.saveEdits(
                 id = noteId,
                 title = courant.title,
                 content = courant.content.text,
                 tags = note.tags,
             )
             _state.value = _state.value.copy(
+                // 🔴🔴 **La note de l'état doit suivre ce qui vient d'être écrit, et le rater a
+                // produit un vrai défaut.**
+                //
+                // Une note créée dans un coffre naît **vide**, donc non scellée : `charger()` pose
+                // alors `note.isLocked = false`. Le premier caractère tapé la scelle en base, mais
+                // `state.note` gardait cette valeur du chargement — **périmée pour toujours**.
+                //
+                // Conséquence mesurée sur le S9 le 2026-08-15 : « Déplacer » vers un dossier
+                // ordinaire ne posait **aucune** confirmation de sortie de coffre, puisque l'écran
+                // croyait la note en clair. C'est le défaut exact que l'application publiée a corrigé
+                // en v1.1.0 puis re-cassé en testant `encryptedContent != null` sur l'éphémère —
+                // condition toujours fausse, dialogue jamais affiché. Reproduit ici sous une autre
+                // forme : non plus le mauvais champ, mais le bon champ **jamais rafraîchi**.
+                //
+                // Le déplacement, lui, échouait bruyamment (`VaultRelocationException`) : c'est le
+                // dépôt qui a rattrapé l'interface, et c'est bien pour ça qu'il refuse.
+                note = persistee ?: _state.value.note,
                 saving = false,
                 // Ce qui vient d'etre persiste devient la nouvelle reference de comparaison.
                 originalTitle = courant.title,

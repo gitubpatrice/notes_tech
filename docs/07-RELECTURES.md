@@ -876,3 +876,62 @@ clair annonçait un échec sur un coffre bien créé, celui qui devait garantir 
 sauvegarde finale ne garantissait pas qu'elle s'exécute **en dernier**.
 
 ⇒ **Un correctif est du code neuf.** Il mérite exactement la même défiance.
+
+## 2026-08-15 — ce que le test sur appareil a trouvé et qu'aucun outil n'avait vu
+
+Trois défauts, dans l'ordre où ils sont apparus, tous sur le S9 et aucun par lecture de code.
+
+### 1. 🔴 Le source set instrumenté ne compilait plus — depuis la phase panique
+
+`compileDebugAndroidTestKotlin` échouait à `0228486`, **avant tout changement du jour** : `KekSource`
+avait gagné `destroy()` en phase 5, et cinq doubles de test ne l'implémentaient pas ;
+`VaultWipeJournal` avait gagné un paramètre. Les 91 tests instrumentés n'avaient donc pas pu tourner
+depuis, et personne ne l'a su.
+
+⚠️ **Le gate local ne compile pas ce source set** — `assembleDebug`, `testDebugUnitTest`, `ktlint`,
+`detekt`, `lintDebug` sont tous verts sur un dépôt dont les tests appareil ne compilent plus. C'est
+le motif « un contrôle qui ne regarde pas l'artefact n'en dit rien », appliqué aux tests eux-mêmes.
+Réparé, puis **98 tests instrumentés verts sur le S9**.
+
+### 2. 🔴 La confirmation de sortie de coffre ne s'affichait JAMAIS
+
+L'écran décidait sur `state.note.isLocked`. Une note créée dans un coffre naît **vide**, donc non
+scellée : `charger()` posait `isLocked = false`, et le premier caractère la scellait en base **sans
+que l'état soit relu**. Le champ était donc juste au chargement et périmé pour toujours.
+
+C'est le défaut que l'application publiée a corrigé en v1.1.0 puis re-cassé en testant
+`encryptedContent != null` sur l'éphémère — condition toujours fausse. Reproduit ici sous une autre
+forme : non plus le mauvais champ, mais **le bon champ jamais rafraîchi**.
+
+Le déplacement, lui, échouait bruyamment (`VaultRelocationException`) : le dépôt a rattrapé
+l'interface, et c'est exactement pour cela qu'il refuse plutôt que de router.
+
+Deux correctifs, pas un : l'état suit désormais ce que `saveEdits` rend, **et** `deplacerVers` relit
+la note en base puis **exige** la confirmation avant toute sortie. Une garde qui dépend du bon
+fonctionnement d'un autre chemin n'est pas une garde.
+
+### 3. 🔴 La feuille de création de coffre était inutilisable au clavier ouvert
+
+Relevé par Patrice pendant le parcours, sur son écran : « le 2ᵉ champ passphrase est illisible et
+trop petit, il manque aussi l'œil ». Les deux constats étaient justes, et pour deux causes :
+
+- **L'œil manquait** : deux `OutlinedTextField` écrits à la main, `trailingIcon` sur le premier
+  seulement. L'application publiée n'a jamais eu ce défaut — ses deux champs sont le **même** widget.
+  La divergence est née en portant deux fois à la main ce qui était factorisé une fois. Correctif :
+  un composable unique, pour qu'un troisième champ ne puisse plus naître sans son œil.
+- **Le champ était écrasé** : 66 px de haut au lieu de 192, mesuré au relevé d'interface, et
+  « Créer le coffre » / « Annuler » **hors écran**. La colonne ne défilait pas.
+
+⚠️⚠️ **Ce second point voisine le faux positif du 2026-08-14, et le corrige d'un cran.** L'audit de
+cohérence disait « `imePadding()` manque, le clavier recouvre le champ ». Vérifié sur l'appareil : il
+ne le recouvre pas, la feuille remonte seule — le constat était bien un faux positif. Mais je me suis
+arrêté à « le champ est-il visible ? » alors que la question était « **la feuille entière
+reste-t-elle utilisable ?** ». Constater qu'un élément est visible ne dit rien de ceux qui ont été
+poussés dehors. Un faux positif écarté à raison peut cacher un vrai défaut voisin.
+
+### Ce que l'œil a prouvé en dix minutes
+
+Pendant le parcours, le champ refusait la passphrase. L'œil, tout juste ajouté, a montré
+`passe-secrete6` — un « 6 » entré par un tap égaré sur le clavier. Sans lui, la saisie était
+indéboguable : c'est précisément le service qu'il rend à un utilisateur dont l'erreur coûte un coffre
+irrécupérable.

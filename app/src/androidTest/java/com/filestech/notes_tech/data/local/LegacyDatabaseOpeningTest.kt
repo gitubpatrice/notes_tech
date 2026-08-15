@@ -363,6 +363,7 @@ class LegacyDatabaseOpeningTest {
         val vide = object : KekSource {
             override val name = "vide"
             override fun load(): ByteArray? = null
+            override fun destroy() = Unit
         }
         val repository = KekRepository(
             sources = listOf(vide),
@@ -447,6 +448,7 @@ class LegacyDatabaseOpeningTest {
         override fun load(): ByteArray = kek.copyOf()
         override fun store(kek: ByteArray) = Unit
         override fun replaceKeyAndStore(kek: ByteArray) = Unit
+        override fun destroy() = Unit
     }
 
     /** Toute écriture est une erreur sur le chemin testé : le test doit échouer, pas absorber. */
@@ -455,6 +457,9 @@ class LegacyDatabaseOpeningTest {
         override fun load(): ByteArray? = null
         override fun store(kek: ByteArray) = error("aucune écriture ne doit avoir lieu ici")
         override fun replaceKeyAndStore(kek: ByteArray) = error("aucune écriture ne doit avoir lieu ici")
+
+        // Détruire est une écriture : sur ce chemin, c'est une erreur comme les deux autres.
+        override fun destroy() = error("aucune destruction ne doit avoir lieu ici")
     }
 
     private companion object {

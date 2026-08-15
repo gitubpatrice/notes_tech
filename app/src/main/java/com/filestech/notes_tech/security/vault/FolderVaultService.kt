@@ -10,6 +10,7 @@ import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
+import com.filestech.notes_tech.domain.repository.VaultOpener
 import com.filestech.notes_tech.domain.repository.VaultSealer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -52,7 +53,8 @@ class FolderVaultService @Inject constructor(
     private val sessions: VaultSessions,
     private val wipeJournal: VaultWipeJournal,
     private val clock: Clock,
-) : VaultSealer {
+) : VaultSealer,
+    VaultOpener {
 
     /** Les coffres ouverts. Ne porte aucune clé — seulement des identifiants, pour l'interface. */
     val unlockedFolderIds = sessions.unlockedFolderIds
@@ -457,13 +459,14 @@ class FolderVaultService @Inject constructor(
     }
 
     /**
-     * Rend une note lisible, **sans la persister**.
+     * Rend une note lisible, **sans la persister**. Contrat de [VaultOpener], appelé par
+     * `NotesRepository.relocateLockedNote` — et directement par l'éditeur, qui affiche.
      *
      * L'objet rendu est éphémère : il sert à afficher, et l'écriture repasse par le scellement. Le
      * persister tel quel remettrait le clair en base, ce que la garde d'écriture refuse — mais il
      * vaut mieux ne pas compter dessus.
      */
-    suspend fun decrypt(note: Note): Note {
+    override suspend fun decrypt(note: Note): Note {
         val encrypted = note.encrypted ?: return note
         val folderKey = sessions.sessionKey(note.folderId) ?: throw VaultSessionClosedException(note.folderId)
         val blob = encrypted.toByteArray()

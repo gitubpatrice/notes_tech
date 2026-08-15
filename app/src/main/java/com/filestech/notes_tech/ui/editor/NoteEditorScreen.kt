@@ -20,8 +20,10 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -33,6 +35,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -99,6 +102,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     }
 
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
+
+    // Les deux détours du déplacement, retenus par **identifiant** pour survivre à une rotation et
+    // à une mort de processus — un `Folder` ne se met pas dans un `Bundle`.
+    var sortieDeCoffreCible by rememberSaveable { mutableStateOf<String?>(null) }
+    var deverrouillageCible by rememberSaveable { mutableStateOf<String?>(null) }
     val dossiers by viewModel.dossiers.collectAsStateWithLifecycle()
     val action by viewModel.action.collectAsStateWithLifecycle()
     val messages = remember { SnackbarHostState() }
@@ -160,10 +168,54 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
             dossierActuel = state.note?.folderId,
             onChoisir = { cible ->
                 deplacementOuvert = false
-                viewModel.deplacerVers(cible)
+                // 🔴 **Deux détours possibles avant d'écrire, et ils s'excluent l'un l'autre** :
+                // le premier ne concerne qu'une destination coffre, le second qu'une destination
+                // ordinaire. Il n'y a donc rien à enchaîner — un seul des deux peut s'appliquer.
+                val destination = dossiers.firstOrNull { it.id == cible }
+                when {
+                    // La destination est un coffre fermé : demander le secret AVANT de toucher au
+                    // contenu. Sans ce détour, le scellement échoue faute de clé et l'utilisateur
+                    // reçoit un message d'erreur là où il fallait lui poser une question.
+                    destination != null && destination.isVault && !viewModel.estDeverrouille(cible) ->
+                        deverrouillageCible = cible
+
+                    // Sortie de coffre : la seule des quatre combinaisons qui retire une protection.
+                    state.note?.isLocked == true && destination?.isVault != true -> sortieDeCoffreCible = cible
+
+                    else -> viewModel.deplacerVers(cible)
+                }
             },
             onDismiss = { deplacementOuvert = false },
         )
+    }
+
+    sortieDeCoffreCible?.let { cible ->
+        DialogueDeSortieDeCoffre(
+            onConfirmer = {
+                sortieDeCoffreCible = null
+                viewModel.deplacerVers(cible, sortieDeCoffreConfirmee = true)
+            },
+            onAnnuler = { sortieDeCoffreCible = null },
+        )
+    }
+
+    // ⚠️ La feuille est cherchée dans la liste à l'affichage, et non mémorisée telle quelle : un
+    // `Folder` n'est pas `Saveable`, et c'est son identifiant qui doit survivre à une rotation.
+    // Si le dossier a disparu entre-temps, il n'y a plus de destination et l'état se referme.
+    deverrouillageCible?.let { cible ->
+        val destination = dossiers.firstOrNull { it.id == cible }
+        if (destination == null) {
+            deverrouillageCible = null
+        } else {
+            UnlockVaultSheet(
+                folder = destination,
+                onDismiss = { deverrouillageCible = null },
+                onUnlocked = {
+                    deverrouillageCible = null
+                    viewModel.deplacerVers(cible)
+                },
+            )
+        }
     }
 
     if (autocompletionOuverte) {
@@ -250,7 +302,6 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                             )
                         }
                         MenuDeDebordement(
-                            deplacementPossible = !state.isVaultNote,
                             onDeplacer = { deplacementOuvert = true },
                             onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
                             // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a
@@ -353,6 +404,51 @@ private fun BanniereEchecEnregistrement() {
     }
 }
 
+/**
+ * La confirmation avant de sortir une note d'un coffre.
+ *
+ * ## 🔴 Ce que l'utilisateur doit comprendre avant de toucher au bouton
+ *
+ * Le contenu part en clair dans la base. Et le mot « irréversible » du corps de texte ne dit pas
+ * qu'on ne peut pas remettre la note au coffre — on peut — mais qu'**elle aura transité hors
+ * chiffrement** : ce qui a été écrit en clair au repos l'a été, et aucun geste ultérieur ne le
+ * défait. C'est la formulation de l'application publiée, et elle est juste.
+ *
+ * ⚠️ **L'action de sortie est le bouton discret, en rouge**, et « Annuler » celui qu'on touche par
+ * réflexe — même disposition que [com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog],
+ * et même icône, pour la même raison : les deux retirent une protection.
+ *
+ * Ce dialogue est la seule chose qui sépare un tap dans un menu d'une note déprotégée. L'entrée de
+ * menu, elle, n'est plus désactivée — c'était la protection tant que le dépôt ne savait pas
+ * déchiffrer, et une entrée grisée n'explique rien.
+ */
+@Composable
+private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onAnnuler,
+        icon = {
+            Icon(
+                imageVector = Icons.Outlined.LockOpen,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        title = { Text(stringResource(R.string.note_editor_exit_vault_title)) },
+        text = { Text(stringResource(R.string.note_editor_exit_vault_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirmer) {
+                Text(
+                    text = stringResource(R.string.note_editor_exit_vault_confirm),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onAnnuler) { Text(stringResource(R.string.common_cancel)) }
+        },
+    )
+}
+
 /** Deux champs de texte qui ne ressemblent pas à un formulaire. */
 @Composable
 private fun champSansDecor() = TextFieldDefaults.colors(
@@ -371,20 +467,12 @@ private fun champSansDecor() = TextFieldDefaults.colors(
  * est meilleure : une icône de suppression à côté de l'épingle et du favori s'atteint par erreur, et
  * ce geste-là part sans confirmation.
  *
- * ⚠️ [deplacementPossible] est faux pour une note de coffre. Sortir une note d'un coffre écrit son
- * contenu en clair dans la base — irréversible au sens qui compte, la note ayant transité hors
- * chiffrement — et l'application publiée fait précéder ce geste d'une confirmation dédiée
- * (`note_editor_exit_vault_*`). Ni cette confirmation ni l'opération de dépôt qui la suit n'existent
- * encore : l'entrée est donc **désactivée**, plutôt que de mener à une exception ou à un dialogue
- * sans effet.
+ * ⚠️ **« Déplacer » est active même pour une note de coffre**, et ne l'était pas tant que le dépôt
+ * ne savait pas déchiffrer. Ce qui protège l'utilisateur n'est pas une entrée grisée mais la
+ * confirmation que l'écran pose avant de sortir une note d'un coffre — cf. [DialogueDeSortieDeCoffre].
  */
 @Composable
-private fun MenuDeDebordement(
-    deplacementPossible: Boolean,
-    onDeplacer: () -> Unit,
-    onExporter: () -> Unit,
-    onCorbeille: () -> Unit,
-) {
+private fun MenuDeDebordement(onDeplacer: () -> Unit, onExporter: () -> Unit, onCorbeille: () -> Unit) {
     var ouvert by rememberSaveable { mutableStateOf(false) }
 
     IconButton(onClick = { ouvert = true }) {
@@ -396,7 +484,6 @@ private fun MenuDeDebordement(
     DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
         DropdownMenuItem(
             text = { Text(stringResource(R.string.note_editor_menu_move)) },
-            enabled = deplacementPossible,
             leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = null) },
             onClick = {
                 ouvert = false

@@ -166,6 +166,7 @@ class NoteLinkTest {
             override fun load(): ByteArray = kek.copyOf()
             override fun store(kek: ByteArray) = Unit
             override fun replaceKeyAndStore(kek: ByteArray) = Unit
+            override fun destroy() = Unit
         }
         val repository = KekRepository(listOf(source), source, databaseExists = { true })
         return NotesDatabaseFactory(

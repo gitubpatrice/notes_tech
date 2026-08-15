@@ -5,6 +5,7 @@ import android.os.SystemClock
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.domain.repository.UnavailableVaultSealer
+import com.filestech.notes_tech.domain.repository.VaultOpener
 import com.filestech.notes_tech.domain.repository.VaultSealer
 import com.filestech.notes_tech.security.kek.FlutterSecureStorageKekSource
 import com.filestech.notes_tech.security.kek.KekRepository
@@ -123,4 +124,15 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideVaultSealer(service: FolderVaultService): VaultSealer = service
+
+    /**
+     * L'ouvreur de coffres — le même service, par un **contrat distinct**.
+     *
+     * Deux liaisons plutôt qu'une, alors qu'elles rendent le même objet : sceller et ouvrir ne sont
+     * pas symétriques. Une dépendance à `VaultSealer` ne doit pas donner, en prime, la capacité de
+     * déchiffrer. Le seul appelant de celle-ci est `NotesRepository.relocateLockedNote`.
+     */
+    @Provides
+    @Singleton
+    fun provideVaultOpener(service: FolderVaultService): VaultOpener = service
 }

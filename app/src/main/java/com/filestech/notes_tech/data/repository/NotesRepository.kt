@@ -13,6 +13,7 @@ import com.filestech.notes_tech.domain.links.WikiLinkParser
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.domain.repository.VaultOpener
 import com.filestech.notes_tech.domain.repository.VaultSealer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -70,6 +71,7 @@ class NotesRepository @Inject constructor(
     private val databases: DatabaseProvider,
     private val folders: FoldersRepository,
     private val sealer: VaultSealer,
+    private val opener: VaultOpener,
     private val clock: Clock,
 ) {
 
@@ -362,7 +364,8 @@ class NotesRepository @Inject constructor(
      *
      * @throws VaultRelocationException si la note est verrouillée. Sortir d'un coffre, ou passer
      *   d'un coffre à un autre, exige la clé du coffre d'origine : chaque coffre a la sienne, et le
-     *   blob ne se transporte pas tel quel.
+     *   blob ne se transporte pas tel quel. C'est [relocateLockedNote] qui en est capable, et il
+     *   porte un autre nom parce que c'est un autre geste — celui qui peut retirer une protection.
      * @throws com.filestech.notes_tech.domain.repository.VaultLockedException si la destination est
      *   un coffre dont la session n'est pas ouverte.
      */
@@ -388,6 +391,86 @@ class NotesRepository @Inject constructor(
             database.linkWriter.unresolveByMismatch(noteId = id, newTitleNorm = "")
         }
         database.noteWriteDao().moveToFolder(id = id, folderId = folderId, updatedAt = clock.millis()) > 0
+    }
+
+    /**
+     * Déplace une note **verrouillée** : la sortir de son coffre, ou la faire passer dans un autre.
+     *
+     * ## 🔴 C'est le seul geste de l'application qui peut retirer la protection d'UNE note
+     *
+     * `FolderVaultService.decryptAllNotesInFolder` déprotège un dossier entier ; celui-ci déprotège
+     * une note. Les deux méritent leur nom propre, et aucun des deux ne doit pouvoir se déclencher
+     * par un appel qui ressemble à autre chose — c'est pourquoi [moveToFolder] **refuse** une note
+     * verrouillée au lieu de router vers ici. L'appelant doit demander explicitement ce geste-là,
+     * après la confirmation que l'interface pose (`note_editor_exit_vault_*`).
+     *
+     * ## L'ordre, et pourquoi tout tient dans UNE transaction
+     *
+     * Déchiffrer puis déplacer, en deux écritures, laisserait entre les deux une note **en clair
+     * dans un dossier coffre** — l'état exact que [moveToFolder] refuse d'écrire dans l'autre sens.
+     * Un plantage au mauvais moment le figerait sur le disque, sous un cadenas qui ne protège plus
+     * rien. La transaction rend cet instant inobservable, et son échec rend la note à son état
+     * scellé d'origine.
+     *
+     * ## ⚠️ L'ouvreur est VÉRIFIÉ, comme le scelleur l'est dans [sealIfVault]
+     *
+     * Un ouvreur qui rendrait la note inchangée — encore scellée — ferait écrire, selon la
+     * destination, un blob illisible dans un dossier ordinaire, ou bien `content = ""` et
+     * `title = ""` par `NoteWriteDao.unlockNote` : **la note serait vidée**. La symétrie n'est pas
+     * décorative : c'est le même motif de défaut que côté scellement, et il détruit ici au lieu de
+     * fuir.
+     *
+     * @param folderId la destination. Si c'est un autre coffre, la note est **rescellée avec la clé
+     *   de celui-là** — les deux sessions doivent donc être ouvertes.
+     * @return `false` si l'identifiant est inconnu ou si la note est déjà dans ce dossier.
+     * @throws IllegalStateException si la note n'est **pas** verrouillée. Un geste nommé « sortir du
+     *   coffre » exécuté sur une note qui n'y est pas veut dire que l'appelant s'est trompé de
+     *   chemin, ou que l'état de son écran est périmé ; le silence y masquerait une confirmation
+     *   demandée à l'utilisateur pour une action qui n'était pas celle-là.
+     * @throws com.filestech.notes_tech.domain.repository.VaultLockedException si la session de la
+     *   destination n'est pas ouverte. La session **d'origine** fermée lève, elle, l'exception du
+     *   service de coffres — cf. `VaultOpener.decrypt`.
+     */
+    suspend fun relocateLockedNote(id: String, folderId: String): Boolean = inTransaction { database ->
+        val current = database.noteDao().findById(id) ?: return@inTransaction false
+        if (current.folderId == folderId) return@inTransaction false
+        check(current.isLocked) { "la note $id n'est pas verrouillee : ce chemin n'est pas le sien" }
+
+        val clear = opener.decrypt(current.toDomain())
+        check(clear.encrypted == null) {
+            "ouverture incomplete pour la note $id : la note rendue porte encore son chiffre"
+        }
+
+        val persisted = sealIfVault(clear.copy(folderId = folderId))
+        if (persisted.isLocked) {
+            // Coffre → coffre : le blob qui part en base est celui de la clé de DESTINATION.
+            database.noteWriteDao().lockNote(
+                id = id,
+                encryptedContent = requireNotNull(persisted.encrypted).toByteArray(),
+                encVersion = persisted.encVersion,
+                plainTitle = persisted.title,
+                // Ni les étiquettes ni l'horodatage : elles ne changent pas, et `moveToFolder`
+                // juste en dessous écrit `updated_at` une fois pour le geste entier.
+                tags = null,
+                updatedAt = null,
+            )
+            database.linkWriter.deleteLinksOf(id)
+        } else {
+            // Coffre → dossier ordinaire : le clair revient dans ses colonnes, le blob disparaît.
+            database.noteWriteDao().unlockNote(id = id, content = persisted.content, plainTitle = persisted.title)
+            // ⚠️ **Après** le déverrouillage, jamais avant : l'indexation lit la table des titres,
+            // qui ignore les notes scellées. Réindexer d'abord, c'est indexer un état qui n'est
+            // plus. La note redevient au passage une cible légitime pour les liens des autres.
+            reindexLinks(database, persisted)
+        }
+        val lignes = database.noteWriteDao().moveToFolder(id = id, folderId = folderId, updatedAt = clock.millis())
+        // La note vient d'être lue **et** réécrite dans cette transaction : un zéro voudrait dire
+        // qu'elle a disparu entre-temps, ce que la transaction rend impossible. Le vérifier coûte
+        // une comparaison et interdit d'annoncer un déplacement qui n'aurait pas eu lieu — alors
+        // que la protection, elle, aurait bien été retirée.
+        check(lignes > 0) { "la note $id n'a pas ete deplacee alors que son contenu a ete reecrit" }
+        resolveIncoming(database, persisted)
+        true
     }
 
     /**
@@ -581,10 +664,15 @@ class NotesRepository @Inject constructor(
  *
  * Chaque coffre a sa propre clé : le blob d'une note ne se transporte pas d'un coffre à l'autre, et
  * ne redevient pas lisible en sortant. L'opération exige de déchiffrer avec la clé d'origine puis de
- * rechiffrer — donc une session ouverte, donc le service de coffres (phase 4).
+ * rechiffrer — donc une session ouverte.
  *
  * Refuser ici plutôt que déplacer la ligne : une note déplacée avec un blob que plus aucune clé
  * n'ouvre est une note perdue, sans le moindre message.
+ *
+ * ⚠️ **Ce refus ne dit plus « pas encore », il dit « pas par ce chemin ».** L'opération existe :
+ * [NotesRepository.relocateLockedNote]. Elle porte un autre nom parce qu'elle fait autre chose —
+ * elle peut retirer la protection d'une note — et l'y router silencieusement depuis un déplacement
+ * ordinaire ferait exactement ce que toute cette couche s'emploie à rendre impossible.
  */
 class VaultRelocationException(val noteId: String, val folderId: String) :
     IllegalStateException(

@@ -9,6 +9,7 @@ import com.filestech.notes_tech.data.local.LegacyDatabaseFixture
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.data.local.SqlCipherRawKey
+import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.domain.model.EncryptedFormat
@@ -82,6 +83,7 @@ class FolderVaultServiceTest {
             override fun load(): ByteArray = kek.copyOf()
             override fun store(kek: ByteArray) = Unit
             override fun replaceKeyAndStore(kek: ByteArray) = Unit
+            override fun destroy() = Unit
         }
         provider = DatabaseProvider(
             context = context,
@@ -94,10 +96,12 @@ class FolderVaultServiceTest {
         )
         sessions = VaultSessions(horlogeMonotone)
         keystore = KeystoreEnMemoire()
-        journal = VaultWipeJournal(context)
+        journal = VaultWipeJournal(LegacyPreferences(context))
         coffres = FolderVaultService(provider, keystore, sessions, journal, horloge)
         dossiers = FoldersRepository(provider, horloge)
-        notes = NotesRepository(provider, dossiers, coffres, horloge)
+        // Le service tient les deux contrats : il scelle et il ouvre. Ce sont deux dépendances
+        // distinctes du dépôt, pas une seule — cf. `VaultOpener`.
+        notes = NotesRepository(provider, dossiers, coffres, coffres, horloge)
 
         // Le journal vit dans les préférences réelles : un test précédent ne doit pas en léguer.
         journal.pendingFolderIds().forEach(journal::clearPending)
