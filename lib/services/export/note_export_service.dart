@@ -68,11 +68,18 @@ class NoteExportService {
   /// destinataire. Hissé au niveau de la classe parce que `safeFileName`
   /// l'appliquait et que son jumeau `_safeFolderDirName` l'ignorait — un
   /// dossier nommé « CON » suffisait à rendre l'archive inextractible.
+  ///
+  /// ⚠️ La liste qui circule commence à `COM1`. Celle que Microsoft publie
+  /// commence à `COM0` et comporte en plus les variantes en **exposants
+  /// Unicode** : `COM¹` désigne le même périphérique que `COM1`. Ajoutées le
+  /// 2026-08-15, sur relevé d'une relecture externe pendant le portage Kotlin,
+  /// qui porte la même liste.
   static const Set<String> _kWindowsReserved = {
     'CON',
     'PRN',
     'AUX',
     'NUL',
+    'COM0',
     'COM1',
     'COM2',
     'COM3',
@@ -82,6 +89,10 @@ class NoteExportService {
     'COM7',
     'COM8',
     'COM9',
+    'COM¹',
+    'COM²',
+    'COM³',
+    'LPT0',
     'LPT1',
     'LPT2',
     'LPT3',
@@ -91,6 +102,9 @@ class NoteExportService {
     'LPT7',
     'LPT8',
     'LPT9',
+    'LPT¹',
+    'LPT²',
+    'LPT³',
   };
 
   /// Caractères de contrôle bidi/RTL et BOM, à filtrer dans tout nom de

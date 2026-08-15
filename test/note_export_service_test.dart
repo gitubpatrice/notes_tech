@@ -45,6 +45,24 @@ void main() {
       expect(nom('AUX '), 'note-11111111.md');
     });
 
+    test('COM0, LPT0 et les variantes en exposants sont réservés eux aussi', () {
+      // La liste qui circule commence à COM1 ; celle de Microsoft commence à
+      // COM0 et comporte les exposants Unicode.
+      expect(nom('COM0'), 'note-11111111.md');
+      expect(nom('LPT0'), 'note-11111111.md');
+      expect(nom('COM¹'), 'note-11111111.md');
+      expect(nom('lpt³.txt'), 'note-11111111.md');
+      // COM10 n'existe pas : la liste s'arrête à un seul chiffre.
+      expect(nom('COM10'), 'COM10.md');
+    });
+
+    test('CON.TRAT.pdf EST réservé — Windows coupe au premier point', () {
+      // ⚠️ Signalé comme faux positif par une relecture externe le 2026-08-15.
+      // C'est la relecture qui se trompait : Windows résout un nom de
+      // périphérique en coupant au PREMIER point, donc ce nom désigne CON.
+      expect(nom('CON.TRAT.pdf'), 'note-11111111.md');
+    });
+
     test('le contrôle porte sur le nom de base, pas sur un préfixe', () {
       // Une note dont le titre COMMENCE par un nom réservé est parfaitement
       // valable : la renommer serait une régression du correctif.
