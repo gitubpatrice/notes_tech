@@ -12,7 +12,14 @@
     -->
     <style name="Theme.NotesTech.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <!--
+          🔴 Icône VIDE — voir `drawable/ic_splash_vide.xml`.
+
+          Avec l'icône de l'application ici, le premier lancement montrait DEUX écrans de
+          présentation à la suite : celui du système, puis celui de la marque, avec le même logo
+          rejouant son animation. L'application publiée n'a qu'un aplat sur sa fenêtre d'amorçage.
+        -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_vide</item>
         <item name="postSplashScreenTheme">@style/Theme.NotesTech</item>
     </style>
 
