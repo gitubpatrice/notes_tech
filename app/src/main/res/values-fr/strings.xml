@@ -272,6 +272,7 @@
     <string name="panic_key_survived_title">La clé n\'a PAS été détruite</string>
     <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\'appareil.</string>
     <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\'appareil.</string>
+    <string name="panic_incomplete_plaintext">Clé détruite : la base n\'est plus déchiffrable. En revanche, %1$d étape(s) de nettoyage ont échoué, et des fichiers d\'export LISIBLES peuvent subsister sur cet appareil. Ne vous en séparez pas sans vérifier.</string>
 
     <!-- ── Dictée vocale ─────────────────────────────────────────────────
          ⚠️ Aucun écran ne consomme encore ces chaînes — phase 7. Elles sont transposées

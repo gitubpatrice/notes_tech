@@ -163,6 +163,38 @@ class PariteExportAvecFlutterTest {
         assertThat(NoteMarkdown.safeFolderName(null, "Contrats")).isEqualTo("Contrats")
     }
 
+    /**
+     * 🔴 Le TROISIEME jumeau asymetrique entre `safeFileName` et `safeFolderName`.
+     *
+     * Apres la liste des noms reserves, puis le predicat qui l'applique, c'etait la troncature :
+     * le fichier bornait a 80 caracteres, le dossier ne bornait rien. Un dossier de trois cents
+     * caracteres produit une entree dont le chemin depasse la limite de 260 de Windows —
+     * l'archive est valide et refusee a l'extraction, chez le destinataire.
+     *
+     * ⚠️ Chaque fois, le commentaire de la correction precedente affirmait que la question etait
+     * close. Deux fonctions qui doivent produire des noms sûrs se relisent ENSEMBLE.
+     */
+    @Test
+    @DisplayName("un nom de dossier trop long est tronqué comme un nom de fichier")
+    fun nomDeDossierLong() {
+        assertThat(NoteMarkdown.safeFolderName(null, "é".repeat(300))).isEqualTo("é".repeat(80))
+    }
+
+    /**
+     * ⚠️ Windows refuse un dossier dont le nom finit par un point ou une espace.
+     *
+     * `estUnNomDeDossierUtilisable` les ignorait deja pour JUGER le nom, mais la fonction rendait
+     * la forme non nettoyee : elle validait une chaine et en renvoyait une autre.
+     */
+    @Test
+    @DisplayName("les points et espaces finaux sont retirés du nom de dossier rendu")
+    fun nomDeDossierSansPointFinal() {
+        assertThat(NoteMarkdown.safeFolderName(null, "Secret.")).isEqualTo("Secret")
+        assertThat(NoteMarkdown.safeFolderName(null, "Secret. ")).isEqualTo("Secret")
+        // Le nom ne se reduit pas a des points : il reste utilisable une fois nettoye.
+        assertThat(NoteMarkdown.safeFolderName(null, "Dossier..")).isEqualTo("Dossier")
+    }
+
     @Test
     @DisplayName("un titre trop long est tronqué à 80 caractères")
     fun nomLong() {

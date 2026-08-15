@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.File
 import java.time.Clock
 import java.time.Instant
@@ -112,8 +113,15 @@ class NoteExporter @Inject constructor(
             val nom = "notes-tech-export-${instant.toEpochMilli()}.zip"
             val fichier = File(repertoire, nom)
 
-            val bilan = try {
-                fichier.outputStream().use { flux ->
+            // 🔴 **La fabrication de l'URI est DANS le `try`.**
+            //
+            // Elle était après. `FileProvider.getUriForFile` lève si l'autorité est mal déclarée ou
+            // si le fichier tombe hors des chemins publiés — rare, mais alors l'exception remontait
+            // en laissant **une archive complète, en clair, que personne ne partagera jamais**.
+            // Elle attendait la purge du prochain démarrage. Relevé CONFIRMÉ par une relecture
+            // externe (GPT-5.2, 2026-08-15).
+            try {
+                val bilan = fichier.outputStream().use { flux ->
                     NoteArchive.write(
                         output = flux,
                         notes = exportables,
@@ -125,20 +133,19 @@ class NoteExporter @Inject constructor(
                         zone = zone,
                     )
                 }
+                ExportResult(
+                    uri = FileProvider.getUriForFile(context, "${context.packageName}.exports", fichier),
+                    fileName = nom,
+                    exported = bilan.exported,
+                    skippedLocked = bilan.skippedLocked,
+                )
             } catch (e: Throwable) {
                 // ⚠️ Un demi-fichier ne doit pas rester : il porterait du clair sans être partagé,
                 // et le prochain export le laisserait là. `Throwable` et non `Exception` parce
                 // qu'une annulation doit nettoyer elle aussi — puis repartir telle quelle.
-                fichier.delete()
+                effacerOuSignaler(fichier)
                 throw e
             }
-
-            ExportResult(
-                uri = FileProvider.getUriForFile(context, "${context.packageName}.exports", fichier),
-                fileName = nom,
-                exported = bilan.exported,
-                skippedLocked = bilan.skippedLocked,
-            )
         }
 
     /**
@@ -165,12 +172,25 @@ class NoteExporter @Inject constructor(
         vaultMention: (String) -> String,
     ): ExportResult = withContext(Dispatchers.IO) {
         val instant = clock.instant()
-        val venaitDunCoffre = note.isLocked
-        val claire = if (venaitDunCoffre) vaults.decrypt(note) else note
+        // 🔴 **L'origine « coffre » se lit sur le DOSSIER, pas seulement sur la note.**
+        //
+        // Le critère était `note.isLocked`. Il rate le cas d'une note **en clair dans un dossier
+        // coffre** — état bien réel : c'est celui qu'une conversion partielle laisse derrière elle,
+        // et celui qu'une annulation arrivée trop tard produit en entier (`11-COFFRES.md` §10).
+        // Cette note sortait alors **sans** suffixe ` [unlocked]` ni mention YAML, là où l'archive
+        // les pose — deux exports du même secret, une seule marque. Jumeau asymétrique, relevé
+        // CONFIRMÉ par une relecture externe (Gemini, 2026-08-15).
+        //
+        // ⚠️ Le déchiffrement, lui, reste conditionné à `isLocked` : une note déjà en clair n'a rien
+        // à déchiffrer, et l'envoyer au coffre lèverait sur une note qui n'a jamais été scellée.
+        val venaitDunCoffre = note.isLocked || folders.find(note.folderId)?.isVault == true
+        val claire = if (note.isLocked) vaults.decrypt(note) else note
         val repertoire = preparerRepertoire(instant)
         val nom = NoteMarkdown.safeFileName(claire.title, claire.id, fromUnlockedVault = venaitDunCoffre)
         val fichier = File(repertoire, nom)
 
+        // Même raison qu'à l'archive : l'URI se fabrique **dans** le `try`, sinon son échec laisse
+        // un fichier en clair complet et orphelin.
         try {
             fichier.writeText(
                 NoteMarkdown.render(
@@ -180,17 +200,35 @@ class NoteExporter @Inject constructor(
                     zone = ZoneId.systemDefault(),
                 ),
             )
+            ExportResult(
+                uri = FileProvider.getUriForFile(context, "${context.packageName}.exports", fichier),
+                fileName = nom,
+                exported = 1,
+                skippedLocked = 0,
+            )
         } catch (e: Throwable) {
-            fichier.delete()
+            effacerOuSignaler(fichier)
             throw e
         }
+    }
 
-        ExportResult(
-            uri = FileProvider.getUriForFile(context, "${context.packageName}.exports", fichier),
-            fileName = nom,
-            exported = 1,
-            skippedLocked = 0,
-        )
+    /**
+     * Efface un fichier d'export raté, et **dit** s'il n'y arrive pas.
+     *
+     * ⚠️ `File.delete()` rend un booléen que les deux chemins de rattrapage jetaient. Un effacement
+     * refusé — verrou du système de fichiers, descripteur encore ouvert — laissait donc du clair sur
+     * le disque **en silence**, sur le seul chemin dont le rôle est justement de n'en pas laisser.
+     * C'est la règle du dépôt appliquée à un cas de plus : un contrôle qui ne regarde pas son
+     * résultat n'en dit rien. Relevé CONFIRMÉ par une relecture externe (GPT-5.2, 2026-08-15).
+     *
+     * ⚠️ **On ne lève pas ici** : cette fonction est appelée depuis un `catch` dont l'exception
+     * d'origine est la vraie cause. La remplacer par une exception de nettoyage ferait disparaître
+     * la raison pour laquelle l'export a échoué. La trace, elle, garde les deux.
+     */
+    private fun effacerOuSignaler(fichier: File) {
+        if (fichier.exists() && !fichier.delete()) {
+            Timber.e("export : le fichier en clair %s n'a PAS pu etre efface", fichier.name)
+        }
     }
 
     /**

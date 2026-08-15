@@ -53,6 +53,17 @@ enum class PanicStep {
     /** 🔴 **Point de non-retour.** Après cette étape, la base est du bruit. */
     KEK_DESTROY,
 
+    /**
+     * Les archives d'export, **seuls fichiers en clair de l'application**.
+     *
+     * ⚠️⚠️ Déplacée ici le 2026-08-15, depuis l'avant-dernière position. L'ordre de cette
+     * énumération **est** l'ordre d'exécution — `PanicReportTest.sequenceFigee` le fige — et il la
+     * plaçait derrière la base, les modèles hérités et les préférences. Or tout ce qui la précédait
+     * ne protège plus rien de lisible une fois la clé détruite : une interruption dans cette fenêtre
+     * laissait des notes parfaitement lisibles à côté d'une base réduite à du bruit.
+     */
+    EXPORTS_WIPE,
+
     /** Ferme la base, écrase l'en-tête du fichier, supprime le fichier et ses annexes. */
     DB_WIPE,
 
@@ -61,9 +72,6 @@ enum class PanicStep {
 
     /** Toutes les préférences sauf deux, par liste blanche. */
     PREFS_CLEAR,
-
-    /** Les archives d'export, qui sont du clair sur le disque. */
-    EXPORTS_WIPE,
 
     /** Le reste du cache. */
     CACHE_PURGE,
@@ -99,6 +107,25 @@ data class PanicReport(val outcomes: List<PanicOutcome>) {
         get() = outcomes.any { it.step == PanicStep.KEK_DESTROY && it.succeeded }
 
     val failedSteps: List<PanicStep> get() = outcomes.filterNot(PanicOutcome::succeeded).map(PanicOutcome::step)
+
+    /**
+     * 🔴 Du contenu **lisible** peut être resté sur l'appareil.
+     *
+     * Toutes les étapes de nettoyage ne laissent pas le même résidu. Une purge de cache ou un
+     * effacement de base qui échouent laissent des octets **chiffrés sous une clé détruite** — du
+     * bruit. [PanicStep.EXPORTS_WIPE] est la seule dont l'échec laisse du **clair** : une archive
+     * d'export contient le texte intégral des notes, coffres ouverts compris.
+     *
+     * ⚠️ **Ce n'est pas une quatrième issue.** [minimalGuarantee] reste acquise — la base est du
+     * bruit, et le dire autrement affolerait quelqu'un qui est en réalité protégé pour l'essentiel.
+     * Ce que cette propriété change, c'est **la nature du résidu annoncée à l'écran**, donc la
+     * décision de se séparer ou non de l'appareil.
+     *
+     * Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15) : l'écran affichait « des
+     * fichiers illisibles peuvent subsister » y compris quand ce qui subsistait était lisible.
+     */
+    val clairPeutSubsister: Boolean
+        get() = outcomes.any { it.step == PanicStep.EXPORTS_WIPE && !it.succeeded }
 }
 
 /**
@@ -123,6 +150,18 @@ data class PanicReport(val outcomes: List<PanicOutcome>) {
  * Les clés du Keystore passent **avant** elles aussi : elles ne dépendent pas de la base, donc rien
  * n'oblige à les traiter après, et un attaquant qui aurait déjà copié la base ailleurs ne doit pas
  * conserver le moyen de rejouer un coffre à code sur un appareil restauré.
+ *
+ * ## ⚠️⚠️ Ce que cette promesse a coûté avant d'être tenue
+ *
+ * La phrase ci-dessus — « une interruption à n'importe quel instant laisse l'état le plus sûr » —
+ * était **fausse** jusqu'au 2026-08-15, et c'est le commentaire lui-même qui a mis les deux
+ * relectures externes sur la piste. Les archives d'export, seuls fichiers **en clair** de
+ * l'application, étaient effacées en avant-dernier : derrière la base (déjà réduite à du bruit),
+ * derrière les modèles hérités (plusieurs secondes sur 530 Mo) et derrière les préférences. Une
+ * interruption dans cette fenêtre laissait des notes lisibles à côté d'une base illisible.
+ *
+ * > **Une garantie écrite dans un commentaire n'est pas une garantie tenue par le code.** Celle-ci
+ * > l'est maintenant : le clair part immédiatement après la clé.
  *
  * ## ⚠️ Aucune étape n'interrompt les suivantes
  *
@@ -212,23 +251,43 @@ class PanicService @Inject constructor(
         //    minimale : la base chiffrée est du bruit, même récupérée bit à bit.
         issues += etape(PanicStep.KEK_DESTROY) { kek.destroy() }
 
-        // 5. Le fichier. Défense en profondeur : la clé est déjà partie.
+        // 5. 🔴 **Les archives d'export, AUSSITÔT APRÈS la clé — et non en avant-dernier.**
+        //
+        //    Elles étaient à l'étape 8, derrière l'effacement de la base, celui des modèles hérités
+        //    et les préférences. Or ce sont les seuls fichiers **en clair** de la séquence : tout ce
+        //    qui les précédait désormais ne protège plus rien de lisible, puisque la clé est partie
+        //    à l'étape 4. Un processus tué entre 4 et 8 laissait donc une base réduite à du bruit
+        //    **et des notes parfaitement lisibles à côté** — coffres ouverts compris.
+        //
+        //    ⚠️⚠️ Le pire des trois était l'ordre relatif aux modèles hérités : leur suppression
+        //    peut prendre **plusieurs secondes sur 530 Mo**, et du clair attendait derrière.
+        //
+        //    Relevé CONFIRMÉ par les DEUX relectures externes du 2026-08-15, chacune par un chemin
+        //    différent — l'une par l'ordre, l'autre par le commentaire de classe qui promettait
+        //    « l'état le plus sûr atteignable à tout instant ».
+        //
+        //    ⚠️ Toujours par le MÊME chemin que celui qui les écrit : deux définitions du répertoire,
+        //    et la panique nettoierait un dossier que l'export n'utilise plus.
+        //
+        //    ⚠️ **Après** la destruction de la clé, pas avant : celle-ci est une écriture unique et
+        //    quasi instantanée qui couvre *toutes* les notes, là où l'effacement des archives est un
+        //    parcours de fichiers dont la durée dépend de ce que l'utilisateur a exporté. Placer un
+        //    parcours devant la garantie qui protège le plus, ce serait refaire l'erreur qu'on
+        //    corrige ici, dans l'autre sens.
+        issues += etape(PanicStep.EXPORTS_WIPE) { supprimerLeDossier(NoteExporter.repertoireDExport(context)) }
+
+        // 6. Le fichier de base. Défense en profondeur : la clé est déjà partie.
         issues += etape(PanicStep.DB_WIPE) { effacerLaBase() }
 
-        // 6. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
+        // 7. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
         //    sécurité, parce que la suppression peut prendre plusieurs secondes sur 530 Mo.
         issues += etape(PanicStep.LEGACY_MODELS_WIPE) { supprimerLeDossier(File(context.filesDir, MODELS_DIR)) }
 
-        // 7. Les préférences, par liste blanche.
+        // 8. Les préférences, par liste blanche.
         issues += etape(PanicStep.PREFS_CLEAR) {
             val effacees = prefs.clearAllExcept(PREFERENCES_CONSERVEES)
             Timber.i("panique : %d préférences effacées", effacees)
         }
-
-        // 8. Les archives d'export : du clair sur le disque, par le MÊME chemin que celui qui les
-        //    écrit. Deux définitions du répertoire, et la panique nettoierait un dossier que
-        //    l'export n'utilise plus.
-        issues += etape(PanicStep.EXPORTS_WIPE) { supprimerLeDossier(NoteExporter.repertoireDExport(context)) }
 
         // 9. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
         issues += etape(PanicStep.CACHE_PURGE) { viderLeCache() }

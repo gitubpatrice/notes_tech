@@ -513,3 +513,40 @@ ViewModel sans lecteur, et sur huit `catch` sans sortie utilisateur, sept sont j
 d'un point, c'est-à-dire la forme normale `viewModel.methode()`. Corrigé, puis **validé sur un témoin
 vivant et un témoin inexistant** avant d'en tirer la moindre conclusion. Un instrument se calibre
 avant de servir de preuve.
+
+---
+
+## 2026-08-15 (nuit) — Audit de l'export et du mode panique
+
+Deux zones jamais auditées de la journée, choisies pour ce qu'elles risquent : l'export fait
+**sortir** des données, la panique en **détruit**. Relecture externe croisée, puis vérification de
+chaque constat dans le code.
+
+**Cinq défauts réels, dont deux sur le chemin le plus sensible de l'application :**
+
+1. **L'ordre de la séquence de panique** — le clair attendait derrière l'illisible. Cf. §51.
+2. **Le message de fin mentait sur la nature du résidu** — « fichiers illisibles » là où il pouvait
+   s'agir de notes lisibles. Cf. §52.
+3. **Troisième jumeau asymétrique** entre `safeFileName` et `safeFolderName` : la troncature. Après
+   la liste des noms réservés, puis le prédicat qui l'applique. *Deux fonctions qui doivent produire
+   des noms sûrs se relisent ensemble — le commentaire de chaque correction précédente affirmait que
+   la question était close.*
+4. **`safeFolderName` jugeait une forme et en rendait une autre** : `estUnNomDeDossierUtilisable`
+   ignorait les points finaux pour décider, la fonction renvoyait `Secret.` tel quel — refusé par
+   Windows. *Valider une chaîne et en renvoyer une autre, c'est valider ce qu'on n'a pas contrôlé.*
+5. **`File.delete()` dont le retour était jeté**, sur les deux chemins de rattrapage de l'export —
+   c'est-à-dire précisément là où le rôle du code est de ne pas laisser de clair. Et
+   `getUriForFile` **hors** du `try` : son échec laissait une archive complète et orpheline.
+
+**Trois constats écartés après vérification** — et c'est aussi le travail :
+
+- « la panique efface la mauvaise base » (le mot *Legacy* désignait l'emplacement hérité de Flutter,
+  pas une base abandonnée) : `NotesDatabaseFactory` ouvre **exactement** ce fichier ;
+- « le commentaire de `NoteArchive` ment sur le pic mémoire » : il dit que le publié garde le clair
+  **en double** et qu'ici il ne l'est qu'une fois — c'est exact ;
+- « le `catch (CancellationException)` de `etape` est un chemin mort » : il l'est, et il est
+  documenté comme garde-fou volontaire.
+
+> ⚠️ **Un audit externe se vérifie, y compris quand il est classé CONFIRMÉ.** Trois sur huit ne
+> tenaient pas. Les appliquer sans lire aurait ajouté du bruit, et l'un d'eux aurait fait chercher un
+> défaut de migration inexistant.

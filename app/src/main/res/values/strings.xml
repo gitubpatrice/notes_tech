@@ -291,6 +291,11 @@
     <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
     <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
 
+    <!-- Ajout du portage, 2026-08-15. La phrase ci-dessus dit « unreadable », ce qui est vrai de
+         toutes les etapes SAUF une : une archive d'export est du CLAIR. Quand c'est celle-la qui
+         echoue, rassurer serait decrire l'inverse de la situation. -->
+    <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However %1$d cleanup step(s) failed, and READABLE export files may remain on this device. Do not part with it before checking.</string>
+
     <!-- ── Dictée vocale ─────────────────────────────────────────────────
          ⚠️ Aucun écran ne consomme encore ces chaînes — phase 7. Elles sont transposées
          maintenant pour que la traduction se fasse en un seul passage, pas pour laisser

@@ -80,6 +80,11 @@ AJOUTS_EN = {
     <string name="panic_key_survived_title">The key was NOT destroyed</string>
     <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
     <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
+
+    <!-- Ajout du portage, 2026-08-15. La phrase ci-dessus dit « unreadable », ce qui est vrai de
+         toutes les etapes SAUF une : une archive d'export est du CLAIR. Quand c'est celle-la qui
+         echoue, rassurer serait decrire l'inverse de la situation. -->
+    <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However %1$d cleanup step(s) failed, and READABLE export files may remain on this device. Do not part with it before checking.</string>
 """,
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
@@ -126,6 +131,7 @@ AJOUTS_FR = {
     <string name="panic_key_survived_title">La clé n\\'a PAS été détruite</string>
     <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\\'appareil.</string>
     <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\\'appareil.</string>
+    <string name="panic_incomplete_plaintext">Clé détruite : la base n\\'est plus déchiffrable. En revanche, %1$d étape(s) de nettoyage ont échoué, et des fichiers d\\'export LISIBLES peuvent subsister sur cet appareil. Ne vous en séparez pas sans vérifier.</string>
 """,
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->

@@ -184,6 +184,23 @@ object NoteMarkdown {
         var clean = FORBIDDEN.replace(brut, "")
         clean = BIDI.replace(clean, "")
         clean = DartTextSemantics.trim(DartTextSemantics.WHITESPACE.replace(clean, " "))
+        // 🔴 **Tronqué comme un nom de fichier, et pour la même raison.**
+        //
+        // [safeFileName] borne à 80 caractères, celle-ci ne bornait rien. Un dossier au nom de trois
+        // cents caractères produit une entrée `dossier/note.md` dont le chemin dépasse la limite de
+        // 260 du système de fichiers Windows : l'archive est **techniquement valide et refusée à
+        // l'extraction**, chez le destinataire, sans que rien ici ne l'ait signalé.
+        //
+        // ⚠️⚠️ C'est le **troisième** jumeau asymétrique entre ces deux fonctions, après la liste des
+        // noms réservés puis le prédicat qui l'applique. Chaque fois, l'une avait la garde et l'autre
+        // non ; chaque fois, le commentaire de la correction précédente affirmait que la question
+        // était close. Relevé CONFIRMÉ par les DEUX relectures externes du 2026-08-15.
+        clean = tronque(clean)
+        // ⚠️ Les points et espaces **finaux** sont retirés du nom RENDU, pas seulement du nom testé.
+        // `estUnNomDeDossierUtilisable` les ignorait déjà pour juger, mais laissait passer `Secret.`
+        // tel quel — un nom que Windows refuse de créer. Juger sur une forme et rendre l'autre, c'est
+        // valider ce qu'on n'a pas contrôlé.
+        clean = clean.trimEnd(' ', '.')
         return if (estUnNomDeDossierUtilisable(clean)) clean else "sans-dossier"
     }
 

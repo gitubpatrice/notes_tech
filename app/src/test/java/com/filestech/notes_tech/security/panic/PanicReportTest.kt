@@ -106,12 +106,32 @@ class PanicReportTest {
             PanicStep.FOLDERS_LOCK_ALL,
             PanicStep.PIN_KEYS_WIPE,
             PanicStep.KEK_DESTROY,
+            PanicStep.EXPORTS_WIPE,
             PanicStep.DB_WIPE,
             PanicStep.LEGACY_MODELS_WIPE,
             PanicStep.PREFS_CLEAR,
-            PanicStep.EXPORTS_WIPE,
             PanicStep.CACHE_PURGE,
         ).inOrder()
+    }
+
+    /**
+     * 🔴 Le clair part **immédiatement** apres la cle, avant tous les effacements lourds.
+     *
+     * Les archives d'export sont les seuls fichiers en clair de l'application. Une fois la cle
+     * detruite, tout ce qui reste ailleurs est du bruit : les laisser passer devant revient a faire
+     * attendre du lisible derriere de l'illisible. Le pire etait l'ordre relatif aux modeles
+     * herites, dont la suppression peut prendre plusieurs secondes sur 530 Mo.
+     *
+     * ⚠️ Ce test ne verifie pas une preference d'ecriture : il verifie qu'une interruption entre le
+     * point de non-retour et la fin de sequence ne laisse plus de notes lisibles sur l'appareil.
+     */
+    @Test
+    @DisplayName("les archives en clair partent juste apres la cle, avant les effacements lourds")
+    fun clairJusteApresLaCle() {
+        assertThat(PanicStep.EXPORTS_WIPE.ordinal).isEqualTo(PanicStep.KEK_DESTROY.ordinal + 1)
+        for (lourd in listOf(PanicStep.DB_WIPE, PanicStep.LEGACY_MODELS_WIPE, PanicStep.PREFS_CLEAR)) {
+            assertThat(PanicStep.EXPORTS_WIPE.ordinal).isLessThan(lourd.ordinal)
+        }
     }
 
     // ── Le rapport ne doit jamais mentir ─────────────────────────────────────
@@ -193,6 +213,40 @@ class PanicReportTest {
         // production ne le vérifie pas. Il le **cache**, en donnant à lire une garantie là où il n'y
         // a qu'une intention.
         assertThat(bilan.isComplete).isTrue()
+    }
+
+    /**
+     * 🔴 Toutes les etapes ratees ne laissent pas le meme residu.
+     *
+     * `panic_incomplete` dit « des fichiers ILLISIBLES peuvent subsister », ce qui est vrai de
+     * toutes les etapes sauf une : une archive d'export est du clair. L'ecran doit donc distinguer,
+     * sinon il rassure quelqu'un dont les notes sont restees lisibles.
+     */
+    @Test
+    @DisplayName("un effacement d'export rate signale que du CLAIR peut subsister")
+    fun exportRateSignaleDuClair() {
+        val bilan = rapport(PanicStep.EXPORTS_WIPE)
+
+        assertThat(bilan.minimalGuarantee).isTrue()
+        assertThat(bilan.isComplete).isFalse()
+        assertThat(bilan.clairPeutSubsister).isTrue()
+    }
+
+    /** ⚠️ Le jumeau : un nettoyage rate AILLEURS ne laisse que du bruit, et ne doit pas alarmer. */
+    @Test
+    @DisplayName("un autre nettoyage rate ne signale PAS de clair")
+    fun autreNettoyageRateNeSignalePasDeClair() {
+        for (etape in listOf(PanicStep.CACHE_PURGE, PanicStep.DB_WIPE, PanicStep.LEGACY_MODELS_WIPE)) {
+            val bilan = rapport(etape)
+            assertThat(bilan.clairPeutSubsister).isFalse()
+        }
+    }
+
+    /** Une sequence entierement reussie ne signale evidemment aucun clair. */
+    @Test
+    @DisplayName("aucune etape ratee : aucun clair signale")
+    fun aucunEchecAucunClair() {
+        assertThat(rapport().clairPeutSubsister).isFalse()
     }
 
     @Test

@@ -247,8 +247,29 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                     Puce(stringResource(R.string.panic_complete_bullet_4))
                 }
 
+                // 🔴 **Le nettoyage qui a échoué n'a pas laissé la même chose selon l'étape.**
+                //
+                // `panic_incomplete` dit « des fichiers **illisibles** peuvent subsister », et c'est
+                // vrai de toutes les étapes sauf une : les archives d'export sont du **clair**. Si
+                // c'est celle-là qui a échoué, la phrase rassurante décrit exactement l'inverse de
+                // la situation — des notes lisibles, à quelqu'un qui vient de déclencher une
+                // destruction sous contrainte.
+                //
+                // Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15) ; l'autre relecture
+                // avait conclu « rien trouvé » sur cet axe, parce qu'elle a regardé la logique des
+                // branches et non le **texte** qu'elles affichent.
+                //
+                // ⚠️ La distinction n'est pas une quatrième issue globale : la garantie minimale
+                // reste acquise — la base est du bruit. C'est la **nature du résidu** qui change, et
+                // c'est elle que l'utilisateur doit connaître pour décider s'il peut se séparer de
+                // l'appareil.
+                report.clairPeutSubsister -> Text(
+                    text = stringResource(R.string.panic_incomplete_plaintext, report.failedSteps.size),
+                    color = MaterialTheme.colorScheme.error,
+                )
+
                 // La clé est tombée, donc l'essentiel est acquis ; seul un nettoyage a échoué. Pas
-                // de rouge ici : l'alarme est réservée au cas au-dessus, sans quoi elle ne veut
+                // de rouge ici : l'alarme est réservée aux cas au-dessus, sans quoi elle ne veut
                 // plus rien dire quand elle sert.
                 else -> Text(stringResource(R.string.panic_incomplete, report.failedSteps.size))
             }

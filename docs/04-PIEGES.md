@@ -934,3 +934,51 @@ tronqué.
 > Continuer à ajuster des valeurs après le premier essai sans effet, c'est traiter un symptôme dont
 > on n'a pas trouvé la cause. Le relevé `uiautomator` — 72 px contre 144 — disait dès le départ que
 > la contrainte était structurelle.
+
+## §51 — L'ordre d'une séquence de destruction se juge sur ce qui reste LISIBLE
+
+Le mode panique détruisait la clé de la base à l'étape 4, puis effaçait les archives d'export à
+l'étape 8 — derrière le fichier de base, derrière les modèles hérités (**plusieurs secondes sur
+530 Mo**) et derrière les préférences.
+
+Or, une fois la clé détruite, tout ce qui reste ailleurs est du **bruit**. Les archives d'export
+sont les **seuls fichiers en clair** de l'application. Un processus tué entre l'étape 4 et l'étape 8
+laissait donc une base illisible **et des notes parfaitement lisibles à côté**, coffres ouverts
+compris.
+
+> ⚠️ **On n'ordonne pas une destruction par taille ni par « importance » supposée, mais par ce qu'un
+> arrêt brutal laisserait de lisible à cet instant.** La clé d'abord, parce qu'elle couvre tout d'un
+> coup et pour un coût quasi nul ; le clair juste après, parce que plus rien ne le protège ; le reste
+> ensuite, dans n'importe quel ordre.
+
+**Ce qui a mis sur la piste** : le commentaire de classe, qui promettait « une interruption à
+n'importe quel instant laisse l'état le plus sûr atteignable ». Les deux relectures externes l'ont
+relevé, l'une par l'ordre, l'autre par la promesse. *Une garantie écrite dans un commentaire n'est
+pas une garantie tenue par le code — mais elle sert de test, à qui la lit sérieusement.*
+
+⚠️⚠️ **Le piège de la correction** : `PanicReportTest.sequenceFigee` fige l'ordre de l'**énumération**,
+pas celui de l'exécution. Déplacer l'étape dans `executer()` sans la déplacer dans l'`enum` aurait
+laissé un test **vert** dont le nom affirme « la séquence est exactement celle qu'on croit ». Les
+deux ont été déplacées ensemble, et un test nomme désormais la contrainte réelle : le clair part
+**immédiatement** après la clé.
+
+## §52 — Un message d'échec doit décrire le RÉSIDU, pas le nombre d'étapes ratées
+
+L'écran de fin de panique affichait, pour tout nettoyage raté, « des fichiers **illisibles** peuvent
+subsister sur l'appareil ». C'est vrai de toutes les étapes sauf une : **les archives d'export sont
+du clair**.
+
+Si c'était précisément celle-là qui échouait, la phrase rassurante décrivait l'inverse de la
+situation — à quelqu'un qui vient de déclencher une destruction sous contrainte et qui décide, sur
+cette phrase, s'il peut se séparer de son appareil.
+
+> ⚠️ **Compter les échecs ne dit rien de ce qu'ils laissent.** `failedSteps.size` est la même valeur
+> pour un cache non purgé et pour une archive en clair intacte. Le message doit venir de la **nature**
+> de l'étape ratée.
+
+`PanicReport.clairPeutSubsister` porte la distinction, et une chaîne dédiée la dit. Ce n'est **pas**
+une quatrième issue globale : la garantie minimale reste acquise, seule la nature du résidu change.
+
+⚠️ La relecture qui a trouvé ça avait été précédée d'une autre concluant « rien trouvé » sur le même
+axe. La seconde avait regardé la **logique des branches** — correcte — et pas le **texte** qu'elles
+affichent. *Vérifier qu'un `when` choisit la bonne branche ne vérifie pas que la branche dit vrai.*
