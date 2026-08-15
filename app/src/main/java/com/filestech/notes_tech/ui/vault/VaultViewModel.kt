@@ -198,6 +198,29 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
             } catch (e: VaultValidationException) {
                 VaultAttempt.Invalid(e.reason)
             } catch (e: Exception) {
+                // ⚠️ **Le message est conservé ici, contrairement au mode panique**, et il faut le
+                // dire plutôt que de le laisser deviner.
+                //
+                // `PanicService.etape()` ne garde que le nom de la classe : son écran de fin peut
+                // être lu par-dessus l'épaule de quelqu'un sous contrainte, et un chemin de fichier
+                // y désignerait l'application. Ces feuilles-ci portent aussi `SecureWindowGuard`,
+                // mais pour une autre raison — le champ de saisie du secret, pas le texte d'erreur —
+                // et l'utilisateur y est en train d'ouvrir son propre coffre.
+                //
+                // Tous les échecs que l'utilisateur peut corriger sont déjà classés par TYPE
+                // au-dessus : mauvais secret, freinage, coffre auto-détruit, refus de validation.
+                // Ce `catch` résiduel est par construction le « quelque chose d'inattendu a cassé »,
+                // et le message brut est alors le seul indice exploitable pour diagnostiquer.
+                //
+                // ⚠️ Point ouvert, à trancher : à la différence de `ExportViewModel`, où « espace
+                // insuffisant » sert directement l'utilisateur, ce message-ci ne lui apprend rien
+                // d'actionnable — une `SQLiteException` ou une `IOException` y déposerait un chemin
+                // de bac à sable illisible. Le remplacer par un message générique serait plus
+                // honnête ; ce serait aussi changer le comportement d'une couche antérieure à la
+                // phase 6, ce qui ne se fait pas dans un lot de correctifs d'audit.
+                //
+                // Signalé comme divergence non documentée par l'audit de cohérence du 2026-08-15,
+                // qui classait son exploitabilité PROBABLE et non CONFIRMÉE.
                 VaultAttempt.Failed(e.message ?: e::class.java.simpleName)
             }
             // ⚠️ Le chiffrement de l'existant a deja pose son propre bilan : ne pas l'ecraser
