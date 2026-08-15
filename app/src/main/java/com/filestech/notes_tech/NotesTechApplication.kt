@@ -5,6 +5,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.filestech.notes_tech.data.export.NoteExporter
+import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultAutoLocker
@@ -58,6 +59,12 @@ class NotesTechApplication : Application() {
         // démarrage suivant. Geste synchrone et minuscule — une suppression de répertoire — pour
         // qu'il soit fait avant que quoi que ce soit puisse ouvrir l'écran des réglages.
         NoteExporter.purgerLesArchives(this)
+
+        // 🔴 Et les enregistrements de dictée, pour la MÊME raison et par le MÊME genre de chemin :
+        // un fichier WAV porte la voix de l'utilisateur, donc le contenu de sa note. Il devrait
+        // disparaître dès la transcription obtenue ; ce geste-ci rattrape le cas où l'application a
+        // été tuée entre les deux, où il n'y a personne pour effacer.
+        VoiceCapture.purgerLesCaptures(this)
 
         // 🔴 Reprise des effacements de coffre interrompus, **au démarrage et une seule fois**.
         //

@@ -107,6 +107,7 @@ class PanicReportTest {
             PanicStep.PIN_KEYS_WIPE,
             PanicStep.KEK_DESTROY,
             PanicStep.EXPORTS_WIPE,
+            PanicStep.VOICE_CAPTURES_WIPE,
             PanicStep.DB_WIPE,
             PanicStep.LEGACY_MODELS_WIPE,
             PanicStep.PREFS_CLEAR,
@@ -126,12 +127,21 @@ class PanicReportTest {
      * point de non-retour et la fin de sequence ne laisse plus de notes lisibles sur l'appareil.
      */
     @Test
-    @DisplayName("les archives en clair partent juste apres la cle, avant les effacements lourds")
+    @DisplayName("TOUT le clair part juste apres la cle, avant les effacements lourds")
     fun clairJusteApresLaCle() {
-        assertThat(PanicStep.EXPORTS_WIPE.ordinal).isEqualTo(PanicStep.KEK_DESTROY.ordinal + 1)
-        for (lourd in listOf(PanicStep.DB_WIPE, PanicStep.LEGACY_MODELS_WIPE, PanicStep.PREFS_CLEAR)) {
-            assertThat(PanicStep.EXPORTS_WIPE.ordinal).isLessThan(lourd.ordinal)
+        // ⚠️ Les DEUX repertoires de clair, pas seulement les archives : un enregistrement de
+        // dictee porte la voix de l'utilisateur, donc le contenu de sa note.
+        val clairs = listOf(PanicStep.EXPORTS_WIPE, PanicStep.VOICE_CAPTURES_WIPE)
+        val lourds = listOf(PanicStep.DB_WIPE, PanicStep.LEGACY_MODELS_WIPE, PanicStep.PREFS_CLEAR)
+
+        for (clair in clairs) {
+            assertThat(clair.ordinal).isGreaterThan(PanicStep.KEK_DESTROY.ordinal)
+            for (lourd in lourds) assertThat(clair.ordinal).isLessThan(lourd.ordinal)
         }
+        // Rien ne s'intercale entre la cle et le clair.
+        assertThat(clairs.map { it.ordinal }.sorted())
+            .containsExactly(PanicStep.KEK_DESTROY.ordinal + 1, PanicStep.KEK_DESTROY.ordinal + 2)
+            .inOrder()
     }
 
     // ── Le rapport ne doit jamais mentir ─────────────────────────────────────
@@ -222,11 +232,11 @@ class PanicReportTest {
      * echoue : c'est ca, du clair sur le disque.
      */
     @Test
-    @DisplayName("le repertoire d'export encore present signale du CLAIR, meme sans etape ratee")
-    fun exportsRestantsSignalentDuClair() {
+    @DisplayName("un repertoire de clair encore present le signale, meme sans etape ratee")
+    fun clairRestantEstSignale() {
         val bilan = PanicReport(
             PanicStep.entries.map { PanicOutcome(it) },
-            exportsSurLeDisque = true,
+            clairSurLeDisque = true,
         )
 
         assertThat(bilan.minimalGuarantee).isTrue()

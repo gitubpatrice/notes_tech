@@ -5,6 +5,7 @@ import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
+import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.kek.KekRepository
@@ -64,6 +65,19 @@ enum class PanicStep {
      */
     EXPORTS_WIPE,
 
+    /**
+     * Les enregistrements de dictée, **du clair eux aussi**.
+     *
+     * ⚠️ Un WAV de capture porte la voix de l'utilisateur, donc le contenu de sa note. Il est de la
+     * même nature qu'une archive d'export et part au même endroit de la séquence : juste après la
+     * clé, avant tout ce qui n'est plus lisible.
+     *
+     * ⚠️⚠️ Déclarée **avec** la capture qui la produit (`data/voice/VoiceCapture.kt`), pas avant.
+     * L'énumération refuse les étapes qui ne s'exécutent pas — c'est l'erreur `gemmaUninstall` de
+     * l'application publiée. Celle-ci s'exécute : elle efface un répertoire, vide ou non.
+     */
+    VOICE_CAPTURES_WIPE,
+
     /** Ferme la base, écrase l'en-tête du fichier, supprime le fichier et ses annexes. */
     DB_WIPE,
 
@@ -97,16 +111,17 @@ data class PanicReport(
     /**
      * 🔴 **Mesuré à la fin de la séquence**, pas déduit d'une étape.
      *
-     * Le répertoire d'export existe-t-il encore une fois tout terminé ? Se fier à l'issue de
-     * [PanicStep.EXPORTS_WIPE] donnait deux réponses fausses en sens inverse : l'étape peut échouer
-     * et [PanicStep.CACHE_PURGE] emporter quand même le répertoire — elle traite `exports` comme un
-     * artefact sensible — et le contraire reste concevable. Un état se **regarde**, il ne se déduit
-     * pas d'un journal d'étapes. Relevé par une relecture externe (GPT-5.2, 2026-08-15).
+     * Un répertoire de **clair** existe-t-il encore une fois tout terminé — archives d'export ou
+     * enregistrements de dictée ? Se fier à l'issue des étapes donnait deux réponses fausses en sens
+     * inverse : une étape peut échouer et [PanicStep.CACHE_PURGE] emporter quand même le répertoire
+     * — elle traite `exports` comme un artefact sensible — et le contraire reste concevable. Un état
+     * se **regarde**, il ne se déduit pas d'un journal d'étapes. Relevé par une relecture externe
+     * (GPT-5.2, 2026-08-15).
      *
      * ⚠️ Vaut `true` quand la mesure elle-même est impossible : le doute penche du côté qui
      * n'annonce pas une protection qu'on n'a pas constatée.
      */
-    val exportsSurLeDisque: Boolean = false,
+    val clairSurLeDisque: Boolean = false,
 ) {
 
     /** Toutes les étapes ont abouti. */
@@ -148,7 +163,7 @@ data class PanicReport(
      * décision de se séparer ou non de l'appareil.
      */
     val clairPeutSubsister: Boolean
-        get() = exportsSurLeDisque ||
+        get() = clairSurLeDisque ||
             outcomes.any { it.step == PanicStep.CLIPBOARD_CLEAR && !it.succeeded }
 }
 
@@ -300,32 +315,38 @@ class PanicService @Inject constructor(
         //    corrige ici, dans l'autre sens.
         issues += etape(PanicStep.EXPORTS_WIPE) { supprimerLeDossier(NoteExporter.repertoireDExport(context)) }
 
-        // 6. Le fichier de base. Défense en profondeur : la clé est déjà partie.
+        // 6. Les enregistrements de dictée : du clair, comme les archives, donc au même rang.
+        issues += etape(PanicStep.VOICE_CAPTURES_WIPE) {
+            supprimerLeDossier(VoiceCapture.repertoireDeCapture(context))
+        }
+
+        // 7. Le fichier de base. Défense en profondeur : la clé est déjà partie.
         issues += etape(PanicStep.DB_WIPE) { effacerLaBase() }
 
-        // 7. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
+        // 8. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
         //    sécurité, parce que la suppression peut prendre plusieurs secondes sur 530 Mo.
         issues += etape(PanicStep.LEGACY_MODELS_WIPE) { supprimerLeDossier(File(context.filesDir, MODELS_DIR)) }
 
-        // 8. Les préférences, par liste blanche.
+        // 9. Les préférences, par liste blanche.
         issues += etape(PanicStep.PREFS_CLEAR) {
             val effacees = prefs.clearAllExcept(PREFERENCES_CONSERVEES)
             Timber.i("panique : %d préférences effacées", effacees)
         }
 
-        // 9. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
+        // 10. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
         issues += etape(PanicStep.CACHE_PURGE) { viderLeCache() }
 
         // ⚠️ **Regarder, pas déduire.** L'état du disque après la séquence entière, y compris ce que
         // la purge du cache a pu emporter en plus. `true` si la mesure échoue : on n'annonce pas une
         // protection qu'on n'a pas constatée.
-        val exportsRestants = try {
-            NoteExporter.repertoireDExport(context).exists()
+        val clairRestant = try {
+            NoteExporter.repertoireDExport(context).exists() ||
+                VoiceCapture.repertoireDeCapture(context).exists()
         } catch (e: SecurityException) {
-            Timber.w(e, "panique : etat du repertoire d'export illisible")
+            Timber.w(e, "panique : etat des repertoires de clair illisible")
             true
         }
-        val bilan = PanicReport(issues, exportsSurLeDisque = exportsRestants)
+        val bilan = PanicReport(issues, clairSurLeDisque = clairRestant)
         Timber.w(
             "panique terminée — garantie minimale : %s, étapes en échec : %s",
             bilan.minimalGuarantee,
