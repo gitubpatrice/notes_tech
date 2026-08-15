@@ -54,6 +54,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.common.EmptyState
+import com.filestech.notes_tech.ui.common.libelleDeTri
 
 /**
  * L'écran d'accueil : la liste des notes, filtrée par dossier ou par recherche.
@@ -328,11 +329,3 @@ private fun MenuDeTri(ouvert: Boolean, actif: NoteSortMode, onDismiss: () -> Uni
  * ⚠️ Corrigé **aussi dans `notes_tech`** (commit `24bc67e`), sans quoi les deux versions
  * divergeraient à la comparaison de la phase 8. Cf. `docs/05-PARITE.md`.
  */
-private fun libelleDeTri(mode: NoteSortMode): Int = when (mode) {
-    NoteSortMode.UPDATED_DESC -> R.string.home_sort_recent_first
-    NoteSortMode.UPDATED_ASC -> R.string.home_sort_old_first
-    NoteSortMode.CREATED_DESC -> R.string.home_sort_created_recent_first
-    NoteSortMode.CREATED_ASC -> R.string.home_sort_created_old_first
-    NoteSortMode.TITLE_ASC -> R.string.home_sort_alpha_asc
-    NoteSortMode.TITLE_DESC -> R.string.home_sort_alpha_desc
-}

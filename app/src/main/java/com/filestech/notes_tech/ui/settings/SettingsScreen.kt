@@ -4,24 +4,33 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.Archive
-import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocalFireDepartment
+import androidx.compose.material.icons.outlined.LockClock
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -29,7 +38,11 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,19 +51,26 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
+import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.common.CarteFilesTech
 import com.filestech.notes_tech.ui.common.MIME_ZIP
+import com.filestech.notes_tech.ui.common.TitreDeSection
+import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.panic.PanicConfirmDialog
 import com.filestech.notes_tech.ui.panic.PanicOverlay
@@ -68,16 +88,23 @@ import kotlin.system.exitProcess
  * arrière-plan reste actif dans tous les cas.
  */
 @Composable
-fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -> Unit) {
+fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // Recreation de l'activite au changement de langue, cf. le commentaire du selecteur ci-dessous.
     val activite = LocalActivity.current
 
+    // La vue et les ressources de l'écran servent à annoncer le changement de langue à un lecteur
+    // d'écran. `LocalResources` et non le contexte applicatif : la langue choisie est posée sur le
+    // contexte de l'activité, et l'annonce doit être faite dans la langue qu'on vient de choisir.
+    val vue = LocalView.current
+    val ressourcesDeLEcran = LocalResources.current
+
     var choixDeTheme by remember { mutableStateOf(false) }
     var choixDeLangue by remember { mutableStateOf(false) }
     var choixDeDelai by remember { mutableStateOf(false) }
+    var choixDeTri by remember { mutableStateOf(false) }
 
     val snackbars = remember { SnackbarHostState() }
 
@@ -94,7 +121,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.common_close),
+                            contentDescription = stringResource(R.string.common_back),
                         )
                     }
                 },
@@ -103,74 +130,125 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                // 16 / 16 / 16 / 40 — les marges de `settings_screen.dart:53`.
+                .padding(start = 16.dp, end = 16.dp, bottom = 40.dp),
         ) {
+            // ⚠️ **Langue puis Thème**, dans cet ordre. L'application publiée place la langue en
+            // premier (`settings_screen.dart:61`) ; le portage les avait inversés. Sur deux écrans
+            // qu'on compare côte à côte en phase 8, un ordre inversé se voit avant tout le reste.
             TitreDeSection(stringResource(R.string.settings_section_appearance))
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_theme)) },
-                supportingContent = { Text(stringResource(libelleDeTheme(state.theme))) },
-                modifier = Modifier.clickable { choixDeTheme = true },
-            )
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_language)) },
-                supportingContent = { Text(stringResource(libelleDeLangue(state.locale))) },
-                modifier = Modifier.clickable { choixDeLangue = true },
-            )
-            HorizontalDivider()
+            CarteFilesTech {
+                Column {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_language)) },
+                        supportingContent = { Text(stringResource(libelleDeLangue(state.locale))) },
+                        leadingContent = { Icon(Icons.Outlined.Language, contentDescription = null) },
+                        trailingContent = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { choixDeLangue = true },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_theme)) },
+                        supportingContent = { Text(stringResource(libelleDeTheme(state.theme))) },
+                        leadingContent = { Icon(Icons.Outlined.DarkMode, contentDescription = null) },
+                        trailingContent = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { choixDeTheme = true },
+                    )
+                }
+            }
+
+            // 🔴 **Le tri revient dans les réglages**, où l'application publiée le place
+            // (`settings_screen.dart:68-81`). Le portage l'avait déplacé dans la barre d'accueil et
+            // ne l'exposait plus ici. Il est maintenant aux **deux** endroits : `AppSettings.sort`
+            // est l'unique source, donc les deux écrans se suivent sans qu'aucun soit maître, et
+            // retirer un contrôle qui fonctionne aurait été une perte pour l'utilisateur.
+            TitreDeSection(stringResource(R.string.home_sort_mode))
+            CarteFilesTech {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.home_sort_mode)) },
+                    supportingContent = { Text(stringResource(libelleDeTri(state.sort))) },
+                    leadingContent = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null) },
+                    trailingContent = { Icon(Icons.Filled.ChevronRight, contentDescription = null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable { choixDeTri = true },
+                )
+            }
 
             TitreDeSection(stringResource(R.string.settings_section_security))
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_secure_window)) },
-                supportingContent = { Text(stringResource(R.string.settings_secure_window_subtitle)) },
-                trailingContent = {
-                    Switch(checked = state.secureWindow, onCheckedChange = viewModel::setSecureWindow)
-                },
-            )
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.settings_vault_auto_lock)) },
-                supportingContent = {
-                    Text(
-                        if (state.vaultAutoLockMinutes == 0) {
-                            stringResource(R.string.settings_vault_auto_lock_never)
-                        } else {
-                            pluralStringResource(
-                                R.plurals.settings_vault_auto_lock_minutes,
-                                state.vaultAutoLockMinutes,
-                                state.vaultAutoLockMinutes,
+            CarteFilesTech {
+                Column {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_secure_window)) },
+                        supportingContent = { Text(stringResource(R.string.settings_secure_window_subtitle)) },
+                        leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
+                        trailingContent = {
+                            Switch(checked = state.secureWindow, onCheckedChange = viewModel::setSecureWindow)
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_vault_auto_lock)) },
+                        supportingContent = {
+                            Text(
+                                if (state.vaultAutoLockMinutes == 0) {
+                                    stringResource(R.string.settings_vault_auto_lock_never)
+                                } else {
+                                    pluralStringResource(
+                                        R.plurals.settings_vault_auto_lock_minutes,
+                                        state.vaultAutoLockMinutes,
+                                        state.vaultAutoLockMinutes,
+                                    )
+                                },
                             )
                         },
+                        leadingContent = { Icon(Icons.Outlined.LockClock, contentDescription = null) },
+                        trailingContent = { Icon(Icons.Filled.ChevronRight, contentDescription = null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { choixDeDelai = true },
                     )
-                },
-                modifier = Modifier.clickable { choixDeDelai = true },
-            )
-            HorizontalDivider()
+                }
+            }
 
             // ⚠️ La section porte le libellé de son unique ligne, comme dans l'application
             // publiée (`settings_screen.dart:121`). Inventer un titre demanderait une clé i18n
             // nouvelle, donc une modification de l'ARB gelé de `notes_tech` — cf. docs/05-PARITE.md.
             TitreDeSection(stringResource(R.string.settings_export_all))
-            LigneDExport(snackbars)
-            HorizontalDivider()
+            CarteFilesTech { LigneDExport(snackbars) }
 
             TitreDeSection(stringResource(R.string.settings_panic))
-            LigneDePanique(onDeclencher = panique::trigger)
-            HorizontalDivider()
+            // 🔴 **La seule carte cerclée de rouge de l'écran**, comme dans la référence
+            // (`settings_screen.dart:130-140`). Le portage posait cette ligne à plat entre deux
+            // séparateurs : rien ne distinguait visuellement la destruction irréversible de
+            // l'export ou du choix de thème.
+            CarteFilesTech(bordure = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)) {
+                LigneDePanique(enCours = etatDePanique.running, onDeclencher = panique::trigger)
+            }
 
+            // ⚠️ **Pas de ligne « mentions légales » ici.** Elle n'existe que dans « à propos » côté
+            // publié, et l'y dupliquer donnait deux chemins vers le même écran — dont un que la
+            // référence n'a pas.
             TitreDeSection(stringResource(R.string.settings_section_about))
-            ListItem(
-                // `settings_about` et son sous-titre existaient et n'etaient jamais utilises : la
-                // ligne affichait `about_title`, qui est le TITRE DE L'ECRAN, pas son libelle dans
-                // une liste de reglages. Releve par l'audit i18n du 2026-08-14.
-                headlineContent = { Text(stringResource(R.string.settings_about)) },
-                supportingContent = { Text(stringResource(R.string.settings_about_subtitle)) },
-                leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                modifier = Modifier.clickable(onClick = onOpenAbout),
-            )
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.legal_title)) },
-                leadingContent = { Icon(Icons.Outlined.Gavel, contentDescription = null) },
-                modifier = Modifier.clickable(onClick = onOpenLegal),
-            )
+            CarteFilesTech {
+                ListItem(
+                    // `settings_about` et son sous-titre existaient et n'etaient jamais utilises : la
+                    // ligne affichait `about_title`, qui est le TITRE DE L'ECRAN, pas son libelle dans
+                    // une liste de reglages. Releve par l'audit i18n du 2026-08-14.
+                    headlineContent = { Text(stringResource(R.string.settings_about)) },
+                    supportingContent = { Text(stringResource(R.string.settings_about_subtitle)) },
+                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    trailingContent = { Icon(Icons.Filled.ChevronRight, contentDescription = null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable(onClick = onOpenAbout),
+                )
+            }
         }
     }
 
@@ -199,6 +277,21 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
             onSelect = { choisie ->
                 choixDeLangue = false
                 if (choisie != state.locale) {
+                    // ⚠️ **Annoncer AVANT de recréer l'activité.** `settings_language_changed_*`
+                    // existaient et n'étaient lues nulle part. Les poser après `recreate()` serait
+                    // inutile : la vue qui les prononcerait est déjà détruite. La référence annonce
+                    // au même moment (`settings_screen.dart:246-268`).
+                    val annonce = when (choisie) {
+                        LocalePreference.FRENCH -> R.string.settings_language_changed_fr
+                        LocalePreference.ENGLISH -> R.string.settings_language_changed_en
+                        LocalePreference.SYSTEM -> null
+                    }
+                    // `announceForAccessibility` est déprécié et reste le seul moyen d'annoncer un
+                    // changement qui n'a **aucun texte à l'écran** pour le porter : la langue vient
+                    // de changer, et l'activité va être recréée. Un `liveRegion` de Compose demande
+                    // un composable qui change de valeur et survit à l'annonce — il n'y en a pas ici.
+                    @Suppress("DEPRECATION")
+                    annonce?.let { vue.announceForAccessibility(ressourcesDeLEcran.getString(it)) }
                     viewModel.setLocale(choisie)
                     // 🔴 **La langue s'applique dans `attachBaseContext`, qui ne s'exécute qu'à la
                     // création de l'activité.** Sans cette recréation, l'utilisateur choisit
@@ -229,6 +322,19 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenLegal: () -
             onSelect = {
                 choixDeDelai = false
                 viewModel.setVaultAutoLockMinutes(it)
+            },
+        )
+    }
+    if (choixDeTri) {
+        DialogueDeChoix(
+            titre = stringResource(R.string.home_sort_mode),
+            options = NoteSortMode.entries,
+            actif = state.sort,
+            libelle = { stringResource(libelleDeTri(it)) },
+            onDismiss = { choixDeTri = false },
+            onSelect = {
+                choixDeTri = false
+                viewModel.setSort(it)
             },
         )
     }
@@ -277,6 +383,19 @@ private fun LigneDExport(snackbars: SnackbarHostState) {
         val resultat = state.result
         val erreur = state.error
         when {
+            // 🔴 **Une archive VIDE ne se partage pas, elle se signale.**
+            //
+            // Sans ce test, exporter sans aucune note ouvrait le sélecteur de partage sur un fichier
+            // sans contenu : l'utilisateur envoyait une sauvegarde vide en croyant sauvegarder ses
+            // notes. La référence pose la question en amont et affiche `homeNoNotes`
+            // (`settings_screen.dart:515-519`) ; ici le contrôle est fait sur l'issue, seul endroit
+            // où le nombre réellement exporté est connu — le message et l'absence de partage sont
+            // les mêmes.
+            resultat != null && resultat.exported == 0 && resultat.skippedLocked == 0 -> {
+                viewModel.consume()
+                portee.launch { snackbars.showSnackbar(ressources.getString(R.string.home_no_notes)) }
+            }
+
             resultat != null -> {
                 partagerUnFichier(
                     context = contexte,
@@ -314,10 +433,24 @@ private fun LigneDExport(snackbars: SnackbarHostState) {
             if (state.busy) {
                 CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
             } else {
-                Icon(Icons.Outlined.Share, contentDescription = null)
+                // L'infobulle de la référence (`settings_screen.dart:634-637`) : l'icône seule ne
+                // dit pas que l'export se termine par un partage.
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                    tooltip = { PlainTooltip { Text(titreDuSelecteur) } },
+                    state = rememberTooltipState(),
+                ) {
+                    Icon(Icons.Outlined.Share, contentDescription = null)
+                }
             }
         },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = Modifier.clickable(enabled = !state.busy) {
+            // 🔴 **Aucune note ⇒ on le dit, on n'exporte pas.**
+            //
+            // Sans ce test, l'export produisait une archive **vide** et ouvrait le sélecteur de
+            // partage : l'utilisateur envoyait un fichier sans contenu en croyant sauvegarder ses
+            // notes. La référence affiche `homeNoNotes` et s'arrête (`settings_screen.dart:515-519`).
             viewModel.exportAll(
                 inboxLabel = libelleBoiteDeReception,
                 // ⚠️ Une fonction, pas un gabarit pré-formaté : la chaîne traduite est résolue
@@ -341,14 +474,16 @@ private fun LigneDExport(snackbars: SnackbarHostState) {
  * Le recouvrement est donc posé par [SettingsRoute], en frère du `Scaffold`. Cf. `docs/04-PIEGES.md`.
  */
 @Composable
-private fun LigneDePanique(onDeclencher: () -> Unit) {
+private fun LigneDePanique(enCours: Boolean, onDeclencher: () -> Unit) {
     var confirmation by remember { mutableStateOf(false) }
+    val retour = LocalHapticFeedback.current
 
     ListItem(
         headlineContent = {
             Text(
                 text = stringResource(R.string.settings_panic),
                 color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.SemiBold,
             )
         },
         supportingContent = { Text(stringResource(R.string.settings_panic_subtitle)) },
@@ -359,7 +494,27 @@ private fun LigneDePanique(onDeclencher: () -> Unit) {
                 tint = MaterialTheme.colorScheme.error,
             )
         },
-        modifier = Modifier.clickable { confirmation = true },
+        trailingContent = {
+            // ⚠️ Le rouage d'attente remplace le chevron pendant la destruction, comme dans la
+            // référence. Sans lui, la ligne paraissait inerte alors que l'effacement courait —
+            // et `etatDePanique.running` existait déjà sans que rien ne l'affiche ici.
+            if (enCours) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            } else {
+                Icon(
+                    imageVector = Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(enabled = !enCours) {
+            // Un retour haptique appuyé avant la confirmation : le geste qui suit détruit des
+            // données, et la référence le marque de la même façon (`settings_screen.dart:675`).
+            retour.performHapticFeedback(HapticFeedbackType.LongPress)
+            confirmation = true
+        },
     )
 
     if (confirmation) {
@@ -419,18 +574,6 @@ private fun RecouvrementDePanique(state: PanicUiState) {
 }
 
 @Composable
-private fun TitreDeSection(texte: String) {
-    Text(
-        text = texte,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .padding(start = 16.dp, top = 20.dp, end = 16.dp, bottom = 4.dp)
-            .semantics { heading() },
-    )
-}
-
-@Composable
 private fun <T> DialogueDeChoix(
     titre: String,
     options: List<T>,
@@ -474,5 +617,12 @@ private fun libelleDeLangue(value: LocalePreference): Int = when (value) {
     LocalePreference.ENGLISH -> R.string.settings_language_en
 }
 
-/** Les délais proposés, en minutes. `0` = jamais. Repris de l'application publiée. */
-private val DELAIS_PROPOSES = listOf(0, 1, 5, 15, 30, 60)
+/**
+ * Les délais proposés, en minutes. `0` = jamais.
+ *
+ * ⚠️ **`1` a été retiré le 2026-08-15.** La liste de l'application publiée est `[0, 5, 15, 30, 60]`
+ * (`settings_screen.dart:780`), et le commentaire d'origine affirmait « repris de l'application
+ * publiée » — ce qui était faux. Un commentaire qui certifie une parité inexistante est pire qu'une
+ * divergence signalée : il empêche de la voir.
+ */
+private val DELAIS_PROPOSES = listOf(0, 5, 15, 30, 60)

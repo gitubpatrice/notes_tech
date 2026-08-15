@@ -67,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filestech.notes_tech.BuildConfig
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.ui.common.CarteFilesTech
+import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.ouvrirUnLien
 import kotlinx.coroutines.launch
 
@@ -369,40 +371,6 @@ private fun SectionContact(ouvrir: (String) -> Unit) {
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         )
     }
-}
-
-/**
- * Une carte du portefeuille : fond `surface`, **bordure**, rayon 12, aucune ombre.
- *
- * ⚠️ La bordure n'est pas décorative. `theme.dart:114-122` la pose sur toutes les cartes parce que
- * `surface` et le fond de page sont **proches** dans cette palette — sans elle, une carte ne se
- * distingue pas de la page, particulièrement en thème sombre où `#161B22` frôle `#0D1117`.
- */
-@Composable
-private fun CarteFilesTech(modifier: Modifier = Modifier, contenu: @Composable () -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = modifier.fillMaxWidth(),
-        content = contenu,
-    )
-}
-
-/**
- * Un titre de section : `primary`, gras, 15 sp.
- *
- * Repris de `_SectionTitle` (`about_screen.dart:357-382`), y compris l'espacement de 24 au-dessus
- * et de 8 en dessous — ce sont eux qui donnent son rythme à la page.
- */
-@Composable
-private fun TitreDeSection(titre: String) {
-    Text(
-        text = titre,
-        style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 24.dp, bottom = 8.dp, start = 2.dp).semantics { heading() },
-    )
 }
 
 @Composable

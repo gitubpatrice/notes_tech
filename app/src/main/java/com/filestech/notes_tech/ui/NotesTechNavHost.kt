@@ -65,7 +65,6 @@ fun NotesTechNavHost(navController: NavHostController) {
             SettingsRoute(
                 onBack = { navController.popBackStack() },
                 onOpenAbout = { navController.navigate(Destination.About.route) },
-                onOpenLegal = { navController.navigate(Destination.Legal.route) },
             )
         }
 
