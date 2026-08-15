@@ -4,6 +4,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filestech.notes_tech.data.export.ExportResult
+import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.local.dao.NoteLinkRow
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.repository.FoldersRepository
@@ -101,6 +103,31 @@ data class PanneauDeLiens(
 }
 
 /**
+ * L'issue d'une action lancée depuis le menu de l'éditeur.
+ *
+ * ⚠️ [erreur] porte le message de l'exception, comme l'export des réglages et contrairement au mode
+ * panique. Le choix est le même et pour la même raison : ici l'utilisateur cherche à comprendre
+ * pourquoi son geste n'a rien donné, et « espace insuffisant » ou « coffre re-verrouillé » lui
+ * servent — là-bas, l'écran peut être lu sous contrainte.
+ */
+data class ActionDEditeur(
+    val enCours: Boolean = false,
+    val export: ExportResult? = null,
+    val deplacee: Boolean = false,
+    val erreur: String? = null,
+    /**
+     * ⚠️ **Quelle action a échoué**, pour que l'écran choisisse la bonne phrase.
+     *
+     * Sans ce champ, un export raté s'annonçait « Déplacement impossible » — les deux chaînes
+     * existent, et n'en utiliser qu'une revient à dire à l'utilisateur que son geste a échoué, mais
+     * un autre que celui qu'il a fait.
+     */
+    val origine: OrigineDErreur? = null,
+) {
+    enum class OrigineDErreur { DEPLACEMENT, EXPORT }
+}
+
+/**
  * L'éditeur d'une note.
  *
  * ## 🔴 Le clair ne vit qu'ici, et il ne redescend jamais tel quel
@@ -120,6 +147,7 @@ data class PanneauDeLiens(
 class NoteEditorViewModel @Inject constructor(
     private val notes: NotesRepository,
     private val links: LinksRepository,
+    private val exporter: NoteExporter,
     private val folders: FoldersRepository,
     private val vaults: FolderVaultService,
     private val settings: AppSettings,
@@ -290,6 +318,86 @@ class NoteEditorViewModel @Inject constructor(
         enArrierePlan {
             notes.create(folderId = dossier, title = titre)
             ensuite()
+        }
+    }
+
+    /**
+     * L'issue d'une action de menu, à montrer **une fois**.
+     *
+     * ⚠️ Consommée par l'écran, jamais laissée en place : sans cela, une rotation rejouerait le
+     * partage et l'utilisateur verrait une seconde fenêtre s'ouvrir sans l'avoir demandée. C'est la
+     * même règle que l'export des réglages, et pour la même raison.
+     */
+    private val _action = MutableStateFlow(ActionDEditeur())
+    val action: StateFlow<ActionDEditeur> = _action.asStateFlow()
+
+    /** Les dossiers où la note peut aller. */
+    val dossiers: StateFlow<List<Folder>> = folders.observeAll()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
+            initialValue = emptyList(),
+        )
+
+    fun consommerLAction() {
+        _action.value = ActionDEditeur()
+    }
+
+    /**
+     * Déplace la note vers [folderId].
+     *
+     * ⚠️ **Impossible depuis un coffre**, et le dépôt le refuse par une exception typée
+     * (`VaultRelocationException`). Sortir une note d'un coffre écrit son contenu en clair dans la
+     * base : c'est irréversible au sens qui compte — la note aura transité hors chiffrement même si
+     * on la remet ensuite ailleurs — et cela demande une confirmation explicite que l'application
+     * publiée pose (`note_editor_exit_vault_*`). Ni cette confirmation ni l'opération de dépôt qui
+     * la suit n'existent encore ici : l'entrée de menu est donc **désactivée** pour une note de
+     * coffre, plutôt que de mener à un échec ou à un dialogue sans effet.
+     */
+    fun deplacerVers(folderId: String) = tenterUneAction(ActionDEditeur.OrigineDErreur.DEPLACEMENT) {
+        notes.moveToFolder(noteId, folderId)
+        _action.value = ActionDEditeur(deplacee = true)
+    }
+
+    /**
+     * Exporte la note en Markdown et rend de quoi la partager.
+     *
+     * ⚠️⚠️ **Enregistrer d'abord, puis RELIRE la note en base.**
+     *
+     * L'enregistrement est freiné à 500 ms : exporter juste après avoir tapé produirait un fichier
+     * amputé des derniers caractères, silencieusement, puisque l'export « réussirait ». Et relire
+     * plutôt que d'exporter l'état de l'écran est ce qui permet à l'exporteur de voir une note de
+     * coffre **comme telle** — donc de la déchiffrer lui-même et de poser le suffixe ` [unlocked]`.
+     * Lui passer le clair de l'écran ferait perdre cette marque, qui est précisément ce qui dit au
+     * destinataire que ce fichier était protégé et ne l'est plus.
+     *
+     * C'est aussi ce que fait l'application publiée, dont le commentaire raconte le défaut inverse :
+     * exporter la ligne brute sans redéchiffrer produisait un `.md` au frontmatter correct et au
+     * **corps vide**.
+     */
+    fun exporterLaNote(vaultMention: (String) -> String) = tenterUneAction(ActionDEditeur.OrigineDErreur.EXPORT) {
+        enregistrer()
+        val fraiche = notes.find(noteId) ?: return@tenterUneAction
+        val dossier = folders.find(fraiche.folderId)
+        _action.value = ActionDEditeur(export = exporter.exportOne(fraiche, dossier?.name.orEmpty(), vaultMention))
+    }
+
+    /**
+     * ⚠️ Ne PAS reprendre [enArrierePlan] ici : il journalise et se tait. Une action de menu qui
+     * échoue doit se voir — c'est l'invariant « une perte, ou un geste sans effet, se signale ».
+     */
+    private fun tenterUneAction(origine: ActionDEditeur.OrigineDErreur, bloc: suspend () -> Unit) {
+        if (_action.value.enCours) return
+        _action.value = ActionDEditeur(enCours = true)
+        viewModelScope.launch {
+            try {
+                bloc()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "action de menu sur $noteId")
+                _action.value = ActionDEditeur(erreur = e.message ?: e::class.java.simpleName, origine = origine)
+            }
         }
     }
 

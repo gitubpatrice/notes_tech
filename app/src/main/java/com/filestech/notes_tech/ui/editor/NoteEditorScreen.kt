@@ -13,17 +13,24 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DriveFileMove
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -31,13 +38,18 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,8 +57,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.common.EmptyState
+import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
+import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
+import kotlinx.coroutines.launch
 
 /**
  * L'éditeur d'une note.
@@ -81,6 +96,67 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val fermerLAutocompletion = {
         autocompletionOuverte = false
         viewModel.reinitialiserLaRecherche()
+    }
+
+    var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
+    val dossiers by viewModel.dossiers.collectAsStateWithLifecycle()
+    val action by viewModel.action.collectAsStateWithLifecycle()
+    val messages = remember { SnackbarHostState() }
+    val contexte = LocalContext.current
+    val ressources = LocalResources.current
+    val portee = rememberCoroutineScope()
+
+    // ⚠️ **Une fonction, pas un gabarit pré-formaté.** Passer « %s » puis formater casserait en
+    // silence le jour où la chaîne traduite gagne un paramètre — relevé par l'audit i18n du
+    // 2026-08-14 sur l'export des réglages, et la même forme est reprise ici.
+    val mentionDeCoffre: (String) -> String = { nom -> ressources.getString(R.string.export_note_from_vault, nom) }
+    val titreDuSelecteur = stringResource(R.string.common_share)
+
+    // ⚠️ **Afficher PUIS consommer**, jamais l'inverse : un `LaunchedEffect` dont la clé change par
+    // son propre effet s'annule, et le message ne s'afficherait jamais. Le partage part d'abord, le
+    // porteur est vidé ensuite, et le message est posté sur une portée qui ne dépend pas de la clé.
+    LaunchedEffect(action) {
+        val export = action.export
+        val erreur = action.erreur
+        when {
+            export != null -> {
+                partagerUnFichier(
+                    context = contexte,
+                    uri = export.uri,
+                    mimeType = MIME_MARKDOWN,
+                    sujet = export.fileName,
+                    titreDuSelecteur = titreDuSelecteur,
+                )
+                viewModel.consommerLAction()
+            }
+
+            action.deplacee -> {
+                viewModel.consommerLAction()
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_moved)) }
+            }
+
+            erreur != null -> {
+                val gabarit = if (action.origine == ActionDEditeur.OrigineDErreur.EXPORT) {
+                    R.string.note_editor_export_failed
+                } else {
+                    R.string.note_editor_move_failed
+                }
+                viewModel.consommerLAction()
+                portee.launch { messages.showSnackbar(ressources.getString(gabarit, erreur)) }
+            }
+        }
+    }
+
+    if (deplacementOuvert) {
+        FeuilleDeDeplacement(
+            dossiers = dossiers,
+            dossierActuel = state.note?.folderId,
+            onChoisir = { cible ->
+                deplacementOuvert = false
+                viewModel.deplacerVers(cible)
+            },
+            onDismiss = { deplacementOuvert = false },
+        )
     }
 
     if (autocompletionOuverte) {
@@ -118,6 +194,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(messages) },
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -165,17 +242,15 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                                 contentDescription = stringResource(R.string.note_editor_tooltip_insert_link),
                             )
                         }
-                        IconButton(
-                            onClick = {
+                        MenuDeDebordement(
+                            deplacementPossible = !state.isVaultNote,
+                            onDeplacer = { deplacementOuvert = true },
+                            onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
+                            onCorbeille = {
                                 viewModel.moveToTrash()
                                 onBack()
                             },
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = stringResource(R.string.common_delete),
-                            )
-                        }
+                        )
                     }
                 },
             )
@@ -281,3 +356,61 @@ private fun champSansDecor() = TextFieldDefaults.colors(
     unfocusedIndicatorColor = Color.Transparent,
     disabledIndicatorColor = Color.Transparent,
 )
+
+/**
+ * Les actions moins fréquentes de l'éditeur.
+ *
+ * ⚠️ **La corbeille est ici, pas en icône.** C'est la disposition de l'application publiée, et elle
+ * est meilleure : une icône de suppression à côté de l'épingle et du favori s'atteint par erreur, et
+ * ce geste-là part sans confirmation.
+ *
+ * ⚠️ [deplacementPossible] est faux pour une note de coffre. Sortir une note d'un coffre écrit son
+ * contenu en clair dans la base — irréversible au sens qui compte, la note ayant transité hors
+ * chiffrement — et l'application publiée fait précéder ce geste d'une confirmation dédiée
+ * (`note_editor_exit_vault_*`). Ni cette confirmation ni l'opération de dépôt qui la suit n'existent
+ * encore : l'entrée est donc **désactivée**, plutôt que de mener à une exception ou à un dialogue
+ * sans effet.
+ */
+@Composable
+private fun MenuDeDebordement(
+    deplacementPossible: Boolean,
+    onDeplacer: () -> Unit,
+    onExporter: () -> Unit,
+    onCorbeille: () -> Unit,
+) {
+    var ouvert by rememberSaveable { mutableStateOf(false) }
+
+    IconButton(onClick = { ouvert = true }) {
+        Icon(
+            imageVector = Icons.Filled.MoreVert,
+            contentDescription = stringResource(R.string.note_editor_tooltip_more),
+        )
+    }
+    DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_move)) },
+            enabled = deplacementPossible,
+            leadingIcon = { Icon(Icons.Outlined.DriveFileMove, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onDeplacer()
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_export)) },
+            leadingIcon = { Icon(Icons.Outlined.FileDownload, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onExporter()
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_trash)) },
+            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onCorbeille()
+            },
+        )
+    }
+}
