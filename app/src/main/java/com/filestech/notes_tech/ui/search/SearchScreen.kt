@@ -102,6 +102,15 @@ fun SearchRoute(onBack: () -> Unit, onOpenNote: (Note) -> Unit) {
                     subtitle = stringResource(R.string.search_empty_subtitle_fts),
                 )
 
+                // ⚠️ **Avant « aucun résultat »**, et l'ordre est tout : une recherche qui a
+                // échoué rend elle aussi une liste vide. Sans cette branche, un échec de la base
+                // s'annonçait « Aucun résultat. Essayez un autre mot-clé » — un message qui accuse
+                // la saisie de l'utilisateur pour une panne qui ne lui doit rien.
+                state.failed -> EmptyState(
+                    icon = Icons.Outlined.SearchOff,
+                    title = stringResource(R.string.search_error_generic),
+                )
+
                 state.results.isEmpty() -> EmptyState(
                     icon = Icons.Outlined.SearchOff,
                     title = stringResource(R.string.search_empty),

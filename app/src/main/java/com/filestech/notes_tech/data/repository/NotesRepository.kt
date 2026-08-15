@@ -705,8 +705,14 @@ class NotesRepository @Inject constructor(
     /** Échappe `%`, `_` et `\` pour un `LIKE ... ESCAPE '\'`. */
     private fun escapeLike(value: String): String = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
-    private companion object {
-        /** Valeur héritée : `AppConstants.noteTitleMaxLength`. */
+    companion object {
+        /**
+         * Valeur héritée : `AppConstants.noteTitleMaxLength`.
+         *
+         * ⚠️ **Publique, et le compagnon avec** : l'éditeur en a besoin pour dire *pourquoi* un
+         * enregistrement échoue. Recopier `200` là-bas aurait créé deux vérités pour une règle, dont
+         * l'une n'est appliquée nulle part — le jour où la limite bouge, le message mentirait.
+         */
         const val TITLE_MAX_LENGTH = 200
 
         /** Trente jours en millisecondes. Valeur héritée : `AppConstants.trashRetentionDays`. */

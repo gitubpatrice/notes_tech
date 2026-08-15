@@ -1,9 +1,11 @@
 package com.filestech.notes_tech.ui.editor
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.export.ExportResult
 import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.local.dao.NoteLinkRow
@@ -17,6 +19,7 @@ import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.ui.navigation.Destination
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +52,18 @@ import javax.inject.Inject
 data class EditorUiState(
     val loading: Boolean = true,
     val notFound: Boolean = false,
+    /**
+     * 🔴 **La raison pour laquelle la note n'a pas pu être ouverte**, quand ce n'est ni « introuvable »
+     * ni « coffre à déverrouiller ».
+     *
+     * Sans ce champ, **toutes** les issues de déchiffrement tombaient sur la même branche : demander
+     * le secret. Y compris un coffre **auto-détruit**, où l'on invitait donc l'utilisateur à saisir
+     * un code encore et encore pour des notes qui n'existent plus — et un dossier coffre disparu, où
+     * l'écran s'ouvrait simplement **vide**, sans rien dire.
+     *
+     * Les trois chaînes existaient des deux côtés et n'étaient lues nulle part.
+     */
+    @StringRes val loadError: Int? = null,
     val title: String = "",
     /**
      * Le contenu **et la position du curseur**, dans un seul porteur.
@@ -71,6 +86,16 @@ data class EditorUiState(
     val saving: Boolean = false,
     val lostToVaultLock: Boolean = false,
     val saveFailed: Boolean = false,
+    /**
+     * 🔴 **Pourquoi l'enregistrement échoue**, quand la raison est connue et corrigeable.
+     *
+     * La bannière disait « Échec de sauvegarde », rien de plus. Un titre de plus de 200 caractères
+     * fait échouer **chaque** enregistrement différé, indéfiniment, et l'utilisateur n'avait aucun
+     * moyen de savoir ce qui bloque ni comment le débloquer — il continuait d'écrire dans une note
+     * qui ne s'enregistre plus. `error_note_title_too_long` dit exactement quoi faire, et n'était
+     * lue nulle part.
+     */
+    @StringRes val saveFailureReason: Int? = null,
     /**
      * Le texte tel qu'il a été CHARGÉ, en clair.
      *
@@ -726,17 +751,53 @@ class NoteEditorViewModel @Inject constructor(
                 )
                 return@launch
             }
+            // 🔴 **Un dossier coffre introuvable ne se déverrouille pas.** Sans cette garde, l'écran
+            // posait `lockedVault = null` et affichait un éditeur **vide**, sans erreur ni feuille de
+            // saisie : la note existe, son dossier a disparu, et rien ne le disait.
+            if (dossier == null) {
+                _state.value = EditorUiState(
+                    loading = false,
+                    note = note,
+                    loadError = R.string.note_editor_error_vault_folder_missing,
+                )
+                return@launch
+            }
+
             // Note scellée : il faut la session du coffre pour l'afficher.
             val claire = try {
                 vaults.decrypt(note)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: VaultSessionClosedException) {
+                // Le seul cas où demander le secret a un sens : la session est fermée, elle peut
+                // se rouvrir. C'est aussi ce que l'application publiée appelle « coffre
+                // re-verrouillé », mais elle se contente de l'écrire — ici la feuille de saisie
+                // s'ouvre sur place, donc `note_editor_error_vault_relocked` n'a rien à ajouter.
                 _state.value = EditorUiState(loading = false, note = note, folder = dossier, lockedVault = dossier)
                 return@launch
+            } catch (e: VaultPinWipedException) {
+                // 🔴 **Ne PAS proposer de déverrouiller.** Le coffre s'est auto-détruit : sa clé
+                // n'existe plus, et aucune saisie ne la ramènera. Offrir le pavé numérique ferait
+                // essayer indéfiniment quelqu'un dont les notes sont définitivement perdues — c'est
+                // le pire moment pour laisser croire à une issue.
+                Timber.w(e, "coffre auto-detruit, note $noteId")
+                _state.value = EditorUiState(
+                    loading = false,
+                    note = note,
+                    folder = dossier,
+                    loadError = R.string.note_editor_error_vault_wiped,
+                )
+                return@launch
             } catch (e: Exception) {
+                // Contenu chiffré abîmé, tag GCM tronqué, base en erreur : le secret n'y changerait
+                // rien non plus.
                 Timber.e(e, "dechiffrement de la note $noteId")
-                _state.value = EditorUiState(loading = false, note = note, folder = dossier, lockedVault = dossier)
+                _state.value = EditorUiState(
+                    loading = false,
+                    note = note,
+                    folder = dossier,
+                    loadError = R.string.note_editor_error_load_generic,
+                )
                 return@launch
             }
             _state.value = EditorUiState(
@@ -781,7 +842,7 @@ class NoteEditorViewModel @Inject constructor(
         // ⚠️ `_state.value` et non `courant` : l'instantane sert a savoir QUOI persister, jamais a
         // reecrire l'etat de l'ecran. Le recopier reinjecterait un titre et un contenu peut-etre
         // plus anciens que ce que l'utilisateur a sous les yeux.
-        _state.value = _state.value.copy(saving = true, saveFailed = false)
+        _state.value = _state.value.copy(saving = true, saveFailed = false, saveFailureReason = null)
         try {
             val persistee = notes.saveEdits(
                 id = noteId,
@@ -818,6 +879,37 @@ class NoteEditorViewModel @Inject constructor(
             signalerLaPerte()
         } catch (_: VaultSessionClosedException) {
             signalerLaPerte()
+        } catch (e: IllegalArgumentException) {
+            // 🔴 **Dire POURQUOI, quand la cause est connue et corrigeable.**
+            //
+            // Un titre de plus de [NotesRepository.TITLE_MAX_LENGTH] caractères fait échouer
+            // **chaque** enregistrement différé, indéfiniment. La bannière disait « Échec de
+            // sauvegarde » et rien d'autre : l'utilisateur continuait d'écrire dans une note qui ne
+            // s'enregistrait plus, sans savoir ce qui bloquait ni comment le débloquer.
+            // `error_note_title_too_long` le dit exactement, et n'était lue nulle part.
+            //
+            // ⚠️ Le classement porte sur le TYPE et sur la longueur **mesurée** du titre, jamais
+            // sur le message de l'exception : `require` produit du texte interne, non traduit, qui
+            // n'a rien à faire à l'écran.
+            //
+            // ⚠️ **Ce n'est pas une preuve, c'est la meilleure heuristique disponible.** Si une
+            // autre validation lève pendant que le titre dépasse aussi la limite, on nomme le titre.
+            // Ce n'est pas faux — il faudra le raccourcir de toute façon — mais c'est incomplet, et
+            // le second échec retombera sur le message générique. Relevé par une relecture externe
+            // (Gemini, 2026-08-15) ; le classement par type d'exception dédiée viendrait de la couche
+            // dépôt, qui ne distingue pas encore ses refus.
+            Timber.e(e, "enregistrement refuse pour la note $noteId")
+            // ⚠️ `courant.title` et NON `_state.value.title` : c'est `courant` qui a été soumis à
+            // l'écriture. L'état, lui, a pu changer pendant l'appel — l'utilisateur tape toujours.
+            // Mesurer sur l'état revenait à juger la tentative sur un texte qu'elle n'a jamais vu :
+            // titre raccourci entre-temps, on tait la vraie cause ; titre allongé, on l'invente.
+            // Relevé par une relecture externe (GPT-5.2, 2026-08-15).
+            val titreTropLong = courant.title.length > NotesRepository.TITLE_MAX_LENGTH
+            _state.value = _state.value.copy(
+                saving = false,
+                saveFailed = true,
+                saveFailureReason = if (titreTropLong) R.string.error_note_title_too_long else null,
+            )
         } catch (e: Exception) {
             // 🔴 **Un échec d'enregistrement DOIT se voir.** Journaliser et rendre la main laissait
             // l'utilisateur taper dans le vide : l'écran se comportait normalement, et le texte

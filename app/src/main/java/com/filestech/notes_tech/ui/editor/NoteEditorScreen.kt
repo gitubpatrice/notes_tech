@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui.editor
 
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,12 +18,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LockOpen
@@ -63,6 +66,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -303,6 +308,38 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                 actions = {
                     val note = state.note
                     if (note != null && state.lockedVault == null) {
+                        // 🔴 **Un bouton « Terminé » visible, alors que l'enregistrement est
+                        // automatique.**
+                        //
+                        // Ce n'est pas redondant avec la flèche de retour : l'application publiée
+                        // l'a ajouté sur un retour utilisateur daté (`note_editor_screen.dart:988`),
+                        // parce que *sans bouton visible, on ne sait pas qu'on peut quitter sans
+                        // risque*. Une note qui s'enregistre toute seule demande un signal explicite
+                        // de fin, sinon l'utilisateur reste sur l'écran à chercher « Enregistrer ».
+                        //
+                        // Le geste est le même que celui de la flèche — vidage puis retour — et c'est
+                        // voulu : deux chemins pour un seul geste, pas deux comportements.
+                        // ⚠️⚠️ **Une icône, pas un bouton libellé** — mesuré sur le S9 : un
+                        // `FilledTonalButton` portant le mot « Terminé » fait cinq éléments d'action,
+                        // et le titre est alors écrasé **à zéro pixel**. Le nom du dossier et l'état
+                        // de l'enregistrement disparaissaient purement et simplement. L'application
+                        // publiée peut se le permettre parce que son titre EST l'indicateur, sur une
+                        // seule ligne étroite ; ici il en porte deux.
+                        //
+                        // La coche reste visible et découvrable, et sa description la nomme : c'est
+                        // le « bouton visible » que le retour utilisateur réclamait, à la largeur
+                        // des autres.
+                        IconButton(
+                            onClick = {
+                                viewModel.saveNow()
+                                onBack()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = stringResource(R.string.note_editor_tooltip_done),
+                            )
+                        }
                         // 🔴 **La description suit l'état, comme l'icône.**
                         //
                         // Elle était figée : l'icône passait de l'épingle vide à l'épingle pleine, et
@@ -361,12 +398,40 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
         },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
+            val chargementEnCours = stringResource(R.string.common_loading)
+
+            // Recopie locale : `state` est un délégué, le lissage de type ne s'y applique pas.
+            val erreurDeChargement = state.loadError
+
             when {
-                state.loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                // ⚠️ L'étiquette n'est pas décorative : sans elle, un lecteur d'écran ne dit
+                // **rien** pendant le chargement — et une note de coffre peut mettre une seconde à
+                // se déchiffrer sur un appareil ancien. `common_loading` existait pour ça.
+                state.loading -> CircularProgressIndicator(
+                    Modifier
+                        .align(Alignment.Center)
+                        .semantics { contentDescription = chargementEnCours },
+                )
 
                 state.notFound -> EmptyState(
                     icon = Icons.Outlined.DeleteOutline,
                     title = stringResource(R.string.note_editor_error_not_found),
+                )
+
+                // ⚠️⚠️ **Correction d'un commentaire qui mentait.** Il affirmait qu'un coffre
+                // auto-détruit « porte les deux états » et que l'ordre les départageait. C'est faux :
+                // le ViewModel pose `loadError` **sans** `lockedVault`, les deux ne sont jamais vrais
+                // ensemble. L'ordre reste, mais comme garde-fou d'écriture — le jour où un chemin
+                // poserait les deux, c'est l'erreur qui doit gagner, jamais l'invitation à saisir un
+                // secret. Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15), sur un
+                // commentaire que je venais d'écrire.
+                //
+                // 🔴 **Icône d'avertissement, PAS un cadenas ouvert.** Un cadenas ouvert devant
+                // « coffre auto-détruit » promet visuellement une récupération qui n'existe pas —
+                // le message dit la vérité, l'image disait le contraire.
+                erreurDeChargement != null -> EmptyState(
+                    icon = Icons.Outlined.ErrorOutline,
+                    title = stringResource(erreurDeChargement),
                 )
 
                 state.lockedVault != null -> EmptyState(
@@ -385,7 +450,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
                 ) {
-                    if (state.saveFailed) BanniereEchecEnregistrement()
+                    if (state.saveFailed) BanniereEchecEnregistrement(state.saveFailureReason)
                     TextField(
                         value = state.title,
                         onValueChange = viewModel::onTitleChange,
@@ -438,11 +503,14 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
  * texte qui ne sera pas conservé non plus.
  */
 @Composable
-private fun BanniereEchecEnregistrement() {
+private fun BanniereEchecEnregistrement(@StringRes raison: Int?) {
     val couleurs = MaterialTheme.colorScheme
     Surface(color = couleurs.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        // ⚠️ La raison REMPLACE le message générique quand elle est connue : les afficher tous les
+        // deux ferait lire « Échec de sauvegarde. Titre trop long » — la première moitié n'apprend
+        // rien que la seconde ne dise mieux.
         Text(
-            text = stringResource(R.string.note_editor_error_save_failed),
+            text = stringResource(raison ?: R.string.note_editor_error_save_failed),
             style = MaterialTheme.typography.bodySmall,
             color = couleurs.onErrorContainer,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
