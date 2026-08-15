@@ -251,6 +251,25 @@ interface NoteWriteDao {
     suspend fun purgeTrashedBefore(cutoff: Long): Int
 
     /**
+     * Vide la corbeille : suppression définitive de tout ce qu'elle contient.
+     *
+     * Même contrat que [deletePermanently], appliqué à l'ensemble — cascade sur les liens partants,
+     * trigger sur l'index plein texte. Le faire en **une** instruction et non note par note n'est pas
+     * qu'une optimisation : l'application publiée boucle sur `deletePermanently`, et un échec à
+     * mi-parcours y laisse une corbeille à moitié détruite dont l'utilisateur ne sait plus quelle
+     * moitié était laquelle (`trash_screen.dart:87`, dont le commentaire décrit le problème sans
+     * pouvoir le résoudre). Ici, ou tout part, ou rien ne part.
+     *
+     * ⚠️ **Ne filtre pas sur la rétention**, contrairement à [purgeTrashedBefore] : l'utilisateur
+     * demande explicitement à vider, y compris ce qu'il vient de jeter.
+     *
+     * @return le nombre de notes supprimées, pour que l'écran puisse l'annoncer au lieu de
+     *   l'affirmer.
+     */
+    @Query("DELETE FROM notes WHERE trashed_at IS NOT NULL")
+    suspend fun emptyTrash(): Int
+
+    /**
      * Réassigne les notes d'un dossier vers un autre.
      *
      * Sert à vider un dossier avant sa suppression quand l'utilisateur choisit de garder ses

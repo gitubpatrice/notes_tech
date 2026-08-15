@@ -649,6 +649,59 @@ class NotesRepositoryTest {
         assertThat(notes.find(note.id)).isNull()
     }
 
+    /**
+     * L'invariant du vidage : il emporte la corbeille, **et seulement elle**. Une requête sans le
+     * `WHERE trashed_at IS NOT NULL` viderait la base entière sans la moindre erreur.
+     */
+    @Test
+    fun vider_la_corbeille_ne_touche_pas_aux_notes_vivantes(): Unit = runBlocking {
+        val jetee = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Jetée")
+        val gardee = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Gardée")
+        notes.moveToTrash(jetee.id)
+
+        assertThat(notes.emptyTrash()).isEqualTo(1)
+
+        assertThat(notes.find(jetee.id)).isNull()
+        assertThat(notes.find(gardee.id)).isNotNull()
+        assertThat(notes.find(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)).isNotNull()
+    }
+
+    /**
+     * Vider n'est pas purger : la rétention protège de l'oubli, pas d'une demande explicite. Le même
+     * test mesure les deux chemins sur la même note pour que l'écart soit lisible.
+     */
+    @Test
+    fun vider_la_corbeille_ignore_la_retention_de_trente_jours(): Unit = runBlocking {
+        val note = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Jetée à l'instant")
+        notes.moveToTrash(note.id)
+
+        assertThat(notes.purgeExpiredTrash()).isEqualTo(0)
+        assertThat(notes.emptyTrash()).isEqualTo(1)
+        assertThat(notes.find(note.id)).isNull()
+    }
+
+    /**
+     * 🔴 **Sans la clé du coffre.** Aucune session n'est ouverte ici : si le vidage exigeait de
+     * déchiffrer, un coffre dont la phrase secrète est perdue aurait une corbeille invidable, et la
+     * note y resterait indéfiniment.
+     */
+    @Test
+    fun vider_la_corbeille_detruit_une_note_de_coffre_encore_scellee(): Unit = runBlocking {
+        notes.moveToTrash(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)
+        assertThat(notes.find(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)!!.isLocked).isTrue()
+
+        assertThat(notes.emptyTrash()).isEqualTo(1)
+
+        assertThat(notes.find(LegacyDatabaseFixture.Fixtures.NOTE_LOCKED)).isNull()
+    }
+
+    /** Vider une corbeille déjà vide ne détruit rien et le dit : zéro, pas une réussite muette. */
+    @Test
+    fun vider_une_corbeille_vide_ne_supprime_rien(): Unit = runBlocking {
+        assertThat(notes.emptyTrash()).isEqualTo(0)
+        assertThat(notes.find(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)).isNotNull()
+    }
+
     // ── Dossiers ─────────────────────────────────────────────────────────────
 
     @Test

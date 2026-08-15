@@ -163,6 +163,15 @@
     <string name="trash_deleted_forever">Note permanently deleted</string>
     <string name="trash_empty_all">Empty trash</string>
     <string name="trash_empty_all_confirm">Permanently delete all notes in the trash? This cannot be undone.</string>
+    <!--
+      Ecart assume avec l'application publiee : elle affiche « Note supprimee definitivement » au
+      singulier apres avoir vide une corbeille de douze notes (trash_screen.dart:90). Rapporter le
+      compte mesure est le seul retour honnete apres un geste irreversible.
+    -->
+    <plurals name="trash_emptied">
+        <item quantity="one">%1$d note permanently deleted</item>
+        <item quantity="other">%1$d notes permanently deleted</item>
+    </plurals>
 
     <!-- ── Coffres — passphrase et code PIN ────────────────────────────── -->
     <string name="vault_pass_create_title">Create a vault</string>

@@ -160,6 +160,10 @@
     <string name="trash_deleted_forever">Note supprimée définitivement</string>
     <string name="trash_empty_all">Vider la corbeille</string>
     <string name="trash_empty_all_confirm">Supprimer définitivement toutes les notes de la corbeille ? Cette action est irréversible.</string>
+    <plurals name="trash_emptied">
+        <item quantity="one">%1$d note supprimée définitivement</item>
+        <item quantity="other">%1$d notes supprimées définitivement</item>
+    </plurals>
 
     <!-- ── Coffres — passphrase et code PIN ────────────────────────────── -->
     <string name="vault_pass_create_title">Créer un coffre</string>

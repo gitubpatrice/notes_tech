@@ -353,6 +353,16 @@ class NotesRepository @Inject constructor(
     suspend fun deletePermanently(id: String): Boolean = databases.get().noteWriteDao().deletePermanently(id) > 0
 
     /**
+     * Vide la corbeille et retourne le nombre de notes détruites.
+     *
+     * ⚠️ **Y compris les notes de coffre**, qui y sont encore scellées. Rien à déchiffrer : on
+     * supprime la ligne, blob compris. C'est justement le seul geste destructif qui n'a pas besoin
+     * de la clé du coffre — et il ne doit surtout pas l'exiger, sinon un coffre dont la phrase est
+     * perdue rendrait sa corbeille invidable.
+     */
+    suspend fun emptyTrash(): Int = databases.get().noteWriteDao().emptyTrash()
+
+    /**
      * Déplace une note vers un autre dossier.
      *
      * 🔴 **Entrer dans un coffre chiffre la note dans la MÊME transaction que le déplacement.**

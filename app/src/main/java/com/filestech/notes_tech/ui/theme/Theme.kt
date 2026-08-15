@@ -31,6 +31,23 @@ private object AppColors {
     val DarkBlueContainer = Color(0xFF1F6FEB)
     val DarkRed = Color(0xFFF85149)
 
+    /**
+     * Le rouge du logo Files Tech.
+     *
+     * ⚠️ **Réservé au thème CLAIR.** Sur `DarkSurface` il tombe à **3,08:1**, sous le seuil AA de
+     * 4,5:1 pour du texte. Les deux rouges sont exactement complémentaires — mesures reprises de la
+     * fiche de contraste du portefeuille :
+     *
+     * | Rouge | sur fond clair | sur `#161B22` |
+     * |---|---|---|
+     * | `DarkRed` `#F85149` | 3,35:1 ❌ | 5,16:1 ✅ |
+     * | `BrandRed` `#C62828` | 5,62:1 ✅ | 3,08:1 ❌ |
+     *
+     * Aucun des deux ne convient partout ; c'est pourquoi `error` diffère selon le thème alors que
+     * `theme.dart` posait le même dans les deux.
+     */
+    val BrandRed = Color(0xFFC62828)
+
     // Clair
     val LightBg = Color(0xFFFFFFFF)
     val LightSurface = Color(0xFFF6F8FA)
@@ -112,10 +129,11 @@ private fun schemeClair(): ColorScheme = ColorScheme(
     surfaceTint = AppColors.LightBlue,
     inverseSurface = AppColors.DarkSurface,
     inverseOnSurface = AppColors.DarkTextPrimary,
-    // ⚠️ `error` vaut le rouge SOMBRE dans les deux thèmes : `theme.dart` pose
-    // `error: AppColors.darkRed` sans condition. Reproduit tel quel — une divergence de couleur
-    // d'erreur se verrait immédiatement à côté de l'application publiée.
-    error = AppColors.DarkRed,
+    // 🔴 **Écart assumé avec `theme.dart`, sur demande de Patrice (2026-08-15).** La version Flutter
+    // pose `error: AppColors.darkRed` sans condition, donc le même `#F85149` dans les deux thèmes —
+    // et ce rouge-là ne tient que **3,35:1** sur un fond clair. Le rouge du logo le remplace ici, où
+    // il monte à 5,62:1. En thème sombre c'est l'inverse, d'où les deux valeurs : cf. [AppColors.BrandRed].
+    error = AppColors.BrandRed,
     onError = Color.White,
     errorContainer = Color(0xFFFDECEC),
     onErrorContainer = Color(0xFF410002),
