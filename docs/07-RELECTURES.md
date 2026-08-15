@@ -1043,3 +1043,80 @@ qu'on peut lire par-dessus l'épaule.
 **Splash** : le portage affichait `ic_launcher_foreground`, la couche avant de l'icône adaptative —
 le même dessin, réduit d'un tiers par sa zone de sécurité et recadré. Il affiche désormais l'image
 exacte de l'application publiée.
+
+## 2026-08-15 (fin) — parité visuelle : palette, « à propos », réglages
+
+Demande de Patrice : « reprendre le même design pour la page à propos, réglages, et conserver les
+mêmes couleurs que notes_tech ».
+
+### La palette, et la décision revue
+
+`theme.dart` est porté à l'identique — fonds, bleus, bordures, conteneurs d'erreur, six tailles de
+texte. Les jetons dérivés sont déclarés **à la main**, comme côté Flutter : sur une palette qui ne
+sort pas d'un générateur Material, le calcul automatique donne un `errorContainer` au contraste
+insuffisant, leçon payée par la 2.0.3 en v1.1.4.
+
+🔴 **La couleur dynamique est retirée.** Une première version appliquait Material You au motif que
+le choix de l'utilisateur prime. L'argument tient dans l'absolu, pas ici : Material You dérive
+toutes ses teintes du fond d'écran, donc l'application ne ressemblait plus à elle-même, l'écart
+changeait d'un téléphone à l'autre, et **aucune comparaison de parité n'était possible** — deux
+captures du même écran ne pouvaient pas être rapprochées. Le suivi du mode clair/sombre reste.
+
+⚠️ Les couleurs ne sont **pas** posées dans la typographie comme côté Flutter : en Compose elles
+viennent de la surface, et les figer casserait tout composant posé sur une surface inversée.
+
+### Un seul écran de présentation au lieu de deux
+
+Le premier lancement en montrait deux : celui du système, aplat bleu avec l'icône animée, puis celui
+de la marque avec le même logo. L'application publiée n'a qu'un aplat sur sa fenêtre d'amorçage
+(`launch_background.xml`, bitmap commenté) ; l'écart venait du rétroportage `core-splashscreen`, qui
+rend l'écran d'Android 12 dès l'API 24 — **avec l'icône**.
+
+Icône vide, et fond de la fenêtre d'amorçage passé de la teinte de l'icône au fond de l'application.
+⚠️ Écart assumé avec la version Flutter, dans le bon sens : elle affiche du blanc même en thème
+sombre.
+
+### « À propos » était une ébauche — 26 chaînes le disaient
+
+Trois blocs contre six sections et un en-tête composite. Les vingt-six chaînes manquantes étaient
+traduites dans les deux langues et **référencées nulle part**.
+
+🔴 **Un défaut trouvé en portant** : la page annoncée « mentions légales complètes » affichait le
+sous-titre de sa propre ligne de menu et **un badge de la carte de confidentialité** — « Aucun
+compte, aucune inscription » tenait lieu de politique de confidentialité. Les quatre fichiers
+Markdown de la référence sont maintenant dans `res/raw` et `res/raw-fr`, la langue venant de la
+résolution de ressources et non d'une condition dans le code.
+
+⚠️ **Un ouvreur de liens n'existait pas** — `grep ACTION_VIEW` rendait zéro résultat. Avec repli
+presse-papiers : sans lui, toucher « Nous écrire » sans client de courrier ne ferait rien du tout.
+
+⚠️ **Correction factuelle d'un texte juridique**, sur autorisation explicite : la politique de
+confidentialité nommait `flutter_secure_storage` comme lieu de stockage de la clé. Inexact pour la
+version Kotlin. Seule la mention de la bibliothèque est retirée — « stockée dans le Android
+Keystore » reste vrai, et le fond n'est pas touché.
+
+### Les réglages
+
+Cartes bordées, titre de section partagé avec « à propos » (la référence emploie **le même widget**
+dans les deux écrans), neuf icônes au lieu de quatre, langue avant thème.
+
+🔴 **La section « Trier » revient**, absente depuis qu'elle avait déménagé dans la barre d'accueil.
+Elle est aux **deux** endroits : source unique, donc pas de divergence possible, et retirer un
+contrôle qui fonctionne aurait été une perte. Son libellé est partagé — deux tables pour un même
+ensemble d'options auraient divergé au premier mode ajouté.
+
+🔴 **La zone panique retrouve son cadre rouge**, seule carte cerclée de l'écran, avec son rouage
+d'attente (`running` existait et rien ne l'affichait) et son retour haptique.
+
+🔴 **Une archive vide ne se partage plus** : exporter sans aucune note ouvrait le sélecteur sur un
+fichier sans contenu.
+
+🔴 **L'annonce vocale du changement de langue** est faite, **avant** `recreate()` — après, la vue qui
+la prononcerait est détruite.
+
+⚠️ **L'option « 1 minute »** du verrouillage automatique est retirée : la liste publiée est
+`[0, 5, 15, 30, 60]` et le commentaire affirmait « repris de l'application publiée ». *Un commentaire
+qui certifie une parité inexistante est pire qu'une divergence signalée : il empêche de la voir.*
+
+La ligne « mentions légales » quitte les réglages — elle n'existe que dans « à propos » côté publié.
+**detekt a rattrapé** le paramètre devenu inutile, supprimé jusqu'au graphe de navigation.

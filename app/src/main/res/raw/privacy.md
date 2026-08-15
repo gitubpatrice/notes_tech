@@ -10,7 +10,7 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 
 ### Data processed
 
-- **Your Markdown notes**: generated and kept exclusively on your phone, in a SQLite database encrypted by **SQLCipher** with a unique key generated locally (32-byte KEK) stored in the **Android Keystore** via `flutter_secure_storage`.
+- **Your Markdown notes**: generated and kept exclusively on your phone, in a SQLite database encrypted by **SQLCipher** with a unique key generated locally (32-byte KEK) stored in the **Android Keystore**.
 - **Per-folder vaults**: each vault you enable uses a distinct **passphrase** or **PIN**, derived through **Argon2id RFC 9106** (m=64MB, t=3 for passphrase; lighter for PIN, compensated by device-bound Keystore sealing). Locked note content is encrypted with **AES-256-GCM**, AAD bound to `note_id`.
 - **Backlinks `[[Title]]`**: local inverted index, never transmitted.
 - **Voice dictation model (Whisper `.bin`)**: downloaded by your **system browser** from HuggingFace (Notes Tech merely fires an `ACTION_VIEW` intent), then imported manually. Notes Tech has no Internet permission and downloads nothing itself.

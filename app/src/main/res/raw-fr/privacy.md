@@ -10,7 +10,7 @@ Notes Tech ne collecte, ne transmet et ne stocke aucune donnée sur des serveurs
 
 ### Données traitées
 
-- **Vos notes Markdown** : générées et conservées exclusivement sur votre téléphone, dans une base SQLite chiffrée par **SQLCipher** avec une clé unique générée localement (KEK 32 octets) stockée dans le **Android Keystore** via `flutter_secure_storage`.
+- **Vos notes Markdown** : générées et conservées exclusivement sur votre téléphone, dans une base SQLite chiffrée par **SQLCipher** avec une clé unique générée localement (KEK 32 octets) stockée dans le **Android Keystore**.
 - **Coffres par dossier** : chaque coffre que vous activez utilise une **passphrase** ou un **PIN** distinct, dérivé via **Argon2id RFC 9106** (m=64MB, t=3 pour passphrase ; allégé pour PIN, compensé par le scellage Keystore device-bound). Le contenu des notes verrouillées est chiffré **AES-256-GCM** avec AAD lié à `note_id`.
 - **Backlinks `[[Titre]]`** : index inversé local, jamais transmis.
 - **Modèle de dictée vocale (Whisper `.bin`)** : téléchargé par votre **navigateur système** depuis HuggingFace (Notes Tech ouvre simplement un intent `ACTION_VIEW`), puis importé manuellement. Notes Tech n'a pas la permission Internet et ne télécharge rien elle-même.
