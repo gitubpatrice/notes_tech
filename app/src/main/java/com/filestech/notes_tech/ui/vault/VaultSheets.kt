@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -84,14 +85,16 @@ fun UnlockVaultSheet(folder: Folder, onDismiss: () -> Unit, onUnlocked: () -> Un
             folder = folder,
             creating = false,
             onDismiss = onDismiss,
-            onDone = onUnlocked,
+            // Un déverrouillage ne chiffre rien : le décompte ne le concerne pas.
+            onDone = { onUnlocked() },
         )
 
         VaultMode.PASSPHRASE -> PassphraseSheet(
             folder = folder,
             creating = false,
             onDismiss = onDismiss,
-            onDone = onUnlocked,
+            // Un déverrouillage ne chiffre rien : le décompte ne le concerne pas.
+            onDone = { onUnlocked() },
         )
 
         VaultMode.UNKNOWN, null -> DamagedVaultSheet(onDismiss = onDismiss)
@@ -177,17 +180,55 @@ fun ChooseVaultModeSheet(onDismiss: () -> Unit, onChosen: (VaultMode) -> Unit) {
 
 /** La feuille de création, une fois le mode choisi. */
 @Composable
-fun CreateVaultSheet(folder: Folder, mode: VaultMode, onDismiss: () -> Unit, onCreated: () -> Unit) {
+fun CreateVaultSheet(
+    folder: Folder,
+    mode: VaultMode,
+    onDismiss: () -> Unit,
+    /**
+     * Appelé quand le coffre est en place **et son contenu chiffré**, avec le nombre de notes qui
+     * viennent de l'être. C'est l'appelant qui l'annonce : la feuille disparaît, un message posé
+     * dessus disparaîtrait avec elle.
+     */
+    onCreated: (chiffrees: Int) -> Unit,
+    /**
+     * 🔴 Appelé quand on quitte la feuille sur une conversion **partielle**.
+     *
+     * L'avertissement « N notes sur M n'ont pas pu être converties » n'existait que dans la feuille :
+     * la refermer, par le bouton ou par un geste, l'effaçait sans laisser de trace. Le dossier
+     * affiche alors un cadenas, une partie de son contenu est lisible au repos, et **plus rien nulle
+     * part ne le dit**. Relevé CONFIRMÉ par une relecture externe (GPT-5.2, 2026-08-15).
+     */
+    onPartiellementChiffre: (echouees: Int, total: Int) -> Unit,
+) {
     when (mode) {
-        VaultMode.PIN -> PinSheet(folder, creating = true, onDismiss = onDismiss, onDone = onCreated)
-        else -> PassphraseSheet(folder, creating = true, onDismiss = onDismiss, onDone = onCreated)
+        VaultMode.PIN -> PinSheet(
+            folder = folder,
+            creating = true,
+            onDismiss = onDismiss,
+            onDone = onCreated,
+            onPartiellementChiffre = onPartiellementChiffre,
+        )
+
+        else -> PassphraseSheet(
+            folder = folder,
+            creating = true,
+            onDismiss = onDismiss,
+            onDone = onCreated,
+            onPartiellementChiffre = onPartiellementChiffre,
+        )
     }
 }
 
 // ── Phrase secrète ───────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, onDone: () -> Unit) {
+private fun PassphraseSheet(
+    folder: Folder,
+    creating: Boolean,
+    onDismiss: () -> Unit,
+    onDone: (chiffrees: Int) -> Unit,
+    onPartiellementChiffre: (echouees: Int, total: Int) -> Unit = { _, _ -> },
+) {
     // ⚠️ Le drapeau est forcé pour la durée de la feuille, **même si l'utilisateur l'a désactivé**.
     // Ce qui s'affiche ici est une phrase secrète en clair quand il choisit de la rendre visible ;
     // une capture, volontaire ou par une application de projection d'écran, la donnerait entière.
@@ -210,6 +251,18 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
         // `viewModelScope` et le coffre s'ouvre une seconde plus tard, sans que rien à l'écran
         // ne l'indique. Relevé par une relecture externe (GPT-5.2).
         onDismissRequest = {
+            // 🔴 **On ne ferme PAS pendant le chiffrement du contenu.**
+            //
+            // Le coffre est déjà créé à ce stade. Fermer annulait la coroutine : le dossier restait
+            // un coffre, ses notes restaient en clair, et la feuille disparaissait **sans rien
+            // dire** — l'utilisateur croyant avoir annulé une création qui avait eu lieu. Relevé
+            // CONFIRMÉ par une relecture externe (Gemini, 2026-08-15).
+            //
+            // L'application publiée répond pareil, avec un dialogue `barrierDismissible: false`
+            // (`folders_drawer.dart:654`). Pendant la dérivation, en revanche, fermer annule
+            // vraiment : rien n'a encore été écrit.
+            if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
+            rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
             viewModel.cancelAttempt()
             onDismiss()
         },
@@ -258,10 +311,22 @@ private fun PassphraseSheet(folder: Folder, creating: Boolean, onDismiss: () -> 
                 )
             }
 
-            MessageDEtat(erreurLocale ?: messageDeTentative(state.attempt), busy = state.busy)
+            MessageDEtat(
+                message = erreurLocale ?: messageDeTentative(state.attempt),
+                busy = state.busy,
+                phase = state.phase,
+            )
 
             if (state.attempt.coffreExiste()) {
-                BoutonDeFermeture(onDone)
+                // 🔴 **`onDismiss`, PAS `onDone`.** On n'arrive ici qu'après une conversion
+                // PARTIELLE — des notes sont restées en clair, et le message au-dessus vient de
+                // le dire. Passer par le chemin de réussite ferait afficher « Coffre activé »
+                // par-dessus, c'est-à-dire contredire l'avertissement qu'on vient de lire.
+                BoutonDeFermeture {
+                    rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
+                    viewModel.consumeAttempt()
+                    onDismiss()
+                }
             } else {
                 Button(
                     onClick = {
@@ -356,7 +421,13 @@ private fun ChampDePhraseSecrete(
 // ── Code à quatre-six chiffres ───────────────────────────────────────────────────────────────────
 
 @Composable
-private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, onDone: () -> Unit) {
+private fun PinSheet(
+    folder: Folder,
+    creating: Boolean,
+    onDismiss: () -> Unit,
+    onDone: (chiffrees: Int) -> Unit,
+    onPartiellementChiffre: (echouees: Int, total: Int) -> Unit = { _, _ -> },
+) {
     // ⚠️ Même raison que la feuille à phrase secrète, avec un motif propre au pavé numérique : la
     // position des touches enfoncées est stable d'une saisie à l'autre, donc une capture de la
     // séquence donne le code. `vault_pin_sheets.dart:185` note que ce garde manquait ici dans la
@@ -392,14 +463,13 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
     // ⚠️ **Afficher PUIS consommer** : sur un échec, le message doit survivre à l'effacement de
     // la saisie. Seules les issues qui ferment la feuille sont consommées.
     LaunchedEffect(state.attempt) {
-        val issue = state.attempt ?: return@LaunchedEffect
-        saisi = ""
-        val termine = issue is VaultAttempt.Success || (issue is VaultAttempt.Created && issue.isComplete)
-        if (termine) {
-            onDone()
-            viewModel.consumeAttempt()
-        }
+        if (state.attempt != null) saisi = ""
     }
+
+    // 🔴 **La clôture passe par le MÊME composable que la feuille à phrase secrète.** Elle était
+    // recopiée à la main ici, avec sa propre condition : deux jumeaux à corriger ensemble, qui ont
+    // failli diverger dès l'évolution suivante. Cf. [chiffreesSiTermine].
+    ResultatDeTentative(state.attempt, onSuccess = onDone, onConsumed = viewModel::consumeAttempt)
 
     val enConfirmation = creating && confirmation != null
 
@@ -408,6 +478,18 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
         // `viewModelScope` et le coffre s'ouvre une seconde plus tard, sans que rien à l'écran
         // ne l'indique. Relevé par une relecture externe (GPT-5.2).
         onDismissRequest = {
+            // 🔴 **On ne ferme PAS pendant le chiffrement du contenu.**
+            //
+            // Le coffre est déjà créé à ce stade. Fermer annulait la coroutine : le dossier restait
+            // un coffre, ses notes restaient en clair, et la feuille disparaissait **sans rien
+            // dire** — l'utilisateur croyant avoir annulé une création qui avait eu lieu. Relevé
+            // CONFIRMÉ par une relecture externe (Gemini, 2026-08-15).
+            //
+            // L'application publiée répond pareil, avec un dialogue `barrierDismissible: false`
+            // (`folders_drawer.dart:654`). Pendant la dérivation, en revanche, fermer annule
+            // vraiment : rien n'a encore été écrit.
+            if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
+            rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
             viewModel.cancelAttempt()
             onDismiss()
         },
@@ -448,7 +530,34 @@ private fun PinSheet(folder: Folder, creating: Boolean, onDismiss: () -> Unit, o
 
             PointsDeSaisie(saisi = saisi, visible = codeVisible, onBasculer = { codeVisible = !codeVisible })
 
-            MessageDEtat(erreurLocale ?: messageDeTentative(state.attempt), busy = state.busy)
+            MessageDEtat(
+                message = erreurLocale ?: messageDeTentative(state.attempt),
+                busy = state.busy,
+                phase = state.phase,
+            )
+
+            // 🔴 **Le même garde que la feuille à phrase secrète** — il n'était QUE là-bas.
+            //
+            // Après une conversion partielle, la feuille PIN gardait son clavier et son bouton
+            // « Valider » actifs. L'utilisateur qui appuie dessus relance une création, qui échoue
+            // sur « dossier déjà protégé » — et **ce refus écrase le message qui compte**, celui
+            // qui dit combien de ses notes sont restées en clair sous un cadenas. Le seul moment
+            // où on pouvait le lui dire, effacé par un geste que rien n'empêchait.
+            //
+            // Jumeau asymétrique relevé par une relecture externe (Gemini, 2026-08-15) : le garde
+            // avait été écrit une fois, sur une seule des deux feuilles.
+            if (state.attempt.coffreExiste()) {
+                BoutonDeFermeture {
+                    rapporterUneConversionPartielle(state.attempt, onPartiellementChiffre)
+                    // ⚠️ **Consommer.** Ce ViewModel vit plus longtemps que la feuille : sans ça,
+                    // l'issue survit et le message de conversion partielle réapparaît à l'ouverture
+                    // de la feuille d'un AUTRE dossier. Relevé PROBABLE par une relecture externe
+                    // (GPT-5.2), et vérifié : `hiltViewModel()` s'accroche à l'entrée de navigation.
+                    viewModel.consumeAttempt()
+                    onDismiss()
+                }
+                return@Column
+            }
 
             ClavierNumerique(
                 enabled = !state.busy,
@@ -573,31 +682,55 @@ private fun BanniereDAvertissement(texte: String) {
  * mise en page est un défaut de sécurité.
  */
 @Composable
-private fun MessageDEtat(message: String?, busy: Boolean) {
-    Row(
+private fun MessageDEtat(message: String?, busy: Boolean, phase: PhaseDeCoffre) {
+    Column(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        when {
-            busy -> {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                Text(
-                    text = stringResource(R.string.vault_pass_deriving),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            when {
+                busy -> {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Text(
+                        text = stringResource(
+                            when (phase) {
+                                PhaseDeCoffre.DERIVATION -> R.string.vault_pass_deriving
+                                PhaseDeCoffre.CHIFFREMENT -> R.string.folder_convert_progress_title
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
+
+                message != null -> Text(
+                    text = message,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(start = 10.dp),
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium,
                 )
+
+                // Une ligne vide, mais présente : c'est elle qui empêche le décalage.
+                else -> Text(text = " ", style = MaterialTheme.typography.bodySmall)
             }
+        }
 
-            message != null -> Text(
-                text = message,
+        // ⚠️ **Cette seconde ligne n'apparaît QUE pendant le chiffrement**, donc uniquement quand
+        // toutes les commandes de la feuille sont déjà désactivées (`enabled = !state.busy`). Le
+        // décalage de mise en page que le paragraphe ci-dessus interdit ne peut donc pas déplacer une
+        // touche sous un doigt en route : il n'y a plus rien à toucher.
+        if (busy && phase == PhaseDeCoffre.CHIFFREMENT) {
+            Text(
+                text = stringResource(R.string.folder_convert_progress_body),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp),
             )
-
-            // Une ligne vide, mais présente : c'est elle qui empêche le décalage.
-            else -> Text(text = " ", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -734,14 +867,59 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
  * propre effet s'annule : consommer le porteur avant d'agir annulerait l'action. Ici, la
  * consommation est le dernier geste.
  */
+/**
+ * Remonte l'issue d'une conversion **partielle** avant que la feuille ne disparaisse.
+ *
+ * ⚠️ Ne dit rien dans tous les autres cas — un déverrouillage, un mauvais secret, une conversion
+ * complète : ceux-là ont déjà leur propre retour, et en ajouter un second serait du bruit.
+ */
+private fun rapporterUneConversionPartielle(attempt: VaultAttempt?, onPartiel: (Int, Int) -> Unit) {
+    val bilan = (attempt as? VaultAttempt.Created)?.takeIf { !it.isComplete } ?: return
+    onPartiel(bilan.failed, bilan.encrypted + bilan.failed)
+}
+
+/**
+ * Le nombre de notes chiffrées **si cette issue clôt la feuille**, `null` si la feuille doit rester.
+ *
+ * 🔴 **Une seule définition pour les deux feuilles.** La feuille PIN portait sa propre copie de ce
+ * calcul, écrite à la main dans son `LaunchedEffect` : deux jumeaux qu'il fallait penser à corriger
+ * ensemble, et qui ont failli diverger dès la première évolution — celle qui fait remonter le
+ * décompte. C'est le motif du **jumeau asymétrique**, et la correction qui tient est celle qui
+ * supprime le jumeau, comme pour `ChampDePhraseSecrete`.
+ *
+ * ⚠️ `Created` avec des échecs rend `null` : la feuille NE se ferme pas, l'utilisateur doit voir
+ * combien de ses notes sont restées en clair dans un dossier qui affiche désormais un cadenas.
+ */
+private fun VaultAttempt?.chiffreesSiTermine(): Int? = when {
+    this is VaultAttempt.Created && isComplete -> encrypted
+    this is VaultAttempt.Success -> 0
+    else -> null
+}
+
 @Composable
-private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: () -> Unit, onConsumed: () -> Unit) {
+private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: (chiffrees: Int) -> Unit, onConsumed: () -> Unit) {
+    val vue = LocalView.current
+    val coffreOuvert = stringResource(R.string.home_announce_vault_unlocked)
+
     LaunchedEffect(attempt) {
         // ⚠️ `Created` avec des échecs NE ferme PAS la feuille : l'utilisateur doit voir combien
         // de ses notes sont restées en clair dans un dossier qui affiche désormais un cadenas.
-        val termine = attempt is VaultAttempt.Success || (attempt is VaultAttempt.Created && attempt.isComplete)
-        if (termine) {
-            onSuccess()
+        val chiffrees = attempt.chiffreesSiTermine()
+        if (chiffrees != null) {
+            // ⚠️ **Seul un DÉVERROUILLAGE s'annonce ici.** `Success` n'est produit que par les
+            // chemins d'ouverture ; une conversion rend `Created`, et son propre message part de
+            // l'accueil avec le décompte des notes chiffrées. Annoncer les deux dirait « coffre
+            // déverrouillé » à quelqu'un qui vient d'en créer un.
+            //
+            // ⚠️ Se distinguer par `chiffrees == 0` aurait été faux : convertir un dossier VIDE rend
+            // zéro lui aussi.
+            //
+            // Un lecteur d'écran ne voit pas une feuille se refermer sur un dossier devenu lisible.
+            if (attempt is VaultAttempt.Success) {
+                @Suppress("DEPRECATION")
+                vue.announceForAccessibility(coffreOuvert)
+            }
+            onSuccess(chiffrees)
             onConsumed()
         }
     }

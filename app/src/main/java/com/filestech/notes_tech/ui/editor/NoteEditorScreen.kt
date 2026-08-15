@@ -1,14 +1,17 @@
 package com.filestech.notes_tech.ui.editor
 
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,6 +20,7 @@ import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
@@ -44,6 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,6 +61,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -117,6 +123,8 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val contexte = LocalContext.current
     val ressources = LocalResources.current
     val portee = rememberCoroutineScope()
+
+    AnnonceDEnregistrement(enregistrement = state.saving, echec = state.saveFailed || state.lostToVaultLock)
 
     // ⚠️ **Une fonction, pas un gabarit pré-formaté.** Passer « %s » puis formater casserait en
     // silence le jour où la chaîne traduite gagne un paramètre — relevé par l'audit i18n du
@@ -286,11 +294,10 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                     }
                 },
                 title = {
-                    Text(
-                        text = state.folder?.name.orEmpty(),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
+                    TitreDeLEditeur(
+                        dossier = state.folder?.name.orEmpty(),
+                        enregistrement = state.saving,
+                        echec = state.saveFailed || state.lostToVaultLock,
                     )
                 },
                 actions = {
@@ -498,6 +505,109 @@ private fun champSansDecor() = TextFieldDefaults.colors(
     unfocusedIndicatorColor = Color.Transparent,
     disabledIndicatorColor = Color.Transparent,
 )
+
+/**
+ * Annonce « Note enregistrée » au lecteur d'écran, **au plus une fois toutes les cinq secondes**.
+ *
+ * ⚠️ Le frein n'est pas du confort : l'enregistrement est différé de 500 ms, donc une frappe continue
+ * en déclenche un toutes les secondes et demie environ. Sans limite, un lecteur d'écran ne dirait
+ * plus que ça, et couvrirait le texte que l'utilisateur est en train d'écrire. Valeur reprise de
+ * l'application publiée (`note_editor_screen.dart:58`).
+ *
+ * ⚠️ **Rien n'est annoncé quand l'enregistrement a échoué** : une bannière le dit à l'écran, et
+ * annoncer une réussite par-dessus serait le pire des deux mondes.
+ *
+ * ⚠️ `elapsedRealtime` et non `currentTimeMillis` : un changement d'heure système ne doit pas
+ * rouvrir la fenêtre — ni la fermer pour des heures.
+ */
+@Composable
+private fun AnnonceDEnregistrement(enregistrement: Boolean, echec: Boolean) {
+    val vue = LocalView.current
+    val texte = stringResource(R.string.note_editor_announce_saved_success)
+    var derniereAnnonce by rememberSaveable { mutableLongStateOf(0L) }
+    var enregistrementPrecedent by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(enregistrement) {
+        val vientDeFinir = enregistrementPrecedent && !enregistrement
+        enregistrementPrecedent = enregistrement
+        if (!vientDeFinir || echec) return@LaunchedEffect
+
+        val maintenant = SystemClock.elapsedRealtime()
+        if (maintenant - derniereAnnonce < DELAI_ENTRE_ANNONCES_MS) return@LaunchedEffect
+        derniereAnnonce = maintenant
+        @Suppress("DEPRECATION")
+        vue.announceForAccessibility(texte)
+    }
+}
+
+/** Cinq secondes, comme l'application publiée. */
+private const val DELAI_ENTRE_ANNONCES_MS = 5_000L
+
+/**
+ * Le nom du dossier, et **l'état de l'enregistrement**.
+ *
+ * ## 🔴 Le portage n'affichait RIEN sur l'enregistrement
+ *
+ * Ni pendant, ni après : seule une bannière apparaissait en cas d'échec. `note_editor_saving` et
+ * `note_editor_saved` étaient traduites des deux côtés et lues nulle part. Or l'enregistrement est
+ * **différé** ici — quitter l'écran juste après avoir tapé demande de savoir si le texte est parti.
+ * L'absence de retour laissait ce doute entier.
+ *
+ * ⚠️ **Le dossier est CONSERVÉ.** L'application publiée met l'indicateur à la place du titre et
+ * n'affiche donc le dossier nulle part (`note_editor_screen.dart:945`). Le portage l'affichait :
+ * le remplacer aurait retiré une information pour en ajouter une autre. Les deux tiennent.
+ *
+ * ⚠️⚠️ **PAS de `liveRegion` ici**, contrairement au premier jet. Une région active annonce chaque
+ * changement : l'enregistrement étant différé de 500 ms, une frappe continue fait basculer
+ * « Enregistrement… ⇄ Enregistré » toutes les secondes et demie environ, et **sature le lecteur
+ * d'écran**. L'annonce est donc explicite et **limitée à une toutes les cinq secondes**, dans
+ * [NoteEditorRoute] — c'est le mécanisme de l'application publiée, et le commentaire qui l'accompagne
+ * là-bas dit exactement pourquoi.
+ *
+ * L'indicateur visuel, lui, reste exact à tout instant : c'est l'annonce qui est freinée, pas
+ * l'affichage.
+ */
+@Composable
+private fun TitreDeLEditeur(dossier: String, enregistrement: Boolean, echec: Boolean) {
+    val etat = stringResource(if (enregistrement) R.string.note_editor_saving else R.string.note_editor_saved)
+
+    Column {
+        Text(
+            text = dossier,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.titleMedium,
+        )
+        // 🔴 **Rien du tout quand l'enregistrement a ÉCHOUÉ.**
+        //
+        // `saving` retombe à `false` sur un échec comme sur une réussite : la ligne affichait donc
+        // « Enregistré », avec sa coche, **au-dessus de la bannière rouge qui dit le contraire**.
+        // Deux affirmations opposées sur le même écran, et c'est la rassurante qui est fausse.
+        // Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15).
+        //
+        // La bannière porte déjà le message ; cette ligne se tait plutôt que d'en ajouter un second.
+        if (echec) return@Column
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (enregistrement) {
+                CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 1.5.dp)
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.CloudDone,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = etat,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+        }
+    }
+}
 
 /**
  * Les actions moins fréquentes de l'éditeur.

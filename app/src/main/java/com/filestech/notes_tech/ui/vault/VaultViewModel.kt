@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -79,7 +80,28 @@ sealed interface VaultAttempt {
 }
 
 /** Ce qu'une feuille de coffre affiche pendant qu'elle travaille. */
-data class VaultSheetState(val busy: Boolean = false, val attempt: VaultAttempt? = null)
+/**
+ * Ce que la feuille est en train de faire.
+ *
+ * 🔴 **Un seul booléen `busy` mentait sur la phase.** La feuille annonçait « Dérivation en cours »
+ * pendant TOUT le travail, y compris le re-chiffrement des notes déjà présentes — qui est la phase
+ * longue quand le dossier en contient beaucoup. L'application publiée, elle, remplace son dialogue
+ * par « Conversion du coffre… / Re-chiffrement des notes verrouillées en cours »
+ * (`folders_drawer.dart:660`), et ses deux chaînes étaient traduites ici sans être lues nulle part.
+ */
+enum class PhaseDeCoffre {
+    /** Argon2id : de l'ordre de la seconde sur un appareil ancien. */
+    DERIVATION,
+
+    /** Le contenu déjà présent passe sous la clé du coffre. Durée proportionnelle au nombre de notes. */
+    CHIFFREMENT,
+}
+
+data class VaultSheetState(
+    val busy: Boolean = false,
+    val attempt: VaultAttempt? = null,
+    val phase: PhaseDeCoffre = PhaseDeCoffre.DERIVATION,
+)
 
 @HiltViewModel
 class VaultViewModel @Inject constructor(private val vaults: FolderVaultService) : ViewModel() {
@@ -135,10 +157,19 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
      * tard, sans que rien a l'ecran ne l'indique. Releve par une relecture externe (GPT-5.2).
      */
     fun cancelAttempt() {
+        // 🔴 **Rien à annuler une fois le coffre créé.** Pendant [PhaseDeCoffre.CHIFFREMENT], le
+        // matériel du coffre est déjà en base : couper ici laisserait le dossier verrouillé avec
+        // une partie de son contenu en clair, et l'écran affirmerait une annulation qui n'a pas eu
+        // lieu. L'écran refuse déjà de se fermer à ce moment-là ; ce garde-ci est la seconde
+        // barrière, pour le jour où un autre appelant l'oubliera.
+        if (_state.value.phase == PhaseDeCoffre.CHIFFREMENT) return
         tentative?.cancel()
         tentative = null
         _state.value = VaultSheetState()
     }
+
+    /** Vrai tant que le contenu d'un dossier fraîchement converti passe sous la clé du coffre. */
+    fun chiffrementEnCours(): Boolean = _state.value.busy && _state.value.phase == PhaseDeCoffre.CHIFFREMENT
 
     /**
      * Chiffre les notes deja presentes, et **ne laisse jamais l'echec de ce geste passer pour un
@@ -148,15 +179,52 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
      * EST un coffre : le dire autrement serait mentir sur l'etat de la base.
      */
     private suspend fun chiffrerLExistant(folderId: String) {
+        // La dérivation est finie ; ce qui suit peut durer bien plus longtemps. Le dire.
+        _state.value = _state.value.copy(phase = PhaseDeCoffre.CHIFFREMENT)
+
         val issue = try {
             val bilan = vaults.encryptAllNotesInFolder(folderId)
-            VaultAttempt.Created(encrypted = bilan.done, failed = bilan.failed)
+            rattraper(folderId, encrypted = bilan.done, failed = bilan.failed)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             VaultAttempt.CreatedButNotEncrypted(e.message ?: e::class.java.simpleName)
         }
         _state.value = VaultSheetState(busy = false, attempt = issue)
+    }
+
+    /**
+     * Reprend **tout de suite** les notes que le premier passage a laissées en clair.
+     *
+     * 🔴 **Le dossier est DÉJÀ marqué coffre.** Laisser des notes lisibles au repos, c'est afficher
+     * un cadenas qui ne protège pas ce qu'il a l'air de protéger. La réparation existait déjà
+     * ([FolderVaultService.reprotectPlaintextNotes]) mais ne tournait qu'à la **prochaine ouverture**
+     * du coffre — donc du clair au repos entre les deux, sans que personne ne le sache.
+     *
+     * La session est ouverte ici, juste après la conversion : c'est le seul moment où la clé est
+     * disponible et où l'utilisateur regarde. Repris de l'application publiée, où ce rattrapage a été
+     * ajouté sur relevé d'une relecture externe (`folders_drawer.dart:676`).
+     *
+     * ⚠️ **Un rattrapage qui échoue n'aggrave rien** : on retombe sur le bilan initial, que l'écran
+     * annonce tel quel. Il ne doit surtout pas transformer une conversion partielle en échec total.
+     */
+    private suspend fun rattraper(folderId: String, encrypted: Int, failed: Int): VaultAttempt.Created {
+        if (failed <= 0) return VaultAttempt.Created(encrypted = encrypted, failed = 0)
+
+        val reprises = try {
+            vaults.reprotectPlaintextNotes(folderId)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "rattrapage des notes restées en clair après conversion")
+            0
+        }
+        // `coerceAtLeast` et non une soustraction nue : `reprotectPlaintextNotes` balaie TOUT le
+        // dossier et peut donc reprendre plus de notes que le premier passage n'en avait manquées.
+        return VaultAttempt.Created(
+            encrypted = encrypted + reprises,
+            failed = (failed - reprises).coerceAtLeast(0),
+        )
     }
 
     /** Le temps restant avant qu'une nouvelle tentative soit acceptée. `0` s'il n'y en a pas. */

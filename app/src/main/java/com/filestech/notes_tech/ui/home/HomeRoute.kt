@@ -1,5 +1,8 @@
 package com.filestech.notes_tech.ui.home
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.SnackbarHost
@@ -12,6 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -111,38 +116,55 @@ fun HomeRoute(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            FoldersDrawer(
-                state = foldersState,
-                currentFolderId = state.currentFolder?.id,
-                onSelect = { id ->
-                    homeViewModel.onFolderSelected(id)
-                    portee.launch { drawerState.close() }
-                },
-                onOpenTrash = {
-                    portee.launch { drawerState.close() }
-                    onOpenTrash()
-                },
-                onCreateFolder = { creationDeDossier = true },
-                onFolderMenu = { dossierEnMenu = it },
+    // 🔴 **Le `SnackbarHost` est HORS du tiroir, et c'est le correctif.**
+    //
+    // Il était posé dans le contenu de [ModalNavigationDrawer], donc **sous** le panneau du tiroir :
+    // tout message déclenché depuis le tiroir s'affichait derrière lui. Or c'est précisément de là
+    // que partent les gestes qui ont le plus besoin d'être confirmés — conversion en coffre, retrait
+    // de protection, et le « %d notes déchiffrées » qui dit à quelqu'un que son dossier n'est plus
+    // protégé. Ils étaient tous invisibles tant que le tiroir restait ouvert, c'est-à-dire dans le
+    // cas normal, puisque rien ne le ferme.
+    //
+    // Vérifié à l'écran sur le S9 le 2026-08-15 : après une conversion, le tiroir est encore ouvert.
+    // Un `Box` suffit — l'hôte est dessiné après le tiroir, donc au-dessus.
+    Box(Modifier.fillMaxSize()) {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                FoldersDrawer(
+                    state = foldersState,
+                    currentFolderId = state.currentFolder?.id,
+                    onSelect = { id ->
+                        homeViewModel.onFolderSelected(id)
+                        portee.launch { drawerState.close() }
+                    },
+                    onOpenTrash = {
+                        portee.launch { drawerState.close() }
+                        onOpenTrash()
+                    },
+                    onCreateFolder = { creationDeDossier = true },
+                    onFolderMenu = { dossierEnMenu = it },
+                )
+            },
+        ) {
+            HomeScreen(
+                state = state,
+                onQueryChange = homeViewModel::onQueryChange,
+                onSortSelected = homeViewModel::onSortSelected,
+                onOpenNote = onOpenNote,
+                onNewNote = homeViewModel::createNote,
+                onOpenDrawer = { portee.launch { drawerState.open() } },
+                onOpenSearch = onOpenSearch,
+                onOpenSettings = onOpenSettings,
+                onOpenAbout = onOpenAbout,
+                onDismissVaultLostBanner = homeViewModel::dismissVaultLostBanner,
             )
-        },
-    ) {
-        HomeScreen(
-            state = state,
-            onQueryChange = homeViewModel::onQueryChange,
-            onSortSelected = homeViewModel::onSortSelected,
-            onOpenNote = onOpenNote,
-            onNewNote = homeViewModel::createNote,
-            onOpenDrawer = { portee.launch { drawerState.open() } },
-            onOpenSearch = onOpenSearch,
-            onOpenSettings = onOpenSettings,
-            onOpenAbout = onOpenAbout,
-            onDismissVaultLostBanner = homeViewModel::dismissVaultLostBanner,
+        }
+
+        SnackbarHost(
+            hostState = snackbars,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
         )
-        SnackbarHost(hostState = snackbars)
     }
 
     dossierEnMenu?.let { dossier ->
@@ -275,9 +297,32 @@ fun HomeRoute(
                     dossierAProteger = null
                     modeChoisi = null
                 },
-                onCreated = {
+                // ⚠️ **Le message est posté ICI, pas dans la feuille** : elle se referme au même
+                // instant, et un message affiché dessus disparaîtrait avec elle. Le portage ne disait
+                // RIEN après une conversion — ni pendant, ni après — alors que l'opération
+                // re-chiffre tout le contenu du dossier. Les deux chaînes existaient des deux côtés
+                // sans être lues nulle part (`folders_drawer.dart:707`).
+                onCreated = { chiffrees ->
                     dossierAProteger = null
                     modeChoisi = null
+                    val message = if (chiffrees == 0) {
+                        ressourcesDeLEcran.getString(R.string.vault_convert_success)
+                    } else {
+                        ressourcesDeLEcran.getString(R.string.vault_convert_success_with_count, chiffrees)
+                    }
+                    portee.launch { snackbars.showSnackbar(message) }
+                },
+                // 🔴 L'avertissement ne doit pas mourir avec la feuille : le dossier porte un
+                // cadenas et une partie de son contenu reste lisible au repos.
+                onPartiellementChiffre = { echouees, total ->
+                    dossierAProteger = null
+                    modeChoisi = null
+                    val message = ressourcesDeLEcran.getString(
+                        R.string.vault_convert_partial_fail,
+                        echouees,
+                        total,
+                    )
+                    portee.launch { snackbars.showSnackbar(message) }
                 },
             )
         }
