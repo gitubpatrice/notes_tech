@@ -22,7 +22,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -31,13 +30,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -114,6 +112,7 @@ data class ActionDEditeur(
     val enCours: Boolean = false,
     val export: ExportResult? = null,
     val deplacee: Boolean = false,
+    val misAlaCorbeille: Boolean = false,
     val erreur: String? = null,
     /**
      * ⚠️ **Quelle action a échoué**, pour que l'écran choisisse la bonne phrase.
@@ -124,7 +123,7 @@ data class ActionDEditeur(
      */
     val origine: OrigineDErreur? = null,
 ) {
-    enum class OrigineDErreur { DEPLACEMENT, EXPORT }
+    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE }
 }
 
 /**
@@ -219,7 +218,7 @@ class NoteEditorViewModel @Inject constructor(
             scope = viewModelScope,
             // `WhileSubscribed(5 s)` et non `Eagerly`, pour la même raison qu'à l'accueil : sans
             // abonné, ces flux garderaient des curseurs ouverts sur une base chiffrée.
-            started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
+            started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
             initialValue = PanneauDeLiens(),
         )
 
@@ -245,16 +244,34 @@ class NoteEditorViewModel @Inject constructor(
      * continue`). Ne pas transposer ce filtre ici : il serait redondant, et un second endroit qui
      * décide de la même chose finit par en décider autrement.
      */
-    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    // ⚠️ Pas de `distinctUntilChanged` : un `StateFlow` ne réémet déjà pas une valeur égale, et
+    // l'opérateur y est déprécié pour cette raison même.
+    @OptIn(ExperimentalCoroutinesApi::class)
     val suggestionsDeLien: StateFlow<List<Note>> = requeteDeLien
-        .debounce(FREINAGE_SUGGESTIONS_MILLIS)
-        .distinctUntilChanged()
-        .mapLatest { texte ->
-            if (texte.isBlank()) emptyList() else notes.suggestTitles(texte, excludeId = noteId)
+        .transformLatest { texte ->
+            // 🔴🔴 **Vider AVANT d'attendre, et c'est tout l'objet de `transformLatest`.**
+            //
+            // La version précédente posait `debounce` en tête : pendant les 120 ms qui suivaient une
+            // frappe, le porteur gardait **la liste calculée pour la requête d'avant**. L'utilisateur
+            // tapait « Alpha », voyait ses suggestions, remplaçait par « Beta » — et pouvait toucher
+            // une proposition « Alpha » encore affichée sous un champ qui disait « Beta ». Le lien
+            // inséré désignait alors une autre note que celle cherchée, sans un mot.
+            //
+            // Le même défaut vidait de travers : `reinitialiserLaRecherche()` posait bien la chaîne
+            // vide, mais elle passait par le freinage elle aussi — rouvrir la feuille assez vite
+            // montrait donc les résultats de la fois d'avant, sous un champ vierge.
+            //
+            // Ici la liste part à vide **à chaque nouvelle requête**, de façon synchrone avec la
+            // frappe, et ne se remplit qu'après le calme. Un affichage vide est honnête ; un
+            // affichage périmé ne l'est pas. Relevé par la relecture externe du 2026-08-15.
+            emit(emptyList())
+            if (texte.isBlank()) return@transformLatest
+            delay(FREINAGE_SUGGESTIONS_MILLIS)
+            emit(notes.suggestTitles(texte, excludeId = noteId))
         }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
+            started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
             initialValue = emptyList(),
         )
 
@@ -315,9 +332,25 @@ class NoteEditorViewModel @Inject constructor(
      */
     private fun creerDansLeMemeDossier(titre: String, ensuite: () -> Unit = {}) {
         val dossier = _state.value.note?.folderId ?: return
-        enArrierePlan {
+        // 🔴 **`tenterUneAction` et NON `enArrierePlan`.**
+        //
+        // La première version passait par `enArrierePlan`, qui journalise et se tait — trois
+        // fonctions sous le commentaire de `tenterUneAction` qui dit textuellement de ne pas le
+        // faire ici. L'écran ferme la feuille **immédiatement** après l'appel : une création qui
+        // échoue — base indisponible, stockage plein, session de coffre refermée — laissait donc
+        // l'utilisateur devant une feuille qui se referme normalement, sans note créée, sans lien
+        // inséré, et sans le moindre signal qu'il faut recommencer. Un geste d'écriture sans effet,
+        // parfaitement silencieux.
+        //
+        // Relevé **par les deux relectures externes du 2026-08-15**, chacune de son côté. C'est le
+        // motif que ce dépôt connaît le mieux : la règle écrite à un endroit, et non appliquée à
+        // l'endroit voisin.
+        tenterUneAction(ActionDEditeur.OrigineDErreur.CREATION) {
             notes.create(folderId = dossier, title = titre)
             ensuite()
+            // ⚠️ Remettre l'état à zéro **sans** poser d'issue : la création réussie n'a rien à
+            // annoncer, le lien inséré se voit tout seul dans le texte.
+            _action.value = ActionDEditeur()
         }
     }
 
@@ -335,7 +368,7 @@ class NoteEditorViewModel @Inject constructor(
     val dossiers: StateFlow<List<Folder>> = folders.observeAll()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
+            started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
             initialValue = emptyList(),
         )
 
@@ -356,6 +389,27 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun deplacerVers(folderId: String) = tenterUneAction(ActionDEditeur.OrigineDErreur.DEPLACEMENT) {
         notes.moveToFolder(noteId, folderId)
+
+        // 🔴🔴 **Relire la note et son dossier, sinon l'écran reste celui d'une note non protégée.**
+        //
+        // Déplacer vers un coffre **scelle** la note dans la même transaction. Sans cette relecture,
+        // `state.note` et `state.folder` gardent le dossier d'avant, donc `isVaultNote` reste faux —
+        // et c'est lui qui commande `SecureWindowGuard`. Le contenu, désormais chiffré au repos,
+        // resterait affiché dans une fenêtre **non marquée protégée** : capturable, et visible dans
+        // l'aperçu des applications récentes. L'entrée « déplacer » resterait active par-dessus le
+        // marché, alors qu'elle doit se fermer dès que la note est au coffre.
+        //
+        // ⚠️ On recopie **uniquement** `note` et `folder` : passer par `charger()` remplacerait tout
+        // l'état, donc le texte en cours de frappe et la position du curseur. Le déplacement ne doit
+        // rien coûter à ce que l'utilisateur est en train d'écrire.
+        //
+        // Relevé PROBABLE par la relecture externe du 2026-08-15 ; le chemin est confirmé —
+        // `moveToFolder` appelle `sealIfVault` avant d'écrire.
+        val fraiche = notes.find(noteId)
+        _state.value = _state.value.copy(
+            note = fraiche ?: _state.value.note,
+            folder = fraiche?.let { folders.find(it.folderId) } ?: _state.value.folder,
+        )
         _action.value = ActionDEditeur(deplacee = true)
     }
 
@@ -377,6 +431,21 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun exporterLaNote(vaultMention: (String) -> String) = tenterUneAction(ActionDEditeur.OrigineDErreur.EXPORT) {
         enregistrer()
+
+        // 🔴 **Si l'enregistrement a échoué, on n'exporte PAS.**
+        //
+        // `enregistrer` ne lève pas : il pose `saveFailed` — ou `lostToVaultLock` si le coffre s'est
+        // refermé — puis rend la main normalement. L'export continuait donc après un échec et
+        // produisait un fichier amputé des dernières modifications, en annonçant sa réussite. C'est
+        // exactement la perte silencieuse que le paragraphe ci-dessus prétend éviter : le commentaire
+        // était juste sur l'intention et faux sur le fait.
+        //
+        // Relevé PROBABLE par la relecture externe du 2026-08-15.
+        val apresEnregistrement = _state.value
+        if (apresEnregistrement.saveFailed || apresEnregistrement.lostToVaultLock) {
+            error("enregistrement prealable echoue")
+        }
+
         val fraiche = notes.find(noteId) ?: return@tenterUneAction
         val dossier = folders.find(fraiche.folderId)
         _action.value = ActionDEditeur(export = exporter.exportOne(fraiche, dossier?.name.orEmpty(), vaultMention))
@@ -445,7 +514,25 @@ class NoteEditorViewModel @Inject constructor(
 
     fun setFavorite(favorite: Boolean) = enArrierePlan { notes.setFavorite(noteId, favorite) }
 
-    fun moveToTrash() = enArrierePlan { notes.moveToTrash(noteId) }
+    /**
+     * 🔴 **Passe par [tenterUneAction], comme ses deux voisines du même menu.**
+     *
+     * Elle utilisait `enArrierePlan` — qui journalise et se tait — alors qu'elle est la **troisième
+     * entrée du menu** dont les deux autres venaient d'être dotées d'un signalement visible, et que
+     * le KDoc de [tenterUneAction], quinze lignes plus bas, dit textuellement de ne pas faire ça
+     * ici. L'écran appelait de surcroît `onBack()` **immédiatement**, sans attendre l'issue : une
+     * suppression qui échoue renvoyait l'utilisateur à l'accueil en lui laissant croire que sa note
+     * était à la corbeille, alors qu'elle était toujours là.
+     *
+     * ⚠️ La navigation se fait donc **après** le succès, par l'écran, qui observe [action].
+     *
+     * Relevé par l'audit de cohérence du 2026-08-15 — c'est très exactement ce qu'un tel audit
+     * trouve : la règle écrite à un endroit, et non appliquée à l'entrée voisine du même menu.
+     */
+    fun moveToTrash() = tenterUneAction(ActionDEditeur.OrigineDErreur.CORBEILLE) {
+        notes.moveToTrash(noteId)
+        _action.value = ActionDEditeur(misAlaCorbeille = true)
+    }
 
     /** Relance le chargement après un déverrouillage réussi. */
     fun retryAfterUnlock() {
@@ -616,8 +703,15 @@ class NoteEditorViewModel @Inject constructor(
         /** `AppConstants.autoSaveDebounce` — le même demi-seconde que la version publiée. */
         const val DELAI_AUTO_SAVE_MILLIS = 500L
 
-        /** Aligne sur l'accueil : les curseurs se ferment 5 s apres le dernier abonne. */
-        const val ARRET_ABONNEMENT_MILLIS = 5_000L
+        /**
+         * Aligne sur l'accueil : les curseurs se ferment 5 s apres le dernier abonne.
+         *
+         * ⚠️ Ce nom est celui des quatre autres ViewModels du depot (`HomeViewModel`,
+         * `SearchViewModel`, `TrashViewModel`, `FoldersDrawerViewModel`). La premiere version
+         * l'appelait `ARRET_ABONNEMENT_MILLIS` : meme valeur, meme role, un nom de plus — donc un
+         * `grep` d'audit sur les delais de desabonnement qui rate ce cinquieme site.
+         */
+        const val ARRET_DIFFERE_MILLIS = 5_000L
 
         /**
          * 120 ms, comme `link_autocomplete_sheet.dart`. Court exprès : l'appariement est une

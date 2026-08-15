@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
+import com.filestech.notes_tech.ui.common.HAUTEUR_MAXIMALE_LISTE_DE_CHOIX
 
 /**
  * Le choix d'un dossier de destination.
@@ -73,7 +74,7 @@ fun FeuilleDeDeplacement(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                 )
             } else {
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = HAUTEUR_MAXIMALE)) {
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = HAUTEUR_MAXIMALE_LISTE_DE_CHOIX)) {
                     items(items = destinations, key = { it.id }) { dossier ->
                         ListItem(
                             headlineContent = {
@@ -104,5 +105,3 @@ private fun iconeDe(dossier: Folder) = when {
     dossier.id == Folder.INBOX_ID -> Icons.Outlined.Inbox
     else -> Icons.Outlined.Folder
 }
-
-private val HAUTEUR_MAXIMALE = 360.dp

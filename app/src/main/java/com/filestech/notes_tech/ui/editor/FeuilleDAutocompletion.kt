@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.ui.common.HAUTEUR_MAXIMALE_LISTE_DE_CHOIX
 
 /**
  * La feuille qui propose un titre à lier, et la création si aucun ne convient.
@@ -74,8 +76,24 @@ fun FeuilleDAutocompletion(
     var saisie by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
 
-    // Le clavier s'ouvre seul : cette feuille n'existe que pour taper un titre.
-    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(Unit) {
+        // ⚠️ **Réémettre la requête restaurée.**
+        //
+        // `saisie` survit à une mort de processus (`rememberSaveable`), mais la requête du ViewModel
+        // ne survit pas : elle repart vide. La feuille revenait donc avec le titre à l'écran et
+        // **zéro suggestion**, ce qui rend `proposerLaCreation` vrai — et proposait de créer une
+        // note qui existe peut-être déjà, exactement ce que [valider] cherche à éviter en consultant
+        // les suggestions. Relevé par la relecture externe du 2026-08-15.
+        if (saisie.isNotEmpty()) onRequeteChange(saisie)
+
+        // ⚠️ Le focus est demandé **après** que la feuille a été posée. Le contenu d'un
+        // `ModalBottomSheet` vit dans sa propre fenêtre, animée : demander le focus à la toute
+        // première image peut viser un champ pas encore placé — au mieux le clavier ne s'ouvre pas,
+        // au pire `FocusRequester` lève « is not initialized ». Signalé par la relecture externe du
+        // 2026-08-15 ; un tour de boucle suffit à laisser la fenêtre s'installer.
+        withFrameNanos { }
+        runCatching { focus.requestFocus() }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(
@@ -119,7 +137,7 @@ fun FeuilleDAutocompletion(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                 )
             } else {
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = HAUTEUR_MAXIMALE)) {
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = HAUTEUR_MAXIMALE_LISTE_DE_CHOIX)) {
                     items(items = suggestions, key = { it.id }) { note ->
                         ListItem(
                             headlineContent = {
@@ -175,5 +193,4 @@ private fun aucuneCorrespondanceExacte(suggestions: List<Note>, requete: String)
 private fun correspondExactement(titre: String, requete: String): Boolean =
     TitleNormalizer.normalize(titre) == TitleNormalizer.normalize(requete)
 
-private val HAUTEUR_MAXIMALE = 320.dp
 private const val CLE_CREATION = "creation"

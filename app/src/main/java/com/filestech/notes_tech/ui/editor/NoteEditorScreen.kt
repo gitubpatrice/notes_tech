@@ -13,11 +13,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PushPin
@@ -130,16 +130,23 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                 viewModel.consommerLAction()
             }
 
+            action.misAlaCorbeille -> {
+                viewModel.consommerLAction()
+                onBack()
+            }
+
             action.deplacee -> {
                 viewModel.consommerLAction()
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_moved)) }
             }
 
             erreur != null -> {
-                val gabarit = if (action.origine == ActionDEditeur.OrigineDErreur.EXPORT) {
-                    R.string.note_editor_export_failed
-                } else {
-                    R.string.note_editor_move_failed
+                val gabarit = when (action.origine) {
+                    ActionDEditeur.OrigineDErreur.EXPORT -> R.string.note_editor_export_failed
+                    ActionDEditeur.OrigineDErreur.DEPLACEMENT -> R.string.note_editor_move_failed
+                    // Création et corbeille n'ont pas de phrase dédiée : « Erreur : … » dit ce
+                    // qu'il faut sans inventer une chaîne qui n'existe dans aucune des deux langues.
+                    else -> R.string.common_error_with
                 }
                 viewModel.consommerLAction()
                 portee.launch { messages.showSnackbar(ressources.getString(gabarit, erreur)) }
@@ -246,10 +253,10 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                             deplacementPossible = !state.isVaultNote,
                             onDeplacer = { deplacementOuvert = true },
                             onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
-                            onCorbeille = {
-                                viewModel.moveToTrash()
-                                onBack()
-                            },
+                            // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a
+                            // REUSSI, depuis l'observation de `action` ci-dessus. Quitter tout de
+                            // suite laissait croire à une note supprimée qui ne l'était pas.
+                            onCorbeille = viewModel::moveToTrash,
                         )
                     }
                 },
@@ -390,7 +397,7 @@ private fun MenuDeDebordement(
         DropdownMenuItem(
             text = { Text(stringResource(R.string.note_editor_menu_move)) },
             enabled = deplacementPossible,
-            leadingIcon = { Icon(Icons.Outlined.DriveFileMove, contentDescription = null) },
+            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = null) },
             onClick = {
                 ouvert = false
                 onDeplacer()
