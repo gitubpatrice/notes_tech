@@ -55,6 +55,13 @@ interface SpeechToText {
      *   ou remplacé. **Le fichier est alors supprimé** : un modèle dont on ne peut pas prouver
      *   l'origine ne se charge pas, et le garder inviterait à réessayer.
      * @throws SttEngineUnavailableException la bibliothèque native ne démarre pas.
+     *
+     * ⚠️ **Rappelée avec un modèle DIFFÉRENT alors qu'un autre est chargé, elle remplace.** Le
+     * contrat ne disait rien de ce cas, et une implémentation aurait pu aussi bien l'ignorer,
+     * lever, ou charger deux moteurs. Le remplacement est le seul comportement qui ne surprenne
+     * personne : l'appelant demande explicitement un autre modèle. Relevé par une relecture externe
+     * (Gemini, 2026-08-15) comme non spécifié — et un contrat muet se tranche par l'implémentation,
+     * c'est-à-dire au mauvais endroit.
      */
     suspend fun initialize(model: SttModel)
 
@@ -67,6 +74,13 @@ interface SpeechToText {
      * @param language code ISO 639-1 forcé (`"fr"`, `"en"`). Omis, le moteur suit la langue du
      *   modèle — détection automatique s'il est multilingue.
      * @throws SttTranscriptionFailedException audio illisible, mémoire insuffisante, délai dépassé.
+     * @throws SttEngineUnavailableException appelée alors que [isInitialized] est `false`.
+     *
+     * ⚠️ **Ce dernier cas était non spécifié**, et c'est plus grave qu'il n'y paraît : sans lui, une
+     * implémentation aurait naturellement levé une `IllegalStateException`, donc **hors** de la
+     * hiérarchie scellée. Un `when` exhaustif chez l'appelant aurait alors laissé passer l'échec le
+     * plus banal de tous — le moteur pas encore chargé. Relevé par une relecture externe (GPT-5.2,
+     * 2026-08-15).
      */
     suspend fun transcribeFile(audioPath: String, language: String? = null): SttTranscription
 

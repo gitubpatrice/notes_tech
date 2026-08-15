@@ -13,6 +13,8 @@ import com.filestech.notes_tech.domain.voice.SttRecordingFailedException
 import com.filestech.notes_tech.domain.voice.WavPcm16
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -89,7 +91,12 @@ class VoiceCapture @Inject constructor(
     private var enregistreur: AudioRecord? = null
 
     /**
-     * Enregistre jusqu'à ce que [arreter] soit appelé, et rend le fichier WAV produit.
+     * Enregistre jusqu'à ce que [arreter] soit appelé, et rend le fichier WAV produit — ou `null`.
+     *
+     * ⚠️ **`null` n'est pas un échec** : c'est un arrêt demandé avant qu'un seul échantillon
+     * n'arrive, c'est-à-dire un appui bref. Le signaler par une exception ferait afficher « échec de
+     * l'enregistrement » à quelqu'un qui n'a simplement rien dit. Un échec système et un geste de
+     * l'utilisateur ne se classent pas ensemble.
      *
      * ⚠️ **Suspend jusqu'à la fin de la capture.** L'appelant lance cette fonction dans une portée
      * qu'il contrôle et appelle [arreter] depuis l'interface ; l'annulation de la portée efface le
@@ -106,11 +113,23 @@ class VoiceCapture @Inject constructor(
      * fonction sans jamais rien demander, et découvrir le refus à l'usage.
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    suspend fun enregistrer(): File = verrou.withLock {
+    suspend fun enregistrer(): File? {
+        // 🔴 **Le drapeau se remet à zéro ICI, avant le verrou — pas dans [capturer].**
+        //
+        // Il y était. Séquence relevée par les DEUX relectures externes (2026-08-15) : l'utilisateur
+        // lance une capture, l'appel attend le verrou parce que la précédente finit de s'écrire,
+        // l'utilisateur appuie sur « arrêter » — et [capturer] remettait alors le drapeau à `false`
+        // **après coup**. La demande d'arrêt était effacée avant que le micro ne s'ouvre, et
+        // l'enregistrement partait pour deux minutes.
+        //
+        // Remis à zéro au moment où l'utilisateur demande d'enregistrer, le drapeau appartient au
+        // bon geste : un arrêt **antérieur** est oublié, un arrêt **postérieur** est honoré. C'est
+        // la seule lecture qui suit l'intention.
+        arretDemande = false
         if (!permissionAccordee()) {
             throw SttPermissionDeniedException("permission RECORD_AUDIO non accordee")
         }
-        withContext(Dispatchers.IO) { capturer() }
+        return verrou.withLock { withContext(Dispatchers.IO) { capturer() } }
     }
 
     /** Demande l'arrêt de la capture en cours. Sans effet s'il n'y en a pas. */
@@ -122,7 +141,7 @@ class VoiceCapture @Inject constructor(
         PackageManager.PERMISSION_GRANTED
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    private fun capturer(): File {
+    private suspend fun capturer(): File? {
         val tailleMin = AudioRecord.getMinBufferSize(FREQUENCE_HZ, CANAL, ENCODAGE)
         if (tailleMin <= 0) {
             throw SttRecordingFailedException("le materiel refuse 16 kHz mono 16 bits")
@@ -133,22 +152,24 @@ class VoiceCapture @Inject constructor(
         val tailleTampon = tailleMin * FACTEUR_DE_TAMPON
 
         val fichier = fichierNeuf()
-        arretDemande = false
 
-        val micro = try {
-            ouvrirLeMicro(tailleTampon)
-        } catch (e: Throwable) {
-            // ⚠️ Le fichier a déjà été créé : il est vide, mais un fichier `.wav` de zéro octet dans
-            // le répertoire des captures se lirait comme une capture ratée qu'on aurait oubliée.
-            effacerOuSignaler(fichier)
-            throw e
-        }
+        // ⚠️ Aucun effacement ici : à ce stade [fichierNeuf] n'a produit qu'un **objet** `File`, et
+        // rien n'existe encore sur le disque — c'est `RandomAccessFile` qui crée le fichier. Le
+        // commentaire précédent affirmait le contraire et faisait effacer un fichier inexistant.
+        // Relevé CONFIRMÉ par une relecture externe (GPT-5.2, 2026-08-15).
+        val micro = ouvrirLeMicro(tailleTampon)
 
         enregistreur = micro
         _etat.value = Etat.EN_COURS
         return try {
-            ecrireLeWav(micro, fichier, tailleTampon)
-            fichier
+            val octets = ecrireLeWav(micro, fichier, tailleTampon)
+            if (octets > 0L) {
+                fichier
+            } else {
+                // Arrêt demandé avant le premier échantillon : rien à transcrire, et rien à garder.
+                effacerOuSignaler(fichier)
+                null
+            }
         } catch (e: Throwable) {
             // ⚠️ `Throwable` : une annulation doit effacer l'audio elle aussi, puis repartir.
             effacerOuSignaler(fichier)
@@ -195,11 +216,19 @@ class VoiceCapture @Inject constructor(
         return micro
     }
 
-    private fun ecrireLeWav(micro: AudioRecord, fichier: File, tailleTampon: Int) {
+    private suspend fun ecrireLeWav(micro: AudioRecord, fichier: File, tailleTampon: Int): Long {
         val tampon = ByteArray(tailleTampon)
         var octetsEcrits = 0L
+        var lecturesVides = 0
 
         RandomAccessFile(fichier, "rw").use { sortie ->
+            // 🔴 **Tronquer avant d'écrire.** `RandomAccessFile` en mode « rw » n'efface pas ce qui
+            // existe : si un fichier du même nom se trouvait là — deux captures dans la même
+            // milliseconde, une horloge qui recule — les octets de la capture **précédente**
+            // survivraient au-delà des nouvelles données. L'en-tête ne les annoncerait pas, aucun
+            // lecteur ne les jouerait, et ils seraient pourtant physiquement là : de la voix.
+            // Relevé CONFIRMÉ par une relecture externe (GPT-5.2, 2026-08-15).
+            sortie.setLength(0)
             // 🔴 **L'en-tête est écrit AVANT les données, avec des tailles provisoires**, puis
             // corrigé à la fin. Un WAV porte ses longueurs dans ses douze premiers octets ; on ne
             // les connaît qu'une fois la capture terminée. Écrire l'en-tête après supposerait de
@@ -216,12 +245,37 @@ class VoiceCapture @Inject constructor(
             // les deux façons d'arrêter — le geste de l'utilisateur et le garde-fou — se lisent
             // alors au même endroit, et aucune ne peut être manquée en relisant le corps.
             while (!arretDemande && octetsEcrits < OCTETS_MAX) {
+                // 🔴🔴 **L'annulation est vérifiée ICI, à chaque tour.**
+                //
+                // `micro.read` est un appel bloquant : il ne connaît pas les coroutines et ne
+                // s'interrompt pas. Sans ce contrôle, une portée annulée laissait la boucle tourner
+                // jusqu'à la borne de deux minutes — micro ouvert, voix écrite sur le disque — puis
+                // `withContext` levait l'annulation **après** le retour de la fonction, donc
+                // **hors** du `try` qui efface. Le fichier survivait, et le commentaire de classe
+                // promettait exactement le contraire.
+                //
+                // `ensureActive()` lève depuis l'intérieur du `try` : le fichier est effacé, le
+                // micro relâché par le `finally`, et l'annulation repart telle quelle.
+                // Relevé CONFIRMÉ par les DEUX relectures externes (2026-08-15).
+                currentCoroutineContext().ensureActive()
+
                 val lus = micro.read(tampon, 0, tampon.size)
                 if (lus < 0) throw SttRecordingFailedException("lecture micro en echec : code $lus")
                 if (lus > 0) {
                     sortie.write(tampon, 0, lus)
                     octetsEcrits += lus
+                    lecturesVides = 0
                     _niveau.value = WavPcm16.niveau(tampon, lus)
+                } else {
+                    // ⚠️ Une lecture à zéro octet ne devrait pas arriver en mode bloquant, et
+                    // certaines implémentations le font quand même. Sans compteur, la boucle
+                    // tournerait **sans fin** : ni `arretDemande` ni la borne d'octets ne bougent,
+                    // et le `finally` qui relâche le micro n'est jamais atteint. Signalé PROBABLE
+                    // par une relecture externe (GPT-5.2) ; le coût du garde-fou est un entier.
+                    lecturesVides++
+                    if (lecturesVides >= LECTURES_VIDES_MAX) {
+                        throw SttRecordingFailedException("le micro ne rend plus d'echantillons")
+                    }
                 }
             }
 
@@ -231,10 +285,7 @@ class VoiceCapture @Inject constructor(
             sortie.seek(0)
             sortie.write(WavPcm16.entete(donneesOctets = octetsEcrits))
         }
-
-        if (octetsEcrits == 0L) {
-            throw SttRecordingFailedException("aucun echantillon capture")
-        }
+        return octetsEcrits
     }
 
     /**
@@ -251,10 +302,26 @@ class VoiceCapture @Inject constructor(
         }
     }
 
+    /**
+     * Un fichier qui n'existe pas encore.
+     *
+     * ⚠️ **L'horodatage seul ne suffit pas.** Deux captures lancées dans la même milliseconde — ou
+     * une horloge système qui recule — produisaient le même nom, donc l'écriture par-dessus une
+     * capture précédente. Même parade que `NoteExporter.preparerRepertoire` : on cherche un nom
+     * libre plutôt que de faire confiance à l'instant. La troncature de [ecrireLeWav] est la
+     * seconde barrière ; les deux servent, et aucune ne remplace l'autre.
+     */
     private fun fichierNeuf(): File {
         val racine = repertoireDeCapture(context)
         racine.mkdirs()
-        return File(racine, "capture-${clock.millis()}.wav")
+        val instant = clock.millis()
+        var candidat = File(racine, "capture-$instant.wav")
+        var suffixe = 1
+        while (candidat.exists()) {
+            candidat = File(racine, "capture-$instant-$suffixe.wav")
+            suffixe++
+        }
+        return candidat
     }
 
     /** Voir `NoteExporter.effacerOuSignaler` : même règle, même raison. */
@@ -280,7 +347,14 @@ class VoiceCapture @Inject constructor(
          * cache, et personne ne se rappelle qu'il est là.
          */
         fun purgerLesCaptures(context: Context) {
-            repertoireDeCapture(context).deleteRecursively()
+            val racine = repertoireDeCapture(context)
+            // ⚠️ Le retour de `deleteRecursively` était jeté. Une purge qui échoue laissait des
+            // enregistrements **en silence**, sur le seul chemin dont le rôle est de n'en laisser
+            // aucun. Même règle que pour l'export : un contrôle qui ne regarde pas son résultat
+            // n'en dit rien. Signalé par une relecture externe (GPT-5.2, 2026-08-15).
+            if (racine.exists() && !racine.deleteRecursively()) {
+                Timber.e("captures : le repertoire %s n'a PAS pu etre purge", racine.name)
+            }
         }
 
         /** ⚠️ Une seule définition du format, dans le domaine : `WavPcm16`. */
@@ -288,6 +362,13 @@ class VoiceCapture @Inject constructor(
         private const val CANAL = AudioFormat.CHANNEL_IN_MONO
         private const val ENCODAGE = AudioFormat.ENCODING_PCM_16BIT
         private const val FACTEUR_DE_TAMPON = 4
+
+        /**
+         * Nombre de lectures vides consécutives tolérées avant d'abandonner.
+         *
+         * ⚠️ La valeur importe peu ; ce qui compte est qu'elle soit **finie**. Voir la boucle.
+         */
+        private const val LECTURES_VIDES_MAX = 50
 
         /**
          * Deux minutes d'audio, soit environ 3,8 Mo.

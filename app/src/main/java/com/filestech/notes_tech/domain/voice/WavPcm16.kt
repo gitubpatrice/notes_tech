@@ -32,8 +32,14 @@ object WavPcm16 {
      *
      * ⚠️ Appelé **deux fois** par une capture : une première avec `0`, avant de connaître la durée,
      * puis une seconde à la fin pour corriger. Un fichier interrompu entre les deux annonce donc
-     * zéro donnée, et aucun lecteur ne le prendra pour un audio exploitable. C'est voulu : mieux
-     * vaut un fichier franchement invalide qu'un fichier qui se lit à moitié.
+     * zéro donnée : un lecteur ordinaire n'en tirera rien. C'est voulu — mieux vaut un fichier
+     * franchement invalide qu'un fichier qui se lit à moitié.
+     *
+     * ⚠️⚠️ **Ça ne veut pas dire que les octets ne sont plus là.** La première rédaction disait
+     * « aucun lecteur ne le prendra pour un audio exploitable », ce qui laissait entendre une
+     * protection du contenu : un outil qui balaie les octets bruts lira la voix quand même. La seule
+     * garantie de confidentialité est l'**effacement** du fichier, pas la forme de son en-tête.
+     * Relevé par une relecture externe (GPT-5.2, 2026-08-15).
      */
     fun entete(donneesOctets: Long): ByteArray {
         require(donneesOctets >= 0) { "taille de donnees negative : $donneesOctets" }

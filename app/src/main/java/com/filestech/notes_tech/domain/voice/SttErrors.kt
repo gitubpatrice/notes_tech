@@ -50,6 +50,16 @@ class SttModelChecksumMismatchException(message: String, cause: Throwable? = nul
  *   Android**, et l'utilisateur voit un bouton qui ne fait rien. Le seul recours est d'ouvrir les
  *   réglages système, et l'interface doit alors proposer *ça* — la chaîne
  *   `voice_open_system_settings` existe et attend exactement ce cas.
+ *
+ *   ⚠️⚠️ **Seule l'interface peut renseigner ce drapeau à `true`.** `VoiceCapture` lève toujours
+ *   avec `false`, et ce n'est pas un oubli : le caractère définitif d'un refus se lit par
+ *   `shouldShowRequestPermissionRationale`, qui demande une `Activity`. Une couche de données n'en
+ *   a pas, et lui en donner une pour ça serait faire remonter l'interface dans le service.
+ *
+ *   La conséquence est à connaître : **si l'interface ne recalcule pas le drapeau, l'utilisateur ne
+ *   se verra jamais proposer les réglages système** et retentera une demande qu'Android ignore en
+ *   silence. Relevé par une relecture externe (Gemini, 2026-08-15) — le contrat était juste, mais
+ *   personne n'était désigné pour le tenir.
  */
 class SttPermissionDeniedException(message: String, val permanently: Boolean = false, cause: Throwable? = null) :
     SttException(message, cause)
