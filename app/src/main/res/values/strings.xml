@@ -133,6 +133,12 @@
     <string name="note_editor_exit_vault_body">The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.</string>
     <string name="note_editor_exit_vault_confirm">Leave vault</string>
     <string name="note_editor_menu_copy_markdown">Copy Markdown</string>
+    <!--
+      Ajout du portage : la note publiee copiait une chaine vide, ce qui EFFACE ce que
+      l'utilisateur avait dans son presse-papiers. Meme decision que l'archive vide qui ne se
+      partage plus.
+    -->
+    <string name="note_editor_copy_empty">Nothing to copy: this note is empty</string>
     <string name="note_editor_content_hint">Write in Markdown… ([[Title]] to link)</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->

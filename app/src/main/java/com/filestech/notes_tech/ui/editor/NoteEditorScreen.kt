@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Link
@@ -51,7 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,6 +113,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val dossiers by viewModel.dossiers.collectAsStateWithLifecycle()
     val action by viewModel.action.collectAsStateWithLifecycle()
     val messages = remember { SnackbarHostState() }
+    val retourHaptique = LocalHapticFeedback.current
     val contexte = LocalContext.current
     val ressources = LocalResources.current
     val portee = rememberCoroutineScope()
@@ -146,6 +150,18 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
             action.deplacee -> {
                 viewModel.consommerLAction()
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_moved)) }
+            }
+
+            action.copiee -> {
+                viewModel.consommerLAction()
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copied_to_clipboard)) }
+            }
+
+            // ⚠️ Le presse-papiers n'a PAS été touché : le dire, plutôt que laisser croire à une
+            // copie vide réussie. Un geste sans effet se signale.
+            action.copieVide -> {
+                viewModel.consommerLAction()
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copy_empty)) }
             }
 
             erreur != null -> {
@@ -319,6 +335,14 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         MenuDeDebordement(
                             onDeplacer = { deplacementOuvert = true },
                             onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
+                            onCopier = {
+                                // Retour haptique sur un geste réussi, comme l'application publiée
+                                // (`note_editor_screen.dart:544`). Il part à l'appui, pas à l'issue :
+                                // c'est l'accusé de réception du geste, pas celui de son résultat,
+                                // que le message se charge d'annoncer.
+                                retourHaptique.performHapticFeedback(HapticFeedbackType.ContextClick)
+                                viewModel.copierEnMarkdown()
+                            },
                             // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a
                             // REUSSI, depuis l'observation de `action` ci-dessus. Quitter tout de
                             // suite laissait croire à une note supprimée qui ne l'était pas.
@@ -487,7 +511,12 @@ private fun champSansDecor() = TextFieldDefaults.colors(
  * confirmation que l'écran pose avant de sortir une note d'un coffre — cf. [DialogueDeSortieDeCoffre].
  */
 @Composable
-private fun MenuDeDebordement(onDeplacer: () -> Unit, onExporter: () -> Unit, onCorbeille: () -> Unit) {
+private fun MenuDeDebordement(
+    onDeplacer: () -> Unit,
+    onExporter: () -> Unit,
+    onCopier: () -> Unit,
+    onCorbeille: () -> Unit,
+) {
     var ouvert by rememberSaveable { mutableStateOf(false) }
 
     IconButton(onClick = { ouvert = true }) {
@@ -511,6 +540,17 @@ private fun MenuDeDebordement(onDeplacer: () -> Unit, onExporter: () -> Unit, on
             onClick = {
                 ouvert = false
                 onExporter()
+            },
+        )
+        // Entre l'export et la corbeille, comme dans l'application publiée
+        // (`note_editor_screen.dart:1035`) : les deux gestes qui sortent le texte de l'application
+        // se suivent, et le geste destructif reste seul en bas.
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_copy_markdown)) },
+            leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onCopier()
             },
         )
         DropdownMenuItem(

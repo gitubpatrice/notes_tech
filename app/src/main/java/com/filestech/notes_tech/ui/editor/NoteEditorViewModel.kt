@@ -15,6 +15,7 @@ import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.repository.VaultLockedException
+import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.ui.navigation.Destination
@@ -114,6 +115,10 @@ data class ActionDEditeur(
     val export: ExportResult? = null,
     val deplacee: Boolean = false,
     val misAlaCorbeille: Boolean = false,
+    /** Le contenu est dans le presse-papiers. `false` aussi quand il n'y avait rien à copier. */
+    val copiee: Boolean = false,
+    /** La note était vide : le presse-papiers n'a **pas** été touché. */
+    val copieVide: Boolean = false,
     val erreur: String? = null,
     /**
      * ⚠️ **Quelle action a échoué**, pour que l'écran choisisse la bonne phrase.
@@ -124,7 +129,7 @@ data class ActionDEditeur(
      */
     val origine: OrigineDErreur? = null,
 ) {
-    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE }
+    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, COPIE }
 }
 
 /**
@@ -151,6 +156,7 @@ class NoteEditorViewModel @Inject constructor(
     private val folders: FoldersRepository,
     private val vaults: FolderVaultService,
     private val settings: AppSettings,
+    private val clipboard: SensitiveClipboard,
     @ApplicationScope private val applicationScope: CoroutineScope,
     savedState: SavedStateHandle,
 ) : ViewModel() {
@@ -504,6 +510,43 @@ class NoteEditorViewModel @Inject constructor(
         val fraiche = notes.find(noteId) ?: return@tenterUneAction
         val dossier = folders.find(fraiche.folderId)
         _action.value = ActionDEditeur(export = exporter.exportOne(fraiche, dossier?.name.orEmpty(), vaultMention))
+    }
+
+    /**
+     * Copie le Markdown de la note dans le presse-papiers.
+     *
+     * ## ⚠️ N'ENREGISTRE PAS, et c'est délibéré
+     *
+     * Contrairement à [exporterLaNote], rien n'est écrit en base. Le texte affiché **est** l'état :
+     * [onContentChange] le met à jour à chaque frappe, donc `content.text` est exact au caractère
+     * près, sans attendre l'enregistrement différé. La version publiée devait au contraire lire ses
+     * contrôleurs à la main (`note_editor_screen.dart:557`), parce que son modèle ne portait que la
+     * dernière version **enregistrée** : copier juste après une frappe rendait un texte amputé des
+     * derniers caractères, silencieusement, puisque la copie « réussissait ». Ce portage n'a pas ce
+     * défaut à contourner — mais il ne faut pas non plus introduire un `enregistrer()` ici, qui
+     * rescellerait une note de coffre pour un geste de lecture.
+     *
+     * ## ⚠️ La copie s'arrête au dernier caractère
+     *
+     * [String.trimEnd] retire les fins de ligne et espaces traînants. Un éditeur en produit sans
+     * qu'on les voie — une touche Entrée de trop avant de fermer — et ils se collent tels quels dans
+     * la destination. Écart assumé avec l'application publiée, qui copie `note.content` brut. Le
+     * **contenu enregistré n'est pas touché** : seule la valeur déposée dans le presse-papiers l'est.
+     *
+     * ## ⚠️ Une note vide ne touche PAS au presse-papiers
+     *
+     * Y déposer une chaîne vide effacerait ce que l'utilisateur y avait mis — une perte silencieuse
+     * de **sa** donnée, provoquée par un geste qui n'a rien à copier. Même décision que l'archive
+     * vide qui ne se partage plus.
+     */
+    fun copierEnMarkdown() = tenterUneAction(ActionDEditeur.OrigineDErreur.COPIE) {
+        val texte = _state.value.content.text.trimEnd()
+        if (texte.isEmpty()) {
+            _action.value = ActionDEditeur(copieVide = true)
+            return@tenterUneAction
+        }
+        clipboard.copier(texte)
+        _action.value = ActionDEditeur(copiee = true)
     }
 
     /**

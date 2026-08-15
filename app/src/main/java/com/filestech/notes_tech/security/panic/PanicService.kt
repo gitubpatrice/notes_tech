@@ -1,14 +1,12 @@
 package com.filestech.notes_tech.security.panic
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
-import android.os.Build
 import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.di.ApplicationScope
+import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultKeystore
@@ -144,6 +142,7 @@ class PanicService @Inject constructor(
     private val kek: KekRepository,
     private val databases: DatabaseProvider,
     private val prefs: LegacyPreferences,
+    private val clipboard: SensitiveClipboard,
 ) {
 
     private val verrou = Any()
@@ -194,7 +193,7 @@ class PanicService @Inject constructor(
 
         // 1. Le presse-papiers, tôt : une note copiée y est en clair, et lisible par toute
         //    application au premier plan.
-        issues += etape(PanicStep.CLIPBOARD_CLEAR) { viderLePressePapiers() }
+        issues += etape(PanicStep.CLIPBOARD_CLEAR) { clipboard.annulerEtEffacer() }
 
         // 2. Les clés des coffres ouverts, effacées de la mémoire vive AVANT de toucher au
         //    Keystore. Sans ça, une panique déclenchée coffre ouvert laisse sa clé en RAM pendant
@@ -263,23 +262,6 @@ class PanicService @Inject constructor(
     } catch (e: Throwable) {
         Timber.e(e, "panique : étape %s en échec", step)
         PanicOutcome(step, e::class.java.simpleName)
-    }
-
-    /**
-     * Vide le presse-papiers.
-     *
-     * ⚠️ `clearPrimaryClip` n'existe qu'à partir de l'API 28. En dessous, le seul moyen est d'y
-     * poser une valeur vide : le presse-papiers n'est alors pas vide, il contient une chaîne vide.
-     * C'est la seule chose que la plateforme permette, et c'est suffisant — le texte de la note
-     * n'y est plus.
-     */
-    private fun viderLePressePapiers() {
-        val presse = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            presse.clearPrimaryClip()
-        } else {
-            presse.setPrimaryClip(ClipData.newPlainText("", ""))
-        }
     }
 
     /**

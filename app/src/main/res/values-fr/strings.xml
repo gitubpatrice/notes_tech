@@ -130,6 +130,7 @@
     <string name="note_editor_exit_vault_body">Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.</string>
     <string name="note_editor_exit_vault_confirm">Sortir du coffre</string>
     <string name="note_editor_menu_copy_markdown">Copier le Markdown</string>
+    <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
     <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
