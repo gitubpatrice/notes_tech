@@ -235,10 +235,26 @@ mode panique appartiennent à la phase 6.
 - [x] ~~Mode panique~~ — commit `4e8e259`. Clé détruite dans **toutes** les sources et **vérifiée**,
       base **scellée** et pas seulement fermée, clés `vault_pin_*` orphelines comprises. Vérifié de
       bout en bout sur le S9
-- [ ] Backlinks `[[titre]]` — **interface seulement** : panneau, autocomplétion `[[`, menu
-      d'éditeur. ✅ La couche données est **faite depuis la phase 2-3** et va plus loin que
-      l'application publiée : l'indexation se fait dans la transaction qui écrit la note, pas dans
-      un service séparé avec son propre débounce
+- [x] ~~Backlinks `[[titre]]` — **interface seulement**~~ — commits `98c1338` (l'état porte le
+      curseur), `f134b7b` (panneau), `a55deb6` (autocomplétion), `cab114a` (menu). La couche données
+      était faite depuis la phase 2-3 et va plus loin que l'application publiée : l'indexation se
+      fait dans la transaction qui écrit la note, pas dans un service séparé avec son propre débounce
+
+  **Deux manques assumés, à ouvrir plus tard :**
+
+  - 🔴 **Copier en Markdown** — hors de ce lot **délibérément**. Ce n'est pas une entrée de menu mais
+    le portage d'un service de sécurité de 261 lignes (`note_actions.dart`) : canal natif de
+    presse-papiers *sensible*, repli que la note de coffre **refuse** plutôt que de dégrader la
+    protection, et un **jeton de génération** contre une réinjection du clair *après* la purge du
+    mode panique. Deux défauts CRITIQUES y ont été trouvés par relecture externe côté publié — dont
+    un **dans le correctif du premier**. Le noyer dans un lot d'interface serait le meilleur moyen
+    d'en perdre un.
+  - 🔴 **Sortir une note d'un coffre** — l'entrée « déplacer » est **désactivée** pour une note de
+    coffre. `moveToFolder` lève `VaultRelocationException` sur une note verrouillée, et il n'existe
+    pas d'opération de dépôt qui déchiffre vers du clair. L'application publiée fait précéder ce
+    geste d'une confirmation dédiée ; ses chaînes sont déjà présentes ici
+    (`note_editor_exit_vault_*`), inutilisées. **C'est un manque de la couche données, pas de
+    l'interface.**
 
 **Hors périmètre initial, fait quand même** — trois défauts de l'application **publiée** relevés en
 portant cette phase, corrigés dans `notes_tech` sur demande de Patrice (`333aba1`, `24bc67e`).
