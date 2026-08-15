@@ -14,9 +14,6 @@
     <string name="common_cancel">Annuler</string>
     <string name="common_ok">OK</string>
     <string name="common_close">Fermer</string>
-    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
-         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
-    <string name="common_back">Retour</string>
     <string name="common_delete">Supprimer</string>
     <string name="common_remove">Retirer</string>
     <string name="common_rename">Renommer</string>
@@ -26,6 +23,9 @@
     <string name="common_loading">Chargement…</string>
     <string name="common_validate">Valider</string>
     <string name="common_restore">Restaurer</string>
+    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
+         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
+    <string name="common_back">Retour</string>
 
     <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
     <string name="splash_tagline">La protection maximale\npour vos notes.</string>
@@ -130,8 +130,8 @@
     <string name="note_editor_exit_vault_body">Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.</string>
     <string name="note_editor_exit_vault_confirm">Sortir du coffre</string>
     <string name="note_editor_menu_copy_markdown">Copier le Markdown</string>
-    <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
     <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
+    <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>
@@ -202,6 +202,7 @@
     <string name="vault_convert_success">Coffre activé.</string>
     <string name="vault_convert_success_with_count">Coffre activé. %1$d note(s) chiffrée(s).</string>
     <string name="vault_convert_impossible">Conversion impossible : %1$s</string>
+    <string name="vault_convert_escaped_cancellation">Annulation trop tardive : ce dossier est devenu un coffre. Ses notes seront chiffrées à sa première ouverture.</string>
 
     <!-- ── Réglages ────────────────────────────────────────────────────── -->
     <string name="settings_title">Réglages</string>
@@ -236,29 +237,14 @@
     <string name="settings_about">À propos de Notes Tech</string>
     <string name="settings_about_subtitle">Confidentialité, licences, support</string>
 
-    <!-- ── Export Markdown / ZIP ─────────────────────────────────────────
-         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 6. Elles sont transposées
-         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
-         croire que la fonctionnalité existe. -->
+    <!-- ── Export Markdown / ZIP ───────────────────────────────────────── -->
     <string name="export_note_from_vault">Note du coffre : %1$s</string>
     <string name="export_share_subject">Notes Tech — export %1$d notes</string>
 
-    <!-- ── Mode panique ──────────────────────────────────────────────────
-         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 6. Elles sont transposées
-         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
-         croire que la fonctionnalité existe. -->
+    <!-- ── Mode panique ────────────────────────────────────────────────── -->
     <string name="panic_confirm_title">Effacer définitivement toutes les données ?</string>
     <string name="panic_confirm_keyword">EFFACER</string>
     <string name="panic_confirm_yes">Tout effacer</string>
-    <!--
-        Trois issues, pas deux. `panic_key_survived*` est la seule qui veuille dire « vous n'êtes PAS
-        protégé » : la clé a survécu, donc les notes restent déchiffrables. `panic_incomplete` est le
-        cas bien plus doux où la clé est détruite et où seul un nettoyage a échoué — y écrire « vos
-        données peuvent avoir survécu » effraierait quelqu'un qui est en réalité à l'abri.
-    -->
-    <string name="panic_key_survived_title">La clé n\'a PAS été détruite</string>
-    <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\'appareil.</string>
-    <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\'appareil.</string>
     <string name="panic_progress">Effacement en cours…</string>
     <string name="panic_progress_subtitle">Veuillez patienter.</string>
     <string name="panic_announce_done">Effacement terminé</string>
@@ -277,6 +263,15 @@
     <string name="panic_confirm_irreversible">Cette action ne peut PAS être annulée. Aucune sauvegarde, aucune corbeille, aucune récupération forensique possible.</string>
     <string name="panic_confirm_type_prompt">Pour confirmer, tapez exactement : %1$s</string>
     <string name="panic_confirm_field_label">Mot de confirmation</string>
+    <!--
+        Trois issues, pas deux. `panic_key_survived*` est la seule qui veuille dire « vous n'êtes PAS
+        protégé » : la clé a survécu, donc les notes restent déchiffrables. `panic_incomplete` est le
+        cas bien plus doux où la clé est détruite et où seul un nettoyage a échoué — y écrire « vos
+        données peuvent avoir survécu » effraierait quelqu'un qui est en réalité à l'abri.
+    -->
+    <string name="panic_key_survived_title">La clé n\'a PAS été détruite</string>
+    <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\'appareil.</string>
+    <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\'appareil.</string>
 
     <!-- ── Dictée vocale ─────────────────────────────────────────────────
          ⚠️ Aucun écran ne consomme encore ces chaînes — phase 7. Elles sont transposées
@@ -368,9 +363,6 @@
     <string name="app_title">Notes Tech</string>
     <string name="passphrase_show_tooltip">Afficher la passphrase</string>
     <string name="passphrase_hide_tooltip">Masquer la passphrase</string>
-    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
-    <string name="pin_show_tooltip">Afficher le code</string>
-    <string name="pin_hide_tooltip">Masquer le code</string>
     <string name="move_to_folder_title">Déplacer dans un dossier</string>
     <string name="move_to_folder_empty">Aucun autre dossier disponible.</string>
     <string name="ai_chat_model_loaded">Modèle prêt</string>
@@ -393,6 +385,9 @@
     <string name="error_vault_not_avault">Le dossier n\'est pas un coffre.</string>
     <string name="error_vault_encrypted_content_invalid">Contenu chiffré invalide (trop court).</string>
     <string name="error_vault_wrap_invalid">Wrap chiffré invalide (tag GCM tronqué).</string>
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Afficher le code</string>
+    <string name="pin_hide_tooltip">Masquer le code</string>
 
     <!-- ── Écran d'échec au démarrage ───────────────────────────────────────── -->
     <string name="startup_failure_title">Vos notes n\'ont pas pu être déverrouillées</string>

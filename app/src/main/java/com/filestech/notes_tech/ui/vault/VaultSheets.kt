@@ -213,7 +213,19 @@ fun CreateVaultSheet(
             onConversionIncomplete = onConversionIncomplete,
         )
 
-        else -> PassphraseSheet(
+        // ⚠️ **[VaultMode.UNKNOWN] est énumérée, pas absorbée par un `else`.**
+        //
+        // Elle n'arrive pas ici : `ChooseVaultModeSheet` n'offre que les deux modes créables, et un
+        // coffre à créer n'a par définition pas encore de matériel illisible. La brancher sur la
+        // phrase secrète est donc un repli qui ne sert jamais.
+        //
+        // Ce qui justifie de l'écrire quand même, c'est le mode SUIVANT : sous `else`, un troisième
+        // mode ajouté à l'énumération serait routé **en silence** vers la feuille de phrase secrète,
+        // et l'utilisateur se verrait demander un secret qui n'est pas celui de son coffre. Énumérées,
+        // les branches font échouer la **compilation** le jour où ça arrive. Relevé par une relecture
+        // externe (GPT-5.2, 2026-08-15) comme chemin mort ; c'en est un, et c'est le seul endroit où
+        // un chemin mort se garde — quand il transforme une régression future en erreur de build.
+        VaultMode.PASSPHRASE, VaultMode.UNKNOWN -> PassphraseSheet(
             folder = folder,
             creating = true,
             onDismiss = onDismiss,

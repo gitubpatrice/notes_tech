@@ -605,6 +605,37 @@ class FolderVaultServiceTest {
         assertThat(journal.pendingFolderIds()).doesNotContain("dossier-qui-nexiste-plus")
     }
 
+    // ── Constat après annulation ─────────────────────────────────────────────────────────────────
+
+    /**
+     * `isVault` répond sur la **base**, pas sur la session — c'est toute sa raison d'être.
+     *
+     * L'état qu'il doit savoir décrire est celui d'une création annulée trop tard : le matériel du
+     * coffre est écrit, `sessions.open` n'a jamais tourné. Un contrôle qui passerait par
+     * `isUnlocked` répondrait « non » et laisserait l'utilisateur croire à une annulation propre.
+     *
+     * Le test le reproduit en verrouillant après coup, ce qui met la base et la session dans le même
+     * désaccord — la course elle-même, elle, ne se provoque pas depuis un test.
+     *
+     * @see com.filestech.notes_tech.ui.vault.VaultViewModel.cancelAttempt
+     */
+    @Test
+    fun un_dossier_est_dit_coffre_meme_quand_aucune_session_nest_ouverte(): Unit = runBlocking {
+        assertThat(coffres.isVault(DOSSIER)).isFalse()
+
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        coffres.lock(DOSSIER)
+
+        assertThat(coffres.isUnlocked(DOSSIER)).isFalse()
+        assertThat(coffres.isVault(DOSSIER)).isTrue()
+    }
+
+    /** Un dossier qui n'existe pas n'est pas un coffre — et ne fait pas lever le constat. */
+    @Test
+    fun un_dossier_inconnu_nest_pas_un_coffre(): Unit = runBlocking {
+        assertThat(coffres.isVault("dossier-qui-nexiste-pas")).isFalse()
+    }
+
     // ── Doubles et utilitaires ───────────────────────────────────────────────────────────────────
 
     private companion object {

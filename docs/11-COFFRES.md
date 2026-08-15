@@ -172,3 +172,85 @@ valeur par défaut.
 ⚠️ Le relire **une seule fois au démarrage** aurait fermé la moitié du trou : le réglage aurait pris
 effet au redémarrage suivant, c'est-à-dire pas au moment où on le change — qui est précisément
 celui où on en a besoin. `VaultAutoLocker` le collecte donc en continu.
+
+## §10 — La course de l'annulation tardive : **constatée, pas empêchée** (2026-08-15)
+
+### Ce qui peut arriver
+
+`VaultViewModel.cancelAttempt` décide sur `PhaseDeCoffre`. La phase ne bascule en `CHIFFREMENT`
+qu'au **retour** de `createXVault`, et entre l'écriture du matériel en base et ce retour il y a une
+reprise de coroutine — Room rend la main sur son exécuteur, puis reprend sur le fil principal. Un
+appui sur « Annuler » déjà présent dans la file d'événements est traité **avant** cette reprise :
+la phase vaut encore `DERIVATION`, la garde laisse passer, le travail est coupé, **et le dossier est
+déjà un coffre**.
+
+L'état qui en résulte, vérifié ligne à ligne dans `FolderVaultService.createPassphraseVault` :
+
+| | |
+|---|---|
+| Matériel du coffre | **écrit** (`provisionPassphraseVault` a commité) |
+| Session | **jamais ouverte** — `sessions.open` suit le `check` et ne s'exécute pas |
+| Clé de dossier | **effacée** par le `catch (Throwable)` |
+| Notes | **toutes en clair au repos** |
+
+Le chemin PIN est identique, avec en plus une clé Keystore créée.
+
+### 🔴 Pourquoi le correctif structurel a été REFUSÉ
+
+Fermer la course demanderait de rendre insécables l'écriture et l'ouverture de session — un
+`withContext(NonCancellable)` autour des deux. Or le `catch (Throwable)` qui les entoure efface la
+clé de dossier, et cette clé, `sessions.open` vient de la confier à la session. Sous
+`NonCancellable`, la sortie du bloc lève la `CancellationException` du parent, ce `catch`
+s'exécute, et **il efface la clé d'une session vivante**. Les notes chiffrées ensuite le seraient
+sous une clé nulle.
+
+C'est le défaut du tableau d'octets partagé entre deux propriétaires, déjà consigné dans
+`04-PIEGES.md`. Il **détruit** des données ; la course, elle, en laisse en clair — et la réparation
+existe (`reprotectPlaintextNotes` au prochain déverrouillage).
+
+> ⚠️ **Le correctif d'une course ne doit pas coûter plus cher que la course.** Ici le « propre »
+> échangeait une fuite réparable contre une perte irréversible.
+
+### Ce qui a été fait à la place
+
+`cancelAttempt` **constate** : il retient le dossier en cours de conversion, attend la fin de la
+tentative annulée (`join`), relit la base (`FolderVaultService.isVault`, qui ne demande rien à la
+session — c'est tout son intérêt), et publie le constat. `HomeRoute` l'annonce, parce que la feuille
+vient de se fermer.
+
+> **Ce qui rendait cette course grave n'est pas qu'elle existe, c'est qu'elle était MUETTE.** Un
+> dossier portait un cadenas, tout son contenu était lisible au repos, et rien nulle part ne le
+> disait — exactement le défaut que `onConversionIncomplete` avait déjà fermé une fois.
+
+⚠️ **Ce qui n'est pas couvert par un test** : la course elle-même ne se provoque pas depuis un test.
+Ce qui est testé, c'est le prédicat — `isVault` répond « oui » sur un dossier dont **aucune session
+n'est ouverte**, là où `isUnlocked` répondrait « non » et laisserait croire à une annulation propre.
+
+### Deux tours de relecture sur ce seul correctif, et ce qu'ils ont trouvé
+
+**Premier tour** — deux défauts, un par relecteur, **disjoints** :
+
+- *(Gemini)* le constat pouvait crier au loup : `cancelAttempt` rendait la main avant que la
+  tentative annulée soit dénouée, donc une **seconde** conversion du même dossier pouvait écrire son
+  matériel, et le constat de la première lisait `isVault == true` à cause d'elle. Un avertissement
+  faux sur ce chemin-là apprend à ne plus le lire.
+- *(GPT-5.2)* le constat pouvait être **jeté** : il partait dans un `SharedFlow` sans `replay`, donc
+  perdu si l'écran d'accueil n'était pas composé à cet instant — c'est-à-dire précisément quand
+  l'utilisateur a enchaîné sur autre chose. Retour au silence, par un autre chemin.
+
+**Second tour, sur les correctifs du premier** — et c'est là que ça compte :
+
+> 🔴 **Le correctif du premier défaut en portait un pire, et les DEUX relecteurs l'ont vu.** Le
+> `tache.cancel()` était passé **sous** le tri « création ou déverrouillage ». Un déverrouillage
+> sortait donc par le `return` **sans être annulé** : la dérivation continuait, la session s'ouvrait,
+> et le coffre s'ouvrait une seconde après l'annulation. C'est mot pour mot le défaut que
+> `cancelAttempt` existe pour empêcher, réintroduit par un correctif qui ne visait pas ce chemin.
+
+GPT a ajouté deux points que Gemini n'a pas vus : `tenter` ne testait que `busy`, donc une tentative
+fantôme pouvait rouvrir la fenêtre en le remettant à `false` — le garde est maintenant explicite ; et
+`join()` sans borne pouvait figer **toutes** les feuilles de coffre pour la vie du ViewModel.
+
+⚠️⚠️ **La borne d'attente va dans le sens INVERSE de celle du presse-papiers**, et c'est ce qui se
+retient : là-bas, borner faisait *abandonner du clair exposé* — donc borne interdite. Ici, borner ne
+coûte qu'un constat manqué, c'est-à-dire le silence d'avant, contre un blocage certain. **Une borne
+n'est ni bonne ni mauvaise : elle se juge sur ce qu'elle laisse tomber.**

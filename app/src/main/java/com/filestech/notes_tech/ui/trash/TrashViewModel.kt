@@ -55,6 +55,21 @@ class TrashViewModel @Inject constructor(private val notes: NotesRepository) : V
             initialValue = TrashUiState(),
         )
 
+    /**
+     * ⚠️ **Un `false` ne dit rien, et c'est vérifié plutôt que supposé.**
+     *
+     * L'invariant du dépôt veut qu'un geste sans effet se signale. Ici le `false` de
+     * [NotesRepository.restoreFromTrash] ne peut avoir qu'une cause : la ligne n'est plus dans la
+     * corbeille. Or la carte n'est à l'écran que parce qu'elle y est, la purge des trente jours ne
+     * tourne qu'à l'entrée de l'écran d'accueil, et l'application est seule sur sa base. Il ne reste
+     * donc que le **double appui** : le premier restaure et annonce, le second retombe ici pendant
+     * la fraction de seconde qui précède le retrait de la carte.
+     *
+     * Annoncer un échec à ce moment-là afficherait « impossible de restaurer » **par-dessus** le
+     * message de la restauration qui vient de réussir. Le silence n'est pas un oubli : c'est le seul
+     * comportement qui ne ment pas. Point soulevé par une relecture externe (GPT-5.2, 2026-08-15),
+     * écarté après analyse d'atteignabilité.
+     */
     fun restore(noteId: String) = enExecutant {
         if (notes.restoreFromTrash(noteId)) TrashEvent.Restored else null
     }
@@ -62,6 +77,9 @@ class TrashViewModel @Inject constructor(private val notes: NotesRepository) : V
     /**
      * ⚠️ **Définitif.** Pas de seconde corbeille, pas d'annulation : c'est le contrat annoncé à
      * l'écran, et l'utilisateur vient de le confirmer dans un dialogue qui le dit.
+     *
+     * Son `false` muet a la même justification que celui de [restore], au double appui près : ici il
+     * faut deux confirmations, ce qui rend le cas encore moins atteignable.
      */
     fun deletePermanently(noteId: String) = enExecutant {
         if (notes.deletePermanently(noteId)) TrashEvent.DeletedForever else null

@@ -866,3 +866,39 @@ publiée. Trois catégories seulement :
 Exemple du troisième cas : `panic_announce_done` vaut exactement `panic_complete_title`, déjà annoncé
 par une région active — laquelle dit la vérité dans les **deux** cas, y compris « la clé n'a PAS été
 détruite ». La câbler ferait annoncer « effacement terminé » sur une clé survivante.
+
+⚠️⚠️ **La réciproque est pire, et elle a mordu le même jour.** §49.
+
+## §49 — Un générateur DÉTRUIT ce qu'on ajoute à la main dans sa sortie
+
+Suite directe de §48 : `strings.xml` est généré, donc ce qu'on y écrit à la main **disparaît** au
+passage suivant. Le 2026-08-15, une régénération a effacé **huit chaînes** ajoutées au fil des
+phases, dont deux du jour même (`note_editor_copy_empty`, `trash_emptied`) — et le code qui les
+référence aurait cessé de compiler.
+
+Le mécanisme de conservation existait depuis la phase 1. Il ne portait que l'écran d'échec au
+démarrage, et **personne n'y avait ajouté les suivantes**.
+
+> ⚠️ **Un garde-fou qui existe ne protège que ce qu'on a pensé à lui confier.** Sa présence dans le
+> dépôt ne dit rien de sa couverture. Trois des huit chaînes perdues avaient été écrites *après*
+> lui, par quelqu'un qui l'avait forcément vu en haut du fichier.
+
+**Ce qui a permis de le voir** : `git diff --stat` après avoir lancé le script. Il annonçait
+`13 insertions, 50 deletions` pour l'ajout d'**une** chaîne. Un générateur dont la sortie perd des
+lignes quand l'entrée en gagne se relit avant d'être committé.
+
+**Le correctif** : `AJOUTS_EN` / `AJOUTS_FR`, un bloc par section d'écran, rendus **dans** la section
+plutôt qu'en fin de fichier — c'est précisément l'isolement en fin de fichier qui les avait fait
+oublier. Plus `REMPLACEES`, pour les clés de l'ARB dont le portage réécrit la valeur : elles sont
+sautées à la transposition, ce qui évite un doublon que le contrôle d'intégrité aurait fait lever.
+
+**Le contrôle qui manquait**, et qui est maintenant la règle : après toute exécution du générateur,
+comparer les **ensembles de noms** de ressources avant/après. Un `git diff` se lit de travers ; un
+`set(avant) - set(apres)` non vide ne se lit pas de travers. Puis relancer le script une seconde
+fois : sa sortie doit être identique octet pour octet. **Un générateur qui n'est pas idempotent
+perd quelque chose, et on ne sait pas encore quoi.**
+
+⚠️ Au passage, le même script portait un marqueur « ⚠️ Aucun écran ne consomme encore ces chaînes —
+phase 6 » sur les sections `panic` et `export`, câblées depuis la clôture de la phase 6. Le fichier
+généré affirmait donc en tête de deux sections le contraire de ce que fait le code. Une marque
+« pas encore câblé » se retire quand ça l'est, sinon elle apprend à ne plus lire les marques.

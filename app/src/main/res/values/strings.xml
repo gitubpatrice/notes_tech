@@ -17,9 +17,6 @@
     <string name="common_cancel">Cancel</string>
     <string name="common_ok">OK</string>
     <string name="common_close">Close</string>
-    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
-         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
-    <string name="common_back">Back</string>
     <string name="common_delete">Delete</string>
     <string name="common_remove">Remove</string>
     <string name="common_rename">Rename</string>
@@ -29,6 +26,9 @@
     <string name="common_loading">Loading…</string>
     <string name="common_validate">Confirm</string>
     <string name="common_restore">Restore</string>
+    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
+         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
+    <string name="common_back">Back</string>
 
     <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
     <string name="splash_tagline">Maximum protection\nfor your notes.</string>
@@ -133,13 +133,13 @@
     <string name="note_editor_exit_vault_body">The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.</string>
     <string name="note_editor_exit_vault_confirm">Leave vault</string>
     <string name="note_editor_menu_copy_markdown">Copy Markdown</string>
+    <string name="note_editor_content_hint">Write in Markdown… ([[Title]] to link)</string>
     <!--
       Ajout du portage : la note publiee copiait une chaine vide, ce qui EFFACE ce que
       l'utilisateur avait dans son presse-papiers. Meme decision que l'archive vide qui ne se
       partage plus.
     -->
     <string name="note_editor_copy_empty">Nothing to copy: this note is empty</string>
-    <string name="note_editor_content_hint">Write in Markdown… ([[Title]] to link)</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insert link</string>
@@ -215,6 +215,12 @@
     <string name="vault_convert_success">Vault enabled.</string>
     <string name="vault_convert_success_with_count">Vault enabled. %1$d note(s) encrypted.</string>
     <string name="vault_convert_impossible">Conversion failed: %1$s</string>
+    <!-- Ajout du portage : la version publiee n'offre pas d'annuler pendant la derivation, donc
+         elle n'a pas cette course a annoncer. Ici l'annulation peut arriver APRES l'ecriture du
+         materiel du coffre : le dossier EST un coffre, et le taire serait le defaut que
+         `onConversionIncomplete` a deja ferme une fois — un cadenas dont personne ne dit qu'il ne
+         protege pas encore. -->
+    <string name="vault_convert_escaped_cancellation">Cancelled too late: this folder is now a vault. Its notes will be encrypted the first time you open it.</string>
 
     <!-- ── Réglages ────────────────────────────────────────────────────── -->
     <string name="settings_title">Settings</string>
@@ -249,29 +255,14 @@
     <string name="settings_about">About Notes Tech</string>
     <string name="settings_about_subtitle">Privacy, licenses, support</string>
 
-    <!-- ── Export Markdown / ZIP ─────────────────────────────────────────
-         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 6. Elles sont transposées
-         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
-         croire que la fonctionnalité existe. -->
+    <!-- ── Export Markdown / ZIP ───────────────────────────────────────── -->
     <string name="export_note_from_vault">Note from vault: %1$s</string>
     <string name="export_share_subject">Notes Tech — export %1$d notes</string>
 
-    <!-- ── Mode panique ──────────────────────────────────────────────────
-         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 6. Elles sont transposées
-         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
-         croire que la fonctionnalité existe. -->
+    <!-- ── Mode panique ────────────────────────────────────────────────── -->
     <string name="panic_confirm_title">Permanently wipe all data?</string>
     <string name="panic_confirm_keyword">WIPE</string>
     <string name="panic_confirm_yes">Wipe everything</string>
-    <!--
-        Three outcomes, not two. `panic_key_survived*` is the only one that means "you are NOT
-        protected": the key survived, so the notes are still decryptable. `panic_incomplete` is the
-        far milder case where the key IS gone and only a cleanup step failed — saying "your data may
-        have survived" there would frighten someone who is in fact safe.
-    -->
-    <string name="panic_key_survived_title">The key was NOT destroyed</string>
-    <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
-    <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
     <string name="panic_progress">Wiping…</string>
     <string name="panic_progress_subtitle">Please wait.</string>
     <string name="panic_announce_done">Wipe complete</string>
@@ -290,6 +281,15 @@
     <string name="panic_confirm_irreversible">This action CANNOT be undone. No backup, no trash, no forensic recovery possible.</string>
     <string name="panic_confirm_type_prompt">To confirm, type exactly: %1$s</string>
     <string name="panic_confirm_field_label">Confirmation word</string>
+    <!--
+        Three outcomes, not two. `panic_key_survived*` is the only one that means "you are NOT
+        protected": the key survived, so the notes are still decryptable. `panic_incomplete` is the
+        far milder case where the key IS gone and only a cleanup step failed — saying "your data may
+        have survived" there would frighten someone who is in fact safe.
+    -->
+    <string name="panic_key_survived_title">The key was NOT destroyed</string>
+    <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
+    <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
 
     <!-- ── Dictée vocale ─────────────────────────────────────────────────
          ⚠️ Aucun écran ne consomme encore ces chaînes — phase 7. Elles sont transposées
@@ -381,9 +381,6 @@
     <string name="app_title">Notes Tech</string>
     <string name="passphrase_show_tooltip">Show passphrase</string>
     <string name="passphrase_hide_tooltip">Hide passphrase</string>
-    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
-    <string name="pin_show_tooltip">Show PIN</string>
-    <string name="pin_hide_tooltip">Hide PIN</string>
     <string name="move_to_folder_title">Move to folder</string>
     <string name="move_to_folder_empty">No other folder available.</string>
     <string name="ai_chat_model_loaded">Model ready</string>
@@ -406,6 +403,9 @@
     <string name="error_vault_not_avault">This folder is not a vault.</string>
     <string name="error_vault_encrypted_content_invalid">Encrypted content invalid (too short).</string>
     <string name="error_vault_wrap_invalid">Encrypted wrap invalid (truncated GCM tag).</string>
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Show PIN</string>
+    <string name="pin_hide_tooltip">Hide PIN</string>
 
     <!-- ── Écran d'échec au démarrage ─────────────────────────────────────────
          Ces chaînes n'ont PAS d'équivalent dans la version Flutter : l'écran qu'elles servent est

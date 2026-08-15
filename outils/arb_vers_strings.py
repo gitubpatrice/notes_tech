@@ -21,10 +21,71 @@ sys.stdout.reconfigure(encoding="utf-8")
 SRC = r"j:\applications\notes_tech\lib\l10n"
 DST = r"j:\applications\notes_files_tech\app\src\main\res"
 
-# Les chaines deja presentes, ecrites a la main en phase 1. Elles ne viennent PAS de l'ARB : la
-# version Flutter n'a pas d'ecran d'echec au demarrage, c'est une addition du portage. Le script
-# les reinjecte telles quelles pour ne pas les perdre.
-CONSERVEES_EN = """\
+# ⚠️⚠️ LES AJOUTS DU PORTAGE, ET POURQUOI ILS SONT ICI ET PAS DANS `strings.xml`
+#
+# Ce script REGENERE les deux fichiers de A a Z. Tout ce qui a ete ajoute directement dans
+# `strings.xml` en disparait au passage suivant, sans erreur ni avertissement — le fichier compile,
+# et c'est le CODE qui casse, parce qu'il reference une ressource qui n'existe plus.
+#
+# C'est arrive le 2026-08-15 : une regeneration a efface HUIT chaines ecrites a la main au fil des
+# phases, dont deux du jour meme (`note_editor_copy_empty`, `trash_emptied`). Le mecanisme de
+# conservation existait pourtant depuis la phase 1 — mais il ne portait que l'ecran d'echec au
+# demarrage, et personne n'y avait ajoute les suivantes. Un garde-fou qui existe ne protege que ce
+# qu'on a pense a lui confier.
+#
+# ⚠️ **Toute chaine du portage s'ajoute ICI, jamais dans `strings.xml`.**
+#
+# Rendues dans leur section d'ecran, comme si elles venaient de l'ARB : un bloc en fin de fichier
+# aurait separe les ajouts de l'ecran qu'ils servent, et c'est justement ce qui les a fait oublier.
+AJOUTS_EN = {
+    "common": """\
+    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
+         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
+    <string name="common_back">Back</string>
+""",
+    "note": """\
+    <!--
+      Ajout du portage : la note publiee copiait une chaine vide, ce qui EFFACE ce que
+      l'utilisateur avait dans son presse-papiers. Meme decision que l'archive vide qui ne se
+      partage plus.
+    -->
+    <string name="note_editor_copy_empty">Nothing to copy: this note is empty</string>
+""",
+    "trash": """\
+    <!--
+      Ecart assume avec l'application publiee : elle affiche « Note supprimee definitivement » au
+      singulier apres avoir vide une corbeille de douze notes (trash_screen.dart:90). Rapporter le
+      compte mesure est le seul retour honnete apres un geste irreversible.
+    -->
+    <plurals name="trash_emptied">
+        <item quantity="one">%1$d note permanently deleted</item>
+        <item quantity="other">%1$d notes permanently deleted</item>
+    </plurals>
+""",
+    "vault": """\
+    <!-- Ajout du portage : la version publiee n'offre pas d'annuler pendant la derivation, donc
+         elle n'a pas cette course a annoncer. Ici l'annulation peut arriver APRES l'ecriture du
+         materiel du coffre : le dossier EST un coffre, et le taire serait le defaut que
+         `onConversionIncomplete` a deja ferme une fois — un cadenas dont personne ne dit qu'il ne
+         protege pas encore. -->
+    <string name="vault_convert_escaped_cancellation">Cancelled too late: this folder is now a vault. Its notes will be encrypted the first time you open it.</string>
+""",
+    "panic": """\
+    <!--
+        Three outcomes, not two. `panic_key_survived*` is the only one that means "you are NOT
+        protected": the key survived, so the notes are still decryptable. `panic_incomplete` is the
+        far milder case where the key IS gone and only a cleanup step failed — saying "your data may
+        have survived" there would frighten someone who is in fact safe.
+    -->
+    <string name="panic_key_survived_title">The key was NOT destroyed</string>
+    <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
+    <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
+""",
+    "app": """\
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Show PIN</string>
+    <string name="pin_hide_tooltip">Hide PIN</string>
+
     <!-- ── Écran d'échec au démarrage ─────────────────────────────────────────
          Ces chaînes n'ont PAS d'équivalent dans la version Flutter : l'écran qu'elles servent est
          une addition du portage, pour l'utilisateur dont la base ne s'ouvre pas. Un message vague
@@ -34,16 +95,60 @@ CONSERVEES_EN = """\
     <string name="startup_failure_missing_key">The encryption key for this database was not found. Install Notes Tech 2.0.4 first, open it once, then update again.</string>
     <string name="startup_failure_key_unavailable">The device keystore is temporarily unavailable. Restart the app; if the problem persists, restart the device.</string>
     <string name="startup_failure_retry">Try again</string>
-"""
+""",
+}
 
-CONSERVEES_FR = """\
+AJOUTS_FR = {
+    "common": """\
+    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
+         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
+    <string name="common_back">Retour</string>
+""",
+    "note": """\
+    <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
+""",
+    "trash": """\
+    <plurals name="trash_emptied">
+        <item quantity="one">%1$d note supprimée définitivement</item>
+        <item quantity="other">%1$d notes supprimées définitivement</item>
+    </plurals>
+""",
+    "vault": """\
+    <string name="vault_convert_escaped_cancellation">Annulation trop tardive : ce dossier est devenu un coffre. Ses notes seront chiffrées à sa première ouverture.</string>
+""",
+    "panic": """\
+    <!--
+        Trois issues, pas deux. `panic_key_survived*` est la seule qui veuille dire « vous n'êtes PAS
+        protégé » : la clé a survécu, donc les notes restent déchiffrables. `panic_incomplete` est le
+        cas bien plus doux où la clé est détruite et où seul un nettoyage a échoué — y écrire « vos
+        données peuvent avoir survécu » effraierait quelqu'un qui est en réalité à l'abri.
+    -->
+    <string name="panic_key_survived_title">La clé n\\'a PAS été détruite</string>
+    <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\\'appareil.</string>
+    <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\\'appareil.</string>
+""",
+    "app": """\
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Afficher le code</string>
+    <string name="pin_hide_tooltip">Masquer le code</string>
+
     <!-- ── Écran d'échec au démarrage ───────────────────────────────────────── -->
     <string name="startup_failure_title">Vos notes n\\'ont pas pu être déverrouillées</string>
     <string name="startup_failure_notes_are_safe">Vos notes sont toujours sur cet appareil et n\\'ont pas été modifiées.</string>
     <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Installez d\\'abord Notes Tech 2.0.4, ouvrez-la une fois, puis remettez à jour.</string>
     <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\\'appareil est momentanément indisponible. Relancez l\\'application ; si le problème persiste, redémarrez l\\'appareil.</string>
     <string name="startup_failure_retry">Réessayer</string>
-"""
+""",
+}
+
+# Cles de l'ARB dont le portage REECRIT la valeur. Elles sont sautees a la transposition et leur
+# version reecrite vit dans AJOUTS_*. Sans cette liste, le controle de doublons leverait — ce qui
+# est le bon comportement : un doublon silencieux serait pire.
+#
+# `panicIncomplete` : la version Flutter dit « des donnees peuvent avoir survecu » des qu'une etape
+# echoue, y compris quand la CLE est detruite — c'est-a-dire quand l'utilisateur est en realite a
+# l'abri. Le portage separe les deux issues, cf. le commentaire de la section panique.
+REMPLACEES = {"panicIncomplete"}
 
 # Regroupement par prefixe de cle. L'ordre est celui de la navigation, pas l'alphabetique : un
 # fichier de 311 chaines se relit par ecran.
@@ -71,7 +176,12 @@ SECTIONS = [
 # Prefixes dont l'ecran n'existe pas encore. Les chaines sont transposees quand meme — un second
 # passage du script sur un fichier deja edite a la main est exactement la maniere de perdre une
 # correction — mais elles sont marquees, pour que personne ne lise « la fonctionnalite existe ».
-PAS_ENCORE_CABLE = {"panic": "phase 6", "export": "phase 6", "voice": "phase 7"}
+#
+# ⚠️ `panic` et `export` y figuraient encore le 2026-08-15, alors que leurs deux ecrans sont
+# cablees depuis la cloture de la phase 6. Le fichier genere portait donc, en tete de ces deux
+# sections, un avertissement affirmant le contraire de ce que le code fait. Une marque « pas encore
+# cable » se retire quand ca l'est — sinon elle apprend a ne plus lire les marques.
+PAS_ENCORE_CABLE = {"voice": "phase 7"}
 
 
 def snake(cle):
@@ -191,6 +301,12 @@ en = charge("app_en.arb")
 cles = [k for k in en if not k.startswith("@")]
 assert set(cles) == set(k for k in fr if not k.startswith("@")), "les deux ARB divergent en cles"
 
+# ⚠️ Verifie AVANT de filtrer : une cle de REMPLACEES qui n'existe plus dans l'ARB signifierait que
+# la reecriture n'a plus d'original, donc que personne ne saurait de quoi elle diverge.
+inconnues = REMPLACEES - set(cles)
+assert not inconnues, "REMPLACEES cite des cles absentes de l'ARB : %r" % sorted(inconnues)
+cles = [k for k in cles if k not in REMPLACEES]
+
 # ── Les index de placeholders viennent des METADONNEES, pas de l'ordre d'apparition ────────────
 #
 # ⚠️ Deriver l'index de l'ordre dans lequel les `{nom}` apparaissent dans le texte serait juste
@@ -305,6 +421,16 @@ def section_de(cle):
     return "app"
 
 
+# ⚠️⚠️ Une section d'AJOUTS_* absente de SECTIONS ne serait JAMAIS rendue, et rien ne le dirait :
+# `rends` parcourt SECTIONS, pas les cles d'AJOUTS_*. Une faute de frappe (`"notes"` pour `"note"`)
+# supprimerait donc le bloc en silence — exactement le defaut que ce mecanisme repare. Le garde-fou
+# du garde-fou.
+_prefixes = {p for p, _ in SECTIONS}
+for _nom, _ajouts in (("AJOUTS_EN", AJOUTS_EN), ("AJOUTS_FR", AJOUTS_FR)):
+    _orphelines = set(_ajouts) - _prefixes
+    assert not _orphelines, "%s cite des sections inconnues : %r" % (_nom, sorted(_orphelines))
+assert set(AJOUTS_EN) == set(AJOUTS_FR), "AJOUTS_EN et AJOUTS_FR ne couvrent pas les memes sections"
+
 ordre = {p: i for i, (p, _) in enumerate(SECTIONS)}
 groupes = {}
 for cle in cles:
@@ -340,10 +466,10 @@ ENTETE_FR = """<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-def rends(langue, entete, conservees):
+def rends(langue, entete, ajouts):
     out = [entete]
     for prefixe, titre in SECTIONS:
-        if prefixe not in groupes:
+        if prefixe not in groupes and prefixe not in ajouts:
             continue
         note = PAS_ENCORE_CABLE.get(prefixe)
         marque = ("\n         ⚠️ Aucun écran ne consomme encore ces chaînes — %s. Elles sont "
@@ -351,16 +477,18 @@ def rends(langue, entete, conservees):
                   "passage, pas pour laisser\n         croire que la fonctionnalité existe." % note) if note else ""
         out.append("    <!-- ── %s %s%s -->"
                    % (titre, "─" * max(2, 62 - len(titre)), marque))
-        for cle in groupes[prefixe]:
+        for cle in groupes.get(prefixe, []):
             out.append(entrees[cle][langue][1])
+        # Les ajouts du portage ferment la section de leur ecran. Voir AJOUTS_EN.
+        if prefixe in ajouts:
+            out.append(ajouts[prefixe].rstrip("\n"))
         out.append("")
-    out.append(conservees)
     out.append("</resources>")
     return "\n".join(out) + "\n"
 
 
-texte_en = rends("en", ENTETE_EN, CONSERVEES_EN)
-texte_fr = rends("fr", ENTETE_FR, CONSERVEES_FR)
+texte_en = rends("en", ENTETE_EN, AJOUTS_EN)
+texte_fr = rends("fr", ENTETE_FR, AJOUTS_FR)
 
 # ── Controles AVANT toute ecriture ─────────────────────────────────────────────────────────────
 import xml.etree.ElementTree as ET

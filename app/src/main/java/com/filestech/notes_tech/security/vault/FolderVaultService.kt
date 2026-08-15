@@ -69,6 +69,19 @@ class FolderVaultService @Inject constructor(
     /** Le temps à attendre avant une nouvelle tentative sur ce coffre. `0` s'il n'y en a pas. */
     fun lockoutRemainingMillis(folderId: String): Long = sessions.lockoutRemainingMillis(folderId)
 
+    /**
+     * Le dossier porte-t-il du matériel de coffre **dans la base** ?
+     *
+     * ⚠️ **Ne demande rien à la session, et c'est le point.** [isUnlocked] répond sur ce que
+     * l'application a en mémoire ; celle-ci répond sur ce qui est écrit sur le disque. Les deux
+     * divergent exactement dans le cas qui justifie cette fonction : une création annulée trop tard,
+     * où le matériel est en base sans qu'aucune session n'ait été ouverte.
+     *
+     * @see com.filestech.notes_tech.ui.vault.VaultViewModel.cancelAttempt
+     */
+    suspend fun isVault(folderId: String): Boolean =
+        databases.get().folderDao().vaultMaterial(folderId)?.isVault == true
+
     // ── Création ─────────────────────────────────────────────────────────────────────────────────
 
     /**

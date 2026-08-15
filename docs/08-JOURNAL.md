@@ -420,3 +420,71 @@ un instantané parfois absent — donc qui passait **toujours**.
 statique, aucun test du gate ne pouvait les voir.
 
 Détail de chaque piège dans `04-PIEGES.md` §43 à §48 ; état des orphelines dans `05-PARITE.md`.
+
+---
+
+## 2026-08-15 (soir) — Consolidation : reprendre les constats non tranchés
+
+Les deux rapports de relecture du delta contenaient encore des points non clos. Les reprendre un par
+un a produit trois défauts réels, dont **deux que personne n'avait signalés** — ils sont apparus en
+vérifiant les autres.
+
+**Six constats repris.** Quatre étaient déjà corrigés dans le code (dont les deux CONFIRMÉS du
+presse-papiers). Deux étaient réels :
+
+- le `when` de `CreateVaultSheet` absorbait `VaultMode.UNKNOWN` par un `else` — un mode ajouté demain
+  serait routé **en silence** vers la feuille de phrase secrète ; énuméré, il fait échouer le build ;
+- quatre branches d'`IssueDUneAction` consommaient **avant** d'afficher, à rebours de la règle du
+  dépôt. Elles fonctionnaient — la portée du message ne dépend pas de la clé de l'effet. C'est ce qui
+  les rendait dangereuses : **une forme qui contredit la règle sans rien casser** attend le jour où
+  un `await` s'intercale.
+
+**Un constat écarté par l'analyse d'atteignabilité, pas par confort.** Les `null` muets de
+`TrashViewModel` violent en apparence « un geste sans effet se signale ». Leur seule cause
+atteignable est le double appui, où le premier a déjà parlé : annoncer un échec afficherait
+« impossible de restaurer » **par-dessus** la restauration qui vient de réussir. Le silence est le
+seul comportement qui ne ment pas — c'est écrit à côté du code, désormais.
+
+**Le défaut le plus sérieux n'était dans aucun rapport tel quel.** En vérifiant une course que GPT
+classait PROBABLE, j'ai trouvé qu'elle est réelle : annuler une conversion à l'instant de l'écriture
+laisse un dossier **coffre**, sans session, tout son contenu en clair, et **rien ne le dit**. Le
+correctif « propre » a été refusé après lecture du cycle de vie de la clé : il effacerait la clé
+d'une session vivante. Cf. `11-COFFRES.md` §10.
+
+> ⚠️ **Le correctif d'une course ne doit pas coûter plus cher que la course.** Échanger une fuite
+> réparable contre une perte irréversible n'est pas un correctif.
+
+**Et le plus instructif, trouvé par accident.** Ajouter une chaîne a demandé de relancer le
+générateur d'i18n. Son `git diff` annonçait `13 insertions, 50 deletions` pour **une** chaîne ajoutée :
+il venait d'effacer huit chaînes écrites à la main au fil des phases, dont deux du jour même. Le
+mécanisme de conservation existait depuis la phase 1 et ne portait que l'écran de démarrage.
+
+> ⚠️⚠️ **Un garde-fou qui existe ne protège que ce qu'on a pensé à lui confier.** Trois des huit
+> chaînes perdues avaient été écrites *après* lui, par quelqu'un qui l'avait forcément vu.
+
+Le générateur est maintenant **idempotent** — vérifié en le relançant, sortie identique octet pour
+octet — et le contrôle est désormais de comparer les ensembles de noms de ressources avant/après, pas
+de lire un diff. Cf. `04-PIEGES.md` §49.
+
+⚠️ **Un outil qui rend 0 n'a pas forcément travaillé.** Les deux relectures externes de ce lot ont
+« réussi » sans écrire un seul rapport : `--diff` attend une référence git, pas un chemin de fichier.
+Même leçon que `cmd | tail`, qui rend le code de sortie de `tail`.
+
+**Le lot a été relu deux fois, et le second tour a payé le plus.** Les deux relecteurs ont rendu des
+constats disjoints au premier tour — l'un voyait un avertissement qui crie au loup, l'autre un
+avertissement jeté. Au second tour, sur mes correctifs, **les deux ont confirmé le même défaut,
+plus grave que les deux premiers** : j'avais déplacé `tache.cancel()` sous un tri, et les
+déverrouillages n'étaient plus annulés du tout.
+
+> 🔴 **Un correctif de relecture est du code neuf, et il vise mal ce qu'il ne regarde pas.** Celui-ci
+> ne concernait que la création ; il a cassé le déverrouillage, qui traversait la même fonction.
+
+⚠️ **Un constat externe se vérifie, même CONFIRMÉ.** Gemini annonçait une erreur de compilation sur
+`echoue` — lambda non-`suspend` appelée avec des fonctions suspendues. C'est faux : la fonction est
+`inline`, ce qui l'autorise, et le gate compile depuis toujours. **Le build est l'arbitre, pas le
+rapport.**
+
+⚠️ **Et un défaut trouvé sans relecteur** : `constat = viewModelScope.launch { … }` assigne le champ
+*après* que le corps a commencé sur `Main.immediate`. Si le `finally` remet à zéro avant
+l'affectation, le champ ne redescend plus jamais. Un booléen posé **avant** le `launch` supprime la
+question. *Poser le garde après avoir ouvert la porte n'est pas poser un garde.*

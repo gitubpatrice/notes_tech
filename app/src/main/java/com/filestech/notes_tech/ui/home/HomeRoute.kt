@@ -38,6 +38,7 @@ import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 import com.filestech.notes_tech.ui.vault.VaultAttempt
+import com.filestech.notes_tech.ui.vault.VaultViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -88,6 +89,7 @@ fun HomeRoute(
     LaunchedEffect(Unit) { homeViewModel.purgeExpiredTrash() }
 
     MessagesDeDossier(foldersViewModel, snackbars)
+    ConstatsDeCoffre(snackbars)
 
     // ⚠️ La creation de note ouvre l'editeur, ou demande le secret du coffre. Les deux issues
     // partent du meme evenement : c'est le ViewModel qui sait laquelle, parce que lui seul sait si
@@ -390,6 +392,41 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
             }
             // ⚠️ Meme raison qu'au-dessus : afficher ne doit pas suspendre la collecte.
             if (message != null) portee.launch { snackbars.showSnackbar(message) }
+        }
+    }
+}
+
+/**
+ * Annonce les dossiers devenus des coffres **malgré** une annulation.
+ *
+ * ## 🔴 Pourquoi ça ne peut pas être dit par la feuille
+ *
+ * Le constat arrive après que l'utilisateur a annulé, donc après que la feuille a disparu. C'est la
+ * même contrainte que pour `onConversionIncomplete`, et elle a la même réponse : l'écran parle, la
+ * feuille non.
+ *
+ * ⚠️ **Le `hiltViewModel()` d'ici est celui des feuilles.** Il s'accroche à l'entrée de navigation,
+ * pas à la composition de la feuille — vérifié en phase 6 — donc cette collecte reçoit bien ce que
+ * la tentative annulée a constaté après coup. Si un jour les feuilles portaient leur propre
+ * instance, ce message ne s'afficherait plus jamais et **rien ne le signalerait** : c'est le genre
+ * de câblage qui ne casse pas, il se tait.
+ *
+ * @see com.filestech.notes_tech.ui.vault.VaultViewModel.cancelAttempt
+ */
+@Composable
+private fun ConstatsDeCoffre(snackbars: SnackbarHostState) {
+    val viewModel: VaultViewModel = hiltViewModel()
+    val dossier by viewModel.creationEchappee.collectAsStateWithLifecycle()
+    val message = stringResource(R.string.vault_convert_escaped_cancellation)
+
+    // ⚠️ **Afficher PUIS consommer**, et ici la règle a une conséquence utile : `showSnackbar`
+    // suspend jusqu'à la fermeture du message. Si l'utilisateur quitte l'accueil avant de l'avoir
+    // vu, l'effet est annulé, [VaultViewModel.constatAnnonce] n'est pas appelé, et l'avertissement
+    // **revient** au retour. C'est voulu : il dit que des notes sont en clair sous un cadenas.
+    LaunchedEffect(dossier) {
+        if (dossier != null) {
+            snackbars.showSnackbar(message)
+            viewModel.constatAnnonce()
         }
     }
 }

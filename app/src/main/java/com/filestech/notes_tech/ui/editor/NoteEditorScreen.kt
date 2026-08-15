@@ -553,6 +553,17 @@ private fun champSansDecor() = TextFieldDefaults.colors(
  * ⚠️ **Afficher PUIS consommer**, jamais l'inverse : un `LaunchedEffect` dont la clé change par son
  * propre effet s'annule, et le message ne s'afficherait jamais. Le partage part d'abord, le porteur
  * est vidé ensuite, et le message est posté sur une portée qui ne dépend pas de la clé.
+ *
+ * ⚠️ **Quatre branches faisaient l'inverse** — `onConsommer()` avant le `portee.launch` — et elles
+ * fonctionnaient : la portée est celle du `remember`, donc l'annulation de cet effet-ci ne l'atteint
+ * pas. C'est précisément ce qui rend la forme dangereuse : elle contredit la règle du dépôt **sans
+ * rien casser**, et le jour où l'un de ces corps gagne un `await` avant la ligne d'affichage, le
+ * message disparaît sans que rien n'ait l'air d'avoir changé. Relevé par une relecture externe
+ * (Gemini, 2026-08-15) comme fragilité, pas comme défaut — et corrigé à ce titre.
+ *
+ * Les deux exceptions restantes n'affichent rien : la corbeille **navigue** (`onBack`), l'export
+ * lance un sélecteur système. Consommer d'abord y est sans effet visible, et consommer après une
+ * navigation toucherait un `ViewModel` dont l'écran est déjà parti.
  */
 @Composable
 private fun IssueDUneAction(
@@ -586,32 +597,34 @@ private fun IssueDUneAction(
             }
 
             action.deplacee -> {
-                onConsommer()
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_moved)) }
+                onConsommer()
             }
 
             action.copiee -> {
-                onConsommer()
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copied_to_clipboard)) }
+                onConsommer()
             }
 
             // ⚠️ Le presse-papiers n'a PAS été touché : le dire, plutôt que laisser croire à une
             // copie vide réussie. Un geste sans effet se signale.
             action.copieVide -> {
-                onConsommer()
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copy_empty)) }
+                onConsommer()
             }
 
             erreur != null -> {
                 val gabarit = when (action.origine) {
                     ActionDEditeur.OrigineDErreur.EXPORT -> R.string.note_editor_export_failed
                     ActionDEditeur.OrigineDErreur.DEPLACEMENT -> R.string.note_editor_move_failed
-                    // Création et corbeille n'ont pas de phrase dédiée : « Erreur : … » dit ce
-                    // qu'il faut sans inventer une chaîne qui n'existe dans aucune des deux langues.
+                    // ⚠️ Création, corbeille et copie n'ont pas de phrase dédiée : « Erreur : … » dit
+                    // ce qu'il faut sans inventer une chaîne qui n'existe dans aucune des deux
+                    // langues. `COPIE` a rejoint cette liste avec le copier en Markdown ; ce
+                    // commentaire ne nommait toujours que les deux premières.
                     else -> R.string.common_error_with
                 }
-                onConsommer()
                 portee.launch { messages.showSnackbar(ressources.getString(gabarit, erreur)) }
+                onConsommer()
             }
         }
     }
