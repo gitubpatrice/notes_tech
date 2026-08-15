@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +32,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -67,6 +71,32 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
         // remonter — l'indexation annule le lien d'une note vers elle-même — mais la garde coûte une
         // ligne et l'empilement qu'elle évite serait déroutant.
         if (cible != state.note?.id) onOpenNote(cible)
+    }
+
+    var autocompletionOuverte by rememberSaveable { mutableStateOf(false) }
+    val suggestions by viewModel.suggestionsDeLien.collectAsStateWithLifecycle()
+
+    // ⚠️ Fermer remet la recherche à zéro. Sans cela, rouvrir la feuille afficherait les résultats
+    // de la fois précédente le temps du freinage — et l'utilisateur pourrait taper sur l'un d'eux.
+    val fermerLAutocompletion = {
+        autocompletionOuverte = false
+        viewModel.reinitialiserLaRecherche()
+    }
+
+    if (autocompletionOuverte) {
+        FeuilleDAutocompletion(
+            suggestions = suggestions,
+            onRequeteChange = viewModel::chercherUnTitre,
+            onChoisirUnTitre = { titre ->
+                viewModel.insererUnLien(titre)
+                fermerLAutocompletion()
+            },
+            onCreer = { titre ->
+                viewModel.creerPuisLier(titre)
+                fermerLAutocompletion()
+            },
+            onDismiss = fermerLAutocompletion,
+        )
     }
 
     // ⚠️ Le contenu déchiffré d'une note de coffre est à l'écran, en clair, pendant tout le temps
@@ -124,6 +154,15 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                             Icon(
                                 imageVector = if (note.favorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
                                 contentDescription = stringResource(R.string.note_editor_tooltip_fav),
+                            )
+                        }
+                        // ⚠️ « Insérer un lien » est un bouton d'icône, **pas** une entrée de menu :
+                        // c'est le geste d'écriture le plus fréquent de cet écran, et l'application
+                        // publiée le place au même endroit, à côté de l'épingle et du favori.
+                        IconButton(onClick = { autocompletionOuverte = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Link,
+                                contentDescription = stringResource(R.string.note_editor_tooltip_insert_link),
                             )
                         }
                         IconButton(
@@ -191,7 +230,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                     LiensDeLaNote(
                         liens = liens,
                         onOuvrirNote = ouvrirUneAutreNote,
-                        onLienFantome = { /* la création arrive avec l'autocomplétion */ },
+                        // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite :
+                        // l'appuyer la crée, avec le titre du lien. Le texte de la note, lui, ne
+                        // bouge pas — le `[[Titre]]` y est déjà, et c'est l'indexation qui
+                        // rattachera le lien à sa cible une fois la note née.
+                        onLienFantome = viewModel::creerLaNoteManquante,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     Spacer(Modifier.height(48.dp))

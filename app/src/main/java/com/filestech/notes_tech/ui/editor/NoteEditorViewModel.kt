@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -28,10 +29,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -191,6 +194,104 @@ class NoteEditorViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
             initialValue = PanneauDeLiens(),
         )
+
+    /**
+     * Ce que l'utilisateur a tapé dans la feuille d'autocomplétion.
+     *
+     * Vidé à la fermeture par [reinitialiserLaRecherche] : sans cela, rouvrir la feuille afficherait
+     * les résultats de la fois précédente pendant le temps du freinage.
+     */
+    private val requeteDeLien = MutableStateFlow("")
+
+    /**
+     * Les titres proposés pour un `[[…]]`.
+     *
+     * ## Confidentialité — tenue par la requête, pas par un filtre d'écran
+     *
+     * `findByTitleLike` porte `AND encrypted_content IS NULL` : une note de coffre verrouillé n'est
+     * jamais candidate. C'est **dans la requête** et non après coup, pour deux raisons — la garantie
+     * ne dépend d'aucun appelant, et la limite n'est pas consommée par des notes qu'on écarterait
+     * ensuite, ce qui ferait maigrir les suggestions sans raison visible.
+     *
+     * ⚠️ L'application publiée filtre, elle, **après** la requête (`suggestTitles`, `if (n.isLocked)
+     * continue`). Ne pas transposer ce filtre ici : il serait redondant, et un second endroit qui
+     * décide de la même chose finit par en décider autrement.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    val suggestionsDeLien: StateFlow<List<Note>> = requeteDeLien
+        .debounce(FREINAGE_SUGGESTIONS_MILLIS)
+        .distinctUntilChanged()
+        .mapLatest { texte ->
+            if (texte.isBlank()) emptyList() else notes.suggestTitles(texte, excludeId = noteId)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(ARRET_ABONNEMENT_MILLIS),
+            initialValue = emptyList(),
+        )
+
+    fun chercherUnTitre(texte: String) {
+        requeteDeLien.value = texte
+    }
+
+    fun reinitialiserLaRecherche() {
+        requeteDeLien.value = ""
+    }
+
+    /** Insère `[[titre]]` là où l'utilisateur écrit. */
+    fun insererUnLien(titre: String) = insererAuCurseur("[[$titre]]")
+
+    /**
+     * Crée une note portant [titre] dans le **dossier de la note courante**, puis insère le lien.
+     *
+     * ⚠️⚠️ **Le lien porte le titre TAPÉ, jamais celui de la note créée.**
+     *
+     * Dans un coffre, `NotesRepository.create` scelle **avant** d'insérer : la note revient avec son
+     * blob et un titre **vide**, puisque le titre vit dans le chiffré. Reprendre `creee.title` pour
+     * fabriquer le lien écrirait donc `[[]]` — un lien vers rien, dans le seul cas où l'utilisateur
+     * ne peut pas s'en apercevoir en relisant, parce que la note cible est justement invisible.
+     *
+     * Le titre tapé est aussi le bon sur le fond : c'est lui que la note portera une fois ouverte,
+     * et c'est sur sa forme normalisée que l'appariement se fait.
+     *
+     * ⚠️ Le lien restera **fantôme** tant que la note vit dans un coffre — `titlesForLinking` écarte
+     * les notes chiffrées. C'est voulu : un lien résolu vers une note de coffre en révélerait
+     * l'existence depuis une note qui, elle, n'est pas protégée.
+     *
+     * ⚠️ L'application publiée doit poser ici une garde explicite, parce que sa création laissait la
+     * note en clair dans un coffre le temps d'un rechiffrement séparé — son propre commentaire dit
+     * que **les deux chemins de création de l'éditeur passaient à côté**. Ici la garde est dans le
+     * dépôt, avant l'insertion en base : il n'y a pas d'instant où le clair existe sur le disque, et
+     * donc rien à répéter à l'appel.
+     */
+    fun creerPuisLier(titre: String) = creerDansLeMemeDossier(titre) { insererUnLien(titre) }
+
+    /**
+     * Crée la note qu'un lien **fantôme** désigne, sans toucher au texte.
+     *
+     * ⚠️ Aucune insertion ici, et c'est la différence avec [creerPuisLier] : le `[[Titre]]` est déjà
+     * écrit dans la note — c'est même ce qui a produit le lien fantôme. En insérer un second
+     * dupliquerait le lien à un endroit que l'utilisateur n'a pas choisi.
+     *
+     * Le rattachement se fait tout seul : `resolveIncoming` accroche les liens fantômes visant ce
+     * titre au moment où la note naît. Le panneau le montrera résolu à la prochaine émission.
+     */
+    fun creerLaNoteManquante(titre: String) = creerDansLeMemeDossier(titre)
+
+    /**
+     * ⚠️ **Le dossier est celui de la note courante, pas la boîte de réception.**
+     *
+     * Une note créée depuis un lien hérite du contexte où le lien a été écrit — y compris un coffre.
+     * L'envoyer d'office dans la boîte de réception sortirait discrètement du coffre une note que
+     * l'utilisateur vient de créer depuis l'intérieur.
+     */
+    private fun creerDansLeMemeDossier(titre: String, ensuite: () -> Unit = {}) {
+        val dossier = _state.value.note?.folderId ?: return
+        enArrierePlan {
+            notes.create(folderId = dossier, title = titre)
+            ensuite()
+        }
+    }
 
     init {
         charger()
@@ -409,5 +510,12 @@ class NoteEditorViewModel @Inject constructor(
 
         /** Aligne sur l'accueil : les curseurs se ferment 5 s apres le dernier abonne. */
         const val ARRET_ABONNEMENT_MILLIS = 5_000L
+
+        /**
+         * 120 ms, comme `link_autocomplete_sheet.dart`. Court exprès : l'appariement est une
+         * requete `LIKE` sur une colonne indexee, sans cout d'inference — freiner davantage se
+         * verrait comme une latence sans rien economiser.
+         */
+        const val FREINAGE_SUGGESTIONS_MILLIS = 120L
     }
 }
