@@ -309,3 +309,40 @@ demandent une installation 2.0.3 réelle sur le S9 et le drapeau `replaceInstall
 - Toute décision structurante s'écrit dans [01-DECISIONS.md](01-DECISIONS.md) **au moment où elle
   est prise**, avec ce qui a été écarté et pourquoi.
 - Les pièges connus sont dans [04-PIEGES.md](04-PIEGES.md). Le relire avant d'écrire un DAO.
+
+### Phase 7 — état au 2026-08-15 (soir)
+
+Trois étapes posées, la quatrième identifiée mais non écrite.
+
+- [x] ~~**Le contrat de domaine**~~ — `domain/voice/SpeechToText.kt`, `SttErrors.kt`, `WavPcm16.kt`.
+      Transposé du contrat Dart réel de `files_tech_voice`, **lu dans le cache pub**, pas deviné.
+      ⚠️ D-002 affirmait au passé que cette interface existait depuis la phase 1 : elle n'existait
+      pas. Cf. la rectification dans `01-DECISIONS.md`.
+- [x] ~~**La capture audio**~~ — `data/voice/VoiceCapture.kt`. `AudioRecord` 16 kHz mono 16 bits,
+      source `VOICE_RECOGNITION`, en-tête WAV corrigé en fin de capture, borne de deux minutes.
+      Relue par deux relecteurs externes : **sept défauts**, dont deux qui laissaient de la voix sur
+      le disque (annulation non coopérative, absence de troncature).
+- [x] ~~**La purge du clair**~~ — au démarrage et par `PanicStep.VOICE_CAPTURES_WIPE`, placée juste
+      après la clé avec les archives d'export.
+- [ ] **L'import du modèle** — c'est la suite immédiate, et elle ne dépend d'aucune décision.
+- [ ] **Le moteur** — whisper.cpp en JNI. ⚠️ **Bloqué sur une décision de Patrice** : vendoriser
+      4,2 Mo de sources tierces (76 fichiers, licence MIT). Elles sont sur le disque et déjà
+      compilées pour les quatre ABI par `whisper_ggml_plus`.
+- [ ] **L'interface** — écran de configuration, bouton micro, superposition d'enregistrement.
+
+#### ⚠️ Ce qu'il faut savoir avant d'écrire l'import — vérifié, pas supposé
+
+1. **Le modèle vit dans `files/stt/`, PAS dans `files/models/`.** Les deux répertoires sont
+   distincts et le second est réservé aux modèles hérités des versions qui embarquaient une IA.
+   `legacy_model_files.dart` porte un avertissement explicite et **un test vérifie que `stt/`
+   survit** à sa purge : l'utilisateur a dû télécharger puis importer ce fichier à la main, et se
+   tromper de dossier le lui ferait recommencer sans explication.
+2. **Le mode panique publié a DEUX étapes vocales**, et le portage n'en a qu'une :
+   - `voiceCancel`, **très tôt** — juste après `forceSecureWindow`, avant même le presse-papiers :
+     elle coupe l'exposition immédiate, c'est-à-dire le micro encore ouvert ;
+   - `voiceWipe`, **après** `dbWipe` : le `.bin`, son cache de vérification et les WAV orphelins.
+   Le portage a `VOICE_CAPTURES_WIPE` (les WAV) mais **rien pour le `.bin` ni pour couper une
+   capture en cours**. Les deux entreront avec l'import, et pas avant — l'énumération refuse les
+   étapes qui ne s'exécutent pas.
+3. **Aucun téléchargement** — cf. D-017. L'import se fait depuis un fichier choisi par
+   l'utilisateur, et le contrat n'expose même pas de champ `url`.
