@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.Inbox
@@ -56,6 +57,22 @@ fun FoldersDrawer(
     onOpenTrash: () -> Unit,
     onCreateFolder: () -> Unit,
     onFolderMenu: (Folder) -> Unit,
+    /**
+     * 🔴 **Renommer la boîte de réception.**
+     *
+     * Elle n'avait **aucun** chemin de renommage : ni bouton, ni geste. L'application publiée le
+     * permet par appui long (`folders_drawer.dart:324`), un geste que ce portage n'a nulle part —
+     * et qui, de l'aveu même du commentaire d'à côté dans le publié, *« n'est pas découvrable »*.
+     * D'où un bouton visible, comme pour les autres dossiers.
+     *
+     * ⚠️ **Renommer seulement.** Le menu complet proposerait « Supprimer », que le dépôt refuse
+     * (`require(id != INBOX_ID)`), et une conversion en coffre que l'application publiée n'offre pas
+     * sur ce dossier-là. Une entrée qui échoue à coup sûr est pire que pas d'entrée.
+     *
+     * Manque trouvé par un relevé des **gestes** — appuis longs et balayages — que la comparaison
+     * des chaînes ne pouvait pas révéler : un appui long n'a pas de texte.
+     */
+    onRenameInbox: (Folder) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ModalDrawerSheet(modifier = modifier) {
@@ -92,6 +109,18 @@ fun FoldersDrawer(
                     label = state.inbox?.name ?: stringResource(R.string.home_folder_inbox),
                     selected = currentFolderId == Folder.INBOX_ID,
                     onClick = { onSelect(Folder.INBOX_ID) },
+                    // ⚠️ Pas de bouton si la boîte manque de la base : il n'y aurait rien à
+                    // renommer, et le libellé affiché serait alors une traduction de repli.
+                    trailing = state.inbox?.let { boite ->
+                        {
+                            IconButton(onClick = { onRenameInbox(boite) }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.DriveFileRenameOutline,
+                                    contentDescription = stringResource(R.string.common_rename),
+                                )
+                            }
+                        }
+                    },
                 )
             }
             if (state.userFolders.isNotEmpty()) {

@@ -1,7 +1,7 @@
 package com.filestech.notes_tech.ui.home
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,13 +55,7 @@ import com.filestech.notes_tech.ui.theme.SemanticColors
  * déjà par ses déclencheurs.
  */
 @Composable
-fun NoteCard(
-    note: Note,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onLongClick: (() -> Unit)? = null,
-    folderName: String? = null,
-) {
+fun NoteCard(note: Note, onClick: () -> Unit, modifier: Modifier = Modifier, folderName: String? = null) {
     val verrouillee = note.isLocked
     val couleurs = MaterialTheme.colorScheme
     val formate = rememberNoteDateFormatter()
@@ -97,7 +91,7 @@ fun NoteCard(
     ) {
         Column(
             modifier = Modifier
-                .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                .clickable(onClick = onClick)
                 .padding(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

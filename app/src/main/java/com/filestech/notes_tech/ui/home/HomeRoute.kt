@@ -145,6 +145,9 @@ fun HomeRoute(
                     },
                     onCreateFolder = { creationDeDossier = true },
                     onFolderMenu = { dossierEnMenu = it },
+                    // Le tiroir reste ouvert : le dialogue s'affiche par-dessus, et refermer le
+                    // tiroir ferait disparaitre la ligne qu'on est en train de renommer.
+                    onRenameInbox = { dossierARenommer = it },
                 )
             },
         ) {
