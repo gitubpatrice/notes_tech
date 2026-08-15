@@ -41,6 +41,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.home.NoteCard
 import kotlinx.coroutines.launch
@@ -191,14 +193,16 @@ private fun DialogueDestructif(
     AlertDialog(
         onDismissRequest = onAnnuler,
         title = { Text(titre) },
-        text = { Text(corps) },
+        text = { CorpsDeDialogue(corps) },
         confirmButton = {
-            TextButton(onClick = onConfirmer) {
-                Text(text = libelleConfirmation, color = MaterialTheme.colorScheme.error)
-            }
+            ActionDeDialogue(
+                texte = libelleConfirmation,
+                onClick = onConfirmer,
+                couleur = MaterialTheme.colorScheme.error,
+            )
         },
         dismissButton = {
-            TextButton(onClick = onAnnuler) { Text(stringResource(R.string.common_cancel)) }
+            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onAnnuler)
         },
     )
 }

@@ -1,10 +1,13 @@
 package com.filestech.notes_tech.ui.folders
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
@@ -18,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,6 +33,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
+import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 
 /** Ce qu'on peut faire d'un dossier depuis le tiroir. */
 enum class FolderAction { RENAME, CONVERT_TO_VAULT, LOCK_NOW, REMOVE_VAULT_PROTECTION, DELETE }
@@ -116,12 +120,14 @@ fun FolderNameDialog(
         confirmButton = {
             // Un nom vide est refusé par le dépôt ; le bouton l'anticipe pour que le refus ne se
             // manifeste pas par un message d'erreur après coup.
-            TextButton(onClick = { onConfirm(nom) }, enabled = nom.isNotBlank()) {
-                Text(stringResource(R.string.common_validate))
-            }
+            ActionDeDialogue(
+                texte = stringResource(R.string.common_validate),
+                onClick = { onConfirm(nom) },
+                enabled = nom.isNotBlank(),
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onDismiss)
         },
     )
 }
@@ -160,17 +166,16 @@ fun ConfirmRemoveVaultProtectionDialog(folder: Folder, onDismiss: () -> Unit, on
             )
         },
         title = { Text(stringResource(R.string.folder_remove_vault_title)) },
-        text = { Text(stringResource(R.string.folder_remove_vault_body, folder.name)) },
+        text = { CorpsDeDialogue(stringResource(R.string.folder_remove_vault_body, folder.name)) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    text = stringResource(R.string.folder_remove_vault_confirm),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
+            ActionDeDialogue(
+                texte = stringResource(R.string.folder_remove_vault_confirm),
+                onClick = onConfirm,
+                couleur = MaterialTheme.colorScheme.error,
+            )
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onDismiss)
         },
     )
 }
@@ -200,40 +205,59 @@ fun ConfirmDeleteFolderDialog(folder: Folder, onDismiss: () -> Unit, onChoice: (
             )
         },
         title = { Text(stringResource(R.string.folder_delete_title)) },
+        // 🔴 **Les deux CHOIX sont dans le corps, pas dans les emplacements de boutons.**
+        //
+        // Ils y étaient, empilés dans une `Column` posée en `dismissButton`. Mesuré sur le S9 le
+        // 2026-08-15 : la rangée d'actions d'un `AlertDialog` est bornée en hauteur, la pile
+        // réclamait 288 px et n'en recevait que 216. Le dernier bouton était **coupé net à la
+        // limite du dialogue** — 72 px au lieu de 144, son libellé tronqué à mi-hauteur.
+        //
+        // ⚠️⚠️ Et c'était « Supprimer définitivement » : **l'action irréversible était celle qu'on
+        // ne voyait pas**. Un dialogue qui cache l'option qui détruit tout est pire que pas de
+        // dialogue — il fait croire qu'on a choisi en connaissance de cause.
+        //
+        // ⚠️ Rendre le corps défilant n'y changeait rien, et réduire le remplissage non plus : la
+        // borne ne venait pas du texte mais de l'emplacement lui-même. **Trois actions ne rentrent
+        // pas dans les deux emplacements d'un `AlertDialog`**, et Material dit la même chose — au
+        // delà de deux, on présente une liste de choix, pas une rangée de boutons.
         text = {
-            Text(
-                if (folder.isVault) {
-                    stringResource(R.string.folder_delete_vault_choice_body, folder.name)
-                } else {
-                    stringResource(R.string.folder_delete_choice_body, folder.name)
-                },
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onChoice(FolderDeletionChoice.MOVE_TO_INBOX) }) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
-                    stringResource(
+                    if (folder.isVault) {
+                        stringResource(R.string.folder_delete_vault_choice_body, folder.name)
+                    } else {
+                        stringResource(R.string.folder_delete_choice_body, folder.name)
+                    },
+                )
+                ActionDeDialogue(
+                    texte = stringResource(
                         if (folder.isVault) {
                             R.string.folder_delete_move_to_inbox_vault
                         } else {
                             R.string.folder_delete_move_to_inbox
                         },
                     ),
+                    onClick = { onChoice(FolderDeletionChoice.MOVE_TO_INBOX) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // L'action irréversible reste en rouge et **en dernier** : elle ne doit jamais être
+                // celle qu'on touche par réflexe. Elle est maintenant entièrement visible, ce qui
+                // est la condition pour qu'on puisse dire qu'on l'a choisie.
+                ActionDeDialogue(
+                    texte = stringResource(R.string.folder_delete_permanent),
+                    onClick = { onChoice(FolderDeletionChoice.DELETE_EVERYTHING) },
+                    modifier = Modifier.fillMaxWidth(),
+                    couleur = MaterialTheme.colorScheme.error,
                 )
             }
         },
-        dismissButton = {
-            Column {
-                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-                // L'action irréversible est un bouton discret, en rouge, qu'il faut viser. Elle ne
-                // doit jamais être celle qu'on touche par réflexe.
-                TextButton(onClick = { onChoice(FolderDeletionChoice.DELETE_EVERYTHING) }) {
-                    Text(
-                        text = stringResource(R.string.folder_delete_permanent),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
+        // Il ne reste qu'une action au sens du dialogue : ne rien faire. Elle occupe l'emplacement
+        // de confirmation parce que c'est celui que Material place en dernier, sous le pouce.
+        confirmButton = {
+            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onDismiss)
         },
     )
 }

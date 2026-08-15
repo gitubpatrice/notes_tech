@@ -488,3 +488,28 @@ rapport.**
 *après* que le corps a commencé sur `Main.immediate`. Si le `finally` remet à zéro avant
 l'affectation, le champ ne redescend plus jamais. Un booléen posé **avant** le `launch` supprime la
 question. *Poser le garde après avoir ouvert la porte n'est pas poser un garde.*
+
+**Bordures des actions de dialogue, et ce qu'elles ont révélé.** Demande de Patrice : un contour de
+la couleur du texte sur chaque action proposée. Fait par un composant partagé, `ActionDeDialogue` —
+douze boutons, pas douze copies — qui garde la largeur d'un `TextButton` pour qu'un changement
+d'apparence ne devienne pas un changement de mise en page.
+
+Le contour a rendu visible un défaut qui préexistait : dans « Supprimer le dossier ? », la troisième
+action était **écrasée de moitié et coupée**. Et c'était l'irréversible. Cf. `04-PIEGES.md` §50.
+
+⚠️ **J'ai proposé deux correctifs qui n'ont rien changé** — corps défilant, remplissage réduit —
+avant de mesurer que la contrainte venait de l'emplacement de boutons lui-même. *Deux essais sans
+effet ne demandent pas un troisième réglage, ils demandent un autre diagnostic.*
+
+⚠️ **Un défaut d'affichage se constate à l'écran, mais se DIAGNOSTIQUE au relevé.** `uiautomator`
+donnait `h=72` contre `h=144` dès le premier coup d'œil : la réponse était là avant les deux essais.
+
+**Balayage des branchements, à la demande.** Les 21 sites d'appel de dialogue sont atteignables et
+leur confirmation branchée ; zéro rappel vide, zéro `TODO`, aucune fonction ni propriété publique de
+ViewModel sans lecteur, et sur huit `catch` sans sortie utilisateur, sept sont justifiés et documentés
+— le huitième, `enArrierePlan`, est une ligne de partage assumée et écrite.
+
+⚠️ **Mon premier détecteur de code mort a rendu 32 faux positifs** : il excluait les appels précédés
+d'un point, c'est-à-dire la forme normale `viewModel.methode()`. Corrigé, puis **validé sur un témoin
+vivant et un témoin inexistant** avant d'en tirer la moindre conclusion. Un instrument se calibre
+avant de servir de preuve.

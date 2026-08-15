@@ -45,7 +45,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -75,6 +74,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.partagerUnFichier
@@ -517,17 +518,16 @@ private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> U
             )
         },
         title = { Text(stringResource(R.string.note_editor_exit_vault_title)) },
-        text = { Text(stringResource(R.string.note_editor_exit_vault_body)) },
+        text = { CorpsDeDialogue(stringResource(R.string.note_editor_exit_vault_body)) },
         confirmButton = {
-            TextButton(onClick = onConfirmer) {
-                Text(
-                    text = stringResource(R.string.note_editor_exit_vault_confirm),
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
+            ActionDeDialogue(
+                texte = stringResource(R.string.note_editor_exit_vault_confirm),
+                onClick = onConfirmer,
+                couleur = MaterialTheme.colorScheme.error,
+            )
         },
         dismissButton = {
-            TextButton(onClick = onAnnuler) { Text(stringResource(R.string.common_cancel)) }
+            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onAnnuler)
         },
     )
 }

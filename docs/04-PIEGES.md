@@ -902,3 +902,35 @@ perd quelque chose, et on ne sait pas encore quoi.**
 phase 6 » sur les sections `panic` et `export`, câblées depuis la clôture de la phase 6. Le fichier
 généré affirmait donc en tête de deux sections le contraire de ce que fait le code. Une marque
 « pas encore câblé » se retire quand ça l'est, sinon elle apprend à ne plus lire les marques.
+
+## §50 — Trois actions ne rentrent pas dans les deux emplacements d'un `AlertDialog`
+
+« Supprimer le dossier ? » proposait trois actions : déplacer, annuler, supprimer définitivement. Les
+deux dernières étaient empilées dans une `Column` posée en `dismissButton`.
+
+**Mesuré sur le S9 le 2026-08-15** : la rangée d'actions d'un `AlertDialog` est **bornée en
+hauteur**. La pile réclamait 288 px, elle en recevait 216. Le dernier bouton mesurait **72 px au lieu
+de 144**, son libellé tronqué à mi-hauteur, coupé net à la limite du dialogue.
+
+> ⚠️⚠️ **C'était « Supprimer définitivement » — l'action irréversible était celle qu'on ne voyait
+> pas.** Un dialogue de confirmation qui cache l'option qui détruit tout est pire que pas de
+> dialogue : il fait croire qu'on a choisi en connaissance de cause.
+
+**Deux correctifs plausibles n'ont rien changé**, et c'est le plus instructif :
+
+| Tenté | Résultat |
+|---|---|
+| Rendre le corps défilant | aucun effet — la borne ne venait pas du texte |
+| Réduire le remplissage vertical des boutons | aucun effet — la borne ne vient pas du contenu |
+
+La borne vient de **l'emplacement lui-même**. Material le dit d'ailleurs : au-delà de deux actions,
+on présente une **liste de choix**, pas une rangée de boutons.
+
+**Le correctif** : les deux choix descendent dans le corps du dialogue, en pleine largeur, et il ne
+reste qu'« Annuler » comme action. Vérifié à l'écran : les trois libellés font 60 px, aucun n'est
+tronqué.
+
+> ⚠️ **Deux correctifs qui ne changent rien sont un diagnostic faux, pas un correctif insuffisant.**
+> Continuer à ajuster des valeurs après le premier essai sans effet, c'est traiter un symptôme dont
+> on n'a pas trouvé la cause. Le relevé `uiautomator` — 72 px contre 144 — disait dès le départ que
+> la contrainte était structurelle.

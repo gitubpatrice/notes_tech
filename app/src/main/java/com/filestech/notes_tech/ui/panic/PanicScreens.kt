@@ -23,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.security.panic.PanicReport
+import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import java.util.Locale
 
@@ -119,7 +119,7 @@ fun PanicConfirmDialog(onDismiss: () -> Unit, onConfirmed: () -> Unit) {
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onDismiss)
         },
         confirmButton = {
             Button(

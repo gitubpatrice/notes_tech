@@ -37,7 +37,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -67,6 +66,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CarteFilesTech
 import com.filestech.notes_tech.ui.common.MIME_ZIP
 import com.filestech.notes_tech.ui.common.TitreDeSection
@@ -600,7 +600,7 @@ private fun <T> DialogueDeChoix(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_close)) }
+            ActionDeDialogue(texte = stringResource(R.string.common_close), onClick = onDismiss)
         },
     )
 }

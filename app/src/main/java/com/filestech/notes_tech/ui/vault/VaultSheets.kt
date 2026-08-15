@@ -64,6 +64,7 @@ import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.security.vault.VaultValidationException
+import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 
 /**
@@ -367,15 +368,14 @@ private fun PassphraseSheet(
                         ),
                     )
                 }
-                TextButton(
+                ActionDeDialogue(
+                    texte = stringResource(R.string.common_cancel),
                     onClick = {
                         viewModel.cancelAttempt()
                         onDismiss()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.common_cancel))
-                }
+                )
             }
         }
     }
@@ -614,15 +614,14 @@ private fun PinSheet(
             ) {
                 Text(stringResource(if (creating) R.string.common_validate else R.string.vault_pass_unlock_action))
             }
-            TextButton(
+            ActionDeDialogue(
+                texte = stringResource(R.string.common_cancel),
                 onClick = {
                     viewModel.cancelAttempt()
                     onDismiss()
                 },
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.common_cancel))
-            }
+            )
         }
     }
 }
@@ -643,9 +642,11 @@ private fun DamagedVaultSheet(onDismiss: () -> Unit) {
         ) {
             TitreDeFeuille(stringResource(R.string.vault_pass_unlock_title))
             BanniereDAvertissement(stringResource(R.string.vault_pass_warning_lost))
-            TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.common_close))
-            }
+            ActionDeDialogue(
+                texte = stringResource(R.string.common_close),
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
