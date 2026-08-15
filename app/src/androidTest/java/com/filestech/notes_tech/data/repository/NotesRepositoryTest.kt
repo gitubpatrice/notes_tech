@@ -600,6 +600,39 @@ class NotesRepositoryTest {
         assertThat(notes.find(note.id)).isNotNull()
     }
 
+    /**
+     * La limite de 200 caractères sur le titre — valeur héritée d'`AppConstants.noteTitleMaxLength`.
+     *
+     * ⚠️ Elle n'avait **aucun test**, alors que l'éditeur s'appuie désormais dessus pour dire à
+     * l'utilisateur *pourquoi* son enregistrement échoue. Une règle appliquée sans être vérifiée,
+     * et un message qui la cite : si la limite bougeait, le message mentirait sans que rien
+     * n'échoue.
+     */
+    @Test
+    fun un_titre_trop_long_est_refuse(): Unit = runBlocking {
+        val note = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Court")
+
+        val limite = NotesRepository.TITLE_MAX_LENGTH
+        // Exactement la limite : accepté.
+        notes.saveEdits(id = note.id, title = "a".repeat(limite), content = "corps", tags = emptyList())
+        assertThat(notes.find(note.id)!!.title).hasLength(limite)
+
+        // Un caractère de plus : refusé, et **rien n'est écrit**.
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                notes.saveEdits(
+                    id = note.id,
+                    title = "a".repeat(limite + 1),
+                    content = "autre corps",
+                    tags = emptyList(),
+                )
+            }
+        }
+        val apres = notes.find(note.id)!!
+        assertThat(apres.title).hasLength(limite)
+        assertThat(apres.content).isEqualTo("corps")
+    }
+
     // ── Corbeille ────────────────────────────────────────────────────────────
 
     @Test

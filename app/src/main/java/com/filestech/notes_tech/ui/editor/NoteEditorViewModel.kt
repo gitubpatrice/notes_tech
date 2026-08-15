@@ -19,7 +19,6 @@ import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
-import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.ui.navigation.Destination
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -754,6 +753,12 @@ class NoteEditorViewModel @Inject constructor(
             // 🔴 **Un dossier coffre introuvable ne se déverrouille pas.** Sans cette garde, l'écran
             // posait `lockedVault = null` et affichait un éditeur **vide**, sans erreur ni feuille de
             // saisie : la note existe, son dossier a disparu, et rien ne le disait.
+            //
+            // ⚠️ **Défense contre une base héritée, pas contre un chemin de cette application.**
+            // `notes.folder_id` porte un `ON DELETE CASCADE` : supprimer un dossier emporte ses
+            // notes, donc ce cas ne peut pas naître ici. Mais la base a été écrite par une **autre
+            // application**, et rien ne garantit que ses suppressions se soient faites l'intégrité
+            // référentielle active. Le garde coûte quatre lignes et remplace un écran muet.
             if (dossier == null) {
                 _state.value = EditorUiState(
                     loading = false,
@@ -774,19 +779,6 @@ class NoteEditorViewModel @Inject constructor(
                 // re-verrouillé », mais elle se contente de l'écrire — ici la feuille de saisie
                 // s'ouvre sur place, donc `note_editor_error_vault_relocked` n'a rien à ajouter.
                 _state.value = EditorUiState(loading = false, note = note, folder = dossier, lockedVault = dossier)
-                return@launch
-            } catch (e: VaultPinWipedException) {
-                // 🔴 **Ne PAS proposer de déverrouiller.** Le coffre s'est auto-détruit : sa clé
-                // n'existe plus, et aucune saisie ne la ramènera. Offrir le pavé numérique ferait
-                // essayer indéfiniment quelqu'un dont les notes sont définitivement perdues — c'est
-                // le pire moment pour laisser croire à une issue.
-                Timber.w(e, "coffre auto-detruit, note $noteId")
-                _state.value = EditorUiState(
-                    loading = false,
-                    note = note,
-                    folder = dossier,
-                    loadError = R.string.note_editor_error_vault_wiped,
-                )
                 return@launch
             } catch (e: Exception) {
                 // Contenu chiffré abîmé, tag GCM tronqué, base en erreur : le secret n'y changerait

@@ -832,6 +832,12 @@ private fun ClavierNumerique(enabled: Boolean, onDigit: (Char) -> Unit, onDelete
 @Composable
 private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt) {
     null, VaultAttempt.Success -> null
+    // ⚠️ `vault_pin_wiped`, et **pas** `note_editor_error_vault_wiped`. Cette dernière reste
+    // orpheline **par construction** : elle décrit l'auto-destruction vue depuis l'éditeur, or
+    // `FolderVaultService.decrypt` ne lève jamais `VaultPinWipedException` — seuls les chemins de
+    // déverrouillage le font, et ils aboutissent ici. Un `catch` de cette exception dans le
+    // chargement de l'éditeur serait un chemin mort ; j'en avais écrit un le 2026-08-15, retiré le
+    // jour même après vérification.
     VaultAttempt.Wiped -> stringResource(R.string.vault_pin_wiped)
     is VaultAttempt.WrongSecret -> if (attempt.attemptsRemaining == null) {
         stringResource(R.string.vault_pass_wrong)
