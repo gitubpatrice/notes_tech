@@ -75,15 +75,37 @@ peut y injecter une permission :
 
 ## Migration des données
 
-| Cas | Vérifié |
-|---|:---:|
-| 2.0.3 → 2.0.4 → 3.0.0 (chemin nominal, couche ①) | ☐ |
-| 2.0.3 → 3.0.0 direct (couche ② de secours) | ☐ |
-| KEK introuvable, base présente → refus, **base intacte après** (couche ③) | ☐ |
-| Installation neuve | ☐ |
-| Coffre passphrase créé en Flutter, ouvert en Kotlin | ☐ |
-| Coffre PIN créé en Flutter, ouvert en Kotlin | ☐ |
-| Auto-effacement interrompu (`vault_wipe_pending_*`) repris au démarrage | ☐ |
+> **Relevé le 2026-08-15.** Ce tableau portait sept cases vides. Quatre étaient en réalité
+> **prouvées depuis des semaines** par des tests qui tournent à chaque exécution du gate ; personne
+> n'était revenu les cocher. Une case vide qui décrit du travail déjà fait est aussi trompeuse
+> qu'une case cochée qui décrit du travail non fait — elle fait rouvrir un chantier clos, et elle
+> noie les trois cases qui bloquent vraiment.
+>
+> Chaque ligne cochée nomme donc **le test qui la prouve**. Chaque ligne non cochée nomme **ce qui
+> la bloque**. Aucune ne reste sans justification.
+>
+> Suite d'instrumentation vérifiée le 2026-08-15 sur le S9 : **118 tests, 0 échec, 0 ignoré** —
+> compté, parce qu'ici six tests instrumentés ont déjà été *ignorés* pendant que l'instrumentation
+> affichait `OK` (`04-PIEGES.md` §45).
+
+| Cas | Vérifié | Par quoi, ou bloqué par quoi |
+|---|:---:|---|
+| 2.0.3 → 2.0.4 → 3.0.0 (chemin nominal, couche ①) | ☐ | **La passerelle 2.0.4 n'existe pas.** Sa publication demande la clé de signature et une décision de Patrice, et `notes_tech` est gelé — cf. `10-PASSERELLE-2.0.4.md` §7. Rien à tester tant qu'elle n'est pas écrite. |
+| 2.0.3 → 3.0.0 direct (couche ② de secours) | ◐ | **Mécanisme prouvé, bout-en-bout non.** `FlutterSecureStorageKekSourceTest` (12 cas) rejoue une valeur écrite **exactement comme la bibliothèque l'écrit**, vérifie que MGF1-SHA1 est imposé par la plateforme, que l'alias visé est celui de l'application publiée, et que la lecture **ne modifie pas** le stockage. Ce qui manque n'est pas le code : c'est la lecture du vrai stockage d'une vraie installation, qui n'arrive qu'à la bascule. |
+| KEK introuvable, base présente → refus, **base intacte après** (couche ③) | ✅ | `LegacyDatabaseOpeningTest.sans_kek_et_avec_une_base_presente_l_ouverture_est_refusee_et_la_base_intacte`, doublé côté logique par `KekRepositoryTest.aucune cle et une base presente donne un refus, et AUCUNE ecriture`. **Le refus ET l'intégrité après refus sont tous deux vérifiés.** |
+| Installation neuve | ✅ | `KekRepositoryTest.aucune cle et aucune base declenche une generation persistee AVANT d'etre rendue` — l'ordre compte : une clé rendue avant d'être persistée chiffrerait des notes sous une clé que le redémarrage suivant ne retrouverait pas. |
+| Coffre passphrase créé en Flutter, ouvert en Kotlin | ✅ | `FolderVaultServiceTest.la_cle_dun_coffre_ecrit_par_flutter_souvre_depuis_kotlin` — les quatre colonnes `vault_*` **et** le blob de note viennent du vrai code Dart de la 2.0.3, recoupés contre OpenSSL et l'Argon2 de référence. ⚠️ Octets authentiques, mais **pas pris sur le téléphone d'un utilisateur**. |
+| Coffre PIN créé en Flutter, ouvert en Kotlin | ◐ | **Irréproductible hors bascule, et ce n'est pas un manque de rigueur.** Le scellement extérieur d'un coffre à code est fait par une clé Keystore **liée à l'appareil et à l'UID** : aucun vecteur ne peut la rejouer. Ce qui **entre** dans le Keystore est vérifié octet pour octet (`PariteCoffreAvecFlutterTest.lesCouchesInternesDuCoffrePinConcordent`) ; l'enveloppe ne peut l'être qu'avec le vrai Keystore de la vraie installation. |
+| Auto-effacement interrompu (`vault_wipe_pending_*`) repris au démarrage | ✅ | `FolderVaultServiceTest.un_effacement_interrompu_est_repris_au_demarrage` — le drapeau posé, l'application tuée, la reprise détruit bien les notes **et** retire le matériel de coffre. Complété par `le_drapeau_dun_dossier_disparu_est_retire`, qui vérifie que c'est le **seul** retrait légitime : retirer le drapeau sur échec permettrait de sauver un coffre condamné en provoquant un plantage. |
+
+**Reste donc trois lignes, et elles tiennent en une phrase** : la couche ① attend une décision de
+publication, les couches ② et PIN attendent le seul geste qui ne se simule pas — installer par-dessus
+une vraie installation. Ce sont les trois cases du geste de bascule, pas des cases de développement.
+
+⚠️ **Aucune de ces trois ne se coche depuis un poste de travail.** Elles demandent le S9, une
+installation 2.0.3 réelle, et le drapeau `-Pnotestech.replaceInstalledApp=true` — cf.
+`06-ISOLATION-PENDANT-LE-CHANTIER.md` §2. Les cocher autrement serait mentir sur la seule vérification
+qui protège les notes d'un utilisateur installé.
 
 ## Écarts assumés avec l'application publiée, relevés en phase 3
 
