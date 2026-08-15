@@ -385,3 +385,38 @@ qui l'a écrit.
 (menu de tri à libellés dupliqués, archives asymétriques) sont reproduits et consignés dans
 `05-PARITE.md`. La parité est le critère de sortie de la phase 8 : un correctif silencieux est
 indiscernable d'un défaut de portage le jour de la comparaison.
+
+## 2026-08-15 — clôture de la phase 6 : neuf lots, et ce qu'ils ont appris
+
+Neuf commits, `f71ad73` → `f1482b5`. Corbeille vidable, copier en Markdown, conversion en coffre qui
+parle, classement des erreurs, tests, et deux passes de relecture externe.
+
+⚠️⚠️ **Une chaîne traduite et jamais lue est un signal, pas un déchet.** Sur 82 orphelines, **82**
+avaient un jumeau qui tourne dans l'application publiée, **zéro** n'était morte des deux côtés. Ce
+que le journal appelait « décisions produit en attente » était du **comportement existant non
+reporté** — dont une régression complète : « Vider la corbeille ».
+
+⚠️⚠️ **Deux relecteurs, jamais un.** Sur quatre lots d'affilée, aucun des deux n'a tout vu, et sur
+un axe donné l'un écrivait « RIEN TROUVÉ » là où l'autre trouvait un critique. Pire : **un correctif
+issu de l'un a aggravé un cas vu par l'autre** — la relance sans borne du presse-papiers, bénigne
+tant que « illisible » et « pas du texte » étaient confondus, devenait une boucle infinie gardant le
+clair en mémoire une fois cette confusion levée.
+
+⚠️⚠️ **Relire le DELTA ENTIER après avoir relu chaque lot.** Les cinq lots avaient été relus
+séparément ; la passe sur le delta complet a trouvé **quatre défauts de plus**, dont deux qu'un seul
+des deux relecteurs a vus.
+
+⚠️ **Le raisonnement fautif vaut mieux que le correctif.** Le pire défaut du jour venait d'une phrase
+plausible : « insister maintiendrait le texte en mémoire ici, ce qu'on cherche à éviter ». La mémoire
+de l'application est isolée par le bac à sable ; le presse-papiers est **public**. *Une purge de la
+copie sécurisée avait été préférée à une purge de la copie exposée.*
+
+⚠️ **Un contrôle qui ne regarde pas l'artefact n'en dit rien.** Deux fois le même jour : une purge de
+presse-papiers déclarée réussie sur la seule absence d'exception, et une vérification qui comparait à
+un instantané parfois absent — donc qui passait **toujours**.
+
+⚠️ **Trois défauts n'étaient visibles qu'à l'écran** : l'hôte de messages sous le tiroir, le titre
+écrasé à zéro par une action de trop, et une confirmation qui ne s'affichait jamais. Aucune relecture
+statique, aucun test du gate ne pouvait les voir.
+
+Détail de chaque piège dans `04-PIEGES.md` §43 à §48 ; état des orphelines dans `05-PARITE.md`.

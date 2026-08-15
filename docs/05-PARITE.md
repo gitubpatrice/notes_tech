@@ -118,6 +118,44 @@ consomme reviendrait à écrire du code qu'aucun test ne peut exercer.
 | Réconciliation complète des liens au démarrage | l'indexation transactionnelle rend les incohérences impossibles **côté Kotlin**, mais la base vient de la version Flutter et peut en porter |
 | Auto-complétion `[[…]]` dans l'éditeur | `NotesRepository.suggestTitles` existe et est testé ; il lui manque son écran |
 
+## ✅ Phase 6 CLOSE le 2026-08-15 — plus aucun manque du publié
+
+Les deux manques assumés qui restaient ont été comblés : **sortir une note d'un coffre** et
+**copier en Markdown**. S'y sont ajoutés, tous découverts en cherchant *pourquoi* une chaîne traduite
+n'était lue nulle part :
+
+| Ce qui manquait | Nature |
+|---|---|
+| Vider la corbeille | **régression** — existe dans le publié |
+| Progression et confirmation de la conversion en coffre | régression |
+| Rattrapage immédiat des notes restées en clair après conversion | régression |
+| Indicateur d'enregistrement dans l'éditeur | régression |
+| Bouton « Terminé » explicite | régression |
+| Annonces d'accessibilité (déverrouillage, enregistrement) | régression |
+| Classement des erreurs de chargement d'une note | **défaut du portage** — tout tombait sur « demander le secret » |
+| Raison d'un échec d'enregistrement | défaut du portage |
+| Filet d'erreur sur la recherche | défaut du portage |
+
+### La méthode, plus réutilisable que la liste
+
+Une chaîne traduite **des deux côtés** et lue **nulle part** est un signal. Le tri se fait en une
+question mécanique : *son jumeau est-il utilisé dans l'application publiée ?* Sur 82 orphelines,
+**82 oui, 0 non**.
+
+⚠️ Le discriminant est **nécessaire mais pas suffisant** : les huit `error_*` sont bien utilisées
+côté Dart, mais le portage les a remplacées par un `Reason` typé — même comportement, autre
+implémentation. Chaque groupe se relit ; le verdict brut ne s'applique pas.
+
+### État final des orphelines
+
+| Compte | Sort |
+|---|---|
+| **45** | dictée vocale — phase 7 |
+| **2** | puces du mode panique nommant le modèle vocal — phase 7, **omises exprès et commentées** |
+| **14** | délibérées : raisons typées, substitutions assumées, ou chaînes que le portage fait **mieux** sans |
+
+Aucune n'est supprimée : cf. `04-PIEGES.md` §48.
+
 ## ⚠️ Correctifs appliqués à l'application Flutter le 2026-08-13
 
 > Branche `fix/defauts-releves-pendant-le-portage` dans `notes_tech`, commit `ca72f2c`.

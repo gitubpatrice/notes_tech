@@ -743,5 +743,126 @@ correctif d'i18n qui ne coûtait rien.
 changé. Contrôle en une ligne :
 
 ```bash
-diff <(git show HEAD:<fichier> | tr -d '') <(tr -d '' < <fichier>)
+diff <(git show HEAD:<fichier> | tr -d '
+') <(tr -d '
+' < <fichier>)
 ```
+
+## §43 — Une garde qui protège d'une situation impossible est PIRE qu'absente
+
+Le chargement de l'éditeur a porté, une heure durant le 2026-08-15, un
+`catch (VaultPinWipedException)` accompagné d'un commentaire expliquant qu'il évitait de proposer un
+déverrouillage sur un coffre auto-détruit. **`FolderVaultService.decrypt` ne lève jamais cette
+exception** : les trois `throw` sont dans les chemins de déverrouillage, qui aboutissent ailleurs.
+
+Troisième occurrence du motif dans ce portage, après `sweep()` et `encryptAllNotesInFolder`. Les deux
+premières étaient héritées ; celle-ci a été écrite ici, quarante minutes après que la même erreur ait
+été corrigée ailleurs.
+
+⚠️ Une garde morte ne se contente pas d'être inutile : **elle fait croire que le cas est traité**, et
+la prochaine personne qui cherche « que se passe-t-il si… » trouve une réponse rassurante et fausse.
+
+Le contrôle qui l'a fait tomber tient en une question, à poser pour **chaque** `catch` ajouté :
+
+> Cette exception, la fonction appelée peut-elle seulement la lever ?
+
+Un `grep` du `throw` y répond.
+
+## §44 — `catch` sur un `Flow` est TERMINAL
+
+`SearchViewModel` a reçu un filet contre les erreurs de base :
+
+```kotlin
+combine(query, resultats, dossiers) { … }
+    .catch { emit(EtatDEchec) }   // ❌ termine le flux
+    .stateIn(…)
+```
+
+`catch` émet **puis complète le flux**. Le `combine` meurt avec lui : après la première erreur, plus
+aucune frappe n'était servie, et la recherche restait figée **jusqu'à la destruction du ViewModel**.
+
+*Le filet censé protéger d'une panne passagère la rendait définitive.*
+
+Correctif : poser le `catch` **à l'intérieur** du `flatMapLatest`, sur le flux d'une seule requête.
+La suivante repart d'un flux neuf.
+
+```kotlin
+flatMapLatest { texte ->
+    search.observe(texte).map { Issue(it) }.catch { emit(Issue(echec = true)) }   // ✅
+}
+```
+
+⚠️ Le symptôme est muet : le code compile, le premier échec s'affiche correctement, et c'est **la
+suite** qui n'arrive jamais.
+
+## §45 — Le presse-papiers ne se lit pas sans focus, et un test l'ignore en silence
+
+Depuis Android 10, une application qui n'a pas le focus ne peut pas lire le presse-papiers :
+`getPrimaryClip()` rend `null` quoi qu'on y ait mis.
+
+Deux conséquences :
+
+1. **L'effacement différé n'est fiable qu'au premier plan.** Il ne peut pas vérifier que le contenu
+   est encore le sien, et il ne doit pas effacer à l'aveugle — un secret copié ailleurs entre-temps
+   ne nous appartient pas.
+2. 🔴 **Une suite instrumentée n'a pas de fenêtre.** Les six premiers tests de `SensitiveClipboard`
+   levaient tous leur `assumeTrue`, et l'instrumentation affichait **`OK (6 tests)`** : une ligne
+   verte couvrant zéro.
+
+⚠️ Lancer l'application juste avant **ne suffit pas** : `am instrument` redémarre le processus. Il
+faut une activité **résumée dans ce processus-ci** :
+
+```kotlin
+@HiltAndroidTest
+class …Test {
+    @get:Rule(order = 0) val hilt = HiltAndroidRule(this)
+    @Before fun preparer() { hilt.inject(); scene = ActivityScenario.launch(MainActivity::class.java) }
+}
+```
+
+⚠️ Corollaire de vérification : `clearPrimaryClip()` fait rendre `null` à la lecture **suivante**.
+Traiter « illisible » comme un échec d'effacement ferait échouer **toutes** les purges réussies.
+
+## §46 — Un hôte de messages posé dans un tiroir modal est invisible quand le tiroir est ouvert
+
+`SnackbarHost` était placé dans le contenu de `ModalNavigationDrawer`, donc **sous** le panneau du
+tiroir. Or c'est du tiroir que partent les gestes qui ont le plus besoin d'être confirmés :
+conversion en coffre, retrait de protection, et le « N notes déchiffrées » qui apprend à quelqu'un
+que son dossier n'est **plus** protégé.
+
+Tous invisibles tant que le tiroir reste ouvert — **c'est-à-dire dans le cas normal**, puisque rien
+ne le ferme après l'action.
+
+Correctif : un `Box` autour du tiroir, l'hôte dessiné **après** lui.
+
+⚠️ Aucune relecture statique ne pouvait le voir. Il fallait regarder l'écran.
+
+## §47 — Une action libellée de plus dans une `TopAppBar` écrase le titre à zéro
+
+Le bouton « Terminé » de l'éditeur, en `FilledTonalButton` portant son mot, faisait cinq éléments
+d'action. Mesuré sur un S9 : le titre — nom du dossier **et** état de l'enregistrement — tombait à
+**zéro pixel de large**. Il ne rétrécissait pas, il disparaissait.
+
+L'application publiée peut se le permettre parce que son titre **est** l'indicateur, sur une seule
+ligne étroite. Ici il en porte deux.
+
+⚠️ Une icône avec sa `contentDescription` reste visible et découvrable, à la largeur des autres.
+
+## §48 — `values/strings.xml` est GÉNÉRÉ : n'y supprimez pas d'orphelines
+
+Les deux fichiers de chaînes sont transposés depuis l'ARB par `outils/arb_vers_strings.py`. Une
+suppression y reviendrait au prochain passage.
+
+Et surtout, une chaîne orpheline n'est pas toujours un déchet. Sur les 82 relevées le 2026-08-15,
+**aucune** n'était morte des deux côtés — chacune correspondait à du comportement de l'application
+publiée. Trois catégories seulement :
+
+| Cas | Que faire |
+|---|---|
+| Fonctionnalité manquante ici | la porter — c'est une **régression**, pas une décision en attente |
+| En attente d'une phase à venir | laisser, et le dire |
+| Le portage fait **mieux** sans | laisser, et écrire pourquoi **à côté de ce qui la remplace** |
+
+Exemple du troisième cas : `panic_announce_done` vaut exactement `panic_complete_title`, déjà annoncé
+par une région active — laquelle dit la vérité dans les **deux** cas, y compris « la clé n'a PAS été
+détruite ». La câbler ferait annoncer « effacement terminé » sur une clé survivante.
