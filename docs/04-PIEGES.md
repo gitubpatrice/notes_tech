@@ -1208,3 +1208,111 @@ deux secondes, et c'est la seule chose qui distingue « un test échoue » de «
 ⚠️ Le piège ne se déclenche que si la dernière expression n'est pas `Unit`. Les tests finissant par
 un `assertThat(...)` passent — d'où une classe où *certaines* méthodes déclenchent le refus et
 d'autres non, ce qui rend la cause encore moins lisible.
+
+---
+
+## §61 — Une permission sensible demandée pour une action qui ne peut pas aboutir
+
+Le bouton micro de l'éditeur enchaînait : demander `RECORD_AUDIO`, puis vérifier qu'un modèle de
+transcription est installé. Sur une installation neuve — c'est-à-dire chez **tout le monde**, au
+premier essai — l'utilisateur voyait donc la boîte système du micro, l'accordait ou la refusait, et
+recevait ensuite « aucun modèle installé ».
+
+Ce n'est pas une maladresse d'ordonnancement, c'est un coût durable : une permission refusée l'est
+**pour de bon**, et une fois « ne plus demander » coché, toute nouvelle demande est ignorée en
+silence par Android. Demander le micro avant d'avoir de quoi s'en servir, c'est se le faire refuser
+au moment où on en avait le moins besoin.
+
+⚠️ **Ce défaut ne se voit pas à la relecture** : les deux contrôles existaient, tous deux corrects,
+et rien dans le code ne dit lequel doit venir en premier. Il s'est vu en **enchaînant les écrans sur
+l'appareil**, sur une installation qui n'avait pas encore de modèle.
+
+**Règle générale** : avant de demander une permission, vérifier tout ce qui, sans elle, rendrait
+déjà l'action impossible. L'ordre entre un contrôle gratuit et une demande coûteuse n'est jamais
+indifférent.
+
+---
+
+## §62 — Du texte destiné à l'utilisateur dans une donnée de domaine
+
+Le catalogue des modèles portait un champ `notes` :
+
+```kotlin
+SttModel(id = "whisper-base-q5_1", …, notes = "Conseille. Bonne qualite en francais…")
+```
+
+repris tel quel du catalogue Dart. L'écran l'affichait sous le nom du modèle. Deux défauts, dont le
+second est le vrai :
+
+1. il était **sans accents**, parce qu'écrit dans un fichier source parmi d'autres identifiants
+   ASCII — visible à l'écran, à côté de chaînes correctement accentuées ;
+2. il n'était **pas traduit du tout**. `SttModelCatalogue` vit dans `domain/`, qui ne connaît pas
+   les ressources Android : la phrase française était servie telle quelle à un utilisateur
+   anglophone.
+
+⚠️ **À la relecture, rien ne détonne** : un champ rempli d'une phrase française, dans un fichier
+dont les commentaires sont en français, à côté d'autres champs français. C'est l'écran qui l'a
+montré — et il l'aurait montré à n'importe qui, sauf à nous, qui testons en français.
+
+**La parade** n'est pas d'accentuer le champ : c'est de le **supprimer**. Un texte que l'utilisateur
+lit appartient à `strings.xml`. La correspondance modèle → description se fait dans l'écran, seul
+endroit qui connaisse à la fois le catalogue et les ressources.
+
+⚠️ Le repli est `null`, pas une chaîne en dur : une entrée future sans description traduite
+n'affichera **rien**, ce qui se remarque — là où un repli en français passerait inaperçu jusqu'à ce
+qu'un anglophone le signale.
+
+**Le motif, réutilisable** : chercher, dans les couches sans accès aux ressources, tout `String`
+dont la valeur est une phrase. Un identifiant, un chemin, un code de langue n'y posent aucun
+problème ; une phrase, si.
+
+---
+
+## §63 — Un piège déjà documenté ne protège pas : il faut le RELIRE avant d'ajouter
+
+`NoteEditorScreen` porte, depuis le 2026-08-15, un commentaire de douze lignes expliquant que
+« Terminé » a dû cesser d'être un bouton **libellé** pour redevenir une icône : à cinq éléments
+d'action, la `TopAppBar` écrasait le titre **à zéro pixel**, faisant disparaître le nom du dossier et
+l'état de l'enregistrement.
+
+Le 2026-08-16, j'ai ajouté le bouton micro dans cette même barre. Six actions. **Le titre est retombé
+à 24 pixels** — et c'est Patrice qui l'a vu, sur son appareil, en signalant « un bug d'affichage avec
+le mot enregistrer ». Le mot en question était `note_editor_saved`, réduit à rien.
+
+⚠️⚠️ **Le commentaire était juste, à quelques lignes du code que j'écrivais, et il n'a servi à rien.**
+Un piège consigné protège de sa propre répétition **à condition d'être relu au moment d'ajouter** —
+et rien, dans le geste « j'ajoute un bouton », ne conduit à relire le commentaire du bouton d'à côté.
+
+**La mesure qui tranche**, et qui ne coûte rien :
+
+```
+adb shell uiautomator dump ; grep bounds
+```
+
+La largeur du titre est un **nombre**. 24 px se distingue de 312 px sans interprétation, là où un
+coup d'œil sur l'écran voit « un titre un peu court ».
+
+**Le correctif** : épingle et favori descendent dans le menu de débordement. Ce sont des gestes sur
+la *fiche* de la note, occasionnels ; le micro et le lien sont des gestes d'*écriture*, faits pendant
+qu'on compose. ⚠️ Écart assumé avec l'application publiée, qui garde les quatre icônes — elle peut se
+le permettre parce que **son titre est l'indicateur d'enregistrement, sur une seule ligne étroite**,
+là où le portage y a ajouté le nom du dossier. Deux barres qui se ressemblent n'ont pas le même
+budget de largeur.
+
+---
+
+## §64 — Piloter l'interface pendant une suite instrumentée la fait échouer
+
+Un `connectedAndroidTest` a rendu **91 tests sur 130, 1 échec** — un test de coffre sans rapport,
+tombé sur `The component was not created. Check that you have added the HiltAndroidRule`.
+
+La cause n'était pas le code : je pilotais l'application avec `uiautomator` et `am force-stop`
+**pendant** que la suite tournait. Le processus de test a été perturbé, et le run s'est arrêté en
+route.
+
+⚠️ Le symptôme est trompeur : un échec Hilt dans un test qui n'y touche pas ressemble à une
+régression d'injection. **Le décompte le démasque** — 91 au lieu de 130 veut dire que la suite ne
+s'est pas terminée, donc que l'échec n'est pas celui qu'il prétend être. Relancée seule : 130/130.
+
+**Règle** : une suite instrumentée a l'appareil pour elle. Ne rien lancer d'autre dessus tant qu'elle
+tourne.

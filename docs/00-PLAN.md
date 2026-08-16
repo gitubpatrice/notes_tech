@@ -312,7 +312,8 @@ demandent une installation 2.0.3 réelle sur le S9 et le drapeau `replaceInstall
 
 ### Phase 7 — état au 2026-08-16
 
-Cinq étapes sur six. **Il ne reste que l'interface.**
+**Les six étapes sont posées.** La phase 7 est close, à une réserve près : la dictée n'a jamais
+été exercée de bout en bout, faute du modèle de 50 Mo sur l'appareil de test.
 
 - [x] ~~**Le contrat de domaine**~~ — `domain/voice/SpeechToText.kt`, `SttErrors.kt`, `WavPcm16.kt`.
       Transposé du contrat Dart réel de `files_tech_voice`, **lu dans le cache pub**, pas deviné.
@@ -339,7 +340,11 @@ Cinq étapes sur six. **Il ne reste que l'interface.**
       Dart, l'analyseur JSON et `dr_wav.h` ont été **écartés** — 1,3 Mo, cf. D-021. ✅ Vérifié sur le
       S9 : `libnotes_stt.so` **se charge**. ⚠️ Aucune transcription n'est testée : il faudrait le
       modèle de 50 Mo sur l'appareil.
-- [ ] **L'interface** — écran de configuration, bouton micro, superposition d'enregistrement.
+- [x] ~~**L'interface**~~ — 2026-08-16. Écran d'installation (`ui/voice/VoiceSetupScreen`), bouton
+      micro dans l'éditeur, superposition d'enregistrement. ⚠️ **Quatre défauts que seul l'écran a
+      montrés**, dont la permission micro demandée avant de savoir qu'aucun modèle n'est installé, et
+      une description de modèle en français **en dur** servie à un utilisateur anglophone. Cf.
+      `04-PIEGES.md` §61-§62.
 
 #### ⚠️ Ce qu'il fallait savoir avant d'écrire l'import — vérifié, pas supposé, et désormais fait
 

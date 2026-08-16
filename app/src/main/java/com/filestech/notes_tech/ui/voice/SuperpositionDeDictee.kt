@@ -58,15 +58,21 @@ fun SuperpositionDeDictee(etape: EtapeDeDictee, niveau: Float, onArreter: () -> 
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // ⚠️ « Parlez » n'apparaît QU'UNE FOIS le micro ouvert. Le dire pendant
+                // ⚠️ « Parlez » n'apparaît QU'UNE FOIS le micro ouvert : le dire pendant
                 // l'initialisation ferait commencer l'utilisateur trop tôt, et son premier mot
                 // n'arriverait jamais dans le fichier.
-                Text(
-                    text = stringResource(
-                        if (enregistre) R.string.voice_recording_hint else R.string.voice_transcribing_hint,
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                //
+                // ⚠️⚠️ Un `when` **exhaustif**, et non un `if/else` : l'initialisation tombait dans
+                // la branche de la transcription par accident, pas par décision. Le texte affiché
+                // se trouvait acceptable — « veuillez patienter » convient aux deux — mais c'était
+                // une coïncidence, que le premier changement de libellé aurait défaite. Relevé par
+                // une relecture externe (GPT-5.5, 2026-08-16).
+                val consigne = when (etape) {
+                    EtapeDeDictee.INITIALISATION -> R.string.voice_transcribing_hint
+                    EtapeDeDictee.ENREGISTREMENT -> R.string.voice_recording_hint
+                    EtapeDeDictee.TRANSCRIPTION, EtapeDeDictee.INACTIVE -> R.string.voice_transcribing_hint
+                }
+                Text(stringResource(consigne), style = MaterialTheme.typography.bodyMedium)
                 if (enregistre) {
                     // ⚠️ Masqué aux lecteurs d'écran : un témoin qui change dix fois par seconde
                     // serait annoncé dix fois par seconde. Le texte au-dessus porte l'information

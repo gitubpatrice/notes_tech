@@ -322,33 +322,6 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                                 contentDescription = stringResource(R.string.note_editor_tooltip_done),
                             )
                         }
-                        // 🔴 **La description suit l'état, comme l'icône.**
-                        //
-                        // Elle était figée : l'icône passait de l'épingle vide à l'épingle pleine, et
-                        // un lecteur d'écran continuait d'annoncer « Épingler la note » sur une note
-                        // **déjà épinglée** — donc l'inverse de ce que le bouton allait faire.
-                        // `home_unpin` et `home_unfav` existaient exactement pour cet état, et
-                        // n'étaient lues nulle part.
-                        //
-                        // C'est le jumeau asymétrique dans sa forme la plus littérale : ce que le
-                        // code fait, et ce que l'utilisateur **entend**. Relevé par l'audit i18n du
-                        // 2026-08-15.
-                        IconButton(onClick = { viewModel.setPinned(!note.pinned) }) {
-                            Icon(
-                                imageVector = if (note.pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
-                                contentDescription = stringResource(
-                                    if (note.pinned) R.string.home_unpin else R.string.note_editor_tooltip_pin,
-                                ),
-                            )
-                        }
-                        IconButton(onClick = { viewModel.setFavorite(!note.favorite) }) {
-                            Icon(
-                                imageVector = if (note.favorite) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                                contentDescription = stringResource(
-                                    if (note.favorite) R.string.home_unfav else R.string.note_editor_tooltip_fav,
-                                ),
-                            )
-                        }
                         // 🔴 Le micro AVANT le lien : c'est le geste qui produit du texte, et il
                         // doit être atteignable sans réfléchir. ⚠️ Désarmé pendant une dictée —
                         // `DictationViewModel` refuse le second appel de toute façon, mais un
@@ -372,6 +345,10 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                             )
                         }
                         MenuDeDebordement(
+                            epinglee = note.pinned,
+                            favorite = note.favorite,
+                            onEpingler = { viewModel.setPinned(!note.pinned) },
+                            onFavori = { viewModel.setFavorite(!note.favorite) },
                             onDeplacer = { deplacementOuvert = true },
                             onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
                             onCopier = {
@@ -771,6 +748,10 @@ private fun TitreDeLEditeur(dossier: String, enregistrement: Boolean, echec: Boo
  */
 @Composable
 private fun MenuDeDebordement(
+    epinglee: Boolean,
+    favorite: Boolean,
+    onEpingler: () -> Unit,
+    onFavori: () -> Unit,
     onDeplacer: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
@@ -785,6 +766,50 @@ private fun MenuDeDebordement(
         )
     }
     DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
+        // 🔴🔴 **Épingle et favori sont ICI, et non dans la barre d'actions.**
+        //
+        // Ils y étaient. Mesuré sur le S9 après l'ajout du micro : six actions dans la barre
+        // écrasent le titre **à 24 pixels** — le nom du dossier et l'état de l'enregistrement
+        // réduits à des points de suspension. C'est le piège que ce fichier avait DÉJÀ payé une
+        // fois, quand « Terminé » était un bouton libellé ; le commentaire qui le raconte est
+        // quelques lignes plus haut, et il n'a pas suffi à m'empêcher de le rouvrir.
+        //
+        // ⚠️ Ce sont ces deux-là qui partent, et pas le micro ni le lien : les seconds sont des
+        // gestes d'**écriture**, faits pendant qu'on compose ; épingler et mettre en favori sont
+        // des gestes sur la **fiche** de la note, occasionnels, et ils voisinent naturellement avec
+        // déplacer et exporter.
+        //
+        // ⚠️ Écart assumé avec l'application publiée, qui les garde dans la barre. Elle peut se le
+        // permettre parce que son titre EST l'indicateur d'enregistrement, sur une seule ligne
+        // étroite ; ici il en porte deux, dont le nom du dossier qu'elle n'affiche nulle part.
+        //
+        // ⚠️ Le libellé suit l'état — `home_unpin` / `home_unfav` — comme le faisait la description
+        // du bouton d'icône. Un menu qui propose « Épingler » sur une note déjà épinglée annonce
+        // l'inverse de ce qu'il va faire.
+        DropdownMenuItem(
+            text = {
+                Text(stringResource(if (epinglee) R.string.home_unpin else R.string.note_editor_tooltip_pin))
+            },
+            leadingIcon = {
+                Icon(if (epinglee) Icons.Filled.PushPin else Icons.Outlined.PushPin, contentDescription = null)
+            },
+            onClick = {
+                ouvert = false
+                onEpingler()
+            },
+        )
+        DropdownMenuItem(
+            text = {
+                Text(stringResource(if (favorite) R.string.home_unfav else R.string.note_editor_tooltip_fav))
+            },
+            leadingIcon = {
+                Icon(if (favorite) Icons.Filled.Star else Icons.Outlined.StarBorder, contentDescription = null)
+            },
+            onClick = {
+                ouvert = false
+                onFavori()
+            },
+        )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.note_editor_menu_move)) },
             leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, contentDescription = null) },

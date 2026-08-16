@@ -37,6 +37,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.voice.SttModel
 import com.filestech.notes_tech.domain.voice.SttModelCatalogue
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import kotlinx.coroutines.launch
 
 /**
  * L'installation du modèle de dictée.
@@ -112,7 +115,12 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     // sélecteur de documents traverse une autre application, et l'activité peut être recréée entre
     // le départ et le retour. Un modèle capturé dans la fermeture serait alors perdu, et l'import
     // partirait sur le mauvais — ou sur rien.
-    var modeleVise by remember { mutableStateOf<String?>(null) }
+    // ⚠️⚠️ `rememberSaveable`, et le commentaire ci-dessus DISAIT déjà pourquoi : l'activité peut
+    // être recréée pendant le détour par le sélecteur — rotation, thème système, pression mémoire.
+    // Un `remember` simple ne survit à aucun des trois : au retour, la variable valait `null`,
+    // l'URI reçue était ignorée, et **le geste se perdait sans un mot**. Le commentaire promettait
+    // une garantie que le code ne donnait pas. Relevé par les DEUX relectures (2026-08-16).
+    var modeleVise by rememberSaveable { mutableStateOf<String?>(null) }
 
     val selecteur = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         val modele = modeleVise?.let(SttModelCatalogue::parIdentifiant)
@@ -123,14 +131,15 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     val messageLienCopie = stringResource(R.string.voice_setup_link_copied)
     val modeleInstalle = etat.installeAvecSucces
     val messageInstalle = modeleInstalle?.let { stringResource(R.string.voice_setup_install_ok, it) }
+
+    // 🔴 Une portée qui survit à l'annulation de l'effet. `showSnackbar` **suspend** plusieurs
+    // secondes ; l'appeler depuis le `LaunchedEffect` retardait d'autant la consommation, et une
+    // rotation pendant ce délai rejouait l'événement. Cf. `ControleurDeDictee.annoncer`.
+    val portee = rememberCoroutineScope()
     LaunchedEffect(etat.lienCopie, modeleInstalle) {
-        // ⚠️ Afficher **puis** consommer : une clé qui change par son propre effet annule l'effet
-        // qui la change. Le piège est déjà documenté dans ce dépôt.
-        val message = messageInstalle ?: messageLienCopie.takeIf { etat.lienCopie }
-        if (message != null) {
-            snackbars.showSnackbar(message)
-            viewModel.messageAffiche()
-        }
+        val message = messageInstalle ?: messageLienCopie.takeIf { etat.lienCopie } ?: return@LaunchedEffect
+        viewModel.messageAffiche()
+        portee.launch { snackbars.showSnackbar(message) }
     }
 
     Scaffold(

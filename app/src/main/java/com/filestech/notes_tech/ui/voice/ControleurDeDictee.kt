@@ -18,7 +18,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -28,6 +29,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 /**
@@ -36,7 +39,7 @@ import timber.log.Timber
  * ## Pourquoi ce détour plutôt qu'un branchement direct dans l'éditeur
  *
  * La dictée demande une permission, un lanceur d'activité, une lecture de `shouldShowRequest…`, une
- * superposition, un dialogue de refus et six messages distincts. Posé tel quel dans
+ * superposition, un dialogue de refus et sept messages distincts. Posé tel quel dans
  * `NoteEditorRoute`, cela l'a fait franchir les seuils de longueur **et** de complexité que detekt
  * garde — et le gate a raison : cette fonction porte déjà la note, ses liens, son coffre, son
  * déplacement et son export.
@@ -50,6 +53,7 @@ class ControleurDeDictee internal constructor(
     val niveau: Float,
     internal val refusDefinitif: Boolean,
     internal val onRefusVu: () -> Unit,
+    internal val onReglagesInjoignables: () -> Unit,
     /** Demande la permission si nécessaire, puis démarre. */
     val demarrer: () -> Unit,
     /** Termine l'enregistrement et enchaîne sur la transcription. */
@@ -64,8 +68,7 @@ class ControleurDeDictee internal constructor(
  * Câble la dictée, et rend de quoi la piloter.
  *
  * ⚠️ N'émet **rien**. L'affichage — superposition et dialogue de refus — est à [SurcoucheDeDictee],
- * que l'appelant place où il veut dans son arbre. Séparer les deux évite d'imposer à l'éditeur la
- * position de la superposition dans sa propre hiérarchie.
+ * que l'appelant place où il veut dans son arbre.
  *
  * @param onTexte reçoit la transcription, à insérer là où l'appelant le juge bon.
  */
@@ -79,8 +82,20 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
     val activite = LocalActivity.current
     val contexte = LocalContext.current
 
-    // ⚠️ Déclaré avant le lanceur : sa fermeture le capture.
-    var refusDefinitif by remember { mutableStateOf(false) }
+    // ⚠️ `rememberSaveable` : la demande de permission passe par une autre fenêtre, et l'activité
+    // peut être recréée pendant ce détour. Voir la note du même sujet dans `VoiceSetupScreen`.
+    var refusDefinitif by rememberSaveable { mutableStateOf(false) }
+
+    // 🔴🔴 **Une portée qui SURVIT à l'annulation de l'effet.** Voir [annoncer].
+    val portee = rememberCoroutineScope()
+
+    val texteInsere = stringResource(R.string.voice_transcribed)
+    val rienEntendu = stringResource(R.string.voice_nothing_heard)
+    val aucunModele = stringResource(R.string.error_voice_no_model_installed)
+    val captureImpossible = stringResource(R.string.error_voice_start_capture_failed)
+    val transcriptionImpossible = stringResource(R.string.error_voice_transcribe_failed)
+    val microRefuse = stringResource(R.string.voice_permission_needed)
+    val reglagesInjoignables = stringResource(R.string.voice_system_settings_unavailable)
 
     val demande = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { accordee ->
         if (accordee) {
@@ -92,41 +107,43 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
             // a pas, et lui en donner une ferait remonter l'interface dans le service.
             // `SttPermissionDeniedException` désigne explicitement l'écran comme responsable de ce
             // calcul — c'est ce contrat qui se tient ici.
-            //
-            // ⚠️ Sans lui, l'utilisateur ayant coché « ne plus demander » se verrait proposer une
-            // nouvelle demande **qu'Android ignore en silence** : un bouton qui ne fait rien.
-            refusDefinitif = activite?.let {
+            val definitif = activite?.let {
                 !ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.RECORD_AUDIO)
             } ?: false
+            refusDefinitif = definitif
+            // ⚠️⚠️ **Un refus SIMPLE n'affichait rien du tout.** Seul le cas définitif était traité :
+            // le bouton micro revenait à l'écran, sans un mot, et l'utilisateur ne pouvait pas
+            // savoir s'il avait raté son geste ou si l'application était en panne. Relevé par une
+            // relecture externe (GPT-5.5, 2026-08-16).
+            if (!definitif) messages.annoncer(portee, microRefuse)
         }
     }
 
-    val texteInsere = stringResource(R.string.voice_transcribed)
-    val rienEntendu = stringResource(R.string.error_voice_transcribe_failed)
-    val aucunModele = stringResource(R.string.error_voice_no_model_installed)
-    val captureImpossible = stringResource(R.string.error_voice_start_capture_failed)
-    val transcriptionImpossible = stringResource(R.string.error_voice_mic_capture_error)
-    val microRefuse = stringResource(R.string.voice_permission_denied)
-
     LaunchedEffect(issue) {
-        // ⚠️⚠️ **Afficher PUIS consommer.** Consommer d'abord annulerait l'effet en cours, la clé
-        // changeant par son propre effet — piège déjà payé deux fois dans ce dépôt.
-        when (val courante = issue) {
-            null -> Unit
-            is IssueDeDictee.Texte -> {
-                onTexte(courante.contenu)
-                messages.showSnackbar(texteInsere)
-            }
-            // ⚠️ Le silence n'est PAS un échec : l'utilisateur n'a rien dit. Même règle que le
-            // `null` de `VoiceCapture.enregistrer`, et pour la même raison — un échec système et un
-            // geste de l'utilisateur ne se classent pas ensemble.
-            IssueDeDictee.Silence -> messages.showSnackbar(rienEntendu)
-            IssueDeDictee.ModeleAbsent -> messages.showSnackbar(aucunModele)
-            IssueDeDictee.CaptureImpossible -> messages.showSnackbar(captureImpossible)
-            IssueDeDictee.TranscriptionImpossible -> messages.showSnackbar(transcriptionImpossible)
-            is IssueDeDictee.PermissionRefusee -> messages.showSnackbar(microRefuse)
-        }
-        if (issue != null) dictee.issueConsommee()
+        val courante = issue ?: return@LaunchedEffect
+
+        // 🔴 L'insertion d'abord, la consommation **immédiatement après**, l'affichage en dernier
+        // et hors de cet effet. Voir [annoncer] pour la raison — elle vaut une insertion en double.
+        if (courante is IssueDeDictee.Texte) onTexte(courante.contenu)
+        dictee.issueConsommee()
+
+        messages.annoncer(
+            portee,
+            when (courante) {
+                is IssueDeDictee.Texte -> texteInsere
+                // ⚠️ Le silence n'est PAS un échec : l'utilisateur n'a rien dit. Il affichait
+                // pourtant « échec de la transcription » — une erreur technique pour un geste
+                // ordinaire. Même règle que le `null` de `VoiceCapture.enregistrer`. Relevé par les
+                // DEUX relectures externes (2026-08-16).
+                IssueDeDictee.Silence -> rienEntendu
+                IssueDeDictee.ModeleAbsent -> aucunModele
+                IssueDeDictee.CaptureImpossible -> captureImpossible
+                // ⚠️ Et non `error_voice_mic_capture_error`, qui orientait vers le micro alors que
+                // l'enregistrement s'était bien passé et que c'est la transcription qui a échoué.
+                IssueDeDictee.TranscriptionImpossible -> transcriptionImpossible
+                is IssueDeDictee.PermissionRefusee -> microRefuse
+            },
+        )
     }
 
     return ControleurDeDictee(
@@ -134,6 +151,7 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
         niveau = niveau,
         refusDefinitif = refusDefinitif,
         onRefusVu = { refusDefinitif = false },
+        onReglagesInjoignables = { messages.annoncer(portee, reglagesInjoignables) },
         demarrer = {
             // 🔴 **Le modèle d'abord, la permission ensuite.** Demander le micro pour une dictée
             // qui ne peut pas aboutir, faute de modèle, c'est faire refuser durablement une
@@ -153,6 +171,26 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
     )
 }
 
+/**
+ * Affiche un message **sans retenir l'appelant**.
+ *
+ * ## 🔴🔴 Pourquoi ce détour, et ce qu'il a coûté
+ *
+ * `showSnackbar` **suspend** jusqu'à ce que le message disparaisse — plusieurs secondes. Appelé
+ * directement depuis un `LaunchedEffect`, il retardait donc d'autant la consommation de l'événement
+ * qui l'avait déclenché. Une rotation d'écran pendant ce délai annulait l'effet **avant** la
+ * consommation, la nouvelle composition relisait la même issue, et **le texte dicté s'insérait une
+ * seconde fois dans la note**.
+ *
+ * L'ordre correct n'est donc ni « consommer puis afficher » — l'effet s'annule et le message ne
+ * paraît jamais — ni « afficher puis consommer ». C'est **consommer, puis afficher depuis une
+ * portée qui ne dépend pas de l'effet**. Relevé par les DEUX relectures externes (2026-08-16), et
+ * la règle « `showSnackbar` suspend le collecteur » était déjà écrite ailleurs dans ce dépôt.
+ */
+private fun SnackbarHostState.annoncer(portee: CoroutineScope, message: String) {
+    portee.launch { showSnackbar(message) }
+}
+
 /** Ce que la dictée affiche : la superposition, et le dialogue d'un refus définitif. */
 @Composable
 fun SurcoucheDeDictee(controleur: ControleurDeDictee) {
@@ -169,7 +207,7 @@ fun SurcoucheDeDictee(controleur: ControleurDeDictee) {
         DialogueDeMicroRefuse(
             onOuvrirLesReglages = {
                 controleur.onRefusVu()
-                ouvrirLesReglagesDeLApplication(contexte)
+                if (!ouvrirLesReglagesDeLApplication(contexte)) controleur.onReglagesInjoignables()
             },
             onFermer = controleur.onRefusVu,
         )
@@ -203,23 +241,25 @@ private fun DialogueDeMicroRefuse(onOuvrirLesReglages: () -> Unit, onFermer: () 
 }
 
 /**
- * Ouvre la fiche de l'application dans les réglages système.
+ * Ouvre la fiche de l'application dans les réglages système. Rend `false` si c'est impossible.
  *
  * ⚠️ `ACTION_APPLICATION_DETAILS_SETTINGS` et non un écran de permissions : le second n'existe pas
  * sous le même nom sur toutes les surcouches, et un intent sans destinataire lève.
  *
- * ⚠️ L'échec est **avalé volontairement, et tracé** : c'est un raccourci de confort, et faire tomber
- * l'éditeur d'une note parce qu'un constructeur a retiré un écran de réglages serait disproportionné.
+ * ⚠️⚠️ **L'échec est RENDU, pas seulement tracé.** Il était avalé : sur un appareil dont le
+ * constructeur ne résout pas cet intent, le dialogue se fermait et il ne se passait rien — un bouton
+ * « ouvrir les réglages » devenu un bouton « annuler ». L'utilisateur, lui, restait sans micro et
+ * sans consigne. Relevé par une relecture externe (GPT-5.5, 2026-08-16).
  */
-private fun ouvrirLesReglagesDeLApplication(contexte: Context) {
-    try {
-        contexte.startActivity(
-            Intent(
-                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                Uri.fromParts("package", contexte.packageName, null),
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
-    } catch (e: ActivityNotFoundException) {
-        Timber.w(e, "dictee : reglages systeme injoignables")
-    }
+private fun ouvrirLesReglagesDeLApplication(contexte: Context): Boolean = try {
+    contexte.startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", contexte.packageName, null),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
+    true
+} catch (e: ActivityNotFoundException) {
+    Timber.w(e, "dictee : reglages systeme injoignables")
+    false
 }

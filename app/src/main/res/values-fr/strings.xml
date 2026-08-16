@@ -334,6 +334,12 @@
     <string name="voice_model_base_notes">Conseillé. Bonne qualité en français, environ 3 s de calcul pour 5 s de parole.</string>
     <string name="voice_model_tiny_notes">Léger et rapide, qualité en français approximative. Pour les appareils modestes.</string>
 
+    <string name="voice_nothing_heard">Rien n\'a été entendu, aucun texte inséré.</string>
+
+    <string name="voice_permission_needed">La permission du micro est nécessaire pour dicter. Appuyez à nouveau sur le micro pour l\'autoriser.</string>
+
+    <string name="voice_system_settings_unavailable">Cet appareil ne propose pas cet écran de réglages. Ouvrez les réglages Android, cherchez Notes Tech, et autorisez le micro.</string>
+
     <string name="voice_setup_remove_confirm_title">Retirer le modèle ?</string>
     <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
 

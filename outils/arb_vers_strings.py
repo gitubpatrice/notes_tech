@@ -130,6 +130,21 @@ AJOUTS_EN = {
     <string name="voice_model_base_notes">Recommended. Good French quality, about 3 s of compute for 5 s of speech.</string>
     <string name="voice_model_tiny_notes">Light and fast, rough French quality. For modest devices.</string>
 
+    <!--
+      🔴 Le silence n'est PAS un echec. L'ecran affichait « Transcription failed » a
+      quelqu'un qui n'avait simplement rien dit : un echec systeme et un geste de l'utilisateur
+      ne se classent pas ensemble — c'est deja la regle du `null` de `VoiceCapture`. Ne rien
+      afficher serait pire : apres un appui sur « Arreter », l'absence de retour se lit comme
+      une panne.
+    -->
+    <string name="voice_nothing_heard">Nothing was heard, no text inserted.</string>
+
+    <!-- Un refus SIMPLE du micro n'affichait rien du tout : le bouton revenait, sans un mot.
+         Seul le refus definitif etait traite. -->
+    <string name="voice_permission_needed">Microphone permission is needed to dictate. Tap the microphone again to allow it.</string>
+
+    <string name="voice_system_settings_unavailable">This device does not offer that settings screen. Open Android settings, find Notes Tech, and allow the microphone.</string>
+
     <string name="voice_setup_remove_confirm_title">Remove the model?</string>
     <string name="voice_setup_remove_confirm_body">You will have to download and import it again to dictate. Your notes are not affected.</string>
 """,
@@ -203,6 +218,12 @@ AJOUTS_FR = {
 
     <string name="voice_model_base_notes">Conseillé. Bonne qualité en français, environ 3 s de calcul pour 5 s de parole.</string>
     <string name="voice_model_tiny_notes">Léger et rapide, qualité en français approximative. Pour les appareils modestes.</string>
+
+    <string name="voice_nothing_heard">Rien n\\'a été entendu, aucun texte inséré.</string>
+
+    <string name="voice_permission_needed">La permission du micro est nécessaire pour dicter. Appuyez à nouveau sur le micro pour l\\'autoriser.</string>
+
+    <string name="voice_system_settings_unavailable">Cet appareil ne propose pas cet écran de réglages. Ouvrez les réglages Android, cherchez Notes Tech, et autorisez le micro.</string>
 
     <string name="voice_setup_remove_confirm_title">Retirer le modèle ?</string>
     <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
