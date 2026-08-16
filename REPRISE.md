@@ -117,12 +117,34 @@ survivrait à la purge affirmerait qu'un fichier absent a été vérifié.
    sur l'APK **release** dès qu'un écran utilise la dictée. Cf. `04-PIEGES.md` §59.
 3. La bibliothèque native est **empaquetée quand même**, 2,5 Mo par architecture.
 
-## Il ne reste que l'interface
+## ✅ L'interface est faite — la phase 7 est close
 
-Écran d'installation du modèle (afficher le nom du fichier amont et la source, lancer le sélecteur
-de documents, montrer la progression de l'import), bouton micro dans l'éditeur, superposition
-d'enregistrement. ⚠️ **Toute chaîne nouvelle passe par `outils/arb_vers_strings.py`**, jamais
+Écran d'installation (`ui/voice/`), bouton micro dans l'éditeur, superposition d'enregistrement,
+entrée dans les réglages. ⚠️ **Toute chaîne nouvelle passe par `outils/arb_vers_strings.py`**, jamais
 directement dans le XML.
+
+### 🔴 Ce que seul l'APPAREIL a montré
+
+Quatre défauts, dont aucun n'aurait été vu à la relecture :
+
+1. la permission du **micro était demandée avant** de savoir qu'aucun modèle n'est installé — une
+   permission qu'on fait refuser durablement pour une action qui ne peut pas aboutir ;
+2. la description des modèles était un champ du **catalogue**, donc du français **en dur** servi à un
+   utilisateur anglophone ;
+3. la superposition disait « Parlez » **avant** que le micro n'enregistre : le premier mot se perdait ;
+4. 🔴 le bouton micro a porté la barre de l'éditeur à six actions et **écrasé le titre à 24 pixels** —
+   c'est Patrice qui l'a vu. Le piège était **déjà documenté à quelques lignes de là**. Épingle et
+   favori sont descendues dans le menu ; le titre est remonté à 312 px, mesuré.
+
+⚠️ La mesure qui tranche : `adb shell uiautomator dump` puis lire `bounds`. Une largeur est un
+nombre ; un coup d'œil voit « un titre un peu court ».
+
+### ⚠️ Ce qui n'a jamais été exercé
+
+**La dictée de bout en bout.** Il faut le modèle de 50 Mo sur le S9 : le télécharger sur un
+ordinateur (`ggml-base-q5_1.bin`, `huggingface.co/ggerganov/whisper.cpp`), le transférer, puis
+l'importer par l'écran. Tant que ce n'est pas fait, on sait que la bibliothèque native **se charge**,
+et rien de plus sur la qualité, la détection de langue ou le découpage en segments.
 
 ## Après la phase 7
 
