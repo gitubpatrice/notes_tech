@@ -89,7 +89,38 @@ class DictationViewModel @Inject constructor(
     val etape: StateFlow<EtapeDeDictee> = _etape.asStateFlow()
 
     private val _issue = MutableStateFlow<IssueDeDictee?>(null)
+
+    /**
+     * Ce qui doit agir sur la note — **exactement une fois**.
+     *
+     * 🔴 Consommé **dès l'insertion faite**, sans attendre le moindre affichage : une insertion qui
+     * dépend de la durée d'un message se rejoue au premier changement de configuration, et le texte
+     * dicté entre deux fois dans la note.
+     */
     val issue: StateFlow<IssueDeDictee?> = _issue.asStateFlow()
+
+    private val _message = MutableStateFlow<IssueDeDictee?>(null)
+
+    /**
+     * Ce qui doit être **dit** à l'utilisateur — et qui, lui, doit survivre.
+     *
+     * ## ⚠️⚠️ Pourquoi deux flux pour un seul événement
+     *
+     * Les deux moitiés n'ont pas la même exigence, et les confondre casse forcément l'une des deux :
+     *
+     * - l'**insertion** doit avoir lieu une fois, et pas deux ;
+     * - le **message** doit avoir lieu une fois, et pas zéro.
+     *
+     * Tant qu'ils partageaient un seul flux, il fallait choisir. Consommer tard rejouait
+     * l'insertion ; consommer tôt perdait le message — il suffisait qu'un autre message occupe la
+     * file et qu'une rotation détruise la composition avant que celui-ci ne paraisse. L'utilisateur
+     * appuyait alors sur le micro, rien ne se passait, et **rien ne lui disait pourquoi**. Relevé
+     * par une relecture externe (GPT-5.5, 2026-08-16), sur le correctif de la veille au soir.
+     *
+     * ⚠️ Celui-ci se consomme donc **après** l'affichage, par [messageAffiche] : une composition
+     * détruite entre-temps le laisse en attente, et la suivante le reprend.
+     */
+    val message: StateFlow<IssueDeDictee?> = _message.asStateFlow()
 
     /** Le niveau sonore, pour que l'écran montre qu'on l'entend. Voir [VoiceCapture.niveau]. */
     val niveau: StateFlow<Float> = capture.niveau
@@ -109,7 +140,7 @@ class DictationViewModel @Inject constructor(
         travail = viewModelScope.launch {
             val modele = SttModelCatalogue.tous.firstOrNull { magasin.estPresent(it) }
             if (modele == null) {
-                _issue.value = IssueDeDictee.ModeleAbsent
+                emettre(IssueDeDictee.ModeleAbsent)
                 return@launch
             }
 
@@ -125,8 +156,12 @@ class DictationViewModel @Inject constructor(
             try {
                 audio = capturerPuisArreterLeSuivi(suiviDuMicro)
                 if (audio == null) {
-                    // ⚠️ `null` = appui bref, pas panne. Rien à signaler, rien à transcrire.
-                    _issue.value = IssueDeDictee.Silence
+                    // ⚠️ `null` = appui bref, pas panne — et rien à transcrire. ⚠️⚠️ Mais **c'est
+                    // signalé**, par un message NEUTRE : l'absence de tout retour après un appui sur
+                    // « Arrêter » se lit comme une panne. Ce commentaire disait « rien à signaler »
+                    // alors que le correctif de la veille avait justement ajouté ce message —
+                    // relevé par une relecture externe (Gemini, 2026-08-16), sur le correctif.
+                    emettre(IssueDeDictee.Silence)
                     return@launch
                 }
 
@@ -137,11 +172,7 @@ class DictationViewModel @Inject constructor(
                 moteur.initialize(modele)
                 val resultat = moteur.transcribeFile(audio.absolutePath)
 
-                _issue.value = if (resultat.isEmpty) {
-                    IssueDeDictee.Silence
-                } else {
-                    IssueDeDictee.Texte(resultat.text)
-                }
+                emettre(if (resultat.isEmpty) IssueDeDictee.Silence else IssueDeDictee.Texte(resultat.text))
             } catch (e: CancellationException) {
                 throw e
             } catch (e: SttPermissionDeniedException) {
@@ -151,7 +182,7 @@ class DictationViewModel @Inject constructor(
                 Timber.w(e, "dictee : permission micro refusee")
                 // ⚠️ `definitif = false` : la couche de données ne peut pas le savoir. C'est l'écran
                 // qui recalcule, et lui seul.
-                _issue.value = IssueDeDictee.PermissionRefusee(definitif = false)
+                emettre(IssueDeDictee.PermissionRefusee(definitif = false))
             } catch (e: Throwable) {
                 Timber.w(e, "dictee : echec")
                 // ⚠️⚠️ **INITIALISATION compte comme de la capture.** L'ajout de cette étape a
@@ -159,12 +190,14 @@ class DictationViewModel @Inject constructor(
                 // le plus fréquent, micro déjà pris par une autre application — se serait annoncée
                 // comme un échec de TRANSCRIPTION, c'est-à-dire en accusant le modèle. Un correctif
                 // est du code neuf, et il vise mal ce qu'il ne regarde pas.
-                _issue.value = when (_etape.value) {
-                    EtapeDeDictee.INITIALISATION, EtapeDeDictee.ENREGISTREMENT ->
-                        IssueDeDictee.CaptureImpossible
-                    EtapeDeDictee.TRANSCRIPTION, EtapeDeDictee.INACTIVE ->
-                        IssueDeDictee.TranscriptionImpossible
-                }
+                emettre(
+                    when (_etape.value) {
+                        EtapeDeDictee.INITIALISATION, EtapeDeDictee.ENREGISTREMENT ->
+                            IssueDeDictee.CaptureImpossible
+                        EtapeDeDictee.TRANSCRIPTION, EtapeDeDictee.INACTIVE ->
+                            IssueDeDictee.TranscriptionImpossible
+                    },
+                )
             } finally {
                 // 🔴 Toujours, sur les trois sorties. Voir la note de classe.
                 audio?.let(::effacerOuSignaler)
@@ -204,7 +237,18 @@ class DictationViewModel @Inject constructor(
 
     /** Signale l'absence de modèle sans rien tenter d'autre. Voir [modeleDisponible]. */
     fun signalerModeleAbsent() {
-        _issue.value = IssueDeDictee.ModeleAbsent
+        emettre(IssueDeDictee.ModeleAbsent)
+    }
+
+    /**
+     * Pose les deux moitiés de l'événement : celle qui agit, et celle qui parle.
+     *
+     * ⚠️ Une seule fonction, pour qu'elles ne puissent pas diverger. Deux affectations séparées, et
+     * un cas d'échec ajouté plus tard n'en poserait qu'une — le geste sans son accusé, ou l'inverse.
+     */
+    private fun emettre(issue: IssueDeDictee) {
+        _issue.value = issue
+        _message.value = issue
     }
 
     /** Termine l'enregistrement et lance la transcription. */
@@ -222,7 +266,11 @@ class DictationViewModel @Inject constructor(
         travail?.cancel()
     }
 
+    /** L'insertion est faite. ⚠️ N'efface **pas** le message : voir [message]. */
     fun issueConsommee() = _issue.update { null }
+
+    /** Le message a été **affiché**. À appeler après `showSnackbar`, jamais avant. */
+    fun messageAffiche() = _message.update { null }
 
     private fun effacerOuSignaler(fichier: File) {
         try {

@@ -37,7 +37,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,7 +52,6 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.voice.SttModel
 import com.filestech.notes_tech.domain.voice.SttModelCatalogue
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
-import kotlinx.coroutines.launch
 
 /**
  * L'installation du modèle de dictée.
@@ -90,7 +88,7 @@ import kotlinx.coroutines.launch
  * orphelines relevées, une signalait un vrai manque (`voice_setup_install_ok`, la confirmation après
  * un import de plusieurs minutes) et a été câblée. Les huit autres sont délibérées :
  *
- - `voice_setup_download`, `..._browser_open_failed`, `..._browser_open_error` : le portage n'ouvre
+ * - `voice_setup_download`, `..._browser_open_failed`, `..._browser_open_error` : le portage n'ouvre
  *   pas de navigateur. Voir ci-dessus.
  * - `voice_setup_install_fail`, `voice_setup_checksum_mismatch_body` : elles portent `{message}` —
  *   le message **interne** de l'exception, non traduit. `VaultAttempt` a déjà dû cesser de faire ça.
@@ -109,17 +107,22 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     val contexte = LocalContext.current
     val snackbars = remember { SnackbarHostState() }
 
-    var aRetirer by remember { mutableStateOf<SttModel?>(null) }
+    // ⚠️⚠️ **Le chemin voisin, que le correctif de `modeleVise` avait oublié.** Le dialogue de
+    // retrait disparaissait à la rotation, sans action et sans un mot. C'est le motif du *jumeau
+    // asymétrique* : deux états du même écran, un seul rendu durable, et la relecture du fichier
+    // corrigé ne regarde pas celui d'à côté. Relevé par une relecture externe (Gemini, 2026-08-16),
+    // **sur le correctif** — c'est exactement ce qu'on lui demandait de chercher.
+    //
+    // ⚠️ L'**identifiant**, pas le `SttModel` : un objet de domaine ne se met pas dans un `Bundle`.
+    // Même parade que les deux détours du déplacement, dans l'éditeur.
+    var aRetirer by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // ⚠️ Le modèle visé par le sélecteur est retenu ICI et non dans le lambda du contrat : le
-    // sélecteur de documents traverse une autre application, et l'activité peut être recréée entre
-    // le départ et le retour. Un modèle capturé dans la fermeture serait alors perdu, et l'import
-    // partirait sur le mauvais — ou sur rien.
-    // ⚠️⚠️ `rememberSaveable`, et le commentaire ci-dessus DISAIT déjà pourquoi : l'activité peut
-    // être recréée pendant le détour par le sélecteur — rotation, thème système, pression mémoire.
-    // Un `remember` simple ne survit à aucun des trois : au retour, la variable valait `null`,
-    // l'URI reçue était ignorée, et **le geste se perdait sans un mot**. Le commentaire promettait
-    // une garantie que le code ne donnait pas. Relevé par les DEUX relectures (2026-08-16).
+    // ⚠️⚠️ Le modèle visé par le sélecteur est retenu ICI, et en `rememberSaveable` : le sélecteur
+    // de documents traverse une **autre application**, et l'activité peut être recréée pendant ce
+    // détour — rotation, thème système, pression mémoire. Un `remember` simple ne survit à aucun des
+    // trois : au retour, la variable valait `null`, l'URI reçue était ignorée, et **le geste se
+    // perdait sans un mot**. Le commentaire disait déjà tout cela, et le code ne le tenait pas.
+    // Relevé par les DEUX relectures (2026-08-16).
     var modeleVise by rememberSaveable { mutableStateOf<String?>(null) }
 
     val selecteur = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -132,14 +135,20 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     val modeleInstalle = etat.installeAvecSucces
     val messageInstalle = modeleInstalle?.let { stringResource(R.string.voice_setup_install_ok, it) }
 
-    // 🔴 Une portée qui survit à l'annulation de l'effet. `showSnackbar` **suspend** plusieurs
-    // secondes ; l'appeler depuis le `LaunchedEffect` retardait d'autant la consommation, et une
-    // rotation pendant ce délai rejouait l'événement. Cf. `ControleurDeDictee.annoncer`.
-    val portee = rememberCoroutineScope()
+    // ⚠️ Ces deux messages n'agissent sur rien — ils ne font qu'informer. Ils se consomment donc
+    // **après** l'affichage : une composition détruite entre-temps les laisse en attente, et la
+    // suivante les reprend. C'est l'inverse de l'insertion de texte dictée, qui, elle, doit être
+    // consommée tout de suite. Cf. `DictationViewModel.message`.
+    //
+    // ⚠️⚠️ Et **un seul à la fois** : l'un est affiché, l'autre reste posé pour le tour suivant.
     LaunchedEffect(etat.lienCopie, modeleInstalle) {
-        val message = messageInstalle ?: messageLienCopie.takeIf { etat.lienCopie } ?: return@LaunchedEffect
-        viewModel.messageAffiche()
-        portee.launch { snackbars.showSnackbar(message) }
+        if (messageInstalle != null) {
+            snackbars.showSnackbar(messageInstalle)
+            viewModel.installationConsommee()
+        } else if (etat.lienCopie) {
+            snackbars.showSnackbar(messageLienCopie)
+            viewModel.lienConsomme()
+        }
     }
 
     Scaffold(
@@ -204,7 +213,7 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
                         // fichier **invisible** dans le sélecteur, sans aucun message.
                         selecteur.launch(arrayOf("*/*"))
                     },
-                    onRetirer = { aRetirer = modele },
+                    onRetirer = { aRetirer = modele.id },
                 )
             }
 
@@ -219,7 +228,7 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
         DialogueDErreur(cause = cause, onFermer = viewModel::oublierLErreur)
     }
 
-    aRetirer?.let { modele ->
+    aRetirer?.let(SttModelCatalogue::parIdentifiant)?.let { modele ->
         DialogueDeRetrait(
             onConfirmer = {
                 viewModel.desinstaller(modele)

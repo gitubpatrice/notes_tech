@@ -78,6 +78,7 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
     val etape by dictee.etape.collectAsStateWithLifecycle()
     val niveau by dictee.niveau.collectAsStateWithLifecycle()
     val issue by dictee.issue.collectAsStateWithLifecycle()
+    val message by dictee.message.collectAsStateWithLifecycle()
 
     val activite = LocalActivity.current
     val contexte = LocalContext.current
@@ -119,17 +120,21 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
         }
     }
 
+    // 🔴 **L'insertion : consommée DÈS QU'ELLE EST FAITE.** Elle ne doit avoir lieu qu'une fois, et
+    // la faire dépendre de la durée d'un message la rejouait à la première rotation.
     LaunchedEffect(issue) {
         val courante = issue ?: return@LaunchedEffect
-
-        // 🔴 L'insertion d'abord, la consommation **immédiatement après**, l'affichage en dernier
-        // et hors de cet effet. Voir [annoncer] pour la raison — elle vaut une insertion en double.
         if (courante is IssueDeDictee.Texte) onTexte(courante.contenu)
         dictee.issueConsommee()
+    }
 
-        messages.annoncer(
-            portee,
-            when (courante) {
+    // 🔴 **Le message : consommé APRÈS son affichage.** Il ne doit pas avoir lieu zéro fois — et
+    // c'est ce qui arrivait quand un seul flux portait les deux moitiés. Une composition détruite
+    // avant que le message ne paraisse le laisse en attente, et celle-ci le reprend.
+    LaunchedEffect(message) {
+        val courant = message ?: return@LaunchedEffect
+        messages.showSnackbar(
+            when (courant) {
                 is IssueDeDictee.Texte -> texteInsere
                 // ⚠️ Le silence n'est PAS un échec : l'utilisateur n'a rien dit. Il affichait
                 // pourtant « échec de la transcription » — une erreur technique pour un geste
@@ -144,6 +149,10 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
                 is IssueDeDictee.PermissionRefusee -> microRefuse
             },
         )
+        // ⚠️ Ici, et pas avant : si la composition meurt pendant l'affichage, cet appel n'a pas
+        // lieu, et le message repart avec la composition suivante. C'est exactement ce qu'on veut —
+        // et c'est possible **parce que** l'insertion, elle, a déjà été consommée ailleurs.
+        dictee.messageAffiche()
     }
 
     return ControleurDeDictee(
@@ -188,6 +197,12 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
  * la règle « `showSnackbar` suspend le collecteur » était déjà écrite ailleurs dans ce dépôt.
  */
 private fun SnackbarHostState.annoncer(portee: CoroutineScope, message: String) {
+    // ⚠️ Le message en cours est **congédié** d'abord. `showSnackbar` fait la file : trois appuis
+    // rapides sur un micro refusé enchaînaient trois fois le même message pendant une dizaine de
+    // secondes. Avant le passage à une portée détachée, l'annulation de l'effet coupait la file
+    // toute seule — le correctif a donc introduit l'empilement en fermant l'autre défaut. Relevé
+    // par une relecture externe (Gemini, 2026-08-16).
+    currentSnackbarData?.dismiss()
     portee.launch { showSnackbar(message) }
 }
 

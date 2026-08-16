@@ -1316,3 +1316,52 @@ s'est pas terminée, donc que l'échec n'est pas celui qu'il prétend être. Rel
 
 **Règle** : une suite instrumentée a l'appareil pour elle. Ne rien lancer d'autre dessus tant qu'elle
 tourne.
+
+---
+
+## §65 — Un événement qui AGIT et un événement qui PARLE n'ont pas la même exigence
+
+La dictée émettait une seule `IssueDeDictee`, que l'écran consommait. Deux défauts opposés en sont
+sortis, à un jour d'intervalle, et **chacun a été introduit en corrigeant l'autre** :
+
+| Ordre choisi | Ce qui casse |
+|---|---|
+| afficher **puis** consommer | `showSnackbar` suspend plusieurs secondes ; une rotation annule l'effet avant la consommation, l'événement se rejoue, et **le texte dicté s'insère deux fois** |
+| consommer **puis** afficher | la composition peut mourir avant que le message ne paraisse ; l'utilisateur appuie sur le micro, rien ne se passe, et **rien ne lui dit pourquoi** |
+
+Il n'y a pas de bon ordre, parce que les deux moitiés n'ont pas la même exigence :
+
+- l'**insertion** doit avoir lieu une fois, et **pas deux** ;
+- le **message** doit avoir lieu une fois, et **pas zéro**.
+
+**La parade est de les séparer** — deux flux, deux consommations. L'insertion se consomme dès
+qu'elle est faite ; le message se consomme après son affichage, et une composition détruite
+entre-temps le laisse en attente pour la suivante.
+
+⚠️ **Le motif, réutilisable** : devant un événement à consommer une fois, demander *s'il agit ou
+s'il informe*. Quand il fait les deux, aucun ordre unique ne convient, et le débat sur l'ordre est
+le symptôme — pas le problème.
+
+---
+
+## §66 — Une relecture se VÉRIFIE, y compris quand elle a raison sur le fond
+
+Les six constats du 08-16 sur les correctifs de la dictée ont été passés au crible avant
+application. Résultat : **cinq confirmés, un partiellement faux**.
+
+Le constat « trois appuis rapides sur *copier le lien* empilent trois messages » décrivait un
+scénario **impossible dans le fichier cité** : le drapeau est déjà à `true`, l'état ne change pas,
+le `StateFlow` ne réémet pas, aucun effet ne repart. Le **mécanisme**, lui, était réel — mais sur un
+autre chemin, celui du refus de permission, où chaque appui produit bien un nouveau message.
+
+Appliquer le correctif au fichier désigné n'aurait rien réparé, et aurait laissé le vrai défaut en
+place tout en donnant le sentiment de l'avoir traité.
+
+⚠️ **Deux constats des relectures précédentes avaient déjà été écartés** parce que le relecteur
+n'avait pas les fichiers où la garantie était tenue. Un relecteur externe voit ce qu'on lui donne :
+**son scénario est une hypothèse, pas une mesure.**
+
+⚠️⚠️ Corollaire, mesuré le même jour : le gate qui passe après un correctif ne dit rien de ce que le
+correctif a laissé derrière lui. `import kotlinx.coroutines.launch` est resté inutilisé — ktlint ne
+l'a pas signalé, et la seule autre occurrence de `launch` dans le fichier était celle du sélecteur
+d'activité, qui n'a rien à voir. **Relire le delta, pas seulement le voir compiler.**

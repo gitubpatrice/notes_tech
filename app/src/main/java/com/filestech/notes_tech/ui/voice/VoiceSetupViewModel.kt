@@ -144,7 +144,17 @@ class VoiceSetupViewModel @Inject constructor(private val magasin: SttModelStore
 
     fun lienCopie() = _etat.update { it.copy(lienCopie = true) }
 
-    fun messageAffiche() = _etat.update { it.copy(lienCopie = false, installeAvecSucces = null) }
+    /**
+     * ⚠️⚠️ **Deux consommations distinctes, et non une qui efface les deux.**
+     *
+     * Elles étaient réunies. Un import qui se terminait juste après un appui sur « copier le lien »
+     * posait les deux messages ; l'écran en affichait un, et l'unique fonction de consommation
+     * **effaçait aussi l'autre**. Le second n'était jamais dit. Relevé par une relecture externe
+     * (GPT-5.5, 2026-08-16) — sur un correctif écrit une heure plus tôt.
+     */
+    fun lienConsomme() = _etat.update { it.copy(lienCopie = false) }
+
+    fun installationConsommee() = _etat.update { it.copy(installeAvecSucces = null) }
 
     /**
      * ⚠️ Le `when` est sur le **type**, jamais sur le texte. Un classement par message se casse à
