@@ -5,11 +5,14 @@
 
 ## État en trois lignes
 
-- Dépôt : `j:\applications\notes_files_tech`, branche par défaut, **80 commits**, arbre **propre**,
+- Dépôt : `j:\applications\notes_files_tech`, branche par défaut, **86 commits**, arbre **propre**,
   et **toujours aucun remote** — rien n'est poussé nulle part.
-- Gate **vert** au 2026-08-16 : ktlint, detekt, lint (`--rerun-tasks`), **171 tests JVM**,
-  **136 tests instrumentés** (S9), 0 échec, **0 ignoré** — le compte d'ignorés est lu dans le XML,
+- Gate **vert** au 2026-08-16 : ktlint, detekt, lint (`--rerun-tasks`), **176 tests JVM**,
+  **137 tests instrumentés** (S9), 0 échec, **0 ignoré** — le compte d'ignorés est lu dans le XML,
   pas déduit d'un `OK`.
+- ⚠️ **La suite instrumentée se lance par `adb shell am instrument`, plus par Gradle** :
+  `connectedAndroidTest` désinstalle l'application à la fin, ce qui effacerait le modèle de 57 Mo
+  importé à la main. Cf. la section datée en fin de fichier.
 - Application publiée `notes_tech` : `0307811` sur `fix/defauts-releves-pendant-le-portage`,
   **aucune publication décidée**. Ses trois répertoires non suivis (`.audit_tmp/`,
   `_audit_results/`, `prompts/`) ne doivent **jamais** entrer dans l'index — pas de `git add -A`.
@@ -110,9 +113,10 @@ survivrait à la purge affirmerait qu'un fichier absent a été vérifié.
 
 ### 🔴 Les trois choses à savoir avant de continuer
 
-1. **Aucune transcription n'est testée.** Il faudrait le modèle de 50 Mo sur le S9. Ce qui *est*
-   prouvé sur l'appareil : `libnotes_stt.so` **se charge**. La qualité, la détection de langue et le
-   découpage en segments restent vérifiés par l'usage.
+1. ✅ **CLOS le 2026-08-16 — la transcription est exercée, et elle ne l'avait jamais été.** Le modèle
+   est sur le S9, `TranscriptionSurAppareilTest` fait transcrire un enregistrement au contenu connu,
+   et Patrice a validé la dictée à la voix. ⚠️ C'est en posant cette question pour la première fois
+   qu'on a trouvé qu'elle ne transcrivait **rien** — cf. §69 et la section datée en fin de fichier.
 2. ✅ **CLOS le 2026-08-16 — la règle de conservation JNI a désormais un effet mesuré.** Elle était
    écrite mais sans effet observable, faute d'appelant. Contrôlé sur l'APK **release** une fois
    l'interface en place, et **des deux côtés de la frontière** :
@@ -202,3 +206,53 @@ relire l'intention du publié et pas seulement le comportement du portage.
   **ensembles de noms** avant/après, puis relancer — la sortie doit être identique octet pour octet.
 - **Relire les correctifs de relecture.** Aujourd'hui encore, deux tours ont trouvé des défauts
   **plus graves** que le premier — dont une régression que j'avais introduite moi-même.
+
+## 🔴 2026-08-16 — la dictée fonctionne, et ce qui reste ouvert sur sa qualité
+
+**Elle n'avait jamais transcrit un mot.** `detect_language` ne demande pas une détection mais
+**« ne fais QUE ça »** : whisper rendait 0, sans un seul segment, et l'écran traduisait ça en
+« rien n'a été entendu » — un message qui accusait le micro pour un défaut du moteur.
+`04-PIEGES.md` §69. Corrigé, vérifié sur appareil par Patrice.
+
+### Ce que « beaucoup de fautes » a donné à la mesure
+
+Patrice a ensuite signalé des fautes à l'usage. Mesuré sur le S9, **même échantillon** — une phrase
+française de 10,6 s, synthétisée, donc au texte connu :
+
+| Réglage | Langue détectée | Durée | Texte |
+|---|---|---|---|
+| auto (actuel) | `fr` ✅ | **8 938 ms** | identique |
+| `fr` forcé | `fr` | **4 739 ms** | identique |
+
+⚠️ **La langue n'est donc PAS la cause** : la détection ne se trompe pas, et le modèle Base
+transcrit ce son quasi parfaitement, accents et ponctuation compris. Elle coûte en revanche **le
+double de temps** — whisper fait une passe d'encodage entière rien que pour identifier la langue.
+
+Les fautes viennent de la **vraie parole** face à un modèle de 57 Mo : débit, accent, liaisons, bruit
+— là où une voix de synthèse est artificiellement facile. ⚠️ Ne pas conclure d'un bon résultat sur
+un échantillon propre que le moteur est bon ; ce test mesure le **câblage**, pas la robustesse.
+
+### Les trois leviers, non retenus le 2026-08-16 — **décision de Patrice, « rien pour l'instant »**
+
+1. **Un modèle plus grand** — `ggml-small-q5_1.bin`, **190 085 487 octets** (vérifié en ligne), soit
+   3,2× le Base. Meilleur gain attendu en français, ~3× plus lent. Demanderait son SHA-256 dans
+   `SttModelCatalogue` — le catalogue est une liste d'**empreintes**, rien n'entre sans la sienne.
+2. **Forcer la langue** de l'interface : deux fois plus rapide, texte identique. ⚠️ Réserve : mal
+   servir qui dicte dans une autre langue que celle de son application.
+3. **`no_context = false`** — relevé par Gemini. Ne joue qu'au-delà de 30 s de dictée : le moteur
+   garde alors le contexte d'une fenêtre à la suivante, ce qui améliore la continuité **et** favorise
+   les boucles de répétition. Compromis, pas correctif.
+
+🔧 **Refaire la mesure** — le test de diagnostic a été retiré (un test qui n'affirme rien est un test
+vacant), mais la procédure tient en deux commandes. Synthèse d'un échantillon au texte connu :
+
+```powershell
+Add-Type -AssemblyName System.Speech
+$s = New-Object System.Speech.Synthesis.SpeechSynthesizer
+$s.SelectVoice('Microsoft Hortense Desktop')
+$f = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000, 'Sixteen', 'Mono')
+$s.SetOutputToWaveFile('fr_test.wav', $f); $s.Speak('...'); $s.Dispose()
+```
+
+⚠️ Puis le **réécrire en en-tête canonique de 44 octets** : `WavPcm16` refuse — volontairement — les
+WAV qu'il n'a pas écrits, blocs `LIST` compris. Cf. `04-PIEGES.md` §70.
