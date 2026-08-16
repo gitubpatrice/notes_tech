@@ -30,6 +30,16 @@
 namespace {
 
 /**
+ * Le code rendu quand une exception C++ a été interceptée à la frontière.
+ *
+ * ⚠️ Distinct de `-4`, l'arrêt volontaire : côté Kotlin, `-4` n'est pas une panne, celui-ci en est
+ * une. Tout code non nul autre que `-4` remonte déjà en `SttTranscriptionFailedException`, il n'y a
+ * donc rien à ajouter là-bas — mais la valeur doit rester **distincte**, faute de quoi une
+ * annulation et un manque de mémoire deviendraient indiscernables dans un rapport d'incident.
+ */
+constexpr jint CODE_ERREUR_NATIVE = -5;
+
+/**
  * Ce que Kotlin détient sous forme de `Long`.
  *
  * ⚠️ Le drapeau d'arrêt vit ICI et non dans une variable globale : deux transcriptions ne peuvent
@@ -59,11 +69,19 @@ bool arretDemande(void * donnees) {
  * le genre de plantage qui n'arrive qu'aux appareils déjà en difficulté, c'est-à-dire exactement
  * ceux que la dictée sollicite le plus.
  */
-std::string enUtf8(JNIEnv * env, jstring texte) {
+std::string enUtf8(JNIEnv * env, jstring texte) noexcept {
     if (texte == nullptr) return {};
     const char * brut = env->GetStringUTFChars(texte, nullptr);
     if (brut == nullptr) return {};
-    std::string sortie(brut);
+    // ⚠️ `try` autour de la seule allocation de la fonction : `noexcept` sans lui **abandonnerait le
+    // processus** au lieu de propager, ce qui échange un plantage contre un autre. Et le `Release`
+    // doit avoir lieu dans tous les cas, sans quoi une pression mémoire ferait fuir la chaîne.
+    std::string sortie;
+    try {
+        sortie.assign(brut);
+    } catch (...) {
+        sortie.clear();
+    }
     env->ReleaseStringUTFChars(texte, brut);
     return sortie;
 }
@@ -166,7 +184,21 @@ Java_com_filestech_notes_1tech_data_voice_WhisperNatif_transcrire(
     parametres.abort_callback           = arretDemande;
     parametres.abort_callback_user_data = contexte;
 
-    const int resultat = whisper_full(contexte->moteur, parametres, donnees, nombre);
+    // 🔴 **Aucune exception C++ ne doit franchir cette frontière.** Le fichier l'annonce depuis le
+    // début — « rien ne sort d'ici hors de SttException » — mais rien ne le tenait : `whisper_full`
+    // alloue, et une exception qui s'échappe d'une fonction JNI **termine le processus**, sans que
+    // Kotlin puisse l'attraper. Le cas est celui d'un appareil déjà à court de mémoire, c'est-à-dire
+    // celui qui charge un modèle de 57 Mo. Relevé par une relecture externe (GPT-5.2, 2026-08-16).
+    //
+    // ⚠️ Le `ReleaseFloatArrayElements` est dans le `catch` aussi : sans lui, l'échec le plus banal
+    // — le manque de mémoire — ferait fuir plusieurs mégaoctets à chaque tentative.
+    int resultat;
+    try {
+        resultat = whisper_full(contexte->moteur, parametres, donnees, nombre);
+    } catch (...) {
+        env->ReleaseFloatArrayElements(echantillons, donnees, JNI_ABORT);
+        return CODE_ERREUR_NATIVE;
+    }
 
     // ⚠️ `JNI_ABORT` : le tableau n'a pas été modifié, donc rien à recopier vers Java. Le mode par
     // défaut recopierait plusieurs mégaoctets pour rien.
@@ -190,15 +222,36 @@ Java_com_filestech_notes_1tech_data_voice_WhisperNatif_nombreDeSegments(JNIEnv *
     return whisper_full_n_segments(contexte->moteur);
 }
 
-JNIEXPORT jstring JNICALL
-Java_com_filestech_notes_1tech_data_voice_WhisperNatif_texteDuSegment(
+/**
+ * Le texte d'un segment, **en octets UTF-8** — jamais en `jstring`.
+ *
+ * 🔴 `NewStringUTF` attend de l'UTF-8 **modifié**, pas de l'UTF-8. Un caractère du plan
+ * supplémentaire — émoji, idéogramme d'extension — s'encode sur quatre octets, que la machine
+ * virtuelle refuse : avec CheckJNI elle **abandonne le processus**, sans lui elle rend une chaîne
+ * corrompue. Le texte vient d'un modèle de transcription, donc d'une source qu'on ne contrôle pas.
+ *
+ * Les octets traversent donc bruts, et c'est Kotlin qui décode. Relevé par une relecture externe
+ * (Gemini, 2026-08-16).
+ */
+JNIEXPORT jbyteArray JNICALL
+Java_com_filestech_notes_1tech_data_voice_WhisperNatif_texteDuSegmentUtf8(
     JNIEnv * env, jobject, jlong poignee, jint index) {
     ContexteStt * contexte = depuisPoignee(poignee);
-    if (contexte == nullptr || contexte->moteur == nullptr) return env->NewStringUTF("");
-    if (index < 0 || index >= whisper_full_n_segments(contexte->moteur)) return env->NewStringUTF("");
+    const char * texte = nullptr;
+    if (contexte != nullptr && contexte->moteur != nullptr &&
+        index >= 0 && index < whisper_full_n_segments(contexte->moteur)) {
+        texte = whisper_full_get_segment_text(contexte->moteur, index);
+    }
 
-    const char * texte = whisper_full_get_segment_text(contexte->moteur, index);
-    return env->NewStringUTF(texte != nullptr ? texte : "");
+    const jsize longueur = texte != nullptr ? static_cast<jsize>(strlen(texte)) : 0;
+    jbyteArray octets = env->NewByteArray(longueur);
+    // ⚠️ `nullptr` = mémoire épuisée, et une exception Java est déjà en attente. Rendre `nullptr`
+    // la laisse remonter proprement plutôt que d'appeler `SetByteArrayRegion` sur rien.
+    if (octets == nullptr) return nullptr;
+    if (longueur > 0) {
+        env->SetByteArrayRegion(octets, 0, longueur, reinterpret_cast<const jbyte *>(texte));
+    }
+    return octets;
 }
 
 /**

@@ -38,7 +38,24 @@ internal class WhisperNatif {
 
     external fun nombreDeSegments(poignee: Long): Int
 
-    external fun texteDuSegment(poignee: Long, index: Int): String
+    /**
+     * Le texte d'un segment, **en octets UTF-8 bruts** — et non en `String`.
+     *
+     * 🔴 **`NewStringUTF` n'accepte pas l'UTF-8, il accepte l'UTF-8 *modifié*.** Les deux coïncident
+     * jusqu'à trois octets et divergent au-delà : un caractère du plan supplémentaire — émoji,
+     * idéogramme d'extension — s'y encode sur quatre octets, que la machine virtuelle refuse. Avec
+     * CheckJNI actif, elle **tue le processus** (`JNI DETECTED ERROR IN APPLICATION`) sans qu'aucune
+     * exception Kotlin ne puisse l'attraper ; sans CheckJNI, elle rend une chaîne corrompue.
+     *
+     * Le texte vient d'un modèle de transcription, donc d'une source qu'on ne contrôle pas : whisper
+     * produit des symboles et, à l'occasion, des émojis. Les octets traversent donc la frontière
+     * tels quels, et c'est Kotlin qui décode.
+     *
+     * ⚠️ Relevé par une relecture externe (Gemini, 2026-08-16). Le mécanisme est celui de la
+     * spécification JNI ; il n'a **pas** été reproduit sur l'appareil — il aurait fallu obtenir du
+     * modèle qu'il transcrive un émoji, ce qui ne se commande pas.
+     */
+    external fun texteDuSegmentUtf8(poignee: Long, index: Int): ByteArray
 
     /** En **millisecondes** — la conversion depuis les centièmes de seconde a lieu côté natif. */
     external fun debutDuSegment(poignee: Long, index: Int): Long

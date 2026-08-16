@@ -164,18 +164,34 @@ class WhisperStt @Inject constructor(private val modeles: SttModelStore) : Speec
             throw SttTranscriptionFailedException("le moteur a echoue (code $code)")
         }
 
-        val segments = (0 until natif.nombreDeSegments(poigneeCourante)).map { index ->
+        // ⚠️ Les octets viennent bruts du natif : voir [WhisperNatif.texteDuSegmentUtf8], qui
+        // explique pourquoi la frontière ne transporte pas de `String`.
+        val bruts = (0 until natif.nombreDeSegments(poigneeCourante)).map { index ->
             SttSegment(
-                text = natif.texteDuSegment(poigneeCourante, index),
+                text = String(natif.texteDuSegmentUtf8(poigneeCourante, index), Charsets.UTF_8),
                 startMillis = natif.debutDuSegment(poigneeCourante, index),
                 endMillis = natif.finDuSegment(poigneeCourante, index),
             )
         }
 
+        // 🔴 **Le texte complet se compose des segments BRUTS, la liste rendue est nettoyée.**
+        //
+        // Ce sont deux besoins opposés, et les confondre casse l'un ou l'autre. whisper préfixe
+        // chaque segment d'une espace : c'est **elle** qui sépare les mots une fois les segments
+        // concaténés. Rogner avant de concaténer collerait « Bonjourle monde ». Mais un segment
+        // rendu tel quel à un appelant — surlignage, sous-titrage, lecture mot à mot — porterait une
+        // espace de tête parasite, et la liste contiendrait en plus les segments vides que whisper
+        // produit régulièrement sur les silences.
+        //
+        // Relevé par une relecture externe (Gemini, 2026-08-16). ⚠️ Aucun appelant ne consomme
+        // encore `segments` : le défaut était donc **latent**, et il aurait été trouvé par le
+        // premier appelant, sous la forme d'un décalage inexplicable.
+        val segments = bruts.map { it.copy(text = it.text.trim()) }.filter { it.text.isNotEmpty() }
+
         return SttTranscription(
-            // ⚠️ Rognée : whisper préfixe chaque segment d'une espace. Concaténés tels quels, ils
-            // donnent un texte qui commence par un blanc — inséré tel quel dans la note.
-            text = segments.joinToString("") { it.text }.trim(),
+            // ⚠️ Rognée aux extrémités seulement : le texte utile commence après l'espace du premier
+            // segment et finit avant celle du dernier.
+            text = bruts.joinToString("") { it.text }.trim(),
             segments = segments,
             detectedLanguage = natif.langueDetectee(poigneeCourante),
             durationMillis = duree,

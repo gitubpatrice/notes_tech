@@ -112,9 +112,21 @@ object WavPcm16 {
         // un disque plein annonce plus qu'elle ne contient. Suivre l'annonce sans la confronter au
         // fichier, c'est lire au-delà du tableau dans le second cas — et jeter tout le son dans le
         // premier. Ni l'un ni l'autre n'est acceptable pour un fichier qu'on a écrit soi-même.
+        //
+        // 🔴 **En cas de désaccord, c'est le FICHIER qui a raison, pas son en-tête.** La version
+        // précédente suivait l'annonce dès qu'elle tenait dans `1..disponibles`, donc **tronquait en
+        // silence** un fichier dont l'en-tête annonçait moins qu'il ne portait — l'état exact que
+        // laisse une réécriture d'en-tête interrompue au mauvais octet. Le son était sur le disque,
+        // et seules quelques millisecondes en sortaient, sans la moindre erreur.
+        //
+        // Ce décodeur ne lit **que** des fichiers écrits par [entete] : il n'y a jamais de bloc à la
+        // suite des données, donc aucun octet excédentaire légitime. `disponibles` est donc la
+        // seule mesure fiable, et l'annonce ne sert plus qu'à constater l'accord.
+        //
+        // Relevé par une relecture externe (GPT-5.2, 2026-08-16).
         val annonces = entier32(octets, 40)
         val disponibles = (octets.size - TAILLE_ENTETE).toLong()
-        val utiles = if (annonces in 1..disponibles) annonces else disponibles
+        val utiles = if (annonces == disponibles) annonces else disponibles
 
         val nombre = (utiles / 2).toInt()
         val sortie = FloatArray(nombre)
