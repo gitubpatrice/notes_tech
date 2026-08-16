@@ -119,7 +119,15 @@ data class SttSegment(val text: String, val startMillis: Long, val endMillis: Lo
  * @param expectedSha256 empreinte attendue, en hexadécimal minuscule. Vérifiée **à chaque
  *   chargement**, pas seulement à l'import : un fichier peut être remplacé entre les deux.
  * @param sizeBytes taille attendue. Sert de garde-fou avant même de hacher plusieurs centaines de
- *   mégaoctets — un fichier de taille absurde est rejeté sans lecture complète.
+ *   mégaoctets — un fichier de taille absurde est rejeté sans lecture complète. ⚠️ **Approximative
+ *   et sans autorité** : c'est l'empreinte qui décide. D'où la tolérance large de l'import.
+ * @param fichierAmont le nom du fichier à récupérer, tel qu'il s'appelle à la source.
+ *
+ *   ⚠️ **Ce n'est pas l'`url` qu'on a refusée.** Sans le nom exact, l'utilisateur ne peut pas faire
+ *   l'import du tout : la page amont propose une trentaine de variantes dont les noms ne diffèrent
+ *   que par un suffixe, et se tromper coûte un téléchargement de plusieurs dizaines de mégaoctets
+ *   pour finir sur une empreinte qui ne correspond pas. Un nom de fichier se lit à l'écran et se
+ *   recopie ; il n'ouvre aucun chemin réseau, là où un champ d'adresse invite à en écrire un.
  */
 data class SttModel(
     val id: String,
@@ -128,6 +136,7 @@ data class SttModel(
     val sizeBytes: Long,
     val language: String,
     val notes: String,
+    val fichierAmont: String,
 ) {
     /**
      * Le nom du fichier local.

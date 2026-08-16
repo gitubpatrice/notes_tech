@@ -8,23 +8,28 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
+import com.filestech.notes_tech.domain.voice.SttException
 import com.filestech.notes_tech.domain.voice.SttPermissionDeniedException
 import com.filestech.notes_tech.domain.voice.SttRecordingFailedException
 import com.filestech.notes_tech.domain.voice.WavPcm16
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.File
 import java.io.RandomAccessFile
 import java.time.Clock
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -88,6 +93,10 @@ class VoiceCapture @Inject constructor(
     @Volatile
     private var arretDemande = false
 
+    /** Une fois posé, plus aucune capture n'est ouverte. Voir [couperEtInterdire]. */
+    @Volatile
+    private var interdite = false
+
     private var enregistreur: AudioRecord? = null
 
     /**
@@ -126,10 +135,50 @@ class VoiceCapture @Inject constructor(
         // bon geste : un arrêt **antérieur** est oublié, un arrêt **postérieur** est honoré. C'est
         // la seule lecture qui suit l'intention.
         arretDemande = false
+        refuserSiInterdite()
         if (!permissionAccordee()) {
             throw SttPermissionDeniedException("permission RECORD_AUDIO non accordee")
         }
-        return verrou.withLock { withContext(Dispatchers.IO) { capturer() } }
+        // 🔴🔴 **Le fichier est retenu ICI, et effacé si le résultat ne parvient pas à l'appelant.**
+        //
+        // Défaut CONFIRMÉ, relevé par une relecture externe (GPT-5.5, 2026-08-16), et c'est le même
+        // que celui du 08-15 déplacé d'un cran : la garde posée alors — un contrôle d'annulation à
+        // chaque tour de boucle — couvre la durée de la capture, et **rien après**. Or `withContext`
+        // vérifie l'annulation **au moment de rendre sa valeur** : la portée annulée pendant la
+        // réécriture de l'en-tête faisait sortir une `CancellationException` à la place du fichier.
+        // `capturer()` s'était terminé normalement, son `try/catch` n'avait donc rien effacé, et
+        // l'appelant — qui devait transcrire puis supprimer — ne recevait jamais le nom du fichier.
+        //
+        // État final : un WAV de voix en clair dans le cache, que plus personne ne connaît. Une
+        // fenêtre de quelques millisecondes, mais ouverte par le geste le plus banal qui soit —
+        // quitter l'écran au moment où l'on relâche le bouton.
+        //
+        // ⚠️ `AtomicReference` et non une simple variable : l'écriture a lieu sur le fil d'E/S, la
+        // lecture sur celui de l'appelant. La machinerie des coroutines établit probablement la
+        // relation de précédence, mais « probablement » ne convient pas pour décider d'effacer un
+        // fichier de voix.
+        val produit = AtomicReference<File?>(null)
+        try {
+            return verrou.withLock { withContext(Dispatchers.IO) { capturer()?.also(produit::set) } }
+        } catch (e: Throwable) {
+            produit.get()?.let(::effacerOuSignaler)
+            throw traduire(e)
+        }
+    }
+
+    /**
+     * 🔴 **Rien ne sort d'ici hors de [SttException]** — sauf une annulation, qui n'est pas un échec.
+     *
+     * ⚠️ L'écriture du WAV passe par `RandomAccessFile` : cache plein, support retiré, permission
+     * révoquée, et c'est une `IOException` brute qui traversait une fonction dont la documentation
+     * ne promet que deux types. Un `when` exhaustif chez l'appelant l'aurait laissée filer — le
+     * défaut que `SpeechToText.transcribeFile` a déjà eu à documenter. Relevé par une relecture
+     * externe (GPT-5.5, 2026-08-16), en même temps que son jumeau dans l'import du modèle.
+     */
+    private fun traduire(e: Throwable): Throwable = when (e) {
+        is CancellationException -> e
+        is SttException -> e
+        else -> SttRecordingFailedException("capture interrompue : ${e::class.java.simpleName}", cause = e)
     }
 
     /** Demande l'arrêt de la capture en cours. Sans effet s'il n'y en a pas. */
@@ -137,11 +186,82 @@ class VoiceCapture @Inject constructor(
         arretDemande = true
     }
 
+    /**
+     * Coupe la capture **et interdit les suivantes**. Réservé au mode panique.
+     *
+     * ## 🔴 Pourquoi [arreter] seul ne suffit pas
+     *
+     * [arretDemande] est remis à `false` par [enregistrer], au tout début et **avant le verrou** —
+     * pour que le drapeau appartienne au geste en cours et non au précédent. Cette remise à zéro,
+     * qui est juste dans l'usage ordinaire, ouvre une porte au mode panique : une capture qui a
+     * franchi cette ligne et attend le verrou repartira dès que la précédente le libère, y compris
+     * après le passage de l'étape qui devait couper le micro. Une nouvelle demande arrivée après
+     * cette étape en ferait autant.
+     *
+     * L'interdiction est donc un **état**, pas un drapeau de geste : rien ne l'efface, et c'est
+     * exact — le mode panique est sans retour, et le modèle de transcription part quelques étapes
+     * plus loin de toute façon.
+     *
+     * ⚠️ C'est le motif « garde posée sur le geste et non sur l'accès », déjà payé dans ce dépôt.
+     */
+    fun couperEtInterdire() {
+        interdite = true
+        arreter()
+    }
+
+    /**
+     * Attend que la capture soit effectivement terminée, au plus [millisecondesMax].
+     *
+     * ## ⚠️⚠️ Pourquoi l'attente est séparée de la demande
+     *
+     * [arreter] pose un drapeau et rend la main immédiatement ; la boucle ne le lit qu'en sortant de
+     * `micro.read`, qui bloque le temps d'un tampon. Il s'écoule donc un court instant pendant lequel
+     * la capture **écrit encore** — et c'est exactement l'instant où le mode panique voudrait
+     * supprimer le répertoire.
+     *
+     * Les deux gestes sont séparés parce qu'ils vont à deux endroits différents de la séquence de
+     * panique : le drapeau tout au début, pour que le micro cesse d'alimenter le disque sans faire
+     * attendre le reste ; l'attente juste avant l'effacement, qui est le seul point où elle sert.
+     * Les réunir obligerait à choisir entre retarder le presse-papiers et effacer sous une écriture
+     * en cours.
+     *
+     * @return `true` si la capture est arrêtée, `false` si le délai a expiré. ⚠️ L'appelant efface
+     *   **quand même** : un `false` dit qu'un fichier peut réapparaître après coup, pas qu'il ne faut
+     *   rien tenter.
+     */
+    suspend fun attendreLArret(millisecondesMax: Long): Boolean {
+        arreter()
+        return withTimeoutOrNull(millisecondesMax) {
+            // ⚠️ Un `StateFlow` émet sa valeur courante à la souscription : si la capture est déjà
+            // arrêtée — le cas ordinaire — ceci rend la main sans attendre.
+            etat.first { it == Etat.ARRETEE }
+            true
+        } ?: false
+    }
+
+    /**
+     * ⚠️ Un échec, pas un `null`. Rendre `null` dirait « rien n'a été enregistré parce que vous
+     * n'avez rien dit » ; c'est le refus d'un système qui a été mis à l'arrêt, et les deux ne se
+     * classent pas ensemble — même règle que pour l'appui bref.
+     */
+    private fun refuserSiInterdite() {
+        if (interdite) {
+            throw SttRecordingFailedException("dictee coupee par le mode panique")
+        }
+    }
+
     fun permissionAccordee(): Boolean = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
         PackageManager.PERMISSION_GRANTED
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     private suspend fun capturer(): File? {
+        // 🔴 **Contrôlée une SECONDE fois, ici, après le verrou.** Le contrôle de [enregistrer] a
+        // lieu avant l'attente du verrou : une capture qui l'a franchi et patiente derrière une
+        // autre ne l'a jamais revu. C'est ici, et ici seulement, que l'interdiction garantit
+        // qu'aucun micro ne s'ouvre — les deux contrôles servent, et le premier ne fait qu'éviter
+        // une attente inutile.
+        refuserSiInterdite()
+
         val tailleMin = AudioRecord.getMinBufferSize(FREQUENCE_HZ, CANAL, ENCODAGE)
         if (tailleMin <= 0) {
             throw SttRecordingFailedException("le materiel refuse 16 kHz mono 16 bits")
@@ -261,6 +381,29 @@ class VoiceCapture @Inject constructor(
 
                 val lus = micro.read(tampon, 0, tampon.size)
                 if (lus < 0) throw SttRecordingFailedException("lecture micro en echec : code $lus")
+
+                // 🔴 **Le tampon d'une coupure de panique n'est PAS écrit.**
+                //
+                // `micro.read` bloque le temps d'un tampon et ignore tout ce qui se passe pendant ce
+                // temps-là. Le tampon qu'il finit par rendre contient donc de la voix captée
+                // **pendant** le déclenchement de la panique — et sans ce contrôle, elle partait sur
+                // le disque avant que la condition de boucle ne soit seulement relue. Lever ici fait
+                // effacer le fichier par le `catch` de [capturer], immédiatement, au lieu d'attendre
+                // l'étape de purge quelques rangs plus loin. Relevé par une relecture externe
+                // (GPT-5.5, 2026-08-16).
+                //
+                // ⚠️⚠️ **Sur `interdite`, jamais sur `arretDemande`.** Un arrêt ordinaire doit au
+                // contraire écrire ce dernier tampon : c'est la fin de la phrase de l'utilisateur, et
+                // la jeter couperait le dernier mot de chaque dictée. Deux arrêts, deux traitements.
+                //
+                // ⚠️ On ne va PAS jusqu'à arrêter l'`AudioRecord` depuis le fil de la panique, comme
+                // la relecture le proposait aussi : `stop()` croisant le `release()` du `finally` est
+                // un appel natif sur un objet en cours de libération, dans le seul chemin du code qui
+                // n'a pas le droit de planter. Le gain se compte en fractions de seconde sur un
+                // fichier de toute façon effacé ici même ; le risque, lui, est un plantage en pleine
+                // panique.
+                if (interdite) throw SttRecordingFailedException("dictee coupee par le mode panique")
+
                 if (lus > 0) {
                     sortie.write(tampon, 0, lus)
                     octetsEcrits += lus

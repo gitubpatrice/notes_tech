@@ -499,3 +499,51 @@ passer la troisième.
 
 **Ce que la décision garantit.** Une permission ajoutée sans décision fait **échouer le contrôle**,
 au lieu d'entrer en silence dans un manifeste que personne ne relit ligne à ligne.
+
+---
+
+## D-019 — Pas de cache de vérification du modèle pour l'instant
+
+**2026-08-16 · acceptée**
+
+**Contexte.** L'application publiée met en cache le fait qu'un modèle a été vérifié — identifiant,
+taille, date de modification, date de vérification — pour éviter de relire 57 Mo à chaque démarrage
+à froid : environ une seconde et demie sur un S9. Le cache porte un contrôle subtil de plus
+(`mtime <= verifiedAt`), destiné à un attaquant qui réécrirait le fichier avec une date antérieure.
+
+**Décision.** L'import n'en pose **pas**. `SttModelStore.estInstalle` relit et rehache, à chaque
+appel.
+
+**Pourquoi.** Le portage n'a pas encore de chemin de démarrage vocal : il n'y a donc rien à
+accélérer, et un cache sans appelant est du code non exercé portant une règle de sécurité. Il
+entrera avec le moteur, qui est le premier à en avoir besoin — même règle que pour les étapes du
+mode panique, qui n'entrent qu'avec le geste qu'elles décrivent.
+
+**Conséquence à connaître.** `PanicStep.VOICE_MODEL_WIPE` efface aujourd'hui le répertoire des
+modèles. Le jour où le cache existera, il devra partir **dans la même étape** : un cache qui
+survivrait à la purge affirmerait qu'un fichier absent a été vérifié.
+
+---
+
+## D-020 — Le mode panique n'arrête pas l'`AudioRecord` depuis son propre fil
+
+**2026-08-16 · acceptée**
+
+**Contexte.** `VoiceCapture` lit le micro par un `AudioRecord.read` **bloquant**, qui ignore les
+coroutines. Quand la panique démarre, l'étape `VOICE_CANCEL` pose une interdiction ; le `read` en
+cours, lui, ne rend la main qu'au tampon suivant. Une relecture externe (GPT-5.5) proposait
+d'appeler `micro.stop()` depuis le fil de la panique pour l'écourter.
+
+**Décision.** Non. L'interdiction est **relue juste après le `read`**, et le tampon capté pendant le
+déclenchement est **jeté** au lieu d'être écrit : la capture lève, son `catch` efface le fichier
+immédiatement, et rien n'attend l'étape de purge.
+
+**Pourquoi pas `stop()`.** Il croiserait le `release()` du `finally` de la capture : un appel natif
+sur un objet en cours de libération, dans le **seul chemin du code qui n'a pas le droit de
+planter**. Le gain se compte en fractions de seconde sur un fichier de toute façon effacé aussitôt.
+*Le correctif d'une course ne doit pas coûter plus cher que la course.*
+
+**⚠️ Ce que la décision impose ailleurs.** Le rejet du dernier tampon est conditionné à
+`interdite`, **jamais** à `arretDemande` : un arrêt ordinaire doit écrire ce tampon, sinon le
+dernier mot de chaque dictée manque. Deux arrêts, deux traitements — et c'est le genre de
+distinction qu'un correctif pressé efface.

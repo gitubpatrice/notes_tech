@@ -43,8 +43,10 @@ class PanicReportTest {
         for (effacement in listOf(
             PanicStep.DB_WIPE,
             PanicStep.LEGACY_MODELS_WIPE,
+            PanicStep.VOICE_MODEL_WIPE,
             PanicStep.PREFS_CLEAR,
             PanicStep.EXPORTS_WIPE,
+            PanicStep.VOICE_CAPTURES_WIPE,
             PanicStep.CACHE_PURGE,
         )) {
             assertThat(effacement.ordinal).isGreaterThan(cle)
@@ -94,14 +96,17 @@ class PanicReportTest {
      * le rapport menteur — c'est l'erreur que l'application publiée a commise, en gardant une étape
      * `gemmaUninstall` qui passait par un service supprimé et ne tournait donc plus jamais.
      *
-     * Ce test fige la liste. Il échouera à l'ajout de la dictée vocale en phase 7, et c'est
-     * **voulu** : ce jour-là, il faudra vérifier que les étapes ajoutées s'exécutent vraiment.
+     * Ce test fige la liste. Il a échoué comme prévu à chacun des trois ajouts de la dictée —
+     * `VOICE_CAPTURES_WIPE` avec la capture, puis `VOICE_CANCEL` et `VOICE_MODEL_WIPE` avec l'import
+     * du modèle, le 2026-08-16 — et c'est **son rôle** : l'échec force à vérifier que les étapes
+     * ajoutées s'exécutent vraiment avant de les inscrire ici.
      */
     @Test
-    @DisplayName("la séquence est exactement celle qu'on croit — dix étapes, dans cet ordre")
+    @DisplayName("la séquence est exactement celle qu'on croit — treize étapes, dans cet ordre")
     fun sequenceFigee() {
         assertThat(PanicStep.entries).containsExactly(
             PanicStep.FORCE_SECURE_WINDOW,
+            PanicStep.VOICE_CANCEL,
             PanicStep.CLIPBOARD_CLEAR,
             PanicStep.FOLDERS_LOCK_ALL,
             PanicStep.PIN_KEYS_WIPE,
@@ -109,6 +114,7 @@ class PanicReportTest {
             PanicStep.EXPORTS_WIPE,
             PanicStep.VOICE_CAPTURES_WIPE,
             PanicStep.DB_WIPE,
+            PanicStep.VOICE_MODEL_WIPE,
             PanicStep.LEGACY_MODELS_WIPE,
             PanicStep.PREFS_CLEAR,
             PanicStep.CACHE_PURGE,
@@ -132,7 +138,14 @@ class PanicReportTest {
         // ⚠️ Les DEUX repertoires de clair, pas seulement les archives : un enregistrement de
         // dictee porte la voix de l'utilisateur, donc le contenu de sa note.
         val clairs = listOf(PanicStep.EXPORTS_WIPE, PanicStep.VOICE_CAPTURES_WIPE)
-        val lourds = listOf(PanicStep.DB_WIPE, PanicStep.LEGACY_MODELS_WIPE, PanicStep.PREFS_CLEAR)
+        val lourds = listOf(
+            PanicStep.DB_WIPE,
+            // ⚠️ Le modele de dictee pese plusieurs dizaines de mega-octets et ne contient rien
+            //    de l'utilisateur : il doit passer APRES le clair, comme les modeles herites.
+            PanicStep.VOICE_MODEL_WIPE,
+            PanicStep.LEGACY_MODELS_WIPE,
+            PanicStep.PREFS_CLEAR,
+        )
 
         for (clair in clairs) {
             assertThat(clair.ordinal).isGreaterThan(PanicStep.KEK_DESTROY.ordinal)
@@ -279,7 +292,13 @@ class PanicReportTest {
     @Test
     @DisplayName("un autre nettoyage rate ne signale PAS de clair")
     fun autreNettoyageRateNeSignalePasDeClair() {
-        for (etape in listOf(PanicStep.CACHE_PURGE, PanicStep.DB_WIPE, PanicStep.LEGACY_MODELS_WIPE)) {
+        for (etape in listOf(
+            PanicStep.CACHE_PURGE,
+            PanicStep.DB_WIPE,
+            PanicStep.LEGACY_MODELS_WIPE,
+            // ⚠️ Un modele non efface n'est PAS du clair : c'est un binaire public.
+            PanicStep.VOICE_MODEL_WIPE,
+        )) {
             val bilan = rapport(etape)
             assertThat(bilan.clairPeutSubsister).isFalse()
         }

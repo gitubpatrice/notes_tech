@@ -310,9 +310,9 @@ demandent une installation 2.0.3 réelle sur le S9 et le drapeau `replaceInstall
   est prise**, avec ce qui a été écarté et pourquoi.
 - Les pièges connus sont dans [04-PIEGES.md](04-PIEGES.md). Le relire avant d'écrire un DAO.
 
-### Phase 7 — état au 2026-08-15 (soir)
+### Phase 7 — état au 2026-08-16
 
-Trois étapes posées, la quatrième identifiée mais non écrite.
+Quatre étapes posées. Les deux qui restent tiennent à une décision, pas à du développement.
 
 - [x] ~~**Le contrat de domaine**~~ — `domain/voice/SpeechToText.kt`, `SttErrors.kt`, `WavPcm16.kt`.
       Transposé du contrat Dart réel de `files_tech_voice`, **lu dans le cache pub**, pas deviné.
@@ -324,13 +324,21 @@ Trois étapes posées, la quatrième identifiée mais non écrite.
       le disque (annulation non coopérative, absence de troncature).
 - [x] ~~**La purge du clair**~~ — au démarrage et par `PanicStep.VOICE_CAPTURES_WIPE`, placée juste
       après la clé avec les archives d'export.
-- [ ] **L'import du modèle** — c'est la suite immédiate, et elle ne dépend d'aucune décision.
+- [x] ~~**L'import du modèle**~~ — 2026-08-16. `domain/voice/CopieVerifiee.kt` (copie et empreinte
+      dans le même passage, bornée, annulable), `domain/voice/SttModelCatalogue.kt` (les empreintes,
+      **sans champ `url`**), `data/voice/SttModelStore.kt` (`files/stt/`, temporaire puis renommage).
+      Les deux étapes de panique attendues sont entrées avec lui : `VOICE_CANCEL` et
+      `VOICE_MODEL_WIPE`. 18 tests JVM + 6 tests instrumentés — ⚠️ **ces derniers compilent mais
+      n'ont pas encore été exécutés** : le S9 n'était pas branché.
+      Relu par deux relecteurs externes : **sept constats**, dont une course d'annulation qui
+      laissait un WAV de voix orphelin (cf. `04-PIEGES.md` §55) et une asymétrie de surveillance
+      entre `exports/` et `captures/` (§56).
 - [ ] **Le moteur** — whisper.cpp en JNI. ⚠️ **Bloqué sur une décision de Patrice** : vendoriser
       4,2 Mo de sources tierces (76 fichiers, licence MIT). Elles sont sur le disque et déjà
       compilées pour les quatre ABI par `whisper_ggml_plus`.
 - [ ] **L'interface** — écran de configuration, bouton micro, superposition d'enregistrement.
 
-#### ⚠️ Ce qu'il faut savoir avant d'écrire l'import — vérifié, pas supposé
+#### ⚠️ Ce qu'il fallait savoir avant d'écrire l'import — vérifié, pas supposé, et désormais fait
 
 1. **Le modèle vit dans `files/stt/`, PAS dans `files/models/`.** Les deux répertoires sont
    distincts et le second est réservé aux modèles hérités des versions qui embarquaient une IA.

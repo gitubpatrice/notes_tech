@@ -43,6 +43,41 @@ class SttModelMissingException(message: String, cause: Throwable? = null) : SttE
 class SttModelChecksumMismatchException(message: String, cause: Throwable? = null) : SttException(message, cause)
 
 /**
+ * Le fichier choisi pour l'import n'est pas celui qu'on attend.
+ *
+ * Illisible, disparu entre le choix et la lecture, d'une taille sans rapport avec le modèle visé, ou
+ * servi par un fournisseur de contenu qui n'avance plus.
+ *
+ * ⚠️ **Distinct de [SttModelChecksumMismatchException], et la différence est ce qu'on propose.** Ici
+ * l'utilisateur s'est probablement trompé de fichier, et le geste utile est d'en choisir un autre.
+ * Là-bas, le fichier était le bon en taille mais son contenu ne correspond pas — téléchargement
+ * interrompu, disque abîmé, source douteuse — et le geste utile est de le retélécharger.
+ */
+class SttModelSourceInvalidException(message: String, cause: Throwable? = null) : SttException(message, cause)
+
+/**
+ * Il n'y a pas la place d'écrire le modèle.
+ *
+ * ⚠️ **Un cas à part, parce que c'est le seul dont le remède n'est pas dans l'application.** Un
+ * modèle pèse des dizaines de mégaoctets ; sur un téléphone plein, l'import échouerait de toute
+ * façon, mais au milieu de la copie et sous la forme d'une panne d'écriture opaque. Le contrôle
+ * préalable existe pour pouvoir dire « libérez de la place » plutôt que « l'import a échoué ».
+ */
+class SttModelStorageFullException(message: String, cause: Throwable? = null) : SttException(message, cause)
+
+/**
+ * L'import a échoué pour une raison technique — écriture, renommage, répertoire inaccessible.
+ *
+ * Le fourre-tout **assumé** de la hiérarchie : ce qui reste quand aucun des cas précédents ne
+ * s'applique. La seule chose à proposer est de réessayer.
+ *
+ * ⚠️ Il existe pour que l'import ne laisse **jamais** échapper une exception hors de [SttException].
+ * Sans lui, une `IOException` traverserait un `when` exhaustif chez l'appelant — c'est le défaut que
+ * `SpeechToText.transcribeFile` a déjà eu à documenter.
+ */
+class SttModelImportFailedException(message: String, cause: Throwable? = null) : SttException(message, cause)
+
+/**
  * La permission `RECORD_AUDIO` a été refusée.
  *
  * @param permanently `true` quand le refus est définitif — « ne plus demander ». La distinction

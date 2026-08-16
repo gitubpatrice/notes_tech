@@ -57,5 +57,6 @@ class SttModelTest {
         sizeBytes = 57_000_000,
         language = "fr",
         notes = "",
+        fichierAmont = "ggml-base-q5_1.bin",
     )
 }

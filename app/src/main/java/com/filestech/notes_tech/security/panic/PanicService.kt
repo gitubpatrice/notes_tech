@@ -5,6 +5,7 @@ import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
+import com.filestech.notes_tech.data.voice.SttModelStore
 import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
@@ -34,13 +35,35 @@ import javax.inject.Singleton
  * le rapport menteur — c'est l'erreur que la version publiée a commise puis corrigée, en gardant une
  * étape `gemmaUninstall` qui passait par un service supprimé et ne tournait donc plus jamais.
  *
- * C'est pourquoi il n'y a **ni** `voiceCancel` **ni** `voiceWipe` ici : la dictée arrive en phase 7,
- * et ces deux étapes y entreront avec elle. Les déclarer maintenant ferait annoncer à l'utilisateur
- * l'effacement d'un enregistrement qui n'existe pas.
+ * ⚠️⚠️ **Ce commentaire a lui-même failli mentir.** Il annonçait, jusqu'au 2026-08-16, qu'il n'y
+ * avait « ni `voiceCancel` ni `voiceWipe` ici », la dictée n'existant pas encore. La règle qu'il
+ * énonce a été respectée — les trois étapes vocales sont entrées **avec** le code qui les exerce,
+ * une par livraison — mais sa dernière phrase serait devenue fausse au premier de ces ajouts si
+ * personne ne l'avait relue. Une règle et l'inventaire du moment ne se rédigent pas ensemble : la
+ * première reste vraie, le second se périme.
  */
 enum class PanicStep {
     /** Empêche l'aperçu des applications récentes de capturer la confirmation et l'écran de fin. */
     FORCE_SECURE_WINDOW,
+
+    /**
+     * Interdit la dictée et fait abandonner la capture en cours, **avant tout le reste**.
+     *
+     * 🔴 **La seule étape qui arrête une PRODUCTION de clair au lieu d'en effacer.** Tout ce qui
+     * suit détruit des choses qui existent déjà ; celle-ci empêche qu'il s'en écrive d'autres. Une
+     * capture en cours ajoute de la voix — donc le contenu d'une note — sur le disque à chaque
+     * milliseconde, y compris pendant que la séquence s'exécute. Effacer le répertoire des captures
+     * sans avoir coupé le micro laisserait le fichier suivant se créer derrière l'effacement.
+     *
+     * ⚠️ Elle ne fait que **poser l'interdiction**, ce qui est instantané et ne peut pas échouer.
+     * L'attente de l'arrêt effectif appartient à [VOICE_CAPTURES_WIPE], seul endroit où elle sert :
+     * la placer ici retarderait le presse-papiers du temps d'un tampon audio, pour rien.
+     *
+     * ⚠️⚠️ **Une interdiction, et pas seulement un arrêt.** Arrêter la capture en cours laissait la
+     * suivante démarrer derrière cette étape, la demande d'enregistrement remettant elle-même le
+     * drapeau d'arrêt à zéro. Cf. `VoiceCapture.couperEtInterdire`.
+     */
+    VOICE_CANCEL,
 
     /** Une note copiée y est en clair. La panique n'attend pas l'expiration ordinaire. */
     CLIPBOARD_CLEAR,
@@ -55,7 +78,11 @@ enum class PanicStep {
     KEK_DESTROY,
 
     /**
-     * Les archives d'export, **seuls fichiers en clair de l'application**.
+     * Les archives d'export, qui portent le texte intégral des notes.
+     *
+     * ⚠️ Le titre de cette étape disait « seuls fichiers en clair de l'application ». C'était vrai
+     * à l'écriture, faux depuis l'arrivée de la capture, dont l'étape suivante s'occupe. Relevé par
+     * une relecture externe (GPT-5.5, 2026-08-16).
      *
      * ⚠️⚠️ Déplacée ici le 2026-08-15, depuis l'avant-dernière position. L'ordre de cette
      * énumération **est** l'ordre d'exécution — `PanicReportTest.sequenceFigee` le fige — et il la
@@ -80,6 +107,22 @@ enum class PanicStep {
 
     /** Ferme la base, écrase l'en-tête du fichier, supprime le fichier et ses annexes. */
     DB_WIPE,
+
+    /**
+     * `files/stt/` — le modèle de transcription importé par l'utilisateur.
+     *
+     * ⚠️ **Loin derrière le clair, et c'est justifié** : un modèle ne contient rien de
+     * l'utilisateur. C'est un binaire public, identique sur tous les appareils qui l'ont importé, et
+     * sa lecture n'apprendrait strictement rien à qui saisirait l'appareil. Ce qu'il révèle tient en
+     * un fait — que l'application dicte — et cela ne vaut pas de faire attendre une seule note
+     * lisible. Il pèse en revanche plusieurs dizaines de mégaoctets, donc il passe là où la lenteur
+     * ne coûte plus rien : après la base, avec les autres fichiers volumineux.
+     *
+     * ⚠️⚠️ **À ne pas confondre avec [LEGACY_MODELS_WIPE], qui vise `files/models/`.** Les deux
+     * répertoires sont voisins et sans rapport ; se tromper effacerait le fichier que l'utilisateur a
+     * eu le plus de mal à obtenir. Cf. `SttModelStore`.
+     */
+    VOICE_MODEL_WIPE,
 
     /** `files/models/` — jusqu'à 530 Mo laissés par les versions ≤ 1.1.6 qui embarquaient une IA. */
     LEGACY_MODELS_WIPE,
@@ -142,20 +185,23 @@ data class PanicReport(
      * 🔴 Du contenu **lisible** peut être resté sur l'appareil.
      *
      * Toutes les étapes ratées ne laissent pas le même résidu. Une purge de cache ou un effacement
-     * de base qui échouent laissent des octets **chiffrés sous une clé détruite** — du bruit. Deux
+     * de base qui échouent laissent des octets **chiffrés sous une clé détruite** — du bruit. Trois
      * choses seulement sont du **clair** : une archive d'export, qui porte le texte intégral des
-     * notes, coffres ouverts compris ; et le presse-papiers, où une note copiée attend en clair.
+     * notes, coffres ouverts compris ; un enregistrement de dictée, qui porte la voix de
+     * l'utilisateur donc le contenu de sa note ; et le presse-papiers, où une note copiée attend.
      *
-     * ⚠️⚠️ **Le presse-papiers manquait ici, et le KDoc affirmait que l'export était « la seule ».**
-     * Un effacement de presse-papiers raté laissait donc l'écran annoncer « des fichiers illisibles
-     * peuvent subsister » avec une note en clair à portée de n'importe quelle application au premier
-     * plan. Le commentaire fautif avait été écrit dix minutes plus tôt, dans le correctif même qui
-     * introduisait cette propriété. Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15),
-     * et l'autre relecture attaquait la même affirmation par un autre angle.
+     * ⚠️⚠️ **Cet inventaire s'est déjà trompé DEUX FOIS, chaque fois par omission.** Il annonçait
+     * « l'export est la seule », en oubliant le presse-papiers — un effacement raté laissait alors
+     * l'écran promettre qu'il ne restait que de l'illisible avec une note en clair à portée de toute
+     * application au premier plan. Puis « deux choses seulement », en oubliant les enregistrements
+     * de dictée, arrivés depuis. Les deux fois, le commentaire était juste **le jour où il a été
+     * écrit**. Un inventaire vieillit ; un critère non. Relevés par des relectures externes (Gemini,
+     * 2026-08-15 puis 2026-08-16) — jamais par une relecture du fichier seul.
      *
-     * ⚠️ L'export se juge sur [exportsSurLeDisque] — un état mesuré — et le presse-papiers sur
-     * l'issue de son étape, parce qu'il ne se relit pas : Android refuse la lecture à une
-     * application qui n'a pas le focus.
+     * ⚠️ Les fichiers se jugent sur [clairSurLeDisque] — un état **mesuré** — et le presse-papiers
+     * sur l'issue de son étape, parce qu'il ne se relit pas : Android refuse la lecture à une
+     * application qui n'a pas le focus. ⚠️ Le lien pointait ici vers un `exportsSurLeDisque` qui
+     * n'existe plus depuis que la mesure a été étendue aux captures.
      *
      * ⚠️ **Ce n'est pas une quatrième issue.** [minimalGuarantee] reste acquise — la base est du
      * bruit, et le dire autrement affolerait quelqu'un qui est en réalité protégé pour l'essentiel.
@@ -194,8 +240,9 @@ data class PanicReport(
  *
  * La phrase ci-dessus — « une interruption à n'importe quel instant laisse l'état le plus sûr » —
  * était **fausse** jusqu'au 2026-08-15, et c'est le commentaire lui-même qui a mis les deux
- * relectures externes sur la piste. Les archives d'export, seuls fichiers **en clair** de
- * l'application, étaient effacées en avant-dernier : derrière la base (déjà réduite à du bruit),
+ * relectures externes sur la piste. Les archives d'export, alors les seuls fichiers **en clair** de
+ * l'application — la dictée n'existait pas encore —, étaient effacées en avant-dernier : derrière
+ * la base (déjà réduite à du bruit),
  * derrière les modèles hérités (plusieurs secondes sur 530 Mo) et derrière les préférences. Une
  * interruption dans cette fenêtre laissait des notes lisibles à côté d'une base illisible.
  *
@@ -221,6 +268,7 @@ class PanicService @Inject constructor(
     private val databases: DatabaseProvider,
     private val prefs: LegacyPreferences,
     private val clipboard: SensitiveClipboard,
+    private val voiceCapture: VoiceCapture,
 ) {
 
     private val verrou = Any()
@@ -269,7 +317,20 @@ class PanicService @Inject constructor(
         //    dans une application mono-activité.
         issues += etape(PanicStep.FORCE_SECURE_WINDOW) { secureWindow.forcePermanently() }
 
-        // 1. Le presse-papiers, tôt : une note copiée y est en clair, et lisible par toute
+        // 1. 🔴 Le micro, s'il enregistre. AVANT le presse-papiers, parce que c'est la seule source
+        //    qui CONTINUE d'écrire du clair pendant que la séquence s'exécute : chaque milliseconde
+        //    de plus est de la voix en plus sur le disque. Poser le drapeau est instantané, donc
+        //    rien n'est retardé derrière.
+        //
+        //    ⚠️ L'attente de l'arrêt effectif est à l'étape 6, juste avant l'effacement — le seul
+        //    endroit où elle change quelque chose.
+        //    ⚠️⚠️ `couperEtInterdire`, pas `arreter` : la seconde est un drapeau de geste, que la
+        //    demande d'enregistrement suivante remet à zéro. Une capture déjà lancée et en attente
+        //    du verrou repartirait donc derrière cette étape — micro ouvert, voix sur le disque,
+        //    après le passage de ce qui devait le couper.
+        issues += etape(PanicStep.VOICE_CANCEL) { voiceCapture.couperEtInterdire() }
+
+        // 2. Le presse-papiers, tôt : une note copiée y est en clair, et lisible par toute
         //    application au premier plan.
         issues += etape(PanicStep.CLIPBOARD_CLEAR) { clipboard.annulerEtEffacer() }
 
@@ -293,7 +354,8 @@ class PanicService @Inject constructor(
         // 5. 🔴 **Les archives d'export, AUSSITÔT APRÈS la clé — et non en avant-dernier.**
         //
         //    Elles étaient à l'étape 8, derrière l'effacement de la base, celui des modèles hérités
-        //    et les préférences. Or ce sont les seuls fichiers **en clair** de la séquence : tout ce
+        //    et les préférences. Or elles sont **en clair**, comme les enregistrements de dictée de
+        //    l'étape suivante : tout ce
         //    qui les précédait désormais ne protège plus rien de lisible, puisque la clé est partie
         //    à l'étape 4. Un processus tué entre 4 et 8 laissait donc une base réduite à du bruit
         //    **et des notes parfaitement lisibles à côté** — coffres ouverts compris.
@@ -316,24 +378,43 @@ class PanicService @Inject constructor(
         issues += etape(PanicStep.EXPORTS_WIPE) { supprimerLeDossier(NoteExporter.repertoireDExport(context)) }
 
         // 6. Les enregistrements de dictée : du clair, comme les archives, donc au même rang.
+        //
+        //    ⚠️⚠️ **L'attente est ici, et l'effacement a lieu de toute façon.** Le drapeau posé à
+        //    l'étape 1 n'est lu par la boucle de capture qu'en sortant de `micro.read`, qui bloque
+        //    le temps d'un tampon. Supprimer le répertoire sans attendre laisserait la capture finir
+        //    d'écrire **après** — un fichier de voix réapparu derrière son propre effacement.
+        //
+        //    L'ordre des trois lignes compte : on attend, on efface, et **seulement ensuite** on
+        //    signale l'échec éventuel. Signaler avant effacerait moins que ce qu'on peut effacer.
         issues += etape(PanicStep.VOICE_CAPTURES_WIPE) {
+            val arretee = voiceCapture.attendreLArret(ATTENTE_ARRET_CAPTURE_MS)
             supprimerLeDossier(VoiceCapture.repertoireDeCapture(context))
+            if (!arretee) error("capture micro toujours en cours apres $ATTENTE_ARRET_CAPTURE_MS ms")
         }
 
         // 7. Le fichier de base. Défense en profondeur : la clé est déjà partie.
         issues += etape(PanicStep.DB_WIPE) { effacerLaBase() }
 
-        // 8. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
+        // 8. Le modèle de transcription. Il ne contient rien de l'utilisateur — c'est un binaire
+        //    public — mais il pèse plusieurs dizaines de mégaoctets, d'où ce rang : là où la lenteur
+        //    ne fait plus attendre quoi que ce soit de lisible.
+        //
+        //    ⚠️ `files/stt/`, à ne pas confondre avec `files/models/` de l'étape suivante.
+        issues += etape(PanicStep.VOICE_MODEL_WIPE) {
+            supprimerLeDossier(SttModelStore.repertoireDesModeles(context))
+        }
+
+        // 9. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
         //    sécurité, parce que la suppression peut prendre plusieurs secondes sur 530 Mo.
         issues += etape(PanicStep.LEGACY_MODELS_WIPE) { supprimerLeDossier(File(context.filesDir, MODELS_DIR)) }
 
-        // 9. Les préférences, par liste blanche.
+        // 10. Les préférences, par liste blanche.
         issues += etape(PanicStep.PREFS_CLEAR) {
             val effacees = prefs.clearAllExcept(PREFERENCES_CONSERVEES)
             Timber.i("panique : %d préférences effacées", effacees)
         }
 
-        // 10. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
+        // 11. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
         issues += etape(PanicStep.CACHE_PURGE) { viderLeCache() }
 
         // ⚠️ **Regarder, pas déduire.** L'état du disque après la séquence entière, y compris ce que
@@ -488,12 +569,39 @@ class PanicService @Inject constructor(
     /** Ce qui, dans le cache, peut porter le contenu d'une note. Le reste ne nous appartient pas. */
     private fun estUnArtefactSensible(nom: String): Boolean {
         val n = nom.lowercase()
-        return n == "exports" || n.endsWith(".zip") || n.endsWith(".md") || n.endsWith(".wav")
+        // ⚠️⚠️ `captures` manquait, et c'était un **jumeau asymétrique** : `exports` faisait échouer
+        // l'étape en survivant, son voisin non. Or les deux répertoires portent du clair — le texte
+        // des notes d'un côté, la voix qui les dicte de l'autre — et rien ne justifiait de croire le
+        // second effacé sur la foi d'un balayage qui ne le regardait pas. La liste n'avait pas suivi
+        // l'arrivée de la capture. Relevé par une relecture externe (Gemini, 2026-08-16).
+        //
+        // ⚠️ Le test `.wav` ne couvrait pas le cas : `listFiles` ne rend que le premier niveau, donc
+        // le nom examiné est celui du **répertoire**, jamais celui des enregistrements qu'il contient.
+        //
+        // ⚠️⚠️ Les deux noms sont **demandés à ceux qui écrivent ces répertoires**, jamais recopiés.
+        // C'est la règle déjà posée pour l'effacement — deux définitions, et la panique surveillerait
+        // un dossier que l'export n'utilise plus. Elle vaut ici pour la même raison : ce contrôle est
+        // le dernier à regarder ce que les étapes ont laissé.
+        return n == NoteExporter.repertoireDExport(context).name.lowercase() ||
+            n == VoiceCapture.repertoireDeCapture(context).name.lowercase() ||
+            n.endsWith(".zip") ||
+            n.endsWith(".md") ||
+            n.endsWith(".wav")
     }
 
     private companion object {
         /** `files/models/` — cf. `services/legacy_model_files.dart`. ⚠️ `stt/` ne doit PAS y passer. */
         const val MODELS_DIR = "models"
+
+        /**
+         * Combien de temps attendre qu'une capture en cours s'arrête, avant d'effacer sans elle.
+         *
+         * ⚠️ La boucle de capture relit son drapeau à chaque tampon — de l'ordre de la centaine de
+         * millisecondes. Deux secondes couvrent très largement le cas normal ; au-delà, c'est que
+         * quelque chose ne répond plus, et le mode panique ne s'arrête pas pour attendre. **La borne
+         * est là pour que la séquence continue**, pas pour donner sa chance au micro.
+         */
+        const val ATTENTE_ARRET_CAPTURE_MS = 2_000L
 
         /** 16 Mio : l'en-tête et les premières pages, sans immobiliser l'appareil plusieurs secondes. */
         const val OCTETS_ECRASES = 16 * 1024 * 1024

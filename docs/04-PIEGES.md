@@ -1020,3 +1020,125 @@ Les cinq correctifs de l'audit export/panique ont été relus à leur tour. Rés
 ⚠️ **Un correctif de marquage a failli coûter un export.** Ajouter une lecture de base pour enrichir
 un libellé, c'est ajouter un mode de panne à un chemin qui n'en avait pas. La lecture est désormais
 enveloppée et retombe sur l'ancien critère : *perdre une mention vaut mieux que perdre l'export.*
+
+---
+
+## §55 — `withContext` vérifie l'annulation **au moment de rendre sa valeur**
+
+Le 08-15, la boucle de capture a reçu un `ensureActive()` à chaque tour : une portée annulée devait
+cesser d'écrire de la voix sur le disque, et le fichier partiel devait être effacé par le `catch`.
+
+C'était juste, et insuffisant. Le contrôle couvre **la durée de la boucle, et rien après** :
+
+```kotlin
+return verrou.withLock { withContext(Dispatchers.IO) { capturer() } }
+```
+
+`capturer()` se termine normalement — dernier tampon écrit, en-tête corrigé, fichier rendu. Puis
+`withContext`, en rendant la valeur, constate que le travail a été annulé entre-temps et lève une
+`CancellationException` **à la place du fichier**. Le `try/catch` de `capturer()` est déjà refermé :
+il n'a rien à effacer. L'appelant, qui devait transcrire puis supprimer, ne reçoit jamais le nom.
+
+**Résultat : un WAV de voix en clair dans le cache, que plus personne ne connaît.** La fenêtre dure
+quelques millisecondes et s'ouvre par le geste le plus banal qui soit — quitter l'écran au moment où
+l'on relâche le bouton.
+
+**La parade** est de retenir le fichier **hors** du `withContext`, et de l'effacer si le résultat ne
+parvient pas à l'appelant :
+
+```kotlin
+val produit = AtomicReference<File?>(null)
+try {
+    return verrou.withLock { withContext(Dispatchers.IO) { capturer()?.also(produit::set) } }
+} catch (e: Throwable) {
+    produit.get()?.let(::effacerOuSignaler)
+    throw traduire(e)
+}
+```
+
+⚠️ **La leçon générale** : une garde posée *dans* une fonction ne protège pas la remise de son
+résultat. Partout où le fait de rendre une valeur engage quelqu'un d'autre à faire le ménage, la
+remise elle-même est un point de défaillance. Relevé par une relecture externe (GPT-5.5, 08-16), un
+jour après que la même famille de défaut eut été corrigée un cran plus bas.
+
+---
+
+## §56 — Deux répertoires jumeaux, une seule ligne dans la liste : l'asymétrie ne se voit pas
+
+`PanicStep.CACHE_PURGE` se termine par un contrôle : si un artefact **sensible** survit au balayage
+du cache, l'étape échoue et l'écran de fin le dit. La liste était :
+
+```kotlin
+n == "exports" || n.endsWith(".zip") || n.endsWith(".md") || n.endsWith(".wav")
+```
+
+`captures/` n'y figurait pas. Deux répertoires voisins, tous deux porteurs de clair — le texte des
+notes d'un côté, la voix qui les dicte de l'autre — et un seul surveillé. Un répertoire de captures
+survivant passait **en silence**, sur le seul contrôle dont le rôle est de regarder ce que les étapes
+ont laissé.
+
+⚠️ Le test `.wav` ne rattrapait rien : `listFiles()` ne rend que le **premier niveau**, donc le nom
+examiné est celui du répertoire, jamais celui des enregistrements qu'il contient. Une garde qui
+ressemble à une couverture.
+
+**Le correctif utile n'est pas d'ajouter `"captures"`**, c'est de **demander les deux noms à ceux qui
+écrivent ces répertoires** :
+
+```kotlin
+n == NoteExporter.repertoireDExport(context).name.lowercase() ||
+    n == VoiceCapture.repertoireDeCapture(context).name.lowercase() || …
+```
+
+La règle « une seule définition du répertoire » était déjà écrite pour l'**effacement**. Elle vaut
+autant pour le **contrôle** : un littéral recopié ne suit pas celui qui écrit. Relevé par une
+relecture externe (Gemini, 08-16).
+
+---
+
+## §57 — Un inventaire dans un commentaire se périme ; un critère, non
+
+Le KDoc de `clairPeutSubsister` s'est trompé **deux fois, par la même faute** :
+
+| Version | Affirmation | Ce qui manquait |
+|---|---|---|
+| 08-15 matin | « l'export est **la seule** » | le presse-papiers |
+| 08-15 soir | « **deux choses seulement** sont du clair » | les enregistrements de dictée |
+
+Les deux fois, la phrase était **exacte le jour où elle a été écrite**. Les deux fois, elle a été
+prise pour un acquis par la relecture suivante. Et la seconde omission a été introduite dans le
+correctif même de la première.
+
+⚠️ Trois autres commentaires du même fichier disaient encore « les seuls fichiers en clair » à propos
+des archives d'export, alors que le code mesurait déjà les captures. **Un dépôt ne contient pas un
+commentaire menteur : il en contient une famille**, parce qu'ils ont été écrits ensemble.
+
+**La parade tient en une distinction** : une *règle* (« ce qui est mesuré, ce sont les répertoires de
+clair ») reste vraie ; un *inventaire* (« il y en a deux ») se périme au premier ajout. Quand les
+deux se rédigent dans la même phrase, c'est l'inventaire qui la rend fausse.
+
+⚠️ Corollaire vérifié le 08-16 sur l'énumération `PanicStep` : son en-tête énonçait une règle juste
+— *une étape déclarée doit s'exécuter* — puis ajoutait « c'est pourquoi il n'y a ni `voiceCancel` ni
+`voiceWipe` ici ». La règle a tenu ; la phrase qui la suivait est devenue fausse le jour même où on
+l'a respectée.
+
+---
+
+## §58 — Ce que la source annonce n'engage personne, y compris quand elle annonce zéro
+
+L'import du modèle rejette d'emblée un fichier dont la taille n'a aucun rapport avec le modèle visé :
+cela évite de copier et de hacher trois gigaoctets pour découvrir que c'était une vidéo. La taille se
+lit dans `OpenableColumns.SIZE`.
+
+**Plusieurs fournisseurs rendent `0` ou `-1`** — stockage en nuage, documents virtuels — là où la
+convention voudrait une colonne absente. Le contrôle traitait donc « je ne sais pas » comme « fichier
+vide », et **rejetait un modèle parfaitement conforme avant même de le lire**, uniquement parce que
+l'application avait cru une métadonnée tierce.
+
+Deux corrections possibles, et la bonne n'est pas la plus radicale :
+
+- ❌ *retirer la garde de taille* — elle a une vraie valeur, écarter une vidéo sans en copier un octet ;
+- ✅ **la ramener à ce qu'elle sait faire** : juger une valeur qu'on a, jamais une absence.
+
+⚠️ La borne dure de la copie, elle, se calcule **sur ce que le modèle attend**, jamais sur ce que la
+source annonce. C'est ce qui reste quand la métadonnée est muette — et c'est la seule limite qui
+n'ait jamais dépendu d'un tiers. Relevé par une relecture externe (GPT-5.5, 08-16).
