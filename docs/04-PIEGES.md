@@ -1365,3 +1365,64 @@ n'avait pas les fichiers où la garantie était tenue. Un relecteur externe voit
 correctif a laissé derrière lui. `import kotlinx.coroutines.launch` est resté inutilisé — ktlint ne
 l'a pas signalé, et la seule autre occurrence de `launch` dans le fichier était celle du sélecteur
 d'activité, qui n'a rien à voir. **Relire le delta, pas seulement le voir compiler.**
+
+## §67 — Une garde posée sur `onDismissRequest` ne bloque PAS le balayage d'une feuille
+
+**Mesuré sur le S9 le 2026-08-16** par `FermetureDeFeuilleTest`, après deux relectures externes qui
+se contredisaient. C'est le test qui a tranché, et il a donné tort à la plus assurée des deux.
+
+`VaultSheets.kt` transpose un dialogue Flutter **volontairement bloquant** (`PopScope(canPop: false)`,
+`barrierDismissible: false`). Pendant le chiffrement du contenu d'un coffre, le coffre est **déjà
+créé** : fermer annule la coroutine, le dossier reste un coffre, ses notes restent **en clair**, et
+la feuille disparaît sans rien dire. L'utilisateur croit avoir annulé une création qui a eu lieu.
+
+Le portage posait la garde dans le seul `onDismissRequest`. Ce que la mesure montre :
+
+| Geste | Ce qui arrive | La garde de `onDismissRequest` |
+|---|---|---|
+| **Balayage vers le bas** | l'état passe à `Hidden`, la feuille **quitte l'écran**, *puis* `onDismissRequest` est appelé | 🔴 **inutile** — elle s'exécute après le départ de la feuille |
+| **Retour** | `onDismissRequest` est appelé **directement**, sans toucher à l'état | ✅ c'est elle, et elle seule, qui protège |
+
+⚠️⚠️ **Donc deux mécanismes, pas un.** `confirmValueChange` refuse la **transition** vers `Hidden` ;
+la garde de `onDismissRequest` refuse l'**action**. Aucun ne couvre le chemin de l'autre. La paire
+est exhaustive parce qu'il n'existe que deux façons de faire disparaître une `ModalBottomSheet` :
+demander `Hidden` à son état, ou appeler `onDismissRequest`. C'est ce qui permet d'affirmer que le
+voile est couvert **sans l'avoir mesuré** — quel que soit celui des deux chemins qu'il emprunte.
+
+🔴 Une relecture affirmait que `confirmValueChange` suffisait, « le bouton Retour est ignoré,
+`onDismissRequest` ne sera jamais appelé ». La mesure dit l'inverse. La croire aurait conduit à
+**retirer** la garde existante comme devenue redondante — c'est-à-dire à rouvrir le trou en croyant
+le fermer. *Le danger d'une relecture assurée n'est pas qu'elle se trompe, c'est qu'elle donne envie
+de simplifier.*
+
+## §68 — `confirmValueChange` est une CLÉ du `rememberSaveable` : une lambda instable recrée l'état
+
+Corollaire du §67, et il pouvait coûter plus cher que le défaut réparé.
+
+`rememberModalBottomSheetState` construit son `SheetState` sous un `rememberSaveable` dont
+`confirmValueChange` fait partie des clés. Mesuré : avec une lambda que le compilateur Compose ne
+peut pas mémoriser, **six compositions ont donné six états**. Sur une feuille de saisie, où chaque
+frappe recompose, la feuille se réinitialiserait sous les doigts de l'utilisateur.
+
+✅ La forme retenue tient parce qu'elle ne capture qu'une **référence de méthode liée** :
+
+```kotlin
+private fun etatDeFeuilleDeCoffre(bloquer: () -> Boolean = { false }) = rememberModalBottomSheetState(
+    skipPartiallyExpanded = true,
+    confirmValueChange = { cible -> !(cible == SheetValue.Hidden && bloquer()) },
+)
+// appel : etatDeFeuilleDeCoffre(bloquer = viewModel::chiffrementEnCours)
+```
+
+L'égalité d'une référence liée porte sur le récepteur et la méthode : deux instances successives
+sont **égales**, donc Compose mémorise la lambda et l'état survit. Mesuré à **un seul** état sur six
+compositions.
+
+⚠️ **Un booléen aurait cassé ça.** `etatDeFeuilleDeCoffre(bloquant)` avec `bloquant` lu à la
+composition serait figé sur sa valeur initiale — le veto ne s'activerait jamais. Les deux relectures
+ont signalé ce piège ; aucune n'avait vu l'autre moitié, celle où la lambda **change trop souvent**.
+
+🔧 **Compter les identités, pas regarder l'écran.** Une feuille recréée puis ré-affichée ressemble à
+s'y méprendre à une feuille intacte. C'est un `mutableSetOf<SheetState>()` alimenté en composition
+qui rend la question décidable — et le test qui fige le piège vaut autant que celui qui fige le
+correctif : sans le repoussoir, rien ne dit que la mesure sait distinguer les deux cas.

@@ -30,6 +30,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -151,9 +152,39 @@ private fun Modifier.contenuDeFeuilleDeCoffre(): Modifier = this
  *
  * Les deux feuilles à saisie ouvrent donc en pleine hauteur. Le défilement reste utile pour les
  * petits écrans, où même la pleine hauteur ne suffit pas.
+ *
+ * ## 🔴🔴 [bloquer] — la garde de `onDismissRequest` NE SUFFIT PAS, mesuré
+ *
+ * Il y a **deux** façons de faire disparaître une `ModalBottomSheet`, et elles n'arrivent pas au
+ * même endroit :
+ *
+ *  • **le balayage vers le bas** pousse l'état vers `Hidden` et n'appelle `onDismissRequest`
+ *    qu'**une fois la feuille partie**. Une garde qui s'y contente de ne rien faire arrive après la
+ *    bataille : la feuille a disparu de l'écran, et le chiffrement continue sans que rien ne le
+ *    dise. C'est exactement le scénario que le dialogue publié interdit — et le portage l'avait
+ *    rouvert ;
+ *  • **le Retour** appelle `onDismissRequest` directement, sans passer par l'état. Là, et là
+ *    seulement, la garde fonctionne.
+ *
+ * D'où deux mécanismes, pas un : ce paramètre refuse la transition vers `Hidden`, la garde de
+ * `onDismissRequest` refuse l'action. Aucun des deux ne couvre le chemin de l'autre, et la paire
+ * est exhaustive puisqu'il n'existe pas de troisième façon de fermer.
+ *
+ * ⚠️ **Une lambda, pas un booléen.** L'état n'est construit qu'une fois — `rememberSaveable` — donc
+ * un booléen lu à la composition resterait figé sur sa valeur d'alors, et le veto ne s'activerait
+ * jamais. Ce paramètre est appelé **à chaque tentative** de fermeture, et doit rester **pur** : il
+ * décide, il n'agit pas.
+ *
+ * Mesuré sur le S9 par `FermetureDeFeuilleTest`, qui contient les cas témoins sans lesquels ces
+ * quatre lignes ne seraient qu'une conviction. Deux relectures externes du 2026-08-16 s'étaient
+ * contredites sur ce point ; c'est le test qui a tranché, et il a donné tort à la plus assurée des
+ * deux.
  */
 @Composable
-private fun etatDeFeuilleDeCoffre() = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+private fun etatDeFeuilleDeCoffre(bloquer: () -> Boolean = { false }) = rememberModalBottomSheetState(
+    skipPartiallyExpanded = true,
+    confirmValueChange = { cible -> !(cible == SheetValue.Hidden && bloquer()) },
+)
 
 /** Le choix du mode, à la création d'un coffre. */
 @Composable
@@ -278,12 +309,17 @@ private fun PassphraseSheet(
             // L'application publiée répond pareil, avec un dialogue `barrierDismissible: false`
             // (`folders_drawer.dart:654`). Pendant la dérivation, en revanche, fermer annule
             // vraiment : rien n'a encore été écrit.
+            //
+            // ⚠️ **Cette garde reste indispensable, et ne couvre que le Retour.** Mesuré sur le S9
+            // le 2026-08-16 : le Retour arrive ici sans toucher à l'état, le balayage n'y arrive
+            // qu'après avoir déjà fait disparaître la feuille. Le veto du balayage est posé sur
+            // l'état ci-dessous. Cf. `FermetureDeFeuilleTest`.
             if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
             rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
             viewModel.cancelAttempt()
             onDismiss()
         },
-        sheetState = etatDeFeuilleDeCoffre(),
+        sheetState = etatDeFeuilleDeCoffre(bloquer = viewModel::chiffrementEnCours),
     ) {
         Column(
             modifier = Modifier
@@ -504,12 +540,17 @@ private fun PinSheet(
             // L'application publiée répond pareil, avec un dialogue `barrierDismissible: false`
             // (`folders_drawer.dart:654`). Pendant la dérivation, en revanche, fermer annule
             // vraiment : rien n'a encore été écrit.
+            //
+            // ⚠️ **Cette garde reste indispensable, et ne couvre que le Retour.** Mesuré sur le S9
+            // le 2026-08-16 : le Retour arrive ici sans toucher à l'état, le balayage n'y arrive
+            // qu'après avoir déjà fait disparaître la feuille. Le veto du balayage est posé sur
+            // l'état ci-dessous. Cf. `FermetureDeFeuilleTest`.
             if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
             rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
             viewModel.cancelAttempt()
             onDismiss()
         },
-        sheetState = etatDeFeuilleDeCoffre(),
+        sheetState = etatDeFeuilleDeCoffre(bloquer = viewModel::chiffrementEnCours),
     ) {
         Column(
             modifier = Modifier
