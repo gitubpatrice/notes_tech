@@ -1,9 +1,12 @@
 package com.filestech.notes_tech.data.voice
 
 import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.domain.voice.SttModel
 import com.filestech.notes_tech.domain.voice.SttModelChecksumMismatchException
 import com.filestech.notes_tech.domain.voice.SttModelSourceInvalidException
@@ -45,6 +48,9 @@ class SttModelStoreTest {
     private lateinit var magasin: SttModelStore
     private lateinit var bacASable: File
 
+    /** Les fichiers deposes dans `cache/exports/` pour etre servis, retires apres chaque test. */
+    private val exposes = mutableListOf<File>()
+
     @Before
     fun preparer() {
         magasin = SttModelStore(context)
@@ -54,6 +60,8 @@ class SttModelStoreTest {
 
     @After
     fun nettoyer() {
+        exposes.forEach { it.delete() }
+        exposes.clear()
         bacASable.deleteRecursively()
         SttModelStore.repertoireDesModeles(context).deleteRecursively()
     }
@@ -93,15 +101,43 @@ class SttModelStoreTest {
         assertThat(magasin.estPresent(modele)).isFalse()
     }
 
+    /**
+     * 🔴 Le cas où la source **annonce** sa taille : le refus doit tomber **avant** toute lecture.
+     *
+     * ⚠️⚠️ Passe par un vrai `content://`, servi par le `FileProvider` de l'application. C'est le
+     * seul moyen d'exercer ce chemin : un `file://` ne porte **pas** `OpenableColumns.SIZE`, donc la
+     * garde de taille ne s'y déclenche jamais. La première version de ce test l'ignorait et
+     * échouait — non pas parce que le code laissait passer le fichier, mais parce qu'il le refusait
+     * **par l'empreinte**, un cran plus loin que ce que le test prétendait vérifier. Un test qui se
+     * trompe de garde ne prouve rien de celle qu'il nomme.
+     */
     @Test
-    fun unFichierDeTailleSansRapportEstRefuseSansLecture() = runBlocking {
-        val contenu = contenuDeTest(4_096)
-        val modele = modelePour(contenu)
-        val source = fichierSource("photo.jpg", contenuDeTest(64))
+    fun uneTailleAnnonceeSansRapportEstRefuseeAvantLecture() = runBlocking {
+        val modele = modelePour(contenuDeTest(4_096))
+        val source = sourceExposee("photo.jpg", contenuDeTest(64))
+
+        val echec = runCatching { magasin.importer(source, modele) }.exceptionOrNull()
+
+        assertThat(echec).isInstanceOf(SttModelSourceInvalidException::class.java)
+        assertThat(SttModelStore.repertoireDesModeles(context).listFiles().orEmpty()).isEmpty()
+    }
+
+    /**
+     * ⚠️ Le cas jumeau : la source **n'annonce rien**, et le contrôle doit tenir quand même.
+     *
+     * Certains fournisseurs — stockage en nuage, documents virtuels — ne rendent aucune taille. La
+     * garde bon marché se tait alors, par construction, et c'est l'empreinte qui tranche. Ce que ce
+     * test fige, c'est qu'elle tranche **et** que le fichier copié ne survit pas : sans quoi le
+     * silence d'un tiers suffirait à laisser un binaire non identifié dans la zone privée.
+     */
+    @Test
+    fun uneSourceMuetteSurSaTailleEstQuandMemeVerifiee() = runBlocking {
+        val modele = modelePour(contenuDeTest(4_096))
+        val source = fichierSource("sans-taille.bin", contenuDeTest(64))
 
         val echec = runCatching { magasin.importer(source.toUri(), modele) }.exceptionOrNull()
 
-        assertThat(echec).isInstanceOf(SttModelSourceInvalidException::class.java)
+        assertThat(echec).isInstanceOf(SttModelChecksumMismatchException::class.java)
         assertThat(SttModelStore.repertoireDesModeles(context).listFiles().orEmpty()).isEmpty()
     }
 
@@ -164,4 +200,21 @@ class SttModelStoreTest {
     )
 
     private fun fichierSource(nom: String, contenu: ByteArray) = File(bacASable, nom).apply { writeBytes(contenu) }
+
+    /**
+     * Un `content://` qui **annonce sa taille**, servi par le `FileProvider` de l'application.
+     *
+     * ⚠️ Le fichier est écrit dans `cache/exports/`, **seul chemin déclaré** dans `file_paths.xml`.
+     * Ce n'est pas un contournement : élargir cette déclaration pour la commodité d'un test
+     * ouvrirait en production ce qu'elle restreint exprès — le fichier de test se range donc dans le
+     * répertoire prévu, et repart avec lui.
+     *
+     * ⚠️ Le répertoire est demandé à `NoteExporter`, jamais recopié : même règle que partout ailleurs.
+     */
+    private fun sourceExposee(nom: String, contenu: ByteArray): Uri {
+        val racine = NoteExporter.repertoireDExport(context).apply { mkdirs() }
+        val fichier = File(racine, nom).apply { writeBytes(contenu) }
+        exposes += fichier
+        return FileProvider.getUriForFile(context, "${context.packageName}.exports", fichier)
+    }
 }

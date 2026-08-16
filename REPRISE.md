@@ -25,17 +25,20 @@ que l'autre manquait. Le plus grave n'était pas dans le code neuf mais dans la 
 au mauvais instant laissait un WAV de voix orphelin que plus personne ne connaissait. La garde posée
 le 08-15 couvrait la boucle, et rien après. Tout est dans `docs/04-PIEGES.md` §55-§58.
 
-### 🔴 La première tâche, avant d'écrire quoi que ce soit
+### ✅ Les tests instrumentés sont passés — et le premier jet en a raté un
 
-**Brancher le S9 et lancer la suite instrumentée.** Six tests neufs portent précisément sur ce qui
-ne se vérifie pas sur des flux en mémoire : le temporaire est-il *vraiment* effacé quand l'empreinte
-ne correspond pas, le renommage a-t-il *vraiment* eu lieu. Ils compilent ; ils n'ont jamais tourné.
+Lancés sur le S9 le 08-16 : **125 tests, 0 échec, 0 ignoré**. Le premier passage en a signalé un, et
+il n'accusait pas le code : mon test prétendait vérifier le **refus sur la taille annoncée** en
+passant un `file://`, qui ne porte pas `OpenableColumns.SIZE`. La garde nommée ne pouvait donc pas
+se déclencher, et le fichier était refusé un cran plus loin, par l'empreinte.
 
-```
-adb -s 22dbb7390a057ece shell am instrument -w -r ...
-```
+⚠️ *Un test qui se trompe de garde ne prouve rien de celle qu'il nomme* — même s'il est vert. Il a
+été scindé en deux : l'un passe par un vrai `content://` du `FileProvider` (taille annoncée ⇒ refus
+avant lecture), l'autre garde le `file://` pour figer le cas de la **source muette**, où l'empreinte
+doit trancher seule. Le second correspond exactement au défaut relevé par GPT-5.5.
 
-⚠️ **Jamais sur le S24 FE** (`RZCY41EGKYL`) : AGP désinstalle l'application à la fin.
+⚠️ Toujours `ANDROID_SERIAL=22dbb7390a057ece`, et **jamais sur le S24 FE** (`RZCY41EGKYL`) : AGP
+désinstalle l'application à la fin.
 
 ### Ce qui est en place
 
