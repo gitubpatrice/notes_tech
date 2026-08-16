@@ -14,6 +14,7 @@ import com.filestech.notes_tech.ui.navigation.Destination
 import com.filestech.notes_tech.ui.search.SearchRoute
 import com.filestech.notes_tech.ui.settings.SettingsRoute
 import com.filestech.notes_tech.ui.trash.TrashRoute
+import com.filestech.notes_tech.ui.voice.VoiceSetupRoute
 
 /**
  * L'arborescence de navigation.
@@ -65,6 +66,7 @@ fun NotesTechNavHost(navController: NavHostController) {
             SettingsRoute(
                 onBack = { navController.popBackStack() },
                 onOpenAbout = { navController.navigate(Destination.About.route) },
+                onOpenVoiceSetup = { navController.navigate(Destination.VoiceSetup.route) },
             )
         }
 
@@ -73,6 +75,10 @@ fun NotesTechNavHost(navController: NavHostController) {
                 onBack = { navController.popBackStack() },
                 onOpenLegal = { navController.navigate(Destination.Legal.route) },
             )
+        }
+
+        composable(Destination.VoiceSetup.route) {
+            VoiceSetupRoute(onBack = { navController.popBackStack() })
         }
 
         composable(Destination.Legal.route) {

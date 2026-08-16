@@ -51,7 +51,6 @@ object SttModelCatalogue {
         expectedSha256 = "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898",
         sizeBytes = 59_700_000L,
         language = "auto",
-        notes = "Conseille. Bonne qualite en francais, environ 3 s de calcul pour 5 s de parole.",
         fichierAmont = "ggml-base-q5_1.bin",
     )
 
@@ -62,7 +61,6 @@ object SttModelCatalogue {
         expectedSha256 = "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
         sizeBytes = 32_200_000L,
         language = "auto",
-        notes = "Leger et rapide, qualite en francais approximative. Pour les appareils modestes.",
         fichierAmont = "ggml-tiny-q5_1.bin",
     )
 

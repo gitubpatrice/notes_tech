@@ -116,6 +116,13 @@ data class SttSegment(val text: String, val startMillis: Long, val endMillis: Lo
  * ⚠️ **Sans `url`, contrairement au modèle Dart.** Le portage n'a pas de chemin de téléchargement :
  * porter le champ inviterait à en écrire un. Cf. la note de [SpeechToText].
  *
+ * ⚠️⚠️ **Et sans champ de description.** Il y en avait un, `notes`, repris du catalogue Dart — et il
+ * portait du **français en dur**, affiché tel quel dans l'application anglaise. Un texte que
+ * l'utilisateur lit se traduit ; un catalogue de domaine, lui, ne connaît pas les ressources
+ * Android. La description vit donc dans `strings.xml`, et l'écran fait la correspondance : c'est le
+ * seul endroit qui connaisse les deux. Relevé **à l'écran**, sur le S9 — pas à la relecture, où un
+ * champ rempli d'une phrase française à côté d'autres champs français ne détonne pas.
+ *
  * @param expectedSha256 empreinte attendue, en hexadécimal minuscule. Vérifiée **à chaque
  *   chargement**, pas seulement à l'import : un fichier peut être remplacé entre les deux.
  * @param sizeBytes taille attendue. Sert de garde-fou avant même de hacher plusieurs centaines de
@@ -135,7 +142,6 @@ data class SttModel(
     val expectedSha256: String,
     val sizeBytes: Long,
     val language: String,
-    val notes: String,
     val fichierAmont: String,
 ) {
     /**

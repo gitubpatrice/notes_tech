@@ -149,7 +149,6 @@ class WhisperSttTest {
         expectedSha256 = "0".repeat(64),
         sizeBytes = 8_192,
         language = "fr",
-        notes = "fabrique pour le test",
         fichierAmont = "modele-absent.bin",
     )
 }

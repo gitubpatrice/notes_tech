@@ -56,7 +56,6 @@ class SttModelCatalogueTest {
             // trentaine de variantes dont les noms ne diffèrent que par un suffixe.
             assertThat(modele.fichierAmont).endsWith(".bin")
             assertThat(modele.displayName).isNotEmpty()
-            assertThat(modele.notes).isNotEmpty()
             assertThat(modele.sizeBytes).isGreaterThan(0L)
         }
     }

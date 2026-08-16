@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.LockClock
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -88,7 +89,7 @@ import kotlin.system.exitProcess
  * arrière-plan reste actif dans tous les cas.
  */
 @Composable
-fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit) {
+fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup: () -> Unit) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -235,6 +236,22 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit) {
             // ⚠️ **Pas de ligne « mentions légales » ici.** Elle n'existe que dans « à propos » côté
             // publié, et l'y dupliquer donnait deux chemins vers le même écran — dont un que la
             // référence n'a pas.
+            // ⚠️ La dictée est une SECTION à elle, avant « À propos ». Elle n'a pas d'équivalent
+            // dans les réglages publiés — l'écran y est atteint depuis le bouton micro de l'éditeur
+            // — mais un modèle qu'on installe une fois et qu'on retire rarement se cherche dans les
+            // réglages, pas dans un éditeur de note.
+            TitreDeSection(stringResource(R.string.voice_setup_title))
+            CarteFilesTech {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.voice_setup_enable)) },
+                    supportingContent = { Text(stringResource(R.string.voice_setup_subtitle)) },
+                    leadingContent = { Icon(Icons.Outlined.Mic, contentDescription = null) },
+                    trailingContent = { Icon(Icons.Filled.ChevronRight, contentDescription = null) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier = Modifier.clickable(onClick = onOpenVoiceSetup),
+                )
+            }
+
             TitreDeSection(stringResource(R.string.settings_section_about))
             CarteFilesTech {
                 ListItem(

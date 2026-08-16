@@ -86,6 +86,53 @@ AJOUTS_EN = {
          echoue, rassurer serait decrire l'inverse de la situation. -->
     <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However %1$d cleanup step(s) failed, and READABLE export files may remain on this device. Do not part with it before checking.</string>
 """,
+    "voice": """\
+    <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Les trois chaines d'origine affirmaient que l'audio
+         n'est « jamais persiste ». C'est FAUX : le moteur de transcription lit un FICHIER, donc la
+         voix est ecrite sur le disque le temps de la transcription. « Efface des la transcription
+         obtenue » est exact et se tient ; « jamais persiste » ne se tient pas, et l'ecran aurait
+         contredit la politique de confidentialite, corrigee le meme jour pour la meme raison.
+         Cf. `res/raw*/privacy.md` et 04-PIEGES.md. -->
+    <string name="voice_setup_subtitle">Whisper, on this device. Audio is wiped as soon as the transcription comes back.</string>
+    <!-- ⚠️ Sans signe « % » : Android lit un pourcentage isole comme un format invalide, et
+         lint le refuse. L'echapper en « %% » l'afficherait tel quel, la chaine n'ayant aucun argument. -->
+    <string name="voice_setup_offline_banner">Fully offline. Audio is wiped as soon as the transcription comes back.</string>
+    <string name="voice_setup_security_footer_label">How your data is handled</string>
+    <string name="voice_setup_security_footer_body">Audio wiped as soon as the transcription comes back, transcription done locally by whisper.cpp bundled in the app, model SHA-256 verified before every load.</string>
+
+    <!-- Ajouts du portage : le fichier amont doit etre NOMME. La page source publie une trentaine
+         de variantes dont les noms ne different que par un suffixe, et se tromper coute un
+         telechargement de plusieurs dizaines de mega-octets pour finir sur une empreinte fausse. -->
+    <string name="voice_setup_upstream_file">File to download: %1$s</string>
+    <string name="voice_setup_model_installed">Installed</string>
+    <string name="voice_setup_model_not_installed">Not installed</string>
+
+    <!-- ⚠️ La progression couvre la copie ET la verification : le portage ne fait qu'un seul
+         passage sur le fichier, la ou la version publiee en faisait deux. -->
+    <string name="voice_setup_copying_progress">Copying and verifying: %1$d%%</string>
+
+    <!--
+      🔴 Un message par CAUSE, et jamais `exception.message`.
+      C'est la lecon deja payee par `VaultAttempt` : elle transportait le message interne de
+      l'exception, non traduit, et l'ecran le montrait tel quel dans les deux langues. Ici chaque
+      cas appelle en plus un geste different — choisir un autre fichier, liberer de la place,
+      retelecharger, reessayer — qu'un message unique rendrait impossible a proposer.
+    -->
+    <string name="voice_setup_error_source_invalid">This file does not match the selected model. Did you pick the right .bin?</string>
+    <string name="voice_setup_error_storage_full">Not enough room on this device. Free some space, then try again.</string>
+    <string name="voice_setup_error_checksum">The file fingerprint does not match. The download may have been interrupted, or the file comes from another source. It has been deleted.</string>
+    <string name="voice_setup_error_import_failed">The import failed. Try again.</string>
+
+    <!-- 🔴 La description de chaque modele etait un champ du CATALOGUE, donc du francais en dur
+         affiche tel quel dans l'application anglaise. Un texte vu par l'utilisateur se traduit ;
+         un catalogue de domaine ne connait pas les ressources Android. La correspondance se fait
+         donc dans l'ecran, seul endroit qui connait les deux. -->
+    <string name="voice_model_base_notes">Recommended. Good French quality, about 3 s of compute for 5 s of speech.</string>
+    <string name="voice_model_tiny_notes">Light and fast, rough French quality. For modest devices.</string>
+
+    <string name="voice_setup_remove_confirm_title">Remove the model?</string>
+    <string name="voice_setup_remove_confirm_body">You will have to download and import it again to dictate. Your notes are not affected.</string>
+""",
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Show PIN</string>
@@ -133,6 +180,33 @@ AJOUTS_FR = {
     <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\\'appareil.</string>
     <string name="panic_incomplete_plaintext">Clé détruite : la base n\\'est plus déchiffrable. En revanche, %1$d étape(s) de nettoyage ont échoué, et des fichiers d\\'export LISIBLES peuvent subsister sur cet appareil. Ne vous en séparez pas sans vérifier.</string>
 """,
+    "voice": """\
+    <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Voir le commentaire de la version anglaise : « jamais
+         persiste » etait faux, et l'ecran aurait contredit la politique de confidentialite. -->
+    <string name="voice_setup_subtitle">Whisper, sur cet appareil. L\\'audio est effacé dès la transcription obtenue.</string>
+    <string name="voice_setup_offline_banner">Entièrement hors-ligne. L\\'audio est effacé dès la transcription obtenue.</string>
+    <string name="voice_setup_security_footer_label">Traitement de vos données</string>
+    <string name="voice_setup_security_footer_body">Audio effacé dès la transcription obtenue, transcription locale par whisper.cpp inclus dans l\\'application, empreinte SHA-256 du modèle vérifiée avant chaque chargement.</string>
+
+    <!-- Ajouts du portage : le fichier amont doit être NOMMÉ. -->
+    <string name="voice_setup_upstream_file">Fichier à télécharger : %1$s</string>
+    <string name="voice_setup_model_installed">Installé</string>
+    <string name="voice_setup_model_not_installed">Non installé</string>
+
+    <string name="voice_setup_copying_progress">Copie et vérification : %1$d %%</string>
+
+    <!-- 🔴 Un message par CAUSE, et jamais `exception.message`. -->
+    <string name="voice_setup_error_source_invalid">Ce fichier ne correspond pas au modèle choisi. Avez-vous sélectionné le bon .bin ?</string>
+    <string name="voice_setup_error_storage_full">Il n\\'y a pas assez de place sur cet appareil. Libérez de l\\'espace, puis réessayez.</string>
+    <string name="voice_setup_error_checksum">L\\'empreinte du fichier ne correspond pas. Le téléchargement a peut-être été interrompu, ou le fichier vient d\\'une autre source. Il a été supprimé.</string>
+    <string name="voice_setup_error_import_failed">L\\'import a échoué. Réessayez.</string>
+
+    <string name="voice_model_base_notes">Conseillé. Bonne qualité en français, environ 3 s de calcul pour 5 s de parole.</string>
+    <string name="voice_model_tiny_notes">Léger et rapide, qualité en français approximative. Pour les appareils modestes.</string>
+
+    <string name="voice_setup_remove_confirm_title">Retirer le modèle ?</string>
+    <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
+""",
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Afficher le code</string>
@@ -154,7 +228,21 @@ AJOUTS_FR = {
 # `panicIncomplete` : la version Flutter dit « des donnees peuvent avoir survecu » des qu'une etape
 # echoue, y compris quand la CLE est detruite — c'est-a-dire quand l'utilisateur est en realite a
 # l'abri. Le portage separe les deux issues, cf. le commentaire de la section panique.
-REMPLACEES = {"panicIncomplete"}
+# `voiceSetupSubtitle`, `voiceSetupOfflineBanner`, `voiceSetupSecurityFooterBody` : les trois
+# affirment que l'audio n'est « jamais persiste ». C'est faux — le moteur de transcription lit un
+# FICHIER — et c'est exactement la formulation corrigee le meme jour dans `privacy.md`. Les laisser
+# ici aurait fait dire a l'ecran l'inverse de la politique de confidentialite de l'application.
+REMPLACEES = {
+    "panicIncomplete",
+    "voiceSetupSubtitle",
+    "voiceSetupOfflineBanner",
+    "voiceSetupSecurityFooterBody",
+    # `voiceSetupSecurityFooterLabel` disait « Promesse ». Le mot annonce un engagement la ou la
+    # phrase qu'il coiffe enonce un fonctionnement — et il surjoue un texte qui se suffit. Remplace
+    # par un intitule qui DECRIT, dans le vocabulaire que la politique de confidentialite emploie
+    # deja (« Donnees traitees »).
+    "voiceSetupSecurityFooterLabel",
+}
 
 # Regroupement par prefixe de cle. L'ordre est celui de la navigation, pas l'alphabetique : un
 # fichier de 311 chaines se relit par ecran.
@@ -187,7 +275,11 @@ SECTIONS = [
 # cablees depuis la cloture de la phase 6. Le fichier genere portait donc, en tete de ces deux
 # sections, un avertissement affirmant le contraire de ce que le code fait. Une marque « pas encore
 # cable » se retire quand ca l'est — sinon elle apprend a ne plus lire les marques.
-PAS_ENCORE_CABLE = {"voice": "phase 7"}
+# ⚠️ Vide depuis le 2026-08-16 : la dictée a ses écrans. Le dictionnaire RESTE, parce que sa
+# fonction n'est pas de porter « voice » — c'est de marquer, dans le XML même, toute section dont
+# aucun écran ne consomme les chaînes. Une section muette se lit sinon comme une fonctionnalité
+# existante, et c'est exactement ce que l'audit i18n a déjà pris pour une régression.
+PAS_ENCORE_CABLE = {}
 
 
 def snake(cle):

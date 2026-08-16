@@ -274,15 +274,11 @@
     <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\'appareil.</string>
     <string name="panic_incomplete_plaintext">Clé détruite : la base n\'est plus déchiffrable. En revanche, %1$d étape(s) de nettoyage ont échoué, et des fichiers d\'export LISIBLES peuvent subsister sur cet appareil. Ne vous en séparez pas sans vérifier.</string>
 
-    <!-- ── Dictée vocale ─────────────────────────────────────────────────
-         ⚠️ Aucun écran ne consomme encore ces chaînes — phase 7. Elles sont transposées
-         maintenant pour que la traduction se fasse en un seul passage, pas pour laisser
-         croire que la fonctionnalité existe. -->
+    <!-- ── Dictée vocale ───────────────────────────────────────────────── -->
     <string name="voice_mic_initializing">Initialisation du micro…</string>
     <string name="voice_transcribing_hint">Veuillez patienter…</string>
     <string name="voice_open_system_settings">Ouvrir les réglages</string>
     <string name="voice_setup_title">Dictée vocale</string>
-    <string name="voice_setup_subtitle">Whisper on-device. L\'audio n\'est jamais persisté.</string>
     <string name="voice_setup_enable">Activer la dictée vocale</string>
     <string name="voice_setup_choose_model">Choisir un modèle Whisper</string>
     <string name="voice_setup_download">Télécharger sur ce téléphone</string>
@@ -298,7 +294,6 @@
     <string name="voice_transcribed">Texte inséré.</string>
     <string name="voice_permission_denied">Permission micro refusée.</string>
     <string name="voice_setup_app_bar_title">Dictée vocale</string>
-    <string name="voice_setup_offline_banner" formatted="false">100 % hors-ligne. L\'audio n\'est jamais persisté.</string>
     <string name="voice_setup_how_to_title">Comment activer la dictée</string>
     <string name="voice_setup_step_1_title">1. Choisir un modèle</string>
     <string name="voice_setup_step_1_text">Whisper Base (57 Mo) recommandé.</string>
@@ -316,8 +311,31 @@
     <string name="voice_setup_copying">Copie en cours…</string>
     <string name="voice_setup_import_in_progress">Import en cours, veuillez patienter.</string>
     <string name="voice_setup_picker_dialog_title">Choisir le fichier .bin pour %1$s</string>
-    <string name="voice_setup_security_footer_label">Promesse</string>
-    <string name="voice_setup_security_footer_body">Audio capturé jamais persisté, transcription locale via whisper.cpp, modèle vérifié SHA-256 avant chaque chargement.</string>
+    <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Voir le commentaire de la version anglaise : « jamais
+         persiste » etait faux, et l'ecran aurait contredit la politique de confidentialite. -->
+    <string name="voice_setup_subtitle">Whisper, sur cet appareil. L\'audio est effacé dès la transcription obtenue.</string>
+    <string name="voice_setup_offline_banner">Entièrement hors-ligne. L\'audio est effacé dès la transcription obtenue.</string>
+    <string name="voice_setup_security_footer_label">Traitement de vos données</string>
+    <string name="voice_setup_security_footer_body">Audio effacé dès la transcription obtenue, transcription locale par whisper.cpp inclus dans l\'application, empreinte SHA-256 du modèle vérifiée avant chaque chargement.</string>
+
+    <!-- Ajouts du portage : le fichier amont doit être NOMMÉ. -->
+    <string name="voice_setup_upstream_file">Fichier à télécharger : %1$s</string>
+    <string name="voice_setup_model_installed">Installé</string>
+    <string name="voice_setup_model_not_installed">Non installé</string>
+
+    <string name="voice_setup_copying_progress">Copie et vérification : %1$d %%</string>
+
+    <!-- 🔴 Un message par CAUSE, et jamais `exception.message`. -->
+    <string name="voice_setup_error_source_invalid">Ce fichier ne correspond pas au modèle choisi. Avez-vous sélectionné le bon .bin ?</string>
+    <string name="voice_setup_error_storage_full">Il n\'y a pas assez de place sur cet appareil. Libérez de l\'espace, puis réessayez.</string>
+    <string name="voice_setup_error_checksum">L\'empreinte du fichier ne correspond pas. Le téléchargement a peut-être été interrompu, ou le fichier vient d\'une autre source. Il a été supprimé.</string>
+    <string name="voice_setup_error_import_failed">L\'import a échoué. Réessayez.</string>
+
+    <string name="voice_model_base_notes">Conseillé. Bonne qualité en français, environ 3 s de calcul pour 5 s de parole.</string>
+    <string name="voice_model_tiny_notes">Léger et rapide, qualité en français approximative. Pour les appareils modestes.</string>
+
+    <string name="voice_setup_remove_confirm_title">Retirer le modèle ?</string>
+    <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
 
     <!-- ── À propos ────────────────────────────────────────────────────── -->
     <string name="about_title">À propos</string>

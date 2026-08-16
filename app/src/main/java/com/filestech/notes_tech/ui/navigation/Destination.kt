@@ -50,6 +50,11 @@ sealed interface Destination {
         override val route = "legal"
     }
 
+    /** L'installation du modèle de dictée. Atteinte depuis les réglages. */
+    data object VoiceSetup : Destination {
+        override val route = "voice-setup"
+    }
+
     /**
      * L'éditeur d'une note existante.
      *

@@ -195,7 +195,6 @@ class SttModelStoreTest {
             .joinToString("") { "%02x".format(it) },
         sizeBytes = contenu.size.toLong(),
         language = "fr",
-        notes = "fabrique pour le test",
         fichierAmont = "modele-de-test.bin",
     )
 

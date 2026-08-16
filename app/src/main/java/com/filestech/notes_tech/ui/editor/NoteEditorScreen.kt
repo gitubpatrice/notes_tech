@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
@@ -81,6 +82,8 @@ import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
+import com.filestech.notes_tech.ui.voice.SurcoucheDeDictee
+import com.filestech.notes_tech.ui.voice.rememberControleurDeDictee
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -128,6 +131,13 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val dossiers by viewModel.dossiers.collectAsStateWithLifecycle()
     val action by viewModel.action.collectAsStateWithLifecycle()
     val messages = remember { SnackbarHostState() }
+
+    // ⚠️ La dictée est **entièrement déportée** : permission, lanceur, superposition, dialogue de
+    // refus et six messages distincts. Posée ici, elle a fait franchir à cette fonction les seuils
+    // de longueur ET de complexité que detekt garde — et le gate avait raison. Cf.
+    // `ui/voice/ControleurDeDictee.kt`.
+    val dictee = rememberControleurDeDictee(onTexte = viewModel::insererAuCurseur, messages = messages)
+
     val retourHaptique = LocalHapticFeedback.current
     val contexte = LocalContext.current
     val ressources = LocalResources.current
@@ -207,6 +217,8 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
             )
         }
     }
+
+    SurcoucheDeDictee(dictee)
 
     if (autocompletionOuverte) {
         FeuilleDAutocompletion(
@@ -335,6 +347,19 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                                 contentDescription = stringResource(
                                     if (note.favorite) R.string.home_unfav else R.string.note_editor_tooltip_fav,
                                 ),
+                            )
+                        }
+                        // 🔴 Le micro AVANT le lien : c'est le geste qui produit du texte, et il
+                        // doit être atteignable sans réfléchir. ⚠️ Désarmé pendant une dictée —
+                        // `DictationViewModel` refuse le second appel de toute façon, mais un
+                        // bouton qui accepte un geste sans effet se réappuie.
+                        IconButton(
+                            onClick = dictee.demarrer,
+                            enabled = !dictee.actif,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Mic,
+                                contentDescription = stringResource(R.string.voice_setup_title),
                             )
                         }
                         // ⚠️ « Insérer un lien » est un bouton d'icône, **pas** une entrée de menu :
