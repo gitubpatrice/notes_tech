@@ -5,10 +5,11 @@
 
 ## État en trois lignes
 
-- Dépôt : `j:\applications\notes_files_tech`, branche par défaut, **`24a1340`, 69 commits**,
-  arbre **propre**, et **toujours aucun remote** — rien n'est poussé nulle part.
-- Gate **vert** : ktlint, detekt, lint, **149 tests JVM**, **118 tests instrumentés** (S9),
-  0 échec, 0 ignoré.
+- Dépôt : `j:\applications\notes_files_tech`, branche par défaut, **80 commits**, arbre **propre**,
+  et **toujours aucun remote** — rien n'est poussé nulle part.
+- Gate **vert** au 2026-08-16 : ktlint, detekt, lint (`--rerun-tasks`), **171 tests JVM**,
+  **136 tests instrumentés** (S9), 0 échec, **0 ignoré** — le compte d'ignorés est lu dans le XML,
+  pas déduit d'un `OK`.
 - Application publiée `notes_tech` : `0307811` sur `fix/defauts-releves-pendant-le-portage`,
   **aucune publication décidée**. Ses trois répertoires non suivis (`.audit_tmp/`,
   `_audit_results/`, `prompts/`) ne doivent **jamais** entrer dans l'index — pas de `git add -A`.
@@ -112,10 +113,18 @@ survivrait à la purge affirmerait qu'un fichier absent a été vérifié.
 1. **Aucune transcription n'est testée.** Il faudrait le modèle de 50 Mo sur le S9. Ce qui *est*
    prouvé sur l'appareil : `libnotes_stt.so` **se charge**. La qualité, la détection de langue et le
    découpage en segments restent vérifiés par l'usage.
-2. ⚠️ **R8 a supprimé `WhisperNatif` et `WhisperStt` des dex release** — rien ne les appelle encore.
-   La règle de conservation JNI est écrite mais **sans effet observable** ; le contrôle est à refaire
-   sur l'APK **release** dès qu'un écran utilise la dictée. Cf. `04-PIEGES.md` §59.
-3. La bibliothèque native est **empaquetée quand même**, 2,5 Mo par architecture.
+2. ✅ **CLOS le 2026-08-16 — la règle de conservation JNI a désormais un effet mesuré.** Elle était
+   écrite mais sans effet observable, faute d'appelant. Contrôlé sur l'APK **release** une fois
+   l'interface en place, et **des deux côtés de la frontière** :
+   - dex (`dexdump` sur `classes.dex`) : classe `WhisperNatif` **au nom conservé**, ses **neuf**
+     méthodes natives présentes avec leurs signatures exactes ;
+   - `.so` (`llvm-nm --dynamic --defined-only`) : les **neuf** symboles
+     `Java_com_filestech_notes_1tech_data_voice_WhisperNatif_*` exportés en `T`.
+
+   ⚠️ `WhisperStt` est renommée en `v5.n` — c'est normal et voulu : Hilt l'atteint, aucun `-keep`
+   ne la vise. ⚠️ Un `grep` du nom de méthode dans le dex **ne prouve rien** : `ouvrir` peut
+   appartenir à une autre classe. Il faut `dexdump`, et il faut lire les **signatures**.
+3. La bibliothèque native est **empaquetée quand même**, 2,26 Mo en arm64 (vérifié dans l'APK).
 
 ## ✅ L'interface est faite — la phase 7 est close
 
@@ -161,6 +170,21 @@ et rien de plus sur la qualité, la détection de langue ou le découpage en seg
 `docs/05-PARITE.md` porte **39 cases vides** — 10 écrans, 16 composants, 8 services, 5 promesses
 publiques. « Vérifié » y veut dire **sur appareil**, pas « le code existe ». Plus **3 cases de
 migration** qui ne se cochent que le jour de la bascule, sur le S9, avec une vraie 2.0.3 installée.
+
+### ✅ 2026-08-16 : la colonne « Kotlin » est remplie, et elle a servi tout de suite
+
+Les 34 lignes nomment maintenant leur homologue, vérifié fichier par fichier. La colonne « Vérifié »
+n'a **pas** bougé : nommer n'est pas vérifier. Deux lignes n'ont délibérément aucun homologue, et
+elles le disent — `sheet_handle.dart` parce que Material3 fournit la poignée, et
+`blocking_progress_dialog.dart` parce que le portage traite ses deux appelants séparément.
+
+🔴 **C'est cette seconde ligne qui a payé le remplissage.** Le composant publié était
+*volontairement bloquant* ; en cherchant qui joue ce rôle côté Kotlin, on a trouvé que la feuille de
+conversion ne bloquait **pas** le balayage. Mesuré, corrigé, testé — `04-PIEGES.md` §67-§68.
+
+⚠️ La leçon vaut pour les 39 cases restantes : la question *« quel fichier joue ce rôle ? »* trouve
+des défauts que la question *« est-ce que ça marche ? »* laisse passer, parce qu'elle oblige à
+relire l'intention du publié et pas seulement le comportement du portage.
 
 ## ⚠️ Rappels qui ont coûté du temps aujourd'hui
 

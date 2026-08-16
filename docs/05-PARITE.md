@@ -9,52 +9,94 @@
 
 ## Écrans (10)
 
+> ⚠️ **La colonne « Kotlin » a été remplie le 2026-08-16, fichier par fichier.** Elle nomme
+> l'homologue, elle **ne coche rien** : « le fichier existe » et « vérifié sur appareil » restent
+> deux questions différentes, et c'est la seconde que ce tableau pose. Deux lignes n'ont
+> délibérément **aucun** homologue — elles le disent, plutôt que de rester vides.
+
 | Écran Flutter | Lignes | Kotlin | Vérifié | Notes |
 |---|---:|---|:---:|---|
-| `splash_screen.dart` | 259 | | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
-| `home_screen.dart` | 564 | | ☐ | Bannière brouillons perdus (`vault_lost_drafts`) |
-| `note_editor_screen.dart` | 1 123 | | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
-| `search_screen.dart` | 142 | | ☐ | FTS5, anti-rebond 200 ms |
-| `trash_screen.dart` | 263 | | ☐ | Rétention 30 jours |
-| `settings_screen.dart` | 802 | | ☐ | Thème, tri, fenêtre sécurisée, langue, auto-verrouillage |
-| `about_screen.dart` | 622 | | ☐ | Version lue dynamiquement via `PackageInfo` |
-| `mentions_legales_screen.dart` | 131 | | ☐ | Rend `PRIVACY.{fr,en}.md` / `TERMS.{fr,en}.md` |
-| `voice_setup_screen.dart` | 465 | | ☐ | Phase 7 |
-| `panic_complete_screen.dart` | 143 | | ☐ | Écran terminal du mode panique |
+| `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
+| `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ☐ | Bannière brouillons perdus (`vault_lost_drafts`) |
+| `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
+| `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` | ☐ | FTS5, anti-rebond 200 ms |
+| `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` | ☐ | Rétention 30 jours |
+| `settings_screen.dart` | 802 | `ui/settings/SettingsScreen.kt` | ☐ | Thème, tri, fenêtre sécurisée, langue, auto-verrouillage |
+| `about_screen.dart` | 622 | `ui/about/AboutScreen.kt` | ☐ | Version lue dynamiquement via `PackageInfo` |
+| `mentions_legales_screen.dart` | 131 | `ui/about/LegalScreen.kt` | ☐ | Rend `PRIVACY.{fr,en}.md` / `TERMS.{fr,en}.md` |
+| `voice_setup_screen.dart` | 465 | `ui/voice/VoiceSetupScreen.kt` | ☐ | Phase 7 |
+| `panic_complete_screen.dart` | 143 | `ui/panic/PanicScreens.kt` → `PanicOverlay` | ☐ | Écran terminal du mode panique |
+
+⚠️ `HomeScreen.kt` est **sans état** et `HomeRoute.kt` porte toute la colle. Le découpage n'a pas
+d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'est vérifier les deux.
 
 ## Composants (16)
 
 | Composant Flutter | Lignes | Kotlin | Vérifié |
 |---|---:|---|:---:|
-| `vault_pin_sheets.dart` | 857 | | ☐ |
-| `folders_drawer.dart` | 780 | | ☐ |
-| `voice_recording_overlay.dart` | 460 | | ☐ |
-| `vault_passphrase_sheets.dart` | 382 | | ☐ |
-| `folder_dialogs.dart` | 225 | | ☐ |
-| `note_card.dart` | 222 | | ☐ |
-| `backlinks_panel.dart` | 208 | | ☐ |
-| `link_autocomplete_sheet.dart` | 206 | | ☐ |
-| `panic_confirm_dialog.dart` | 167 | | ☐ |
-| `move_to_folder_sheet.dart` | 165 | | ☐ |
-| `passphrase_text_field.dart` | 105 | | ☐ |
-| `voice_record_button.dart` | 85 | | ☐ |
-| `blocking_progress_dialog.dart` | 51 | | ☐ |
-| `empty_state.dart` | 50 | | ☐ |
-| `vault_warning_banner.dart` | 43 | | ☐ |
-| `sheet_handle.dart` | 27 | | ☐ |
+| `vault_pin_sheets.dart` | 857 | `ui/vault/VaultSheets.kt` → `PinSheet` | ☐ |
+| `folders_drawer.dart` | 780 | `ui/folders/FoldersDrawer.kt` | ☐ |
+| `voice_recording_overlay.dart` | 460 | `ui/voice/SuperpositionDeDictee.kt` | ☐ |
+| `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ☐ |
+| `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ☐ |
+| `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ☐ |
+| `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ☐ |
+| `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ☐ |
+| `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
+| `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
+| `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ☐ |
+| `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ☐ |
+| `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ☐ |
+| `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ☐ |
+| `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ☐ |
+| `sheet_handle.dart` | 27 | **sans objet** — voir ci-dessous | ☐ |
+
+### Les deux lignes sans homologue, et pourquoi ce n'est pas la même chose
+
+**`sheet_handle.dart` — sans objet, et c'est une bonne nouvelle.** Le composant Flutter extrayait à
+la main le `Container` 36×4 dp que tous les sheets recopiaient. `ModalBottomSheet` de Material3 pose
+cette poignée **par défaut** (`BottomSheetDefaults.DragHandle`, vérifié dans l'artefact 1.4.0). Il
+n'y a rien à porter : la duplication que le composant corrigeait n'existe pas ici.
+
+🔴 **`blocking_progress_dialog.dart` — pas d'homologue, et là il faut regarder.** Le composant
+publié centralisait un dialogue **volontairement bloquant** (`PopScope(canPop: false)`) pour ses deux
+appelants. Le portage les traite séparément, et la question « est-ce toujours bloquant ? » se pose
+donc **deux fois** :
+
+| Appelant publié | Portage | Bloquant ? |
+|---|---|---|
+| `settings_screen.dart:687` (panique) | `ui/panic/PanicScreens.kt` → `PanicOverlay` | ✅ recouvrement plein écran, `BackHandler` qui **avale** le geste tant que la séquence tourne |
+| `folders_drawer.dart:659` (conversion) | `ui/vault/VaultSheets.kt` → `MessageDEtat` dans la feuille | 🔴 **ne l'était pas** — corrigé le 2026-08-16, voir ci-dessous |
+
+🔴 **Le remplissage de cette colonne a trouvé un défaut, et c'est ce qu'on lui demandait.** La
+feuille de conversion refusait de se fermer **uniquement** dans `onDismissRequest`. Mesuré sur le S9
+(`FermetureDeFeuilleTest`) : un **balayage vers le bas** fait quitter l'écran à la feuille *avant*
+d'appeler ce rappel — la garde arrivait après la bataille, et le chiffrement continuait sans rien à
+l'écran pour le dire. Exactement ce que `PopScope(canPop: false)` interdit côté publié.
+
+Correctif : un veto sur la transition vers `Hidden` (`confirmValueChange`), **en plus** de la garde
+existante, qui reste la seule à couvrir le Retour. Détail et mesures en `04-PIEGES.md` §67-§68.
+
+⚠️ *Une case « Vérifié » n'aurait rien vu ici* : l'écran se comporte normalement tant qu'on ne
+balaie pas pendant les deux secondes du chiffrement. C'est la question « quel fichier joue ce
+rôle ? » qui a mené au défaut, pas la question « est-ce que ça marche ? ».
 
 ## Services transverses
 
-| Service | Lignes | Vérifié | Point de vigilance |
-|---|---:|:---:|---|
-| `folder_vault_service.dart` | 1 582 | ☐ | Ouvrir un coffre **créé par la version Flutter** |
-| `note_export_service.dart` | 519 | ☐ | Export `.md` d'une note de coffre — le corps ne doit pas être vide |
-| `panic_service.dart` | 478 | ☐ | Ordre des étapes ; un rapport ne doit jamais mentir sur un effacement |
-| `voice_service.dart` | 450 | ☐ | Phase 7 |
-| `backlinks_service.dart` | 401 | ☐ | Plafond de balayage 50 ko |
-| `keystore_bridge.dart` | 207 | ☐ | Repris depuis `KeystoreBridge.kt`, sans MethodChannel |
-| `secure_window_service.dart` | 103 | ☐ | `FLAG_SECURE` avec compteur de références |
-| `settings_service.dart` | 116 | ☐ | Lire les clés `flutter.*` existantes |
+| Service | Lignes | Kotlin | Vérifié | Point de vigilance |
+|---|---:|---|:---:|---|
+| `folder_vault_service.dart` | 1 582 | `security/vault/FolderVaultService.kt` | ☐ | Ouvrir un coffre **créé par la version Flutter** |
+| `note_export_service.dart` | 519 | `data/export/NoteExporter.kt` + `domain/export/` | ☐ | Export `.md` d'une note de coffre — le corps ne doit pas être vide |
+| `panic_service.dart` | 478 | `security/panic/PanicService.kt` | ☐ | Ordre des étapes ; un rapport ne doit jamais mentir sur un effacement |
+| `voice_service.dart` | 450 | `data/voice/WhisperStt.kt` + `VoiceCapture.kt` + `SttModelStore.kt` | ☐ | Phase 7 |
+| `backlinks_service.dart` | 401 | `data/repository/LinksRepository.kt` + `data/local/NoteLinkWriter.kt` + `domain/links/` | ☐ | Plafond de balayage 50 ko — ✅ **relevé le 08-16 : les deux plafonds concordent au chiffre près**, `WikiLinkParser.CONTENT_SCAN_LIMIT = 50_000` et `MAX_LINKS_PER_NOTE = 256` contre `noteContentBacklinksLimit = 50000` et `_maxLinksPerNote = 256`. Reste à vérifier le **comportement** sur une note qui dépasse |
+| `keystore_bridge.dart` | 207 | `security/vault/AndroidVaultKeystore.kt` + `security/kek/KeystoreSealedKekSource.kt` | ☐ | Repris depuis `KeystoreBridge.kt`, sans MethodChannel |
+| `secure_window_service.dart` | 103 | `ui/secure/SecureWindowController.kt` + `SecureWindowGuard.kt` | ☐ | `FLAG_SECURE` avec compteur de références |
+| `settings_service.dart` | 116 | `data/prefs/AppSettings.kt` + `LegacyPreferences.kt` | ☐ | Lire les clés `flutter.*` existantes |
+
+⚠️ Un service Dart se disperse souvent sur **plusieurs** fichiers Kotlin : la séparation
+domaine / données que le portage impose n'a pas d'équivalent côté Flutter. Cocher la ligne veut dire
+avoir vérifié le **comportement**, pas chacun des fichiers listés.
 
 ## Promesses publiques à ne pas casser
 
