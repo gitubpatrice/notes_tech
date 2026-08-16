@@ -1426,3 +1426,72 @@ ont signalé ce piège ; aucune n'avait vu l'autre moitié, celle où la lambda 
 s'y méprendre à une feuille intacte. C'est un `mutableSetOf<SheetState>()` alimenté en composition
 qui rend la question décidable — et le test qui fige le piège vaut autant que celui qui fige le
 correctif : sans le repoussoir, rien ne dit que la mesure sait distinguer les deux cas.
+
+## §69 — 🔴🔴 `detect_language` ne veut pas dire « détecte la langue » : la dictée n'a JAMAIS transcrit
+
+Le défaut le plus grave du portage, et il est resté invisible jusqu'au **2026-08-16**, jour où
+Patrice a essayé la dictée pour la première fois : *« il me dit que rien n'a été entendu, aucun texte
+inséré »*.
+
+Le pont JNI posait :
+
+```cpp
+parametres.detect_language = codeLangue.empty();   // ❌
+```
+
+Or dans `whisper.cpp` (**ligne 6838** de la copie vendorisée), ce champ ne demande pas une détection,
+il demande **de ne faire que ça** :
+
+```c
+if (params.detect_language) {
+    return 0;          // succès — et AUCUN segment produit
+}
+```
+
+`transcribeFile` est appelée **sans langue**, donc `codeLangue` était toujours vide, donc le drapeau
+était toujours vrai. **La dictée n'a jamais produit un mot, depuis le tout premier commit du
+moteur.** Elle rendait un code de succès à chaque fois.
+
+⚠️ La détection automatique n'avait besoin d'aucun drapeau : `whisper_full` la fait déjà quand
+`language` vaut `nullptr`, `""` ou `"auto"` (`whisper.cpp:6826`). La ligne n'ajoutait rien — elle
+retirait tout.
+
+### Pourquoi rien ne pouvait le voir avant
+
+C'est un **échec qui a toutes les apparences d'un succès** :
+
+| Ce qu'on pouvait observer | Ce que ça semblait dire |
+|---|---|
+| `whisper_full` rend **0** | tout s'est bien passé |
+| la transcription dure **4,6 s** sur le S9 | un vrai calcul a eu lieu |
+| **zéro segment** | l'utilisateur n'a rien dit |
+| l'écran affiche « rien n'a été entendu » | le micro n'a pas capté |
+
+Le message d'erreur accusait donc **le micro** pour un défaut du **moteur**, et il le faisait avec
+une formulation parfaitement plausible. Aucune relecture ne l'a vu — ni les deux tours du 08-16, ni
+les précédents — parce que lire `detect_language = langue.empty()` ne choque pas : ça se lit comme
+« si aucune langue n'est donnée, détecte-la ».
+
+🔧 **Ce qui l'a trouvé, et rien d'autre n'aurait pu** : faire transcrire au moteur un enregistrement
+**dont on connaît le contenu**, sans micro et sans voix — `samples/jfk.wav` de whisper.cpp, normalisé
+au format que l'application écrit. `TranscriptionSurAppareilTest`. Le test a échoué au premier essai,
+exactement comme l'utilisateur.
+
+⚠️⚠️ **La leçon, plus large que ce champ** : tout ce qui entourait la dictée était vérifié — capture,
+import, empreintes, permissions, interface, panique, R8, jusqu'aux symboles JNI comptés un par un —
+et **la seule chose jamais exercée était celle qui donne son nom à la fonction**. Une chaîne dont
+chaque maillon est mesuré ne dit rien de ce qu'elle transporte. *Vérifier qu'un moteur se charge
+n'est pas vérifier qu'il tourne.*
+
+## §70 — Un décodeur volontairement étroit refuse aussi les fichiers légitimes
+
+Corollaire mineur du §69, trouvé en route. `jfk.wav` porte un bloc `LIST` entre `fmt ` et `data` —
+parfaitement conforme au format WAV. `WavPcm16` le refuse : *« disposition de blocs inattendue — ce
+WAV ne vient pas de cette application »*.
+
+C'est **voulu** et ça reste le bon choix : le décodeur ne lit que ce que l'application écrit
+elle-même, et tout le reste est refusé plutôt qu'interprété. Mais il faut le savoir avant d'écrire un
+test — l'échantillon a dû être **réécrit en en-tête canonique de 44 octets** pour entrer.
+
+⚠️ À retenir si un jour l'import d'un audio extérieur est envisagé : ce ne serait pas une ligne à
+assouplir, ce serait un décodeur à écrire, avec la question de sécurité qui va avec.

@@ -135,9 +135,29 @@ Java_com_filestech_notes_1tech_data_voice_WhisperNatif_transcrire(
     parametres.no_context       = true;
     parametres.single_segment   = false;
     parametres.n_threads        = fils > 0 ? fils : 1;
-    // Vide ⇒ détection automatique, c'est la convention de `whisper.h`.
+    // Vide ⇒ détection automatique, c'est la convention de `whisper.h` : `whisper_full` détecte
+    // seul quand `language` vaut `nullptr`, `""` ou `"auto"` (cf. `whisper.cpp:6826`).
     parametres.language         = codeLangue.empty() ? nullptr : codeLangue.c_str();
-    parametres.detect_language  = codeLangue.empty();
+
+    // 🔴🔴 **NE PAS remettre `detect_language` à vrai.**
+    //
+    // Ce champ ne veut pas dire « détecte la langue », il veut dire **« ne fais QUE ça »** :
+    //
+    // ```c
+    // if (params.detect_language) {
+    //     return 0;                       // whisper.cpp:6838-6840
+    // }
+    // ```
+    //
+    // whisper détecte la langue, retourne **0 — c'est-à-dire un succès** — et n'écrit **aucun
+    // segment**. La ligne était `parametres.detect_language = codeLangue.empty();` et la dictée est
+    // appelée sans langue : autrement dit **elle n'a jamais transcrit un seul mot**, depuis le
+    // premier jour, en rendant un code de succès à chaque fois.
+    //
+    // ⚠️ Rien ne pouvait le montrer en amont : le code de retour est bon, la durée est celle d'un
+    // vrai calcul — 4,6 s sur le S9 — et l'appelant voit simplement zéro segment, qu'il traduit en
+    // « rien n'a été entendu ». Un échec silencieux qui ressemble trait pour trait à un micro muet.
+    // Relevé par Patrice à l'usage le 2026-08-16, reproduit par `TranscriptionSurAppareilTest`.
 
     // 🔴 L'interruption. Sans elle, une transcription annulée continue de consommer le processeur
     // pendant plusieurs secondes sur un appareil que l'utilisateur croit avoir libéré — et, en mode
