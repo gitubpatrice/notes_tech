@@ -1,6 +1,6 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le **2026-08-15 au soir**. À lire en premier le lendemain, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-16**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
 ## État en trois lignes
@@ -13,12 +13,31 @@
   **aucune publication décidée**. Ses trois répertoires non suivis (`.audit_tmp/`,
   `_audit_results/`, `prompts/`) ne doivent **jamais** entrer dans l'index — pas de `git add -A`.
 
-## La prochaine tâche : l'import du modèle de dictée
+## ✅ Fait le 2026-08-16 : l'import du modèle
 
-C'est le dernier morceau de la phase 7 qui **ne dépend d'aucune décision**. Tout le reste du
-contexte nécessaire a été vérifié dans le code publié et est consigné ci-dessous.
+Livré en un commit, `4fcd647`. Les quatre contraintes relevées la veille ont été tenues : le modèle
+va bien dans `files/stt/`, les deux étapes de panique attendues sont entrées **avec** lui, il n'y a
+aucun chemin de téléchargement, et le fichier définitif n'existe jamais à moitié.
 
-### Ce qui est déjà en place
+Deux relectures externes ont rendu **sept constats disjoints** — encore une fois, chacune a vu ce
+que l'autre manquait. Le plus grave n'était pas dans le code neuf mais dans la capture de la veille :
+`withContext` vérifie l'annulation **au moment de rendre sa valeur**, si bien qu'une portée annulée
+au mauvais instant laissait un WAV de voix orphelin que plus personne ne connaissait. La garde posée
+le 08-15 couvrait la boucle, et rien après. Tout est dans `docs/04-PIEGES.md` §55-§58.
+
+### 🔴 La première tâche, avant d'écrire quoi que ce soit
+
+**Brancher le S9 et lancer la suite instrumentée.** Six tests neufs portent précisément sur ce qui
+ne se vérifie pas sur des flux en mémoire : le temporaire est-il *vraiment* effacé quand l'empreinte
+ne correspond pas, le renommage a-t-il *vraiment* eu lieu. Ils compilent ; ils n'ont jamais tourné.
+
+```
+adb -s 22dbb7390a057ece shell am instrument -w -r ...
+```
+
+⚠️ **Jamais sur le S24 FE** (`RZCY41EGKYL`) : AGP désinstalle l'application à la fin.
+
+### Ce qui est en place
 
 | Fichier | Rôle |
 |---|---|
@@ -27,8 +46,12 @@ contexte nécessaire a été vérifié dans le code publié et est consigné ci-
 | `domain/voice/WavPcm16.kt` | le format, en fonctions **pures** (10 tests JVM) |
 | `data/voice/VoiceCapture.kt` | la capture micro, relue par deux relecteurs (7 défauts corrigés) |
 | `PanicStep.VOICE_CAPTURES_WIPE` | purge des WAV, juste après la clé |
+| `domain/voice/CopieVerifiee.kt` | copie **et** empreinte en un passage, bornée, annulable |
+| `domain/voice/SttModelCatalogue.kt` | les empreintes attendues — **sans champ `url`** |
+| `data/voice/SttModelStore.kt` | `files/stt/`, temporaire → empreinte → `fsync` → renommage |
+| `PanicStep.VOICE_CANCEL` / `VOICE_MODEL_WIPE` | interdire la dictée ; effacer le modèle |
 
-### 🔧 Les quatre choses à savoir avant d'écrire une ligne
+### 🔧 Les quatre choses qui ont guidé l'import — gardées ici, elles servent encore
 
 1. **Le modèle vit dans `files/stt/`, PAS dans `files/models/`.** Les deux répertoires sont
    distincts, et **un test côté publié vérifie que `stt/` SURVIT** à la purge des modèles hérités :
@@ -58,6 +81,16 @@ contexte nécessaire a été vérifié dans le code publié et est consigné ci-
   (`stt_model_importer.dart`, `stt_model_downloader.dart`)
 - Service publié : `j:/applications/notes_tech/lib/services/voice/voice_service.dart`
 - Écrans publiés : `lib/ui/screens/voice_setup_screen.dart`, `lib/ui/widgets/voice_record_*.dart`
+
+## La suite, une fois les tests instrumentés passés
+
+Il ne reste de la phase 7 que **le moteur** et **l'interface**, et le premier est bloqué. Voir
+ci-dessous.
+
+⚠️ Un point à ne pas perdre, consigné en **D-019** : l'import ne pose **aucun cache de vérification**,
+contrairement à l'application publiée. C'est délibéré — rien ne l'appellerait encore. Le jour où il
+entrera avec le moteur, il devra partir dans **la même étape** que `VOICE_MODEL_WIPE` : un cache qui
+survivrait à la purge affirmerait qu'un fichier absent a été vérifié.
 
 ## Ce qui attend une décision de Patrice
 
