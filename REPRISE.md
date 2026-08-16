@@ -139,6 +139,16 @@ Quatre défauts, dont aucun n'aurait été vu à la relecture :
 ⚠️ La mesure qui tranche : `adb shell uiautomator dump` puis lire `bounds`. Une largeur est un
 nombre ; un coup d'œil voit « un titre un peu court ».
 
+### ⚠️ Deux tours de relecture externe, et ce qu'ils ont appris
+
+Le second tour portait **sur les correctifs du premier** — la règle du dépôt. Il a rendu six
+constats : **cinq confirmés, un partiellement faux**, et deux du tour précédent avaient déjà été
+écartés. *Un relecteur voit ce qu'on lui donne : son scénario est une hypothèse, pas une mesure.*
+
+La leçon de fond, en `04-PIEGES.md` §65 : un événement qui **agit** et un événement qui **parle**
+n'ont pas la même exigence — l'un doit avoir lieu une fois et pas deux, l'autre une fois et pas zéro.
+Tant qu'un seul flux portait les deux, chaque correctif d'ordre introduisait le défaut inverse.
+
 ### ⚠️ Ce qui n'a jamais été exercé
 
 **La dictée de bout en bout.** Il faut le modèle de 50 Mo sur le S9 : le télécharger sur un
