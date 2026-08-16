@@ -76,6 +76,72 @@ object WavPcm16 {
     }
 
     /**
+     * Décode un fichier WAV complet en échantillons flottants, entre `-1` et `1`.
+     *
+     * C'est ce que le moteur de transcription attend, et c'est **la seule raison pour laquelle
+     * cette fonction existe ici plutôt qu'en C**. Le greffon dont viennent les sources natives
+     * embarquait `dr_wav.h`, un analyseur de format généraliste de 356 Ko, et lui passait un chemin
+     * de fichier. Analyser un format en C, sur un fichier venu du disque, c'est une surface
+     * d'attaque pour un besoin qu'on n'a pas : le seul WAV qu'on ait à lire est celui qu'on vient
+     * soi-même d'écrire, dans un format qu'on fixe.
+     *
+     * ⚠️⚠️ **Ce décodeur est donc VOLONTAIREMENT étroit.** Il n'accepte que ce que [entete] produit,
+     * et refuse tout le reste — pas de blocs `LIST`, pas de stéréo, pas de 8 ou 24 bits, pas de
+     * flottant. Ce n'est pas une limitation à lever un jour : élargir ce décodeur reviendrait à
+     * réécrire `dr_wav.h`, c'est-à-dire à réintroduire exactement ce qu'on a refusé.
+     *
+     * @throws IllegalArgumentException le contenu n'est pas un WAV 16 kHz mono 16 bits.
+     */
+    fun echantillons(octets: ByteArray): FloatArray {
+        require(octets.size >= TAILLE_ENTETE) {
+            "fichier trop court pour porter un en-tete : ${octets.size} octets"
+        }
+        require(ascii(octets, 0, 4) == "RIFF" && ascii(octets, 8, 4) == "WAVE") {
+            "ce n'est pas un fichier WAV"
+        }
+        require(ascii(octets, 12, 4) == "fmt " && ascii(octets, 36, 4) == "data") {
+            "disposition de blocs inattendue — ce WAV ne vient pas de cette application"
+        }
+        require(entier16(octets, 20) == 1) { "seul le PCM non compresse est accepte" }
+        require(entier16(octets, 22) == CANAUX) { "seul le mono est accepte" }
+        require(entier32(octets, 24) == FREQUENCE_HZ.toLong()) { "seul le $FREQUENCE_HZ Hz est accepte" }
+        require(entier16(octets, 34) == BITS_PAR_ECHANTILLON) { "seul le 16 bits est accepte" }
+
+        // ⚠️ La taille annoncée par l'en-tête est **plafonnée** par ce que le fichier porte vraiment.
+        // Une capture interrompue avant la correction finale annonce zéro ; une capture tronquée par
+        // un disque plein annonce plus qu'elle ne contient. Suivre l'annonce sans la confronter au
+        // fichier, c'est lire au-delà du tableau dans le second cas — et jeter tout le son dans le
+        // premier. Ni l'un ni l'autre n'est acceptable pour un fichier qu'on a écrit soi-même.
+        val annonces = entier32(octets, 40)
+        val disponibles = (octets.size - TAILLE_ENTETE).toLong()
+        val utiles = if (annonces in 1..disponibles) annonces else disponibles
+
+        val nombre = (utiles / 2).toInt()
+        val sortie = FloatArray(nombre)
+        for (i in 0 until nombre) {
+            val position = TAILLE_ENTETE + i * 2
+            val bas = octets[position].toInt() and 0xFF
+            val haut = octets[position + 1].toInt()
+            // ⚠️ Division par 32768 et non 32767 : c'est l'amplitude d'un entier 16 bits signé du
+            // côté négatif, donc la seule qui garantisse que rien ne sorte de l'intervalle.
+            sortie[i] = (((haut shl 8) or bas).toShort().toFloat() / 32768f)
+        }
+        return sortie
+    }
+
+    private fun ascii(octets: ByteArray, position: Int, longueur: Int): String =
+        String(octets, position, longueur, Charsets.US_ASCII)
+
+    private fun entier16(octets: ByteArray, position: Int): Int =
+        (octets[position].toInt() and 0xFF) or ((octets[position + 1].toInt() and 0xFF) shl 8)
+
+    private fun entier32(octets: ByteArray, position: Int): Long {
+        var valeur = 0L
+        for (i in 3 downTo 0) valeur = (valeur shl 8) or (octets[position + i].toLong() and 0xFF)
+        return valeur
+    }
+
+    /**
      * Le niveau sonore d'un bloc d'échantillons, entre `0` et `1`.
      *
      * Racine moyenne quadratique, rapportée au maximum d'un entier 16 bits signé.

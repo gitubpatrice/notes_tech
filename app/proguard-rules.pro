@@ -56,3 +56,33 @@
 # qui ne se reproduit qu'en build signée, le seul canal qui survit est `println` — cf. les notes
 # de SMS Tech. Ne pas ajouter de `-keep` sur Timber pour contourner ça : ce serait garder du code
 # de journalisation dans une application dont l'argument est de ne rien divulguer.
+
+# ── Dictée : la frontière JNI ────────────────────────────────────────────────
+# 🔴 **Le code natif cherche ces méthodes PAR LEUR NOM**, décoré depuis le nom du paquet, de la
+# classe et de la méthode (`Java_com_filestech_notes_1tech_data_voice_WhisperNatif_ouvrir`). R8 ne
+# voit aucun appelant Java à une méthode `native` déclarée sans corps : il est donc parfaitement
+# fondé à la renommer — et rien ne casse à la compilation. L'échec arrive à l'exécution, en release
+# seulement, sous la forme d'un `UnsatisfiedLinkError` au premier usage de la dictée.
+#
+# ⚠️ La classe ET ses méthodes natives, pas seulement la classe : renommer `ouvrir` suffit à tout
+# casser. `-keepclasseswithmembernames` conserve les noms des membres natifs et de leur classe.
+-keepclasseswithmembernames,includedescriptorclasses class com.filestech.notes_tech.data.voice.WhisperNatif {
+    native <methods>;
+}
+
+# ⚠️ Aucun `-keep` sur `WhisperStt` : elle est atteinte par Hilt, donc par des appelants réels, et
+# R8 sait la suivre. Un `-keep` de plus ici serait du bruit qui masquerait le seul qui compte.
+#
+# 🔴 **ÉTAT AU 2026-08-16, à revérifier dès que l'interface de dictée existera.** Mesuré sur l'APK
+# release : `WhisperNatif` et `WhisperStt` sont **absentes des dex**. Ce n'est pas un défaut de la
+# règle ci-dessus — `-keepclasseswithmembernames` conserve les *noms*, il n'empêche pas la
+# suppression — mais la conséquence du fait qu'**aucun écran n'appelle encore la dictée** : R8 a
+# retiré la chaîne entière, jusqu'à la liaison Hilt.
+#
+# Deux conséquences à connaître :
+#   1. la règle est aujourd'hui **sans effet observable**. Elle ne sera réellement éprouvée qu'une
+#      fois un appelant en place. Contrôle à refaire alors, sur l'APK **release**, pas sur debug :
+#      les tests instrumentés tournent sur une build non minifiée et ne prouvent rien là-dessus ;
+#   2. `libnotes_stt.so` est **empaquetée quand même** — 2,5 Mo par architecture — parce que le
+#      découpage des bibliothèques natives ne passe pas par R8. Une release faite aujourd'hui
+#      embarquerait donc du code natif que rien ne peut atteindre.

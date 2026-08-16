@@ -31,6 +31,34 @@ The app is compatible with:
 
 You are responsible for complying with those licenses.
 
+## Third-party components bundled in the app
+
+Voice dictation runs entirely on your phone, using a transcription engine **included in the app**:
+`whisper.cpp` and `ggml`, version 1.8.3, released under the MIT license. That license requires its
+notice to accompany every copy of the software; it is therefore reproduced below, and the matching
+source code sits in the source repository under `app/src/main/cpp/vendor/whisper/`.
+
+> MIT License
+>
+> Copyright (c) 2023-2024 The ggml authors
+> Copyright (C) 2024 Intel Corporation
+> Copyright (c) 2023 Jeffrey Quesnelle and Bowen Peng
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+> associated documentation files (the "Software"), to deal in the Software without restriction,
+> including without limitation the rights to use, copy, modify, merge, publish, distribute,
+> sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or
+> substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+> NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+> NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+> DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ## Data
 
 All your notes are stored **locally and encrypted** on your phone (see the **Privacy policy**). Notes Tech sends nothing over the Internet and has no technical permission to do so (no Android `INTERNET` permission).

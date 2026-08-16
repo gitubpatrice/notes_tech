@@ -1142,3 +1142,69 @@ Deux corrections possibles, et la bonne n'est pas la plus radicale :
 ⚠️ La borne dure de la copie, elle, se calcule **sur ce que le modèle attend**, jamais sur ce que la
 source annonce. C'est ce qui reste quand la métadonnée est muette — et c'est la seule limite qui
 n'ait jamais dépendu d'un tiers. Relevé par une relecture externe (GPT-5.5, 08-16).
+
+---
+
+## §59 — Une règle R8 sur une frontière JNI ne prouve rien tant que rien n'appelle
+
+Le code natif cherche ses méthodes **par leur nom**, décoré depuis le paquet, la classe et la
+méthode. R8 ne voit aucun appelant Java à une méthode `native` déclarée sans corps : il est donc
+fondé à la renommer. Rien ne casse à la compilation ; l'échec arrive à l'exécution, **en release
+seulement**, sous la forme d'un `UnsatisfiedLinkError` au premier usage.
+
+D'où la règle habituelle :
+
+```proguard
+-keepclasseswithmembernames,includedescriptorclasses class …WhisperNatif {
+    native <methods>;
+}
+```
+
+⚠️⚠️ **Mesuré sur l'APK release du 08-16 : `WhisperNatif` est ABSENTE des dex.** Ce n'est pas un
+défaut de la règle — `keepclasseswithmembernames` conserve les *noms*, il n'empêche pas la
+**suppression** — mais la conséquence du fait qu'aucun écran n'appelle encore la dictée. R8 a retiré
+la chaîne entière, jusqu'à la liaison Hilt.
+
+Trois leçons, dans l'ordre d'importance :
+
+1. **Une règle de conservation n'est éprouvée que par un appelant réel.** Écrire la règle et voir la
+   build passer ne dit rien : il n'y avait rien à conserver.
+2. **Les tests instrumentés ne couvrent pas ce risque** : ils tournent sur une build *debug*, non
+   minifiée. Le contrôle se fait sur l'APK **release**, et sur lui seul — encore la règle du
+   2026-08-14, *un contrôle qui ne regarde pas l'artefact publié n'en dit rien*.
+3. ⚠️ **La bibliothèque native, elle, est empaquetée quand même** — 2,5 Mo par architecture. Le
+   découpage des `jniLibs` ne passe pas par R8. Une release faite aujourd'hui embarquerait donc du
+   code natif que rien ne peut atteindre : l'inverse exact du symptôme qu'on redoutait, et tout
+   aussi invisible.
+
+**La parade n'est pas de forcer un `-keep`** : ce serait retenir du code que personne n'utilise, et
+masquer l'état réel. C'est de noter le contrôle à faire le jour où l'appelant arrive — ce que fait
+`proguard-rules.pro`, à l'endroit où on le lira.
+
+---
+
+## §60 — Un `@Test` à corps d'expression fait sauter la classe ENTIÈRE, en silence
+
+JUnit 4 exige que `@Test` et `@After` rendent `void`. En Kotlin, un corps d'expression rend le type
+de sa dernière expression :
+
+```kotlin
+@After
+fun nettoyer() = runBlocking {          // rend Boolean : deleteRecursively() est la dernière ligne
+    moteur.dispose()
+    repertoire.deleteRecursively()
+}
+```
+
+JUnit **refuse alors la classe entière**, et la compte pour **un seul échec** nommé
+`initializationError`. Sur cinq tests écrits, cinq n'ont jamais tourné, et le total de la suite
+n'avait augmenté que de un — 125 → 126.
+
+⚠️ **C'est le décompte qui l'a trahi, pas le message.** « 1 failed » sur une suite de 126 se lit
+comme un test qui casse ; il fallait ouvrir le XML pour voir que le nom du cas n'était aucun de ceux
+qu'on avait écrits. **Après avoir ajouté N tests, vérifier que le total a augmenté de N** — c'est
+deux secondes, et c'est la seule chose qui distingue « un test échoue » de « la classe n'existe pas ».
+
+⚠️ Le piège ne se déclenche que si la dernière expression n'est pas `Unit`. Les tests finissant par
+un `assertThat(...)` passent — d'où une classe où *certaines* méthodes déclenchent le refus et
+d'autres non, ce qui rend la cause encore moins lisible.

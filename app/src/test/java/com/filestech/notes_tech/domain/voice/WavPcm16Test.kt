@@ -16,6 +16,86 @@ import org.junit.jupiter.api.assertThrows
 @DisplayName("WavPcm16 — l'en-tête est petit-boutiste et décrit bien 16 kHz mono 16 bits")
 class WavPcm16Test {
 
+    // ── Le décodage, qui est l'autre moitié du contrat ───────────────────────
+
+    @Test
+    @DisplayName("ce qui a ete ecrit se relit a l'identique, borne a [-1, 1]")
+    fun allerRetour() {
+        // Les quatre valeurs qui comptent : le silence, les deux extrêmes, et une valeur ordinaire.
+        val valeurs = shortArrayOf(0, Short.MAX_VALUE, Short.MIN_VALUE, 1234)
+        val fichier = fichierWav(valeurs)
+
+        val echantillons = WavPcm16.echantillons(fichier)
+
+        assertThat(echantillons).hasLength(4)
+        assertThat(echantillons[0]).isEqualTo(0f)
+        // ⚠️ Division par 32768 : le maximum positif ne vaut donc pas tout à fait 1, et le minimum
+        // vaut exactement -1. C'est la seule normalisation qui garantisse que rien ne sorte de
+        // l'intervalle — un moteur qui reçoit 1,000031 n'a aucune raison de le dire.
+        assertThat(echantillons[1]).isWithin(1e-4f).of(1f)
+        assertThat(echantillons[2]).isEqualTo(-1f)
+        assertThat(echantillons.all { it in -1f..1f }).isTrue()
+    }
+
+    @Test
+    @DisplayName("une capture interrompue — en-tete annoncant zero — rend quand meme son son")
+    fun enteteInterrompue() {
+        // 🔴 Le cas réel : la capture écrit l'en-tête avec des tailles provisoires, puis les corrige
+        // à la fin. Un arrêt brutal laisse un fichier qui annonce **zéro donnée** alors qu'il porte
+        // toute la voix. Suivre l'annonce jetterait un enregistrement parfaitement transcriptible.
+        val complet = fichierWav(shortArrayOf(100, 200, 300, 400))
+        val interrompu = complet.copyOf().also { WavPcm16.entete(0).copyInto(it) }
+
+        assertThat(WavPcm16.echantillons(interrompu)).hasLength(4)
+    }
+
+    @Test
+    @DisplayName("une taille annoncee PLUS GRANDE que le fichier ne fait pas lire au-dela")
+    fun enteteMenteuse() {
+        // ⚠️ Le jumeau du cas précédent, et le dangereux : un disque plein tronque le fichier après
+        // que l'en-tête a annoncé la taille attendue. Suivre l'annonce lirait hors du tableau.
+        val complet = fichierWav(ShortArray(64) { it.toShort() })
+        val tronque = complet.copyOf(WavPcm16.TAILLE_ENTETE + 40)
+
+        val echantillons = WavPcm16.echantillons(tronque)
+
+        assertThat(echantillons).hasLength(20)
+    }
+
+    @Test
+    @DisplayName("un fichier vide, un en-tete seul, ou un autre format sont refuses")
+    fun formatsRefuses() {
+        assertThrows<IllegalArgumentException> { WavPcm16.echantillons(ByteArray(10)) }
+
+        // ⚠️ Un en-tête seul est **valide** et ne porte aucun échantillon : ce n'est pas une erreur,
+        // c'est une capture sans le moindre son. Le distinguer d'un fichier corrompu importe — l'un
+        // se signale à l'utilisateur, l'autre pas.
+        assertThat(WavPcm16.echantillons(WavPcm16.entete(0))).isEmpty()
+
+        val stereo = fichierWav(shortArrayOf(1, 2)).also { it[22] = 2 }
+        assertThrows<IllegalArgumentException> { WavPcm16.echantillons(stereo) }
+
+        val autreFrequence = fichierWav(shortArrayOf(1, 2)).also {
+            it[24] = 0x44
+            it[25] = 0xAC.toByte()
+        }
+        assertThrows<IllegalArgumentException> { WavPcm16.echantillons(autreFrequence) }
+
+        val pasUnRiff = fichierWav(shortArrayOf(1, 2)).also { it[0] = 'X'.code.toByte() }
+        assertThrows<IllegalArgumentException> { WavPcm16.echantillons(pasUnRiff) }
+    }
+
+    private fun fichierWav(valeurs: ShortArray): ByteArray {
+        val donnees = ByteArray(valeurs.size * 2)
+        valeurs.forEachIndexed { i, v ->
+            donnees[i * 2] = (v.toInt() and 0xFF).toByte()
+            donnees[i * 2 + 1] = ((v.toInt() shr 8) and 0xFF).toByte()
+        }
+        return WavPcm16.entete(donnees.size.toLong()) + donnees
+    }
+
+    // ── L'en-tête, octet par octet ───────────────────────────────────────────
+
     @Test
     @DisplayName("les quatre marqueurs de bloc sont aux positions du format")
     fun marqueurs() {

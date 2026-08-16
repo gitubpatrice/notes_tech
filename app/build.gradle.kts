@@ -99,6 +99,43 @@ android {
             arg("room.incremental", "true")
             arg("room.generateKotlin", "true")
         }
+
+        // ⚠️ Les mêmes trois architectures que le découpage par ABI plus bas. Deux listes qui
+        // divergeraient produiraient un APK annonçant une architecture dont il ne porte pas la
+        // bibliothèque native — et un plantage au premier chargement, sur ces appareils-là
+        // seulement.
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+
+        externalNativeBuild {
+            cmake {
+                // ⚠️ `c++_static` : la bibliothèque native est la seule de l'application à avoir
+                // besoin de la STL. La lier statiquement évite d'embarquer `libc++_shared.so` et
+                // la question de savoir qui, de deux bibliothèques, impose sa version.
+                arguments += listOf("-DANDROID_STL=c++_static")
+                // 🔴 `-DNDEBUG` retire les `assert` de ggml. Ils avortent le processus sur une
+                // condition interne ; dans une application de prise de notes, une transcription
+                // qui échoue doit rendre une erreur, jamais tuer l'application par laquelle
+                // l'utilisateur accède à ses notes.
+                cppFlags += listOf("-O3", "-DNDEBUG", "-fvisibility=hidden")
+                cFlags += listOf("-O3", "-DNDEBUG")
+            }
+        }
+    }
+
+    // 🔴 **Le NDK est ÉPINGLÉ, et ce n'est pas de la prudence de principe.** SMS Tech a vu sa
+    // reproductibilité refusée par F-Droid pour cette raison exacte : deux NDK différents produisent
+    // des `.so` différents à partir des mêmes sources, alors que le `classes.dex`, lui, reste
+    // identique. Le défaut est donc invisible à toute comparaison qui ne descend pas dans le binaire
+    // natif. Changer cette valeur est un choix, pas une mise à jour de routine.
+    ndkVersion = "27.0.12077973"
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     androidResources {

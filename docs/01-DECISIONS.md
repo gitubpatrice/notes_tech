@@ -547,3 +547,46 @@ planter**. Le gain se compte en fractions de seconde sur un fichier de toute fa�
 `interdite`, **jamais** à `arretDemande` : un arrêt ordinaire doit écrire ce tampon, sinon le
 dernier mot de chaque dictée manque. Deux arrêts, deux traitements — et c'est le genre de
 distinction qu'un correctif pressé efface.
+
+---
+
+## D-021 — whisper.cpp est vendorisé dans le dépôt, et le pont est écrit ici
+
+**2026-08-16 · acceptée par Patrice**
+
+**Contexte.** La dictée hors ligne demande un moteur natif. L'application publiée l'obtient par le
+greffon Flutter `whisper_ggml_plus`, qui embarque lui-même les sources de whisper.cpp. Le portage
+Kotlin n'a pas d'équivalent prêt à l'emploi.
+
+**Décision.** **87 fichiers, 3,8 Mo** de sources amont — whisper.cpp et ggml **1.8.3**, licence MIT
+— sont copiés dans `app/src/main/cpp/vendor/whisper/`, et compilés par notre propre CMake.
+
+**Ce qui n'a PAS été repris**, et c'est la moitié de la décision :
+
+| Écarté | Poids | Raison |
+|---|---|---|
+| `main.cpp` / `main.h` | — | La couche FFI **Dart** : une fonction qui prend et rend du JSON. Le pont est réécrit en **JNI typé**. |
+| `json/` | 888 Ko | N'existait que pour cette API. |
+| `examples/dr_wav.h` | 356 Ko | Un analyseur WAV **généraliste**, en C, sur un fichier venu du disque. Le WAV est décodé en Kotlin par `WavPcm16`, qui n'accepte que le format que la capture produit. |
+| `src/whisper.h` | 35 Ko | Doublon exact de `include/whisper.h`, vérifié par `diff`. |
+
+Soit **1,3 Mo écartés**, un quart de ce qui était disponible — et, pour `dr_wav`, une surface
+d'attaque en moins pour un besoin qu'on n'a pas.
+
+**Obligations que la vendorisation crée, et qui sont tenues :**
+
+- la notice MIT **voyage avec le binaire**, comme la licence l'exige : elle est reproduite dans
+  `terms.md` (FR et EN), document affiché dans l'application. Les trois porteurs de copyright
+  présents dans l'arbre y figurent, pas seulement le principal ;
+- `PROVENANCE.md` dit ce qui a été copié, d'où, quand, ce qui a été écarté, et **ce qu'il faut
+  revérifier à chaque mise à jour** — dont l'absence de dépendance réseau, mesurée ;
+- le NDK est **épinglé** (`27.0.12077973`). SMS Tech a vu sa reproductibilité refusée par F-Droid
+  parce que deux NDK produisent des `.so` différents à `classes.dex` identique.
+
+**Écarté.** *`sherpa-onnx`.* Coût supérieur pour le même résultat, et le contrat `SpeechToText`
+existe précisément pour qu'un changement de moteur ne touche pas les appelants.
+
+**⚠️ Ce que la décision n'a pas encore prouvé.** Aucun test ne transcrit : il faudrait le modèle de
+cinquante mégaoctets sur l'appareil de test. Ce qui **est** vérifié sur le S9, c'est que
+`libnotes_stt.so` **se charge** — le seul contrôle qui distingue « le CMake a produit un fichier »
+de « ce fichier est utilisable ici ».

@@ -312,7 +312,7 @@ demandent une installation 2.0.3 réelle sur le S9 et le drapeau `replaceInstall
 
 ### Phase 7 — état au 2026-08-16
 
-Quatre étapes posées. Les deux qui restent tiennent à une décision, pas à du développement.
+Cinq étapes sur six. **Il ne reste que l'interface.**
 
 - [x] ~~**Le contrat de domaine**~~ — `domain/voice/SpeechToText.kt`, `SttErrors.kt`, `WavPcm16.kt`.
       Transposé du contrat Dart réel de `files_tech_voice`, **lu dans le cache pub**, pas deviné.
@@ -333,9 +333,12 @@ Quatre étapes posées. Les deux qui restent tiennent à une décision, pas à d
       Relu par deux relecteurs externes : **sept constats**, dont une course d'annulation qui
       laissait un WAV de voix orphelin (cf. `04-PIEGES.md` §55) et une asymétrie de surveillance
       entre `exports/` et `captures/` (§56).
-- [ ] **Le moteur** — whisper.cpp en JNI. ⚠️ **Bloqué sur une décision de Patrice** : vendoriser
-      4,2 Mo de sources tierces (76 fichiers, licence MIT). Elles sont sur le disque et déjà
-      compilées pour les quatre ABI par `whisper_ggml_plus`.
+- [x] ~~**Le moteur**~~ — 2026-08-16, **décidé par Patrice puis livré**. whisper.cpp et ggml 1.8.3
+      vendorisés (`app/src/main/cpp/vendor/whisper/`, 87 fichiers, 3,8 Mo, MIT), pont JNI écrit ici
+      (`notes_stt_jni.cpp`), `WhisperStt` implémente le contrat, NDK **épinglé**. ⚠️ La couche FFI
+      Dart, l'analyseur JSON et `dr_wav.h` ont été **écartés** — 1,3 Mo, cf. D-021. ✅ Vérifié sur le
+      S9 : `libnotes_stt.so` **se charge**. ⚠️ Aucune transcription n'est testée : il faudrait le
+      modèle de 50 Mo sur l'appareil.
 - [ ] **L'interface** — écran de configuration, bouton micro, superposition d'enregistrement.
 
 #### ⚠️ Ce qu'il fallait savoir avant d'écrire l'import — vérifié, pas supposé, et désormais fait

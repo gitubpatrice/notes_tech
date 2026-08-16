@@ -31,6 +31,35 @@ L'application est compatible avec :
 
 Vous êtes responsable du respect de ces licences.
 
+## Composants tiers embarqués dans l'application
+
+La dictée vocale s'exécute entièrement sur votre téléphone, au moyen d'un moteur de transcription
+**inclus dans l'application** : `whisper.cpp` et `ggml`, version 1.8.3, publiés sous licence MIT.
+Cette licence exige que sa notice accompagne toute copie du logiciel ; elle est donc reproduite
+ci-dessous, et le code correspondant figure dans le dépôt source sous
+`app/src/main/cpp/vendor/whisper/`.
+
+> MIT License
+>
+> Copyright (c) 2023-2024 The ggml authors
+> Copyright (C) 2024 Intel Corporation
+> Copyright (c) 2023 Jeffrey Quesnelle and Bowen Peng
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+> associated documentation files (the "Software"), to deal in the Software without restriction,
+> including without limitation the rights to use, copy, modify, merge, publish, distribute,
+> sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or
+> substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+> NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+> NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+> DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ## Données
 
 Toutes vos notes sont stockées **localement et chiffrées** sur votre téléphone (voir la **Politique de confidentialité**). Notes Tech n'envoie rien sur Internet et n'a pas la permission technique de le faire (pas de permission `INTERNET` Android).
