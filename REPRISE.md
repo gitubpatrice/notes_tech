@@ -95,16 +95,34 @@ contrairement à l'application publiée. C'est délibéré — rien ne l'appelle
 entrera avec le moteur, il devra partir dans **la même étape** que `VOICE_MODEL_WIPE` : un cache qui
 survivrait à la purge affirmerait qu'un fichier absent a été vérifié.
 
-## Ce qui attend une décision de Patrice
+## ✅ Fait aussi le 2026-08-16 : le moteur, et le texte public
 
-1. 🔴 **Vendoriser whisper.cpp** — 4,2 Mo, 76 fichiers, licence MIT. Les sources sont **déjà sur le
-   disque** et **déjà compilées pour les quatre ABI** :
-   `J:/Pub/Cache/hosted/pub.dev/whisper_ggml_plus-1.5.2/android/src/whisper/`. Sans cette décision,
-   le moteur ne peut pas commencer. Le NDK est installé (3 versions) ; CMake se téléchargera.
-2. ⚠️ **Une formulation légale** — `res/raw*/privacy.md` dit de l'audio : « transcrit puis
-   immédiatement effacé. **Jamais persisté** ». Il est nécessairement écrit sur le disque (Whisper
-   lit un fichier). « Immédiatement effacé » est exact, « jamais persisté » est **trop absolu**.
-   Texte public : **non modifié** sans son accord.
+**Les deux points qui attendaient une décision sont clos** (`0376482`) :
+
+- whisper.cpp et ggml **1.8.3** vendorisés — 87 fichiers, 3,8 Mo, MIT — avec un pont **JNI écrit
+  ici** et non la couche FFI Dart du greffon. 1,3 Mo écartés, dont `dr_wav.h` : le WAV est décodé en
+  Kotlin. NDK **épinglé**. Cf. **D-021** et `vendor/whisper/PROVENANCE.md` ;
+- `privacy.md` corrigé — et **deux autres affirmations fausses** y ont été trouvées au passage, plus
+  graves que celle qui était signalée : le texte promettait un effacement « atomique et reprenable »
+  alors que toute la conception repose sur l'inverse, et sa liste de ce que la panique efface
+  **omettait tout le clair**. La notice MIT est désormais dans les CGU, FR et EN.
+
+### 🔴 Les trois choses à savoir avant de continuer
+
+1. **Aucune transcription n'est testée.** Il faudrait le modèle de 50 Mo sur le S9. Ce qui *est*
+   prouvé sur l'appareil : `libnotes_stt.so` **se charge**. La qualité, la détection de langue et le
+   découpage en segments restent vérifiés par l'usage.
+2. ⚠️ **R8 a supprimé `WhisperNatif` et `WhisperStt` des dex release** — rien ne les appelle encore.
+   La règle de conservation JNI est écrite mais **sans effet observable** ; le contrôle est à refaire
+   sur l'APK **release** dès qu'un écran utilise la dictée. Cf. `04-PIEGES.md` §59.
+3. La bibliothèque native est **empaquetée quand même**, 2,5 Mo par architecture.
+
+## Il ne reste que l'interface
+
+Écran d'installation du modèle (afficher le nom du fichier amont et la source, lancer le sélecteur
+de documents, montrer la progression de l'import), bouton micro dans l'éditeur, superposition
+d'enregistrement. ⚠️ **Toute chaîne nouvelle passe par `outils/arb_vers_strings.py`**, jamais
+directement dans le XML.
 
 ## Après la phase 7
 
