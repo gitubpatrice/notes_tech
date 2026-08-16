@@ -70,6 +70,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.common.CarteFilesTech
 import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.ouvrirUnLien
+import com.filestech.notes_tech.ui.theme.Formes
 import kotlinx.coroutines.launch
 
 /**
@@ -213,7 +214,11 @@ private fun EnTete(onVerifierLesMisesAJour: () -> Unit) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp),
         )
-        FilledTonalButton(onClick = onVerifierLesMisesAJour, modifier = Modifier.padding(top = 16.dp)) {
+        FilledTonalButton(
+            onClick = onVerifierLesMisesAJour,
+            shape = Formes.bouton,
+            modifier = Modifier.padding(top = 16.dp),
+        ) {
             Icon(Icons.Outlined.SystemUpdateAlt, contentDescription = null, modifier = Modifier.size(18.dp))
             Text(
                 text = stringResource(R.string.about_check_updates),

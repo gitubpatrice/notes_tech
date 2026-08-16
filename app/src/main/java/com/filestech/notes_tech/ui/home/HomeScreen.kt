@@ -55,6 +55,7 @@ import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.libelleDeTri
+import com.filestech.notes_tech.ui.theme.Formes
 
 /**
  * L'écran d'accueil : la liste des notes, filtrée par dossier ou par recherche.
@@ -154,6 +155,7 @@ fun HomeScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onNewNote,
+                shape = Formes.bouton,
                 icon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
                 text = { Text(stringResource(R.string.home_new_note)) },
             )
@@ -246,7 +248,7 @@ private fun ListeVide(state: HomeUiState, onNewNote: () -> Unit) {
                 // Le bouton flottant existe déjà, mais il reste peu visible au premier lancement
                 // et sur tablette. Un appel à l'action dans l'état vide est ce qui fait créer la
                 // première note.
-                TextButton(onClick = onNewNote) {
+                TextButton(onClick = onNewNote, shape = Formes.bouton) {
                     Icon(Icons.Filled.Add, contentDescription = null)
                     Text(
                         text = stringResource(R.string.home_new_note),
@@ -286,7 +288,7 @@ private fun BanniereBrouillonsPerdus(count: Int, onDismiss: () -> Unit) {
                 color = couleurs.onErrorContainer,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shape = Formes.bouton) {
                 Text(text = stringResource(R.string.common_ok), color = couleurs.onErrorContainer)
             }
         }

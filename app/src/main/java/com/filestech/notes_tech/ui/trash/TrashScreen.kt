@@ -45,6 +45,7 @@ import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.home.NoteCard
+import com.filestech.notes_tech.ui.theme.Formes
 import kotlinx.coroutines.launch
 
 /**
@@ -119,14 +120,14 @@ fun TrashRoute(onBack: () -> Unit) {
                         Column {
                             NoteCard(note = note, onClick = { })
                             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                TextButton(onClick = { viewModel.restore(note.id) }) {
+                                TextButton(onClick = { viewModel.restore(note.id) }, shape = Formes.bouton) {
                                     Icon(Icons.Outlined.RestoreFromTrash, contentDescription = null)
                                     Text(
                                         text = stringResource(R.string.common_restore),
                                         modifier = Modifier.padding(start = 6.dp),
                                     )
                                 }
-                                TextButton(onClick = { aSupprimer = note }) {
+                                TextButton(onClick = { aSupprimer = note }, shape = Formes.bouton) {
                                     Icon(
                                         imageVector = Icons.Outlined.DeleteForever,
                                         contentDescription = null,

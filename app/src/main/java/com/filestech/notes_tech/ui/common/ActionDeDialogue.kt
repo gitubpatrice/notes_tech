@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.filestech.notes_tech.ui.theme.Formes
 
 /**
  * Une action proposée par un dialogue ou une feuille : **son contour a la couleur de son texte**.
@@ -61,6 +62,7 @@ fun ActionDeDialogue(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
+        shape = Formes.bouton,
         border = BorderStroke(EPAISSEUR_DU_CONTOUR, teinte),
         contentPadding = REMPLISSAGE,
         colors = ButtonDefaults.outlinedButtonColors(

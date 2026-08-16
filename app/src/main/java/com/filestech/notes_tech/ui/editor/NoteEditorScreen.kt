@@ -81,6 +81,7 @@ import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
+import com.filestech.notes_tech.ui.theme.SemanticColors
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 import com.filestech.notes_tech.ui.voice.SurcoucheDeDictee
 import com.filestech.notes_tech.ui.voice.rememberControleurDeDictee
@@ -317,9 +318,15 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                                 onBack()
                             },
                         ) {
+                            // 🔴 Verte, et pas de la teinte des icônes ordinaires : relevé sur le
+                            // S9 le 2026-08-16, « on la voit pas bien ». Elle avait le même poids
+                            // visuel que le micro et le lien, alors qu'elle seule dit « c'est
+                            // enregistré, vous pouvez partir ». Cf. [SemanticColors.validationIcon],
+                            // qui explique aussi pourquoi ce n'est ni `primary` ni un vert en dur.
                             Icon(
                                 imageVector = Icons.Filled.Check,
                                 contentDescription = stringResource(R.string.note_editor_tooltip_done),
+                                tint = SemanticColors.validationIcon,
                             )
                         }
                         // 🔴 Le micro AVANT le lien : c'est le geste qui produit du texte, et il

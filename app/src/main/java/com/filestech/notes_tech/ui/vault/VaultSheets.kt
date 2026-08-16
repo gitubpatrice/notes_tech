@@ -67,6 +67,7 @@ import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.security.vault.VaultValidationException
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
+import com.filestech.notes_tech.ui.theme.Formes
 
 /**
  * La feuille qui déverrouille un coffre, **du bon mode**.
@@ -382,6 +383,7 @@ private fun PassphraseSheet(
                 }
             } else {
                 Button(
+                    shape = Formes.bouton,
                     onClick = {
                         erreurLocale = when {
                             secret.length < VaultParams.PASSPHRASE_MIN_LENGTH -> tropCourte
@@ -629,6 +631,7 @@ private fun PinSheet(
             )
 
             Button(
+                shape = Formes.bouton,
                 onClick = {
                     if (saisi.length !in VaultParams.PIN_MIN_LENGTH..VaultParams.PIN_MAX_LENGTH) {
                         erreurLocale = tropCourt
@@ -850,6 +853,7 @@ private fun ClavierNumerique(enabled: Boolean, onDigit: (Char) -> Unit, onDelete
                         '\b' -> TextButton(
                             onClick = onDelete,
                             enabled = enabled,
+                            shape = Formes.bouton,
                             modifier = Modifier.size(TAILLE_TOUCHE),
                         ) {
                             Icon(
@@ -866,6 +870,7 @@ private fun ClavierNumerique(enabled: Boolean, onDigit: (Char) -> Unit, onDelete
                             TextButton(
                                 onClick = { onDigit(touche) },
                                 enabled = enabled,
+                                shape = Formes.bouton,
                                 modifier = Modifier
                                     .size(TAILLE_TOUCHE)
                                     .semantics { contentDescription = etiquette },
@@ -1010,7 +1015,7 @@ private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: (chiffrees: I
  */
 @Composable
 private fun BoutonDeFermeture(onDone: () -> Unit) {
-    Button(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
+    Button(onClick = onDone, shape = Formes.bouton, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.common_close))
     }
 }

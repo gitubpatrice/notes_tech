@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.local.dao.NoteLinkRow
+import com.filestech.notes_tech.ui.theme.Formes
 
 /**
  * Les liens d'une note : ce qu'elle cite, et ce qui la cite.
@@ -133,6 +134,7 @@ private fun PuceDeLienSortant(lien: NoteLinkRow, onOuvrirNote: (String) -> Unit,
         PuceDeNote(titre = lien.targetTitle, onClick = { onOuvrirNote(cible) })
     } else {
         AssistChip(
+            shape = Formes.bouton,
             onClick = { onLienFantome(lien.targetTitle) },
             label = {
                 Text(
@@ -158,6 +160,7 @@ private fun PuceDeLienSortant(lien: NoteLinkRow, onOuvrirNote: (String) -> Unit,
 @Composable
 private fun PuceDeNote(titre: String, onClick: () -> Unit) {
     AssistChip(
+        shape = Formes.bouton,
         onClick = onClick,
         label = { Text(text = titre, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         leadingIcon = {

@@ -42,6 +42,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.security.panic.PanicReport
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
+import com.filestech.notes_tech.ui.theme.Formes
 import java.util.Locale
 
 /**
@@ -125,6 +126,7 @@ fun PanicConfirmDialog(onDismiss: () -> Unit, onConfirmed: () -> Unit) {
             Button(
                 onClick = onConfirmed,
                 enabled = peutConfirmer,
+                shape = Formes.bouton,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
@@ -285,7 +287,7 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(24.dp))
-            Button(onClick = onClose) { Text(stringResource(R.string.panic_complete_close)) }
+            Button(onClick = onClose, shape = Formes.bouton) { Text(stringResource(R.string.panic_complete_close)) }
         }
     }
 }

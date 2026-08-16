@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.ui.theme.Formes
 
 /**
  * Ce que voit un utilisateur dont la base ne s'ouvre pas.
@@ -59,7 +60,7 @@ fun StartupFailureScreen(reason: FailureReason, onRetry: () -> Unit, modifier: M
                 text = stringResource(reason.messageRes),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onRetry) {
+            Button(onClick = onRetry, shape = Formes.bouton) {
                 Text(stringResource(R.string.startup_failure_retry))
             }
         }

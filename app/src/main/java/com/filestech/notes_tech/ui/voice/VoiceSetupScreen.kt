@@ -311,7 +311,16 @@ private fun CarteDeModele(
                 style = MaterialTheme.typography.bodySmall,
             )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 🔴 **En colonne, pas en ligne.** Relevé par Patrice sur le S9 le 2026-08-16 : « le
+            // bouton retirer est coincé ». Les deux actions partageaient une `Row`, et le premier
+            // libellé — « Sélectionner le fichier .bin » — mange la largeur ; « Retirer » se
+            // retrouvait comprimé contre le bord. C'est le même mécanisme que le titre écrasé de
+            // l'éditeur (`04-PIEGES.md` §63) : une rangée ne refuse pas les éléments, elle les
+            // rétrécit, et rien dans le code ne le signale.
+            //
+            // ⚠️ L'ordre compte autant que l'axe : la destruction va **en dessous**, jamais à
+            // portée immédiate de l'action courante.
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 ActionDeDialogue(
                     texte = stringResource(R.string.voice_setup_select_file),
                     onClick = onImporter,

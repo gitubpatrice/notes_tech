@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.folders
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
+import com.filestech.notes_tech.ui.theme.Formes
 
 /**
  * Le tiroir des dossiers.
@@ -92,7 +94,15 @@ fun FoldersDrawer(
         }
         HorizontalDivider()
 
-        LazyColumn(modifier = Modifier.weight(1f)) {
+        // ⚠️ `contentPadding` et non `Modifier.padding` : l'espace demandé doit appartenir au
+        // **contenu** de la liste, pour défiler avec lui. Posé sur le modificateur, il créerait une
+        // marge fixe sous laquelle les entrées passeraient en défilant, ce qui n'est pas la même
+        // chose à l'œil dès que la liste dépasse la hauteur du tiroir.
+        // Demandé par Patrice le 2026-08-16 : la première entrée collait au séparateur.
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(top = 8.dp),
+        ) {
             item {
                 EntreeDeTiroir(
                     icon = Icons.AutoMirrored.Outlined.Notes,
@@ -163,7 +173,11 @@ fun FoldersDrawer(
             onClick = onOpenTrash,
         )
         Column(modifier = Modifier.padding(12.dp)) {
-            FilledTonalButton(onClick = onCreateFolder, modifier = Modifier.fillMaxWidth()) {
+            FilledTonalButton(
+                onClick = onCreateFolder,
+                shape = Formes.bouton,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Icon(imageVector = Icons.Outlined.CreateNewFolder, contentDescription = null)
                 Text(
                     text = stringResource(R.string.drawer_new_folder),
