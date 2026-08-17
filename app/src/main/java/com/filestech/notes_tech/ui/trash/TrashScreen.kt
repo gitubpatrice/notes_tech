@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.trash
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.RestoreFromTrash
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,7 +34,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -40,7 +44,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
-import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
@@ -49,24 +52,65 @@ import com.filestech.notes_tech.ui.theme.Formes
 import kotlinx.coroutines.launch
 
 /**
- * La corbeille.
+ * La corbeille, branchée : ViewModel et messages.
  *
- * ⚠️ **Une note de coffre y reste chiffrée.** La corbeille ne déchiffre rien : la carte affiche
- * « Note verrouillée », comme partout ailleurs. Restaurer la remet dans son dossier, toujours
- * scellée.
+ * Séparée de [TrashScreen], qui reste **sans état** — même découpage que `HomeRoute` / `HomeScreen`,
+ * et pour la même raison : le chargement et la corbeille vide ne s'atteignent pas en pilotant
+ * l'application à la main, alors que ce sont eux qui portaient un défaut. Cf. `04-PIEGES.md` §75.
  */
 @Composable
 fun TrashRoute(onBack: () -> Unit) {
     val viewModel: TrashViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val messages = remember { SnackbarHostState() }
-    var aSupprimer by remember { mutableStateOf<Note?>(null) }
-    var vidangeADemander by remember { mutableStateOf(false) }
 
     MessagesDeCorbeille(viewModel, messages)
 
-    Scaffold(
+    TrashScreen(
+        state = state,
+        onBack = onBack,
+        onRestore = viewModel::restore,
+        onDeletePermanently = viewModel::deletePermanently,
+        onEmptyTrash = viewModel::emptyTrash,
         snackbarHost = { SnackbarHost(messages) },
+    )
+}
+
+/**
+ * La corbeille.
+ *
+ * ⚠️ **Une note de coffre y reste chiffrée.** La corbeille ne déchiffre rien : la carte affiche
+ * « Note verrouillée », comme partout ailleurs. Restaurer la remet dans son dossier, toujours
+ * scellée.
+ *
+ * ⚠️ Les cartes ne sont **pas cliquables** ici — `onClick = null`, cf. la note de [NoteCard]. Une
+ * note en corbeille ne s'ouvre pas, et une carte qui s'annonce activable sans rien faire est un
+ * défaut, pas une commodité.
+ */
+@Composable
+fun TrashScreen(
+    state: TrashUiState,
+    onBack: () -> Unit,
+    onRestore: (String) -> Unit,
+    onDeletePermanently: (String) -> Unit,
+    onEmptyTrash: () -> Unit,
+    modifier: Modifier = Modifier,
+    snackbarHost: @Composable () -> Unit = {},
+) {
+    // ⚠️ **`rememberSaveable`, et l'IDENTIFIANT plutôt que la note.** Un `remember` simple perd le
+    // dialogue à la rotation : l'utilisateur lit « cette suppression est définitive », tourne son
+    // téléphone, et la question a disparu sans réponse. La perte est du bon côté — rien n'est
+    // détruit — mais elle abandonne en silence un geste engagé, ce que ce dépôt refuse ailleurs.
+    //
+    // `Note` n'est ni `Parcelable` ni `Saveable`, et n'a pas à le devenir : le dialogue n'a besoin que
+    // de l'identifiant, son corps de texte ne porte aucun argument. Relevé par une relecture externe
+    // (Gemini, 2026-08-17).
+    var idASupprimer by rememberSaveable { mutableStateOf<String?>(null) }
+    var vidangeADemander by rememberSaveable { mutableStateOf(false) }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        snackbarHost = snackbarHost,
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -81,7 +125,11 @@ fun TrashRoute(onBack: () -> Unit) {
                 actions = {
                     // Rien à vider quand il n'y a rien : le bouton disparaît au lieu de proposer un
                     // geste sans effet, comme l'application publiée (`trash_screen.dart:147`).
-                    if (state.notes.isNotEmpty()) {
+                    //
+                    // ⚠️ `!state.loading` en plus : sans lui le bouton **apparaissait après coup**,
+                    // puisque la liste est vide avant la première réponse de la base. Une action
+                    // destructrice qui surgit sous le doigt vaut mieux cachée le temps de savoir.
+                    if (!state.loading && state.notes.isNotEmpty()) {
                         IconButton(onClick = { vidangeADemander = true }) {
                             Icon(
                                 imageVector = Icons.Outlined.DeleteSweep,
@@ -95,8 +143,13 @@ fun TrashRoute(onBack: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            // La rétention est annoncée en permanence, pas seulement quand la corbeille est vide :
-            // c'est l'information dont on a besoin au moment où on hésite à restaurer.
+            // La rétention est annoncée en permanence.
+            //
+            // ⚠️ **Écart assumé avec l'application publiée**, qui range cet avis à l'intérieur de la
+            // branche « liste non vide » (`trash_screen.dart:238`) et ne le montre donc pas sur une
+            // corbeille vide. Le garder visible dit « rien n'attend d'être détruit dans trente
+            // jours », qui est justement ce qu'on vient vérifier. Écart d'affichage, sans effet sur
+            // les données.
             Surface(color = MaterialTheme.colorScheme.surfaceContainerHighest, modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = stringResource(R.string.trash_retention_notice, TrashViewModel.RETENTION_DAYS),
@@ -105,29 +158,35 @@ fun TrashRoute(onBack: () -> Unit) {
                 )
             }
 
-            if (state.notes.isEmpty()) {
-                EmptyState(
+            when {
+                // 🔴 **Ce cas manquait, et il mentait.** Avant la première réponse de la base, la
+                // liste est vide et l'écran annonçait « La corbeille est vide » — à quelqu'un dont
+                // elle ne l'est pas. `trash_screen.dart` sépare les deux depuis toujours : son
+                // `items` vaut `null` tant que la lecture n'a pas rendu.
+                state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
+
+                state.notes.isEmpty() -> EmptyState(
                     icon = Icons.Outlined.DeleteOutline,
                     title = stringResource(R.string.trash_empty_title),
                     subtitle = stringResource(R.string.trash_empty_subtitle),
                 )
-            } else {
-                LazyColumn(
+
+                else -> LazyColumn(
                     contentPadding = PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(state.notes, key = { it.id }) { note ->
                         Column {
-                            NoteCard(note = note, onClick = { })
+                            NoteCard(note = note, onClick = null)
                             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                                TextButton(onClick = { viewModel.restore(note.id) }, shape = Formes.bouton) {
+                                TextButton(onClick = { onRestore(note.id) }, shape = Formes.bouton) {
                                     Icon(Icons.Outlined.RestoreFromTrash, contentDescription = null)
                                     Text(
                                         text = stringResource(R.string.common_restore),
                                         modifier = Modifier.padding(start = 6.dp),
                                     )
                                 }
-                                TextButton(onClick = { aSupprimer = note }, shape = Formes.bouton) {
+                                TextButton(onClick = { idASupprimer = note.id }, shape = Formes.bouton) {
                                     Icon(
                                         imageVector = Icons.Outlined.DeleteForever,
                                         contentDescription = null,
@@ -147,16 +206,16 @@ fun TrashRoute(onBack: () -> Unit) {
         }
     }
 
-    aSupprimer?.let { note ->
+    idASupprimer?.let { id ->
         DialogueDestructif(
             titre = stringResource(R.string.trash_delete_forever_title),
             corps = stringResource(R.string.trash_delete_forever_body),
             libelleConfirmation = stringResource(R.string.trash_delete_forever),
             onConfirmer = {
-                aSupprimer = null
-                viewModel.deletePermanently(note.id)
+                idASupprimer = null
+                onDeletePermanently(id)
             },
-            onAnnuler = { aSupprimer = null },
+            onAnnuler = { idASupprimer = null },
         )
     }
 
@@ -167,7 +226,7 @@ fun TrashRoute(onBack: () -> Unit) {
             libelleConfirmation = stringResource(R.string.trash_empty_all),
             onConfirmer = {
                 vidangeADemander = false
-                viewModel.emptyTrash()
+                onEmptyTrash()
             },
             onAnnuler = { vidangeADemander = false },
         )

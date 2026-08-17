@@ -17,7 +17,20 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-data class TrashUiState(val notes: List<Note> = emptyList())
+/**
+ * ⚠️ **[loading] vaut `true` avant la première émission, et c'est ce qui manquait.**
+ *
+ * `stateIn` rend obligatoirement une valeur initiale, donc une liste **vide** avant que la base ait
+ * répondu. Sans ce drapeau, l'écran traduisait cette absence de réponse en « La corbeille est
+ * vide » : un message faux, affiché à qui a des notes en corbeille, et *annoncé* comme tel par un
+ * lecteur d'écran. `trash_screen.dart` distingue les deux cas depuis toujours — son `items` est
+ * `null` tant que la lecture n'a pas rendu, et il montre alors un indicateur d'activité.
+ *
+ * C'est le même triplet que [com.filestech.notes_tech.ui.home.HomeUiState], moins l'échec : la
+ * corbeille lit un flux Room sans repli, un échec de lecture s'y manifeste par une exception à
+ * l'ouverture de la base, pas par un état d'écran.
+ */
+data class TrashUiState(val notes: List<Note> = emptyList(), val loading: Boolean = true)
 
 /**
  * Ce que la corbeille a à dire.
@@ -48,7 +61,7 @@ class TrashViewModel @Inject constructor(private val notes: NotesRepository) : V
     val eventFlow: SharedFlow<TrashEvent> = events.asSharedFlow()
 
     val state: StateFlow<TrashUiState> = notes.observeTrash()
-        .map { TrashUiState(it) }
+        .map { TrashUiState(it, loading = false) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),

@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -53,9 +54,20 @@ import com.filestech.notes_tech.ui.theme.SemanticColors
  * ici, c'est la fuite par l'**affichage**. Les faire entrer dans l'enveloppe demanderait un format
  * v3 et ferait perdre les étiquettes des notes déjà chiffrées. L'index plein texte, lui, les masque
  * déjà par ses déclencheurs.
+ *
+ * ## 🔴 [onClick] est NULLABLE, et ce n'est pas une commodité d'appel
+ *
+ * Une carte de **corbeille** ne s'ouvre pas : la note est en attente de destruction, et
+ * `trash_screen.dart` la rend en `ListTile` **sans `onTap`**. Le portage passait ici une lambda
+ * vide, ce qui n'est pas la même chose du tout : `clickable` pose alors une action `OnClick` dans
+ * l'arbre de sémantique et un effet d'encre sous le doigt. Un lecteur d'écran annonçait donc
+ * « double-touchez pour activer » sur une carte inerte, et le doigt recevait un retour visuel pour
+ * un geste sans effet. Cf. `04-PIEGES.md` §74.
+ *
+ * `null` retire le modificateur — donc l'action, donc l'annonce.
  */
 @Composable
-fun NoteCard(note: Note, onClick: () -> Unit, modifier: Modifier = Modifier, folderName: String? = null) {
+fun NoteCard(note: Note, onClick: (() -> Unit)?, modifier: Modifier = Modifier, folderName: String? = null) {
     val verrouillee = note.isLocked
     val couleurs = MaterialTheme.colorScheme
     val formate = rememberNoteDateFormatter()
@@ -69,17 +81,40 @@ fun NoteCard(note: Note, onClick: () -> Unit, modifier: Modifier = Modifier, fol
 
     // Un seul nœud d'accessibilité pour toute la carte : un balayage de lecteur d'écran doit lire
     // « titre, date, dossier » d'un coup, pas égrener quatre éléments dont trois sont du contexte.
+    //
+    // 🔴🔴 **Ce nœud doit porter le clic AUSSI, et il ne le portait pas.** La sémantique était posée
+    // sur le `Surface` et le `clickable` sur la `Column` fille : mesuré le 2026-08-17 sur le S9, le
+    // nœud fusionné ne portait **aucune** action `OnClick` — les actions d'un descendant ne remontent
+    // pas à la fusion, contrairement au texte. La carte s'annonçait donc comme du **texte**, sans
+    // dire qu'on peut l'ouvrir, sur l'accueil comme dans la recherche. Le geste marchait quand même,
+    // parce qu'un double-appui de lecteur d'écran envoie un toucher au centre du nœud, qui atteint la
+    // fille cliquable : *ce que le code fait n'est pas ce que l'utilisateur entend*. Cf. §74.
+    //
+    // Les deux vivent donc sur le **même** nœud, celui de la `Column`. Le `Surface` reste purement
+    // visuel — y déplacer le `clickable` sortirait l'effet d'encre de son propre découpage arrondi.
+    //
+    // 🔴 **Les étiquettes en font partie, et elles n'y étaient pas.** Un nœud fusionné qui porte une
+    // `contentDescription` explicite **remplace** la lecture de ses enfants : tout ce qui n'est pas
+    // dans cette chaîne n'existe pas pour un lecteur d'écran. `#urgent` était donc affiché à qui voit
+    // et tu à qui écoute — mesuré sur le S9, le nœud fusionné ne portait **aucune** propriété `Text`.
+    // Relevé par une relecture externe (Gemini, 2026-08-17) ; le défaut préexistait au correctif de
+    // §74, il n'en découle pas.
+    //
+    // ⚠️ **`!verrouillee` comme partout ailleurs ici.** Annoncer les étiquettes d'une note de coffre
+    // rouvrirait exactement la fuite que cette carte ferme : « Note verrouillée, #médical, #divorce »
+    // n'a rien protégé. La garde suit la branche visuelle, ligne pour ligne.
     val description = buildString {
         append(titreAffiche)
         if (!verrouillee && extrait.isNotEmpty()) append(". ").append(extrait)
         append(". ").append(formate(note.updatedAt))
         folderName?.let { append(". ").append(it) }
+        if (!verrouillee && note.tags.isNotEmpty()) {
+            append(". ").append(note.tags.joinToString(" ") { "#$it" })
+        }
     }
 
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) { contentDescription = description },
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = couleurs.surfaceContainerLow,
         border = BorderStroke(
@@ -91,7 +126,16 @@ fun NoteCard(note: Note, onClick: () -> Unit, modifier: Modifier = Modifier, fol
     ) {
         Column(
             modifier = Modifier
-                .clickable(onClick = onClick)
+                // ⚠️ `Role.Button` : sans lui TalkBack dit la description puis « double-touchez pour
+                // activer », sans jamais nommer **ce que c'est**. Relevé par la même relecture.
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(role = Role.Button, onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                )
+                .semantics(mergeDescendants = true) { contentDescription = description }
                 .padding(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {

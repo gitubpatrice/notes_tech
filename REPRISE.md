@@ -9,7 +9,7 @@
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
 - Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **176 tests JVM**,
-  **152 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+  **165 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - 🔴 **Cette ligne était FAUSSE le 08-16**, et pas de peu : elle annonçait « 0 ignoré » alors que
   `TranscriptionSurAppareilTest` — le seul test qui prouve que la dictée transcrit — était **ignoré à
   chaque exécution de la suite**, parce que celle-ci **détruisait le modèle de 57 Mo** importé à la
@@ -345,3 +345,96 @@ Ce ne sont pas « est-ce que l'écran marche ? » — celle-là n'a rien trouvé
 2. **Quels états ne sait-on pas atteindre à la main ?** Bannière de brouillons perdus, échec de
    chargement, état vide de recherche. Les composables sans état les rendent accessibles en une ligne.
 3. **Combien de tests ont été ignorés ?** Jamais depuis le « OK (N tests) ».
+
+## 🔴 2026-08-17, seconde ligne de parité : la CORBEILLE, et trois défauts de plus
+
+Quatre cases cochées — `trash_screen.dart`, `note_card.dart`, `empty_state.dart`, et le composant de
+carte dans ses trois états. **31 restantes.** Suite instrumentée : **165 tests, 0 échec, 0 ignoré**,
+modèle de 57 Mo intact et empreinte revérifiée après la suite (leçon §72).
+
+### Les trois défauts, et lequel compte
+
+1. **§75 — la corbeille annonçait « vide » avant d'avoir lu la base.** `stateIn` rend
+   obligatoirement une valeur initiale ; l'écran n'avait qu'une branche `if (notes.isEmpty())`. Le
+   bouton « vider » surgissait au même instant, puisqu'il dépend de `notes.isNotEmpty()`.
+2. **§74a — la carte de corbeille était cliquable pour rien** (`onClick = { }`). Le publié rend sa
+   tuile **sans `onTap`**.
+3. 🔴🔴 **§74b — la carte de note n'annonçait pas du tout qu'on peut l'ouvrir.** La sémantique était
+   sur le `Surface`, le `clickable` sur la `Column` fille : **les actions d'un descendant ne
+   remontent pas au nœud fusionné**, contrairement au texte. Sur l'accueil **et** dans la recherche,
+   la carte s'annonçait comme du texte.
+
+### ⚠️⚠️ Ce que ce troisième défaut apprend, et c'est la seule chose à retenir
+
+**Il a été trouvé par le TÉMOIN du deuxième, pas par le deuxième.** Le test « cette carte n'est pas
+actionnable » se réduit à `assertHasNoClickAction()` — vacant par construction. Son témoin pose la
+**même** carte avec un clic réel et exige l'inverse. Le témoin a échoué.
+
+⚠️ **`performClick()` ne l'aurait jamais vu** : il injecte un toucher aux coordonnées du nœud et
+n'exige aucune action de sémantique. C'est pourquoi `toucher_une_carte_ouvre_la_note_correspondante`
+était vert depuis le premier jour sur un nœud sans `OnClick`. Et le geste marchait aussi pour un
+lecteur d'écran, dont le double-appui envoie un toucher au centre du nœud focalisé — *ce que le code
+fait n'est pas ce que l'utilisateur entend*.
+
+⚠️ **Le balayage de §71 ne pouvait pas le voir** : il cherche une action **sans nom**, celui-ci était
+un nom **sans action**. Le motif inverse demande son propre contrôle, et il vaut pour les huit écrans
+suivants : *un nœud qui porte un nom et se comporte comme activable annonce-t-il son action ?*
+
+### 🔧 L'outillage est désormais partagé, à réutiliser tel quel
+
+- `app/src/androidTest/…/ui/BalayageDAccessibilite.kt` — le filtre « actionnable sans nom », extrait
+  d'`AccueilTest`. Son **témoin** vit dans `BalayageDAccessibiliteTest`, à part : il valide l'outil,
+  pas un écran.
+- `TrashScreen` est scindé en `TrashRoute` (Hilt) + `TrashScreen` **sans état**, comme
+  `HomeRoute`/`HomeScreen`. **C'est ce découpage qui rend l'état de chargement atteignable** — sur un
+  téléphone, la base répond en quelques millisecondes et le défaut ressemble à un scintillement.
+- ⚠️ Les écrans restants (`SearchRoute`, `SettingsRoute`, `AboutRoute`, `LegalRoute`) portent encore
+  leur `hiltViewModel()` en propre : chacun demandera le même découpage avant d'être mesurable.
+
+⚠️ **Le motif `stateIn` est à vérifier sur chaque écran qui suit** : la valeur initiale n'est pas une
+donnée, c'est une **absence** de donnée, et l'écran doit savoir les distinguer. `HomeUiState` le fait
+(`loading = true` par défaut), `TrashUiState` ne le faisait pas.
+
+### ⚠️⚠️ Les deux relectures externes ont trouvé un CINQUIÈME défaut — dans MES tests
+
+Sept constats (Gemini Pro, GPT-5.2), **aucun recoupement sur les trois qui comptaient**. Le plus
+grave : mon test « le bouton de vidange reste caché pendant le chargement » était **vacant** — posé
+sur une liste vide, alors que ce bouton dépend *aussi* de `notes.isNotEmpty()`. Il passait avec la
+garde **et sans**.
+
+**Deux assertions négatives vacantes dans la même journée** : l'une trouvée par mon propre témoin,
+l'autre par une relecture. 🔧 *Devant toute assertion négative : quel état la rendrait fausse si le
+code était cassé ?* S'il n'est pas dans le test, le test ne mesure rien.
+
+Sont aussi entrés, tous mesurés :
+
+- les **étiquettes** de la carte n'étaient annoncées à **aucun** lecteur d'écran — un nœud fusionné
+  qui porte une `contentDescription` explicite **remplace** la lecture de ses enfants, donc tout ce
+  qui n'est pas dans la chaîne construite n'existe pas. ⚠️ Le correctif a dû reproduire la garde
+  `!verrouillee`, sinon il **ouvrait** la fuite que la carte ferme : « Note verrouillée, #médical,
+  #divorce » n'a rien protégé. Deux assertions le figent ;
+- un `Role.Button`, sans quoi TalkBack ne nomme pas ce que c'est ;
+- le dialogue de suppression définitive **disparaissait à la rotation** — `rememberSaveable`, et
+  l'**identifiant** au lieu de la `Note`, qui n'a pas à devenir `Parcelable` pour ça ;
+- ⚠️ mon propre durcissement était faux : j'avais remplacé l'indice `[1]` par
+  `hasAnyAncestor(isDialog())` **avant** la relecture, et Gemini a vu ce que je n'avais pas vu — le
+  dialogue de vidange porte son libellé **deux fois**, en titre *et* en bouton. Mon sélecteur
+  désignait donc deux nœuds. `hasClickAction()` ajouté.
+
+**Deux constats laissés en l'état, par écrit** : `tryEmit` perd un message si la rotation tombe
+pendant l'action (le KDoc du ViewModel choisit déjà ce compromis), et `TrashViewModel.state` n'a pas
+de `catch` là où `SearchUiState` a gagné un `failed` **parce qu'un flux non gardé avait emporté
+l'application** — asymétrie entre jumeaux, assumée : l'application publiée n'a pas de filet ici non
+plus, et la corbeille ne lit aucune saisie utilisateur. Détail en `04-PIEGES.md` §74.
+
+## 🔧 La suite immédiate : `search_screen.dart`
+
+Le défaut §75 y est **déjà localisé et confirmé par lecture des deux côtés**, non corrigé : le `when`
+de la recherche passe de `query.isBlank()` à `failed` puis à `results.isEmpty()`, sans branche pour
+« la requête est posée, la réponse n'est pas là ». Avec l'anti-rebond de 200 ms, « Aucun résultat.
+Essayez un autre mot-clé » paraît à chaque salve de frappe — et **accuse la saisie** pour une réponse
+qui n'est pas encore arrivée. Le publié rend un indicateur (`search_screen.dart:109`) : c'est une
+**régression du portage**.
+
+Le corriger demande le même découpage sans état que la corbeille — d'où le fait de le laisser à sa
+propre ligne plutôt que de le traiter à part sans test.

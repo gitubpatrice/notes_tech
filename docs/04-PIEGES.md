@@ -1668,3 +1668,140 @@ positif : avec une apostrophe nue, il **refuse** de produire le fichier.
 
 ⚠️ *Une règle écrite dans l'en-tête d'un fichier généré ne protège personne : c'est le générateur qui
 doit refuser.*
+
+## §74 — 🔴🔴 La carte de note s'annonçait comme du TEXTE, et sa version corbeille comme un bouton inerte
+
+Deux défauts opposés sur le même composant, `ui/home/NoteCard.kt`, trouvés le 2026-08-17 en cochant
+la ligne `trash_screen.dart` de `05-PARITE.md`.
+
+### Le défaut visible en premier : un clic qui ne fait rien
+
+La corbeille appelait `NoteCard(note = note, onClick = { })`. Une lambda vide **n'est pas** l'absence
+de clic : `Modifier.clickable` pose alors une action `OnClick` dans l'arbre de sémantique et un effet
+d'encre sous le doigt. Un lecteur d'écran annonçait donc « double-touchez pour activer » sur une
+carte qui ne s'ouvre pas — une note en corbeille attend sa destruction, elle ne s'édite pas.
+
+L'application publiée rend sa tuile en `ListTile` **sans `onTap`** (`trash_screen.dart:211`). Le
+paramètre est donc devenu `onClick: (() -> Unit)?`, et `null` retire le modificateur.
+
+### 🔴🔴 Le défaut que le TÉMOIN a trouvé, et qui était plus grave
+
+Le test « la carte de corbeille n'est pas actionnable » se réduit à `assertHasNoClickAction()`. Une
+assertion négative ne vaut rien sans positif connu : le témoin pose **la même** carte avec un
+`onClick` réel et exige `assertHasClickAction()`.
+
+**Le témoin a échoué.** Mesuré sur le S9 :
+
+```
+java.lang.AssertionError: Failed to assert the following: (OnClick is defined)
+ContentDescription = '[Le titre de la note. corps de la note. 14 nov. 2023 · 23:13]'
+MergeDescendants = 'true'
+Has 1 child
+```
+
+La sémantique `semantics(mergeDescendants = true) { contentDescription = … }` était posée sur le
+`Surface`, le `clickable` sur la `Column` fille. **Les actions d'un descendant ne remontent pas au
+nœud fusionné, contrairement au texte et aux descriptions.** Donc, sur l'accueil comme dans la
+recherche, la carte de note n'a jamais porté d'action : elle s'annonçait comme du **texte**, sans
+dire qu'on peut l'ouvrir.
+
+⚠️⚠️ **Et le geste fonctionnait quand même**, ce qui rendait le défaut indétectable autrement : un
+double-appui de lecteur d'écran envoie un toucher au **centre du nœud focalisé**, qui atteint la
+fille cliquable. *Ce que le code fait n'est pas ce que l'utilisateur entend.*
+
+⚠️ **`performClick()` ne l'aurait jamais vu** : il injecte un toucher aux coordonnées du nœud et
+**n'exige aucune action de sémantique**. C'est pourquoi `toucher_une_carte_ouvre_la_note_correspondante`
+était vert depuis le premier jour, sur un nœud sans `OnClick`.
+
+Correctif : les deux vivent sur le **même** nœud, celui de la `Column`.
+
+```kotlin
+Column(
+    modifier = Modifier
+        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        .semantics(mergeDescendants = true) { contentDescription = description }
+        .padding(14.dp),
+)
+```
+
+⚠️ **Pas sur le `Surface`.** Le `Surface` découpe son contenu à ses coins arrondis ; un `clickable`
+posé sur son propre modificateur est **hors** de ce découpage, et l'effet d'encre déborderait en
+rectangle. C'est un compromis mesurable, pas une préférence.
+
+### 🔧 Ce que ce défaut apprend sur la façon de chercher les suivants
+
+Le balayage « actionnable sans nom » (§71) ne pouvait **pas** le trouver : il cherche des nœuds qui
+ont une action et pas de nom, et celui-ci avait un nom et pas d'action. **Le motif inverse existe et
+demande son propre contrôle** : *un nœud qui porte un nom et se comporte comme activable
+annonce-t-il son action ?*
+
+## §75 — 🔴 La corbeille annonçait « vide » avant d'avoir lu la base
+
+`stateIn` **rend obligatoirement une valeur initiale**. `TrashUiState()` valait donc « aucune note »
+avant la première émission de Room, et l'écran n'avait qu'une branche : `if (notes.isEmpty())
+EmptyState(…)`. Résultat, à chaque ouverture de la corbeille, « La corbeille est vide » — affiché
+**et annoncé** — à quelqu'un dont elle ne l'est pas.
+
+L'application publiée distingue les deux depuis toujours : son `items` vaut `null` tant que la
+lecture n'a pas rendu, et elle montre alors un indicateur d'activité (`trash_screen.dart:230`).
+
+Second effet, distinct : le bouton « vider la corbeille » dépend de `notes.isNotEmpty()`. Il
+**surgissait** donc après la première réponse, sous un doigt déjà posé sur la barre. Il est
+maintenant masqué tant que `loading` vaut `true`.
+
+⚠️ **Cet état ne s'atteint pas en pilotant l'application.** Sur un téléphone la base répond en
+quelques millisecondes, et ce qu'on voit passer ressemble à un scintillement d'affichage. Il n'est
+observable que parce que l'écran a été rendu **sans état** — `TrashRoute` porte le ViewModel,
+`TrashScreen` ne reçoit qu'un `TrashUiState`, exactement comme `HomeRoute` / `HomeScreen`.
+
+⚠️ Le même raisonnement vaut pour **tout** écran dont l'état vient d'un `stateIn` : la valeur
+initiale n'est pas une donnée, c'est une absence de donnée, et l'écran doit savoir les distinguer.
+Reste à vérifier ligne par ligne sur les écrans qui suivent.
+
+### ⚠️⚠️ Ce que les DEUX relectures externes ont ajouté à §74, et elles ont encore vu des choses disjointes
+
+Relectures du 2026-08-17 (Gemini Pro, GPT-5.2) sur le lot déjà mesuré vert à 163 tests. **Sept
+constats, zéro recoupement sur les trois qui comptaient.**
+
+| Constat | Sort |
+|---|---|
+| 🔴 Les **étiquettes** n'étaient pas annoncées (Gemini) | **CONFIRMÉ, corrigé.** Un nœud fusionné qui porte une `contentDescription` explicite **remplace** la lecture de ses enfants : mesuré, le nœud de la carte ne porte **aucune** propriété `Text`. Tout ce qui n'est pas dans la chaîne construite n'existe pas. `#urgent` était affiché et tu. ⚠️ La garde `!verrouillee` a dû être reproduite, sinon le correctif d'accessibilité **ouvrait la fuite** que la carte ferme |
+| `Role.Button` absent (les deux) | **CONFIRMÉ, corrigé.** Sans rôle, TalkBack annonce la description puis « double-touchez pour activer », sans nommer ce que c'est |
+| Dialogue perdu à la **rotation** (Gemini) | **CONFIRMÉ, corrigé.** `remember` → `rememberSaveable`, et l'**identifiant** au lieu de la `Note` : le dialogue n'a besoin que de lui, et `Note` n'a pas à devenir `Parcelable` pour ça |
+| 🔴🔴 Mon test de chargement était **vacant** (GPT) | **CONFIRMÉ, corrigé** — détaillé ci-dessous |
+| Sélection par **indice** `[1]` dans les dialogues (les deux) | **CONFIRMÉ.** J'avais déjà remplacé l'indice par `hasAnyAncestor(isDialog())` avant la relecture — mais Gemini a vu ce que je n'avais pas vu : **le dialogue de vidange porte son libellé deux fois**, en titre *et* en bouton. Mon propre correctif désignait donc **deux** nœuds et aurait échoué. `hasClickAction()` ajouté |
+| `tryEmit` perd le message si la rotation arrive pendant l'action (Gemini) | **PROBABLE, non corrigé** — décision documentée du dépôt, voir plus bas |
+| `Box(fillMaxSize())` décentrerait l'indicateur (GPT) | **PROBABLE, non mesuré.** `HomeScreen` emploie le **même** motif depuis le début, sous un champ de recherche. Cosmétique ; le test vérifie que l'indicateur est **affiché**, pas sa position au pixel |
+
+#### 🔴🔴 Le test vacant, parce que c'est la même faute deux fois dans la même journée
+
+Mon test vérifiait que le bouton « vider la corbeille » est absent pendant le chargement, sur un état
+`loading = true` **et une liste vide**. Or ce bouton dépend **aussi** de `notes.isNotEmpty()` : il est
+absent quelle que soit la garde. *L'assertion passait avec `!state.loading` et sans.*
+
+Le seul état qui discrimine est **des notes ET un chargement en cours**. C'est exactement la même
+faute que le témoin de carte du même fichier, sous une autre forme : **une assertion négative posée
+sur un état où le vrai et le faux donnent le même résultat.** Deux occurrences en une journée, dont
+une trouvée par mon propre témoin et l'autre par une relecture.
+
+🔧 **La question à se poser devant toute assertion négative** : *quel état rendrait cette assertion
+fausse si le code était cassé ?* S'il n'y en a pas dans le test, il ne mesure rien.
+
+#### ⚠️ Les deux constats laissés en l'état, et pourquoi
+
+**`tryEmit` et `replay = 0`.** Un message de corbeille émis pendant une rotation n'a aucun abonné et
+part au néant. Le KDoc du ViewModel **choisit** déjà `tryEmit` en le disant : cette portée ne doit pas
+rester suspendue à attendre un collecteur. Un `Channel` conserverait l'événement. La fenêtre est celle
+d'une rotation pendant une écriture Room, et le message redit ce qui se voit — la carte quitte la
+liste. Écart connu, non corrigé, à trancher si un usage le rend sensible.
+
+🔴 **Et une asymétrie entre jumeaux, relevée en vérifiant la réponse de GPT sur le chargement
+infini.** `SearchUiState` porte un champ `failed` **parce qu'un flux `stateIn` non gardé avait emporté
+l'application** — c'est écrit dans son propre KDoc. `TrashViewModel.state` est exposé exactement de la
+même façon, sans `catch`. La corbeille ne se figerait donc pas sur son indicateur : elle **planterait**,
+comme la recherche le faisait.
+
+Non corrigé, et c'est un choix écrit : l'application **publiée** n'a pas davantage de filet sur cet
+écran, la phase 8 juge la **parité**, et l'exposition n'est pas comparable — la recherche exécute du
+FTS sur une saisie utilisateur, la corbeille lit un flux Room sans argument. À reprendre si la 3.0.0
+gagne un filet d'erreur général.

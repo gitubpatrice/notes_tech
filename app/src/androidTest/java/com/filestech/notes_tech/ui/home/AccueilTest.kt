@@ -1,20 +1,10 @@
 package com.filestech.notes_tech.ui.home
 
 import androidx.activity.ComponentActivity
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.semantics.onLongClick
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -25,12 +15,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -174,67 +164,23 @@ class AccueilTest {
      * n'expose qu'`OnLongClick` est actionnable pour l'utilisateur et invisible à ce filtre. Le
      * dépôt en a justement un précédent : `05-PARITE.md` note qu'un appui long sur la boîte de
      * réception **manquait entièrement** au portage, et qu'aucune chaîne orpheline ne le signalait.
+     *
+     * ⚠️ Le filtre et son témoin ont été **extraits** le 2026-08-17 vers
+     * `ui/BalayageDAccessibilite.kt` et `ui/BalayageDAccessibiliteTest.kt` : ils servent maintenant à
+     * chaque écran, et les recopier serait les laisser diverger.
      */
     @Test
     fun aucun_element_actionnable_de_l_accueil_n_est_sans_nom() {
         poser(HomeUiState(notes = listOf(note("a", "Une note")), loading = false, vaultLostCount = 1))
 
-        assertThat(actionnablesSansNom()).isEmpty()
+        assertThat(regle.actionnablesSansNom()).isEmpty()
     }
 
-    /**
-     * ⚠️⚠️ **Le témoin du balayage ci-dessus, et il n'est pas décoratif.**
-     *
-     * Un détecteur qui ne détecte rien passe pour un écran sain. Celui-ci pose donc **trois** cibles
-     * volontairement asymétriques — un clic muet, un clic nommé, un **appui long** muet — et exige
-     * exactement **deux** signalements. Sans cette mesure,
-     * [aucun_element_actionnable_de_l_accueil_n_est_sans_nom] resterait vert même si mon filtre
-     * lisait la mauvaise propriété de sémantique, ce qui est précisément l'erreur que j'ai commise le
-     * matin même sur un `grep` ancré par `$`.
-     *
-     * ⚠️ Le troisième cas est ce qui prouve que l'extension à l'appui long **fonctionne** : sans lui,
-     * l'avoir ajoutée au filtre serait une intention, pas une mesure.
-     */
-    @Test
-    fun le_detecteur_signale_un_clic_muet_et_un_appui_long_muet_mais_pas_un_bouton_nomme() {
-        regle.setContent {
-            NotesTechTheme {
-                Column {
-                    Box(Modifier.size(48.dp).clickable {})
-                    Box(Modifier.size(48.dp).semantics { contentDescription = "nomme" }.clickable {})
-                    // ⚠️ `onLongClick` posé SEUL, à la main : `combinedClickable` expose aussi
-                    // `OnClick`, donc il serait déjà pris par l'ancien filtre et ne prouverait rien.
-                    Box(Modifier.size(48.dp).semantics { onLongClick { true } })
-                }
-            }
-        }
-        regle.waitForIdle()
-
-        assertThat(actionnablesSansNom()).hasSize(2)
-    }
-
-    /**
-     * Les nœuds **cliquables** de l'arbre **fusionné** dont le nom accessible est vide, rendus par
-     * leurs coordonnées : c'est ce qui les situe quand l'assertion échoue.
-     *
-     * ⚠️ Les champs de saisie sont exclus : leur nom vient de leur `EditableText`, et un champ vide
-     * n'est pas un défaut d'étiquetage.
-     */
     /** Les textes portés par les nœuds cliquables — sert à relever ce qu'une ouverture de menu ajoute. */
     private fun textesCliquables(): Set<String> = regle.onAllNodes(hasClickAction()).fetchSemanticsNodes()
         .flatMap { noeud -> noeud.config.getOrNull(SemanticsProperties.Text).orEmpty().map { it.text } }
         .filter { it.isNotBlank() }
         .toSet()
-
-    private fun actionnablesSansNom(): List<Rect> =
-        regle.onAllNodes(hasClickAction() or appuiLong).fetchSemanticsNodes()
-            .filter { noeud ->
-                val description = noeud.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
-                val texte = noeud.config.getOrNull(SemanticsProperties.Text).orEmpty()
-                val saisie = noeud.config.getOrNull(SemanticsProperties.EditableText) != null
-                description.all { it.isBlank() } && texte.all { it.text.isBlank() } && !saisie
-            }
-            .map { it.boundsInRoot }
 
     /**
      * ⚠️ **Le cas témoin.** Ces quatre-là sont des icônes à `contentDescription` explicite, et le
@@ -331,6 +277,35 @@ class AccueilTest {
         regle.onNodeWithText(texte(R.string.search_empty)).assertIsDisplayed()
         regle.onNodeWithText(texte(R.string.search_try_other)).assertIsDisplayed()
         regle.onNodeWithText(texte(R.string.home_start_writing)).assertDoesNotExist()
+    }
+
+    /**
+     * 🔴🔴 **La carte doit s'annoncer ACTIVABLE, pas seulement porter un nom.**
+     *
+     * Trouvé le 2026-08-17 par le témoin de `CorbeilleTest`, qui échouait : le nœud fusionné de la
+     * carte portait sa description **sans aucune action `OnClick`**, parce que la sémantique était
+     * posée sur le `Surface` et le `clickable` sur la `Column` fille — et les actions d'un descendant
+     * ne remontent pas à la fusion, contrairement au texte.
+     *
+     * ⚠️⚠️ **Le geste marchait quand même**, et c'est ce qui rendait le défaut invisible : un
+     * double-appui de lecteur d'écran envoie un toucher au centre du nœud focalisé, qui atteint la
+     * fille cliquable. Ce qui manquait n'était pas l'ouverture, c'était **l'annonce** qu'on pouvait
+     * ouvrir. Aucun test de comportement ne pouvait le voir, `performClick` non plus — il injecte un
+     * toucher aux coordonnées du nœud et n'exige aucune action de sémantique. §74.
+     *
+     * ⚠️ Le clic est déclenché **sur ce nœud-là**, celui que vise le lecteur d'écran, et pas sur un
+     * texte intérieur : c'est ce qui lie l'annonce à l'effet.
+     */
+    @Test
+    fun une_carte_de_l_accueil_s_annonce_activable_sur_le_noeud_qui_porte_son_nom() {
+        val laNote = note("a", "Le titre de la note")
+        poser(HomeUiState(notes = listOf(laNote), loading = false))
+
+        val carte = regle.onNode(hasContentDescription(laNote.title, substring = true))
+        carte.assertHasClickAction()
+        carte.performClick()
+
+        assertThat(notesOuvertes).containsExactly(laNote)
     }
 
     /** Ouvrir une note rend **la** note, pas un identifiant reconstruit ailleurs. */
@@ -476,12 +451,6 @@ class AccueilTest {
     )
 
     private companion object {
-        /**
-         * ⚠️ `hasLongClickAction()` n'existe pas dans l'API de test : le pendant de
-         * `hasClickAction()` se construit à la main sur la clé de l'action.
-         */
-        val appuiLong = SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick)
-
         const val DOSSIER_ID = "dossier-de-test"
         const val NOM_DOSSIER = "Dossier de test"
         const val PERDUES = 2

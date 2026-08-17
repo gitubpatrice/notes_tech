@@ -17,10 +17,42 @@
 > `uiautomator` mécanique de l'écran, un test qui cherchait autre chose, et un décompte des tests
 > **ignorés** au lieu de la lecture du « OK (N tests) ».
 >
-> ⚠️⚠️ **La méthode qui a payé, à reprendre pour les 38 lignes suivantes** : ne pas demander « est-ce
+> ⚠️⚠️ **La méthode qui a payé, à reprendre pour les lignes suivantes** : ne pas demander « est-ce
 > que l'écran marche ? » mais *« que reçoit un lecteur d'écran ? »*, *« quels états ne sait-on pas
 > atteindre à la main ? »*, et *« combien de tests ont été ignorés ? »*. La première question ne
 > trouve rien ; les trois autres ont tout trouvé.
+>
+> ## 🔴 La DEUXIÈME ligne en a coûté trois de plus — 2026-08-17
+>
+> `trash_screen.dart` a rendu : une carte de corbeille **cliquable pour rien**, une carte de note qui
+> **n'annonçait pas du tout** qu'on peut l'ouvrir (§74), et une corbeille qui annonçait « vide »
+> avant d'avoir lu la base (§75). Quatre cases cochées, **31 restantes**.
+>
+> ⚠️⚠️ **Le deuxième défaut a été trouvé par le TÉMOIN du premier, pas par le premier.** Le test
+> « cette carte n'est pas actionnable » se réduit à une assertion négative, donc vacante par
+> construction ; son témoin pose la même carte avec un vrai clic et exige l'inverse. Le témoin a
+> échoué. *Écrire l'assertion négative sans son positif connu aurait fermé la ligne sur un défaut
+> plus grave que celui qu'elle corrigeait.*
+>
+> ⚠️ **Et le balayage de §71 ne pouvait pas le voir** : il cherche une action sans nom, celui-ci était
+> un nom sans action. Le motif inverse demande son propre contrôle — c'est le seul enseignement de
+> cette ligne qui vaille pour les huit écrans suivants.
+>
+> ### ⚠️⚠️ Les deux relectures externes ont trouvé un CINQUIÈME défaut — dans mes tests
+>
+> Sept constats, aucun recoupement sur les trois qui comptaient. Le plus grave : mon test « le bouton
+> de vidange reste caché pendant le chargement » était **vacant**, posé sur une liste vide alors que
+> ce bouton dépend *aussi* de `notes.isNotEmpty()` — il passait avec la garde **et sans**. Deux
+> assertions négatives vacantes dans la même journée, l'une trouvée par mon propre témoin, l'autre par
+> une relecture.
+>
+> 🔧 *Devant toute assertion négative : quel état la rendrait fausse si le code était cassé ?* S'il
+> n'est pas dans le test, le test ne mesure rien.
+>
+> Sont aussi entrés : les **étiquettes** de la carte, qui n'étaient annoncées à aucun lecteur d'écran —
+> et dont le correctif a dû reproduire la garde `!verrouillee`, sinon il ouvrait la fuite que la carte
+> ferme ; un `Role.Button` ; et le dialogue de suppression définitive, qui **disparaissait à la
+> rotation**. Détail et constats écartés en `04-PIEGES.md` §74.
 
 ---
 
@@ -34,10 +66,10 @@
 | Écran Flutter | Lignes | Kotlin | Vérifié | Notes |
 |---|---:|---|:---:|---|
 | `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
-| `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ✅ | `AccueilTest` (13 cas, S9, 2026-08-17) : bannière `vault_lost_drafts` présente **et** absente, quatre états exclusifs du corps, tri, recherche, ouverture de note, sorties de la barre, et **aucun actionnable sans nom**. 🔴 A trouvé **deux** défauts — §71 et §73 |
+| `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ✅ | `AccueilTest` (**13** cas, S9, 2026-08-17) : bannière `vault_lost_drafts` présente **et** absente, quatre états exclusifs du corps, tri, recherche, ouverture de note, sorties de la barre, et **aucun actionnable sans nom**. 🔴 A trouvé **deux** défauts — §71 et §73 |
 | `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
-| `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` | ☐ | FTS5, anti-rebond 200 ms |
-| `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` | ☐ | Rétention 30 jours |
+| `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` | ☐ | FTS5, anti-rebond 200 ms. 🔴 **Défaut §75 déjà localisé, non corrigé** — voir ci-dessous |
+| `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` + `TrashRoute` | ✅ | `CorbeilleTest` (**12** cas, S9, 2026-08-17) : chargement, corbeille vide, liste, note de coffre restée scellée, les deux confirmations destructrices **et leur annulation**, la durée de rétention réelle, et **aucun actionnable sans nom**. 🔴 A trouvé **trois** défauts — §74 (deux) et §75 |
 | `settings_screen.dart` | 802 | `ui/settings/SettingsScreen.kt` | ☐ | Thème, tri, fenêtre sécurisée, langue, auto-verrouillage |
 | `about_screen.dart` | 622 | `ui/about/AboutScreen.kt` | ☐ | Version lue dynamiquement via `PackageInfo` |
 | `mentions_legales_screen.dart` | 131 | `ui/about/LegalScreen.kt` | ☐ | Rend `PRIVACY.{fr,en}.md` / `TERMS.{fr,en}.md` |
@@ -46,8 +78,45 @@
 
 ⚠️ `HomeScreen.kt` est **sans état** et `HomeRoute.kt` porte toute la colle. Le découpage n'a pas
 d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'est vérifier les deux.
+`TrashScreen.kt` / `TrashRoute` suit le même partage depuis le 2026-08-17. **Les quatre écrans
+restants qui portent leur `hiltViewModel()` en propre — recherche, réglages, à propos, mentions
+légales — demanderont le même découpage avant d'être mesurables.**
+
+### 🔴 Balayage du motif §75 sur TOUS les `stateIn` — fait le 2026-08-17, un défaut de plus localisé
+
+La valeur initiale d'un `stateIn` n'est pas une donnée, c'est une **absence** de donnée. Quatre
+`UiState` en dépendent ; le relevé les sépare nettement :
+
+| État | Verdict |
+|---|---|
+| `SettingsUiState` | ✅ **rien à faire** — sa valeur initiale est **lue** (`settings.themeNow()` et consorts), pas supposée, et son commentaire dit déjà pourquoi |
+| `TrashUiState` | ✅ corrigé, cf. §75 |
+| `SearchUiState` | 🔴 **CONFIRMÉ, non corrigé** — voir ci-dessous |
+| `FoldersUiState` | ⚠️ à regarder avec la ligne `folders_drawer.dart` : `folders = emptyList()` rend `inbox` **nul** avant la première réponse |
+
+🔴 **La recherche affiche « Aucun résultat. Essayez un autre mot-clé » PENDANT la recherche.** Son
+`when` va de `query.isBlank()` à `failed` puis directement à `results.isEmpty()` : il n'a aucune
+branche pour « la requête est posée, la réponse n'est pas là ». Avec l'anti-rebond de 200 ms, le
+message paraît à chaque salve de frappe — et il **accuse la saisie de l'utilisateur** pour une
+réponse qui n'est simplement pas encore arrivée.
+
+L'application publiée ne fait pas cette faute : `search_screen.dart:109` rend un
+`CircularProgressIndicator` tant que `snap.connectionState == ConnectionState.waiting`. C'est donc
+une **régression du portage**, pas un écart hérité.
+
+⚠️ Corrigé **avec la ligne `search_screen.dart`**, pas avant : le correctif demande le même découpage
+sans état que la corbeille, et le faire à part le laisserait sans test.
 
 ## Composants (16)
+
+> **`note_card.dart` et `empty_state.dart` sont cochés par `CorbeilleTest` et `AccueilTest`**, pas
+> par des tests qui leur seraient propres, et c'est délibéré : ce que fait une carte hors de l'écran
+> qui la pose n'intéresse personne. `NoteCard` y est mesurée dans ses **trois** états — ouvrable,
+> inerte (corbeille), et verrouillée sans divulguer son titre — et `EmptyState` dans les deux écrans
+> qui l'emploient, dont l'un ne propose pas d'action et l'autre si.
+>
+> 🔴 Cocher `note_card.dart` a coûté **deux** défauts, opposés l'un à l'autre : une carte cliquable
+> pour rien, et une carte qui n'annonçait pas du tout qu'elle est ouvrable. Cf. `04-PIEGES.md` §74.
 
 | Composant Flutter | Lignes | Kotlin | Vérifié |
 |---|---:|---|:---:|
@@ -56,7 +125,7 @@ d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'
 | `voice_recording_overlay.dart` | 460 | `ui/voice/SuperpositionDeDictee.kt` | ☐ |
 | `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ☐ |
 | `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ☐ |
-| `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ☐ |
+| `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
 | `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ☐ |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ☐ |
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
@@ -64,7 +133,7 @@ d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'
 | `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ☐ |
 | `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ☐ |
 | `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ☐ |
-| `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ☐ |
+| `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ✅ |
 | `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ☐ |
 | `sheet_handle.dart` | 27 | **sans objet** — voir ci-dessous | ☐ |
 
