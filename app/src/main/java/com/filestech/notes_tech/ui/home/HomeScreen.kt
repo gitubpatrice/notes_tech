@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,6 +81,11 @@ fun HomeScreen(
 ) {
     var menuOuvert by remember { mutableStateOf(false) }
     var triOuvert by remember { mutableStateOf(false) }
+
+    // Lu une fois : le bouton flottant s'en sert DEUX fois — comme nom accessible et comme libellé
+    // visible. Deux appels à `stringResource` diraient la même chose, mais laisseraient croire que
+    // les deux valeurs peuvent différer, alors que c'est justement ce qu'il ne faut pas.
+    val nomDeLaNouvelleNote = stringResource(R.string.home_new_note)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -128,7 +134,13 @@ fun HomeScreen(
                     IconButton(onClick = { menuOuvert = true }) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
-                            contentDescription = stringResource(R.string.settings_title),
+                            // 🔴 **Ce bouton ouvre un MENU, il ne va pas aux réglages.** Il portait
+                            // `settings_title`, c'est-à-dire le nom d'**une** de ses deux entrées :
+                            // un lecteur d'écran annonçait « Réglages, bouton », et l'activer
+                            // donnait un menu. L'application publiée y met le `moreButtonTooltip`
+                            // de la plateforme (`home_screen.dart:361`) ; Compose n'expose pas
+                            // d'équivalent public, d'où cette chaîne. Cf. `04-PIEGES.md` §73.
+                            contentDescription = stringResource(R.string.common_more_options),
                         )
                     }
                     DropdownMenu(expanded = menuOuvert, onDismissRequest = { menuOuvert = false }) {
@@ -153,11 +165,31 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
+            // 🔴🔴 **Le nom accessible est posé sur le BOUTON, pas sur son texte ni sur son icône.**
+            //
+            // `ExtendedFloatingActionButton` de material3 1.4.0 enveloppe son emplacement `text`
+            // dans un `clearAndSetSemantics` : le libellé est **dessiné** (261 × 60 px mesurés) et
+            // **absent de l'arbre de sémantique fusionné**, celui que lit un lecteur d'écran.
+            // Mesuré sur le S9 le 2026-08-17 : arbre fusionné **0 nœud** portant « Nouvelle note »,
+            // arbre non fusionné **1**, sous un nœud `ClearAndSetSemantics = true`. Le bouton
+            // s'annonçait donc « bouton », sans nom — là où l'application publiée porte un `label`
+            // **et** un `tooltip` (`home_screen.dart:391-396`). C'est une régression de parité.
+            //
+            // ⚠️ Nommer l'**icône** marchait aussi, et c'était la première correction. Deux
+            // relectures externes ont convergé pour la refuser : le libellé appartient à l'action,
+            // pas au pictogramme. Une icône nommée devient une source de libellé **de plus** — donc
+            // une annonce en double le jour où material3 cesse d'effacer le slot `text`, et un arrêt
+            // de focus parasite si son `mergeDescendants` change. Ici la propriété est sur la racine
+            // du composant : elle survit aux deux, et au mode réduit où le texte n'est plus composé.
+            //
+            // Cf. `AccueilTest`, qui exige **exactement un** « Nouvelle note » sur ce nœud — c'est
+            // l'assertion qui verra la double annonce si elle apparaît. Et `04-PIEGES.md` §71.
             ExtendedFloatingActionButton(
                 onClick = onNewNote,
                 shape = Formes.bouton,
+                modifier = Modifier.semantics { contentDescription = nomDeLaNouvelleNote },
                 icon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
-                text = { Text(stringResource(R.string.home_new_note)) },
+                text = { Text(nomDeLaNouvelleNote) },
             )
         },
     ) { padding ->

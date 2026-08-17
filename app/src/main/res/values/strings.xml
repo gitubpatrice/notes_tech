@@ -29,6 +29,15 @@
     <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
          retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
     <string name="common_back">Back</string>
+    <!--
+      Ajout du portage, et REPARATION d'une divergence : le bouton ⋮ de l'accueil portait
+      « Reglages » comme description, c'est-a-dire le nom d'UNE des deux entrees de son menu. Un
+      lecteur d'ecran annoncait donc « Reglages, bouton » pour un bouton qui ouvre un menu.
+      L'application publiee y met « moreButtonTooltip », la chaine de la plateforme
+      (home_screen.dart:361). Compose n'expose pas d'equivalent public : d'ou cette chaine.
+      Cf. 04-PIEGES.md §73.
+    -->
+    <string name="common_more_options">More options</string>
 
     <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
     <string name="splash_tagline">Maximum protection\nfor your notes.</string>

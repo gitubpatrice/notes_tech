@@ -26,6 +26,7 @@
     <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
          retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
     <string name="common_back">Retour</string>
+    <string name="common_more_options">Plus d\'options</string>
 
     <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
     <string name="splash_tagline">La protection maximale\npour vos notes.</string>

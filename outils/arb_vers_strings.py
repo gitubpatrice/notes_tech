@@ -42,6 +42,15 @@ AJOUTS_EN = {
     <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
          retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
     <string name="common_back">Back</string>
+    <!--
+      Ajout du portage, et REPARATION d'une divergence : le bouton ⋮ de l'accueil portait
+      « Reglages » comme description, c'est-a-dire le nom d'UNE des deux entrees de son menu. Un
+      lecteur d'ecran annoncait donc « Reglages, bouton » pour un bouton qui ouvre un menu.
+      L'application publiee y met « moreButtonTooltip », la chaine de la plateforme
+      (home_screen.dart:361). Compose n'expose pas d'equivalent public : d'ou cette chaine.
+      Cf. 04-PIEGES.md §73.
+    -->
+    <string name="common_more_options">More options</string>
 """,
     "note": """\
     <!--
@@ -170,6 +179,7 @@ AJOUTS_FR = {
     <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
          retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
     <string name="common_back">Retour</string>
+    <string name="common_more_options">Plus d\\'options</string>
 """,
     "note": """\
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
@@ -549,6 +559,25 @@ for _nom, _ajouts in (("AJOUTS_EN", AJOUTS_EN), ("AJOUTS_FR", AJOUTS_FR)):
     _orphelines = set(_ajouts) - _prefixes
     assert not _orphelines, "%s cite des sections inconnues : %r" % (_nom, sorted(_orphelines))
 assert set(AJOUTS_EN) == set(AJOUTS_FR), "AJOUTS_EN et AJOUTS_FR ne couvrent pas les memes sections"
+
+# 🔴 Les AJOUTS sont recopies VERBATIM dans le XML, contrairement aux chaines venues de l'ARB qui
+# passent par l'echappement. Rien ne les controlait donc, et une apostrophe nue y suffit a faire
+# TRONQUER la chaine par aapt — silencieusement, et en francais seulement. Constate le 2026-08-17 sur
+# « Plus d'options » : le fichier genere portait l'apostrophe nue, et l'en-tete du XML enonce
+# pourtant la regle. Un garde-fou vaut mieux qu'une regle ecrite.
+#
+# ⚠️ Le controle ne porte que sur les lignes de VALEUR : les commentaires XML n'ont pas cette
+# contrainte, et en exiger l'echappement rendrait les notes illisibles.
+_VALEUR = re.compile(r"<(?:string|item)\b[^>]*>(.*?)</(?:string|item)>", re.S)
+for _nom, _ajouts in (("AJOUTS_EN", AJOUTS_EN), ("AJOUTS_FR", AJOUTS_FR)):
+    for _section, _bloc in _ajouts.items():
+        for _valeur in _VALEUR.findall(_bloc):
+            _nue = re.sub(r"\\'", "", _valeur)
+            assert "'" not in _nue, (
+                "%s[%r] : apostrophe non echappee dans une valeur — aapt tronquerait la chaine. "
+                "Ecrire \\\\' dans la source Python pour produire \\' dans le XML. Valeur : %r"
+                % (_nom, _section, _valeur)
+            )
 
 ordre = {p: i for i, (p, _) in enumerate(SECTIONS)}
 groupes = {}

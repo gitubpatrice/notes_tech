@@ -4,6 +4,23 @@
 > appareil », pas « le code existe ».
 >
 > La bascule (phase 8) est bloquée tant qu'une ligne reste vide sans justification écrite.
+>
+> ## 🔴 Ce que la phase 8 a appris dès sa première ligne — 2026-08-17
+>
+> La ligne `home_screen.dart` a été cochée la première, et elle a coûté **trois** défauts et un
+> garde-fou manquant : un bouton flottant sans nom accessible (§71), un bouton ⋮ nommé d'après une de
+> ses entrées de menu (§73), une suite de tests qui **détruisait le modèle de 57 Mo** de l'utilisateur
+> et ignorait en silence le seul test prouvant que la dictée transcrit (§72), et un générateur de
+> chaînes qui laissait passer une apostrophe nue — donc une chaîne française tronquée par aapt.
+>
+> ⚠️ **Aucun des quatre n'était visible à la relecture.** Ce qui les a trouvés : un relevé
+> `uiautomator` mécanique de l'écran, un test qui cherchait autre chose, et un décompte des tests
+> **ignorés** au lieu de la lecture du « OK (N tests) ».
+>
+> ⚠️⚠️ **La méthode qui a payé, à reprendre pour les 38 lignes suivantes** : ne pas demander « est-ce
+> que l'écran marche ? » mais *« que reçoit un lecteur d'écran ? »*, *« quels états ne sait-on pas
+> atteindre à la main ? »*, et *« combien de tests ont été ignorés ? »*. La première question ne
+> trouve rien ; les trois autres ont tout trouvé.
 
 ---
 
@@ -17,7 +34,7 @@
 | Écran Flutter | Lignes | Kotlin | Vérifié | Notes |
 |---|---:|---|:---:|---|
 | `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
-| `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ☐ | Bannière brouillons perdus (`vault_lost_drafts`) |
+| `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ✅ | `AccueilTest` (13 cas, S9, 2026-08-17) : bannière `vault_lost_drafts` présente **et** absente, quatre états exclusifs du corps, tri, recherche, ouverture de note, sorties de la barre, et **aucun actionnable sans nom**. 🔴 A trouvé **deux** défauts — §71 et §73 |
 | `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
 | `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` | ☐ | FTS5, anti-rebond 200 ms |
 | `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` | ☐ | Rétention 30 jours |
@@ -105,11 +122,29 @@ métadonnées F-Droid. Une régression ici est publique.
 
 | Promesse | Contrôle | Vérifié |
 |---|---|:---:|
-| Zéro permission Internet | Contrôle CI sur le manifeste **fusionné** | ☐ |
-| 100 % local, aucune donnée ne sort | Absence de toute dépendance réseau | ☐ |
-| Base chiffrée au repos | SQLCipher, clé scellée par le Keystore | ☐ |
+| Zéro permission Internet | **APK release** (`aapt2 dump xmltree`) : `RECORD_AUDIO` + la permission interne du receiver, **rien d'autre**. Zéro occurrence de `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_WIFI_STATE` | ✅ |
+| 100 % local, aucune donnée ne sort | **0** bibliothèque réseau sur 940 lignes de `releaseRuntimeClasspath` ; les **4** `.so` de l'APK release n'ont **aucun** symbole de socket (`llvm-nm --dynamic --undefined-only`) | ✅ |
+| Base chiffrée au repos | **Vraie base du S9** : en-tête ≠ `SQLite format 3`, et le **WAL** de 506 ko mesuré à **7,9991 bits/octet** d'entropie, 256 valeurs distinctes, **0** occurrence de `CREATE TABLE`/`notes`/`folder` | ✅ |
 | Coffres par dossier | Argon2id + AES-256-GCM, paramètres identiques | ☐ |
-| Dictée vocale sur l'appareil | Phase 7 | ☐ |
+| Dictée vocale sur l'appareil | `TranscriptionSurAppareilTest` — ✅ **et il tourne enfin dans la suite**, cf. `04-PIEGES.md` §72 | ✅ |
+
+### 🔴 Trois de ces promesses tenaient déjà, la quatrième a demandé un détour
+
+⚠️ **Le manifeste fusionné intermédiaire ne fait PAS foi** : celui de `build/intermediates/` datait du
+2026-08-15 à 19:48, soit **avant** le moteur et l'interface, alors que les APK release sont du 08-16 à
+19:14. Le lire aurait donné le bon résultat pour la mauvaise raison. C'est l'**artefact publié** qui
+répond.
+
+⚠️⚠️ **Et l'instrument s'est trompé une fois.** La première recherche de symboles réseau dans les
+`.so` rendait « aucun » — avec un motif `send(to|msg)?$` ancré par `$`, alors que les symboles portent
+un suffixe `@LIBC`. Le témoin positif (`malloc`) rendait **0** lui aussi, ce qui a révélé la faute.
+Après correction : un seul résultat, `sendfile@LIBC` dans `libnotes_stt.so`, tiré par `<filesystem>`
+de libc++ (`ggml-backend-reg.cpp:8`) — pas un chemin réseau, et sans `socket()` nulle part ni
+permission `INTERNET`, il n'y a aucun descripteur où écrire.
+
+⚠️ Le WAL a été tiré par `adb exec-out`, **pas** `adb shell` : ce dernier convertit les fins de ligne
+et rendait 508 768 octets au lieu de 506 792. Une mesure d'entropie sur un binaire corrompu n'aurait
+rien voulu dire. Le fichier a été effacé du poste après mesure.
 
 ⚠️ Le manifeste à contrôler est le **fusionné**, jamais le manifeste source seul — une dépendance
 peut y injecter une permission :

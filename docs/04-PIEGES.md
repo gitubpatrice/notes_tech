@@ -1495,3 +1495,176 @@ test — l'échantillon a dû être **réécrit en en-tête canonique de 44 octe
 
 ⚠️ À retenir si un jour l'import d'un audio extérieur est envisagé : ce ne serait pas une ligne à
 assouplir, ce serait un décodeur à écrire, avec la question de sécurité qui va avec.
+
+## §71 — 🔴🔴 `ExtendedFloatingActionButton` EFFACE la sémantique de son libellé : le bouton était muet
+
+Relevé le 2026-08-17, en ouvrant la phase 8 par un relevé mécanique de l'accueil sur le S9.
+
+Le bouton « Nouvelle note » était écrit de la façon la plus évidente qui soit :
+
+```kotlin
+ExtendedFloatingActionButton(
+    onClick = onNewNote,
+    icon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
+    text = { Text(stringResource(R.string.home_new_note)) },   // le libellé est bien là
+)
+```
+
+`contentDescription = null` sur l'icône est **la règle** pour une icône décorative : son sens est
+déjà porté par le texte à côté. Sauf que le texte à côté n'existe pas pour un lecteur d'écran.
+
+### Ce que la mesure a donné, et dans quel ordre
+
+| Instrument | Résultat |
+|---|---|
+| `uiautomator dump` | nœud **cliquable**, `text=""`, `content-desc=""`, et **`NAF="true"`** |
+| arbre de sémantique **fusionné** | **0** nœud portant « Nouvelle note » |
+| arbre de sémantique **non fusionné** | **1** nœud, sous un ancêtre `ClearAndSetSemantics = 'true'` |
+| nœud du bouton lui-même | `Role=Button`, `MergeDescendants=true`, **aucun nom** |
+
+material3 1.4.0 enveloppe l'emplacement `text` de ce composant dans un `clearAndSetSemantics` — le
+libellé est donc **dessiné** (261 × 60 px mesurés, à l'écran) et **absent** de l'arbre que lit un
+lecteur d'écran. L'application publiée, elle, porte `label:` **et** `tooltip:`
+(`home_screen.dart:391-396`) : c'est donc une **régression de parité**, pas un défaut hérité.
+
+### Le correctif retenu — et pourquoi ce n'est PAS celui trouvé en premier
+
+La première correction nommait l'**icône** (`contentDescription` sur le slot `icon`, qui est en
+dehors du nœud effacé). Mesurée, elle fonctionnait. Les **deux** relectures externes du 2026-08-17
+ont convergé pour la refuser, avec deux arguments distincts :
+
+- **Gemini Pro** : le jour où material3 cesse d'effacer le slot `text`, le nœud portera la
+  description **et** le texte — deux sources de libellé, donc un risque d'annonce en double.
+- **GPT-5.2** : ajoute un second risque, distinct — si le `mergeDescendants` du composant change,
+  une icône **nommée** peut devenir un arrêt de focus séparé et non cliquable.
+
+Le nom accessible est donc posé sur le **bouton lui-même**, par
+`modifier = Modifier.semantics { contentDescription = … }`, l'icône redevenant muette. La propriété
+est alors sur la racine du composant : elle survit aux deux évolutions, et au mode réduit où le slot
+`text` n'est plus composé du tout.
+
+⚠️ `AccueilTest` exige **exactement une** description sur ce nœud — c'est ce qui interdit de renommer
+l'icône « pour faire bonne mesure ». Et une seconde assertion, documentée comme **fil-piège** et non
+comme exigence, échouera si le slot `text` réapparaît un jour dans l'arbre fusionné : ce sera l'ordre
+de refaire la mesure d'annonce, pas le signe d'un défaut.
+
+### ⚠️ Les trois choses à en retenir, dans l'ordre d'utilité
+
+1. **`clearAndSetSemantics` n'est pas visible depuis le code appelant.** Rien, dans la signature du
+   composant, ne laisse deviner que le slot qu'on remplit sera effacé. Aucune relecture de ce fichier
+   — humaine ou externe — n'avait de raison de s'en méfier.
+2. **`NAF="true"` est un signal, pas une conclusion.** uiautomator le pose lui-même sur tout nœud
+   cliquable sans nom. Il vaut d'être cherché **systématiquement** dans un relevé, mais il demande à
+   être confirmé sur l'arbre de sémantique : c'est ce dernier qui fait foi.
+3. 🔴 **Un test écrit sur `onNodeWithText` serait resté VERT.** Par défaut les recherches Compose
+   portent sur l'arbre **fusionné**, mais un test qui cherche le libellé du slot `text` a toutes les
+   chances d'être écrit avec `useUnmergedTree = true` pour « le faire passer » — et il mesurerait
+   alors exactement l'arbre où le défaut est invisible. Le test doit viser le **nom accessible**.
+
+### 🔧 L'instrument qui généralise — et son témoin
+
+Le cas particulier vaut moins que le balayage : *quels nœuds **cliquables** de cet écran n'ont ni
+description ni texte dans l'arbre fusionné ?* `AccueilTest.aucun_element_cliquable_de_l_accueil_n_est_sans_nom`
+pose la question à tout l'écran et échoue en rendant les **coordonnées** des muets.
+
+⚠️⚠️ Il est doublé d'un témoin — `le_detecteur_de_cliquable_sans_nom_signale_bien_un_bouton_muet` —
+qui pose **deux** boutons, l'un nommé l'autre muet, et exige exactement **un** signalement. Sans lui,
+un filtre qui lirait la mauvaise propriété de sémantique rendrait une liste vide, et un écran entier
+de boutons muets passerait pour sain. C'est la même faute qu'un `grep` ancré au mauvais endroit —
+commise le matin même sur `llvm-nm`, où le motif `send(to|msg)?$` ne pouvait rien trouver puisque les
+symboles portent un suffixe `@LIBC`.
+
+## §72 — 🔴🔴 La suite instrumentée DÉTRUISAIT le modèle de 57 Mo, et ignorait en silence le test qui le prouve
+
+Le 2026-08-16, une précaution avait été prise et écrite partout : **ne plus lancer la suite par
+`connectedAndroidTest`**, parce qu'AGP désinstalle l'application à la fin, ce qui effacerait le modèle
+de 57 Mo que l'utilisateur avait importé à la main. Le remplacement — `adb shell am instrument` — est
+correct, et il ne protégeait de rien.
+
+Mesuré le 2026-08-17, après un simple `am instrument` sur toute la suite :
+
+| Constat | Mesure |
+|---|---|
+| `files/stt/` après la suite | **n'existe plus** |
+| tests ignorés d'après « OK (144 tests) » | 0 |
+| tests ignorés d'après les codes de statut | **1** — code `-4`, échec d'hypothèse |
+| lequel | `TranscriptionSurAppareilTest.un_enregistrement_connu_produit_du_texte` |
+
+La cause est **dans un test**, pas dans l'outil : `SttModelStoreTest` et `WhisperSttTest` faisaient
+tous deux, en `@Before` **et** en `@After`,
+`SttModelStore.repertoireDesModeles(context).deleteRecursively()` sur le **vrai** `filesDir`. Deux de
+leurs cas exigent en outre que ce répertoire soit **vide** — la purge leur était donc nécessaire, ce
+qui explique qu'elle ait été écrite ainsi et qu'elle n'ait choqué personne.
+
+Comme `SttModelStoreTest` passe avant `TranscriptionSurAppareilTest` dans l'ordre d'exécution, ce
+dernier trouvait `estPresent()` faux pour tous les modèles du catalogue et **s'ignorait lui-même**
+par son `assumeTrue`.
+
+### Ce qui rend ce défaut coûteux, dans l'ordre
+
+1. **Perte de donnée de l'utilisateur.** Un fichier de 57 Mo qu'il a téléchargé sur un ordinateur,
+   transféré, puis importé par le sélecteur — détruit par un lancement de tests.
+2. 🔴 **Le seul test qui prouve que la dictée transcrit ne tournait jamais dans la suite.** Il n'a
+   jamais été vert que lancé **seul**, ce qui est la façon dont il a été écrit et vérifié. La ligne
+   « 137 tests, 0 échec, **0 ignoré** » de `REPRISE.md` était donc fausse sur son dernier tiers.
+3. **« OK (N tests) » ne dit rien des ignorés.** C'est déjà écrit au §45, et le compte avait quand
+   même été affirmé. Avec `am instrument` il n'y a pas de XML : le seul décompte fiable est
+   `grep -c 'INSTRUMENTATION_STATUS_CODE: -4'` (échec d'hypothèse) et `-3` (ignoré).
+
+### Correctif, et son témoin
+
+Les deux classes travaillent désormais sur un `ContextWrapper` dont **`getFilesDir()` seul** est
+détourné vers `cacheDir/faux-files` — `cacheDir` reste le vrai, parce qu'un des tests passe par le
+`FileProvider` de l'application, qui n'expose que `cache/exports/`.
+
+⚠️ Chacune porte un témoin, `le_magasin_de_test_n_ecrit_jamais_dans_le_repertoire_reel_de_l_application` :
+il compare les deux chemins. Sans lui, une faute de frappe qui ferait retomber le détournement sur le
+vrai répertoire laisserait **tous** les autres tests verts et détruirait de nouveau le fichier.
+
+### ⚠️⚠️ La leçon, qui dépasse ce répertoire
+
+**Un test qui écrit dans la zone privée réelle de l'application peut détruire des données de
+l'utilisateur, et le fera d'autant plus sûrement qu'il « nettoie bien derrière lui ».** La précaution
+prise la veille visait l'outil de lancement ; la destruction venait du code de test. *Se protéger
+d'une cause connue ne dit rien des autres — et une précaution écrite en gros donne le sentiment que
+la question est réglée.*
+
+## §73 — 🔴 Le bouton ⋮ s'annonçait « Réglages », c'est-à-dire le nom d'UNE de ses deux entrées
+
+Trouvé le 2026-08-17 par un test qui cherchait autre chose.
+
+`AccueilTest.les_trois_sorties_de_la_barre_remontent_a_l_appelant` cliquait l'icône décrite
+« Réglages » et attendait `onOpenSettings`. L'appel n'arrivait pas. Le câblage était pourtant
+correct : cette icône ouvre un **menu déroulant**, dont la première entrée mène aux réglages et la
+seconde à « À propos ».
+
+Le défaut n'était donc pas dans l'action mais dans le **nom** :
+
+| | Description annoncée | Ce que le bouton fait |
+|---|---|---|
+| Portage, avant | **« Réglages »** | ouvre un menu de deux entrées |
+| Application publiée | `moreButtonTooltip` de la plateforme, soit « Plus d'options » | ouvre un menu de deux entrées |
+
+C'est une **divergence de parité** et un défaut d'accessibilité : qui navigue au lecteur d'écran
+entend « Réglages, bouton », active, et se retrouve devant un menu. Le portage nommait le bouton
+d'après sa destination la plus probable, ce qui est exactement l'erreur qu'un tooltip de plateforme
+évite.
+
+Correctif : une chaîne `common_more_options`, ajoutée par `outils/arb_vers_strings.py` puisque
+Compose n'expose pas l'équivalent public du `moreButtonTooltip` de Flutter.
+
+### ⚠️⚠️ Et le garde-fou que cet ajout a révélé manquant
+
+La valeur française « Plus d'options » est entrée dans le XML avec une **apostrophe nue**. Les 425
+autres apostrophes du fichier sont échappées `\'`, et l'en-tête du fichier généré énonce la règle en
+toutes lettres : *sans l'antislash, aapt tronque la chaîne*. En français seulement, silencieusement.
+
+La cause : les blocs `AJOUTS_EN` / `AJOUTS_FR` du générateur sont recopiés **verbatim**, alors que les
+chaînes venues de l'ARB passent par l'échappement. **Rien ne contrôlait les ajouts.** Et dans une
+chaîne Python non brute, écrire `\'` produit `'` — il faut `\'`.
+
+Le générateur porte désormais une assertion sur les valeurs des `AJOUTS`, vérifiée sur un cas
+positif : avec une apostrophe nue, il **refuse** de produire le fichier.
+
+⚠️ *Une règle écrite dans l'en-tête d'un fichier généré ne protège personne : c'est le générateur qui
+doit refuser.*

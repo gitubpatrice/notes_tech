@@ -1,18 +1,24 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-16**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-17**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
 ## État en trois lignes
 
-- Dépôt : `j:\applications\notes_files_tech`, branche par défaut, **86 commits**, arbre **propre**,
-  et **toujours aucun remote** — rien n'est poussé nulle part.
-- Gate **vert** au 2026-08-16 : ktlint, detekt, lint (`--rerun-tasks`), **176 tests JVM**,
-  **137 tests instrumentés** (S9), 0 échec, **0 ignoré** — le compte d'ignorés est lu dans le XML,
-  pas déduit d'un `OK`.
+- Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
+  remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
+  faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
+- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **176 tests JVM**,
+  **152 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- 🔴 **Cette ligne était FAUSSE le 08-16**, et pas de peu : elle annonçait « 0 ignoré » alors que
+  `TranscriptionSurAppareilTest` — le seul test qui prouve que la dictée transcrit — était **ignoré à
+  chaque exécution de la suite**, parce que celle-ci **détruisait le modèle de 57 Mo** importé à la
+  main. Cf. `04-PIEGES.md` §72 et la section datée du 08-17 en fin de fichier.
 - ⚠️ **La suite instrumentée se lance par `adb shell am instrument`, plus par Gradle** :
-  `connectedAndroidTest` désinstalle l'application à la fin, ce qui effacerait le modèle de 57 Mo
-  importé à la main. Cf. la section datée en fin de fichier.
+  `connectedAndroidTest` désinstalle l'application à la fin. ⚠️⚠️ Cette précaution ne suffisait
+  **pas** — la destruction venait d'un test, pas de l'outil. Et avec `am instrument` il n'y a pas de
+  XML : le décompte des ignorés se lit par `grep -c 'INSTRUMENTATION_STATUS_CODE: -4'` (échec
+  d'hypothèse) et `-3` (ignoré), **jamais** dans le « OK (N tests) ».
 - Application publiée `notes_tech` : `0307811` sur `fix/defauts-releves-pendant-le-portage`,
   **aucune publication décidée**. Ses trois répertoires non suivis (`.audit_tmp/`,
   `_audit_results/`, `prompts/`) ne doivent **jamais** entrer dans l'index — pas de `git add -A`.
@@ -256,3 +262,86 @@ $s.SetOutputToWaveFile('fr_test.wav', $f); $s.Speak('...'); $s.Dispose()
 
 ⚠️ Puis le **réécrire en en-tête canonique de 44 octets** : `WavPcm16` refuse — volontairement — les
 WAV qu'il n'a pas écrits, blocs `LIST` compris. Cf. `04-PIEGES.md` §70.
+
+## 🔴 2026-08-17 — la phase 8 s'ouvre, et sa PREMIÈRE ligne coûte trois défauts
+
+La méthode annoncée la veille — *« quel fichier joue ce rôle ? » trouve ce que « est-ce que ça
+marche ? » laisse passer* — a été appliquée aux **promesses publiques** et à la **première ligne
+d'écran**. Les deux ont payé.
+
+### ✅ Trois promesses publiques sur cinq sont désormais mesurées
+
+| Promesse | Ce qui la prouve |
+|---|---|
+| Zéro permission Internet | **APK release** : `RECORD_AUDIO` + la permission interne du receiver, rien d'autre |
+| 100 % local | **0** bibliothèque réseau sur 940 lignes de classpath ; **0** symbole de socket dans les 4 `.so` |
+| Base chiffrée au repos | WAL réel du S9 : **7,9991 bits/octet**, 256 valeurs distinctes, 0 mot-clé de schéma |
+
+⚠️ **Le manifeste fusionné de `build/intermediates/` ne fait pas foi** — le sien datait d'avant le
+moteur et l'interface. C'est l'artefact **publié** qui répond.
+
+⚠️⚠️ **Un instrument s'est trompé, et son témoin l'a dit.** La recherche de symboles réseau rendait
+« aucun » avec un motif ancré par `$`, alors que les symboles portent `@LIBC`. Le témoin positif
+(`malloc`) rendait **0** lui aussi — c'est ce qui a révélé la faute. Après correction, un seul
+résultat : `sendfile@LIBC`, tiré par `<filesystem>` de libc++, sans aucun `socket()` nulle part.
+
+### 🔴🔴 §72 — la suite instrumentée DÉTRUISAIT le modèle de 57 Mo, et ignorait le test qui compte
+
+Le plus grave de la journée, et il ne concerne pas l'interface.
+
+`SttModelStoreTest` et `WhisperSttTest` purgeaient le **vrai** `filesDir` en `@Before` et `@After`.
+Donc : le fichier importé à la main par l'utilisateur détruit à chaque exécution de la suite, et
+`TranscriptionSurAppareilTest` — qui passe après, par ordre alphabétique — **ignoré en silence** par
+son `assumeTrue`, sous un « OK (144 tests) » parfaitement rassurant.
+
+**La ligne « 137 tests, 0 échec, 0 ignoré » de ce fichier était donc fausse sur son dernier tiers**, et
+le test qui prouve que la dictée transcrit n'avait jamais été vert autrement que lancé **seul**.
+
+| | Avant | Après |
+|---|---|---|
+| `files/stt/` après la suite | **effacé** | intact, empreinte revérifiée |
+| ignorés (codes `-3` / `-4`) | **1** | **0** |
+| total | 144 | **152** |
+
+Correctif : les deux classes travaillent sur un `ContextWrapper` dont `getFilesDir()` seul est
+détourné, chacune avec un **témoin** qui compare les deux chemins. Le modèle a été restauré depuis
+`J:/tmp/claude/modeles/ggml-base-q5_1.bin`, droits `700`, empreinte identique au catalogue.
+
+⚠️ La précaution du 08-16 visait `connectedAndroidTest`. Elle était juste et **ne protégeait de
+rien** ici : *se protéger d'une cause connue ne dit rien des autres.*
+
+### 🔴 §71 et §73 — deux boutons de l'accueil mal annoncés
+
+- **Le bouton flottant n'avait aucun nom accessible.** `ExtendedFloatingActionButton` de material3
+  1.4.0 enveloppe son slot `text` dans un `clearAndSetSemantics` : le libellé est **dessiné** et
+  **absent** de l'arbre fusionné. Trouvé par un relevé `uiautomator` (`NAF="true"`), confirmé sur
+  l'arbre de sémantique. L'application publiée porte `label` **et** `tooltip` : c'était une régression.
+- **Le bouton ⋮ s'annonçait « Réglages »**, soit le nom d'**une** de ses deux entrées de menu. Le
+  publié y met le `moreButtonTooltip` de la plateforme. Trouvé par un test qui cherchait autre chose.
+
+⚠️ **Les deux relectures externes ont convergé** pour refuser mon premier correctif du bouton flottant
+(nommer l'icône) au profit du nom posé sur **le bouton**, avec deux arguments distincts : annonce en
+double si material3 cesse d'effacer le slot, et arrêt de focus parasite si son `mergeDescendants`
+change. Elles ont aussi trouvé, toutes les deux, que mon test de badge concluait par un **compte** qui
+vaut 1 aussi bien quand tout va bien que quand deux défauts s'annulent.
+
+### ⚠️ Un garde-fou manquait dans le générateur de chaînes
+
+La chaîne française ajoutée pour le ⋮ est entrée dans le XML avec une **apostrophe nue** — les 425
+autres du fichier sont échappées, et l'en-tête du fichier généré énonce la règle. Les blocs `AJOUTS`
+sont recopiés **verbatim**, donc rien ne les contrôlait ; et dans une chaîne Python non brute, `\'`
+produit `'`, il faut `\'`. Le générateur **refuse** désormais, vérifié sur un cas positif.
+
+⚠️ *Une règle écrite dans l'en-tête d'un fichier généré ne protège personne : c'est le générateur qui
+doit refuser.*
+
+### 🔧 Les trois questions à reprendre pour les 35 cases restantes
+
+Ce ne sont pas « est-ce que l'écran marche ? » — celle-là n'a rien trouvé :
+
+1. **Que reçoit un lecteur d'écran ?** L'arbre **fusionné** fait foi, pas l'arbre non fusionné où les
+   défauts d'étiquetage sont invisibles. Le balayage mécanique est
+   `AccueilTest.aucun_element_actionnable_de_l_accueil_n_est_sans_nom`, à recopier par écran.
+2. **Quels états ne sait-on pas atteindre à la main ?** Bannière de brouillons perdus, échec de
+   chargement, état vide de recherche. Les composables sans état les rendent accessibles en une ligne.
+3. **Combien de tests ont été ignorés ?** Jamais depuis le « OK (N tests) ».

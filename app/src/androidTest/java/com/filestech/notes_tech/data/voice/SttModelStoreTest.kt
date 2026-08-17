@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.voice
 
 import android.content.Context
+import android.content.ContextWrapper
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -40,11 +41,40 @@ import java.security.MessageDigest
  * ⚠️ Les modèles utilisés ici sont **fabriqués pour le test** : quelques kilo-octets, avec leur vraie
  * empreinte calculée à la volée. Utiliser une entrée du catalogue supposerait d'avoir ses 57 Mo sur
  * l'appareil de test.
+ *
+ * ## 🔴🔴 Ces tests travaillent dans un `filesDir` DÉTOURNÉ, et c'est une réparation
+ *
+ * Jusqu'au 2026-08-17, `@Before` et `@After` faisaient
+ * `SttModelStore.repertoireDesModeles(context).deleteRecursively()` sur le **vrai** répertoire de
+ * l'application. Deux tests exigent en outre que ce répertoire soit **vide** — c'est ce qui rendait
+ * la purge indispensable à leur passage.
+ *
+ * Conséquence mesurée : lancer la suite instrumentée **détruisait le modèle de 57 Mo** que
+ * l'utilisateur avait importé à la main, et `TranscriptionSurAppareilTest` — qui tourne après, par
+ * ordre alphabétique — se trouvait **silencieusement ignoré** par son `assumeTrue`. La suite
+ * affichait « OK (144 tests) » alors que le seul test qui prouve que la dictée transcrit n'avait pas
+ * tourné, et que le fichier de l'utilisateur était perdu.
+ *
+ * ⚠️ Ce n'est **pas** le piège de `connectedAndroidTest` (AGP qui désinstalle) : la précaution prise
+ * contre celui-là — lancer par `adb shell am instrument` — ne protégeait de rien ici, puisque la
+ * destruction venait d'un test. Cf. `04-PIEGES.md` §72.
+ *
+ * Le détournement porte sur `getFilesDir()` **seul** : `cacheDir` reste le vrai, parce qu'un des
+ * tests passe par le `FileProvider` de l'application, qui n'expose que `cache/exports/`.
  */
 @RunWith(AndroidJUnit4::class)
 class SttModelStoreTest {
 
-    private val context: Context = ApplicationProvider.getApplicationContext()
+    private val contexteReel: Context = ApplicationProvider.getApplicationContext()
+
+    /**
+     * Un contexte dont `filesDir` pointe vers le cache, pour que le magasin n'aille jamais écrire —
+     * ni **effacer** — dans la zone privée réelle.
+     */
+    private val context: Context = object : ContextWrapper(contexteReel) {
+        override fun getFilesDir(): File = File(contexteReel.cacheDir, "faux-files").apply { mkdirs() }
+    }
+
     private lateinit var magasin: SttModelStore
     private lateinit var bacASable: File
 
@@ -54,7 +84,7 @@ class SttModelStoreTest {
     @Before
     fun preparer() {
         magasin = SttModelStore(context)
-        bacASable = File(context.cacheDir, "import-test").apply { mkdirs() }
+        bacASable = File(contexteReel.cacheDir, "import-test").apply { mkdirs() }
         SttModelStore.repertoireDesModeles(context).deleteRecursively()
     }
 
@@ -64,6 +94,22 @@ class SttModelStoreTest {
         exposes.clear()
         bacASable.deleteRecursively()
         SttModelStore.repertoireDesModeles(context).deleteRecursively()
+        // Le faux `filesDir` lui-même : sans ça, le prochain test hériterait de son contenu.
+        context.filesDir.deleteRecursively()
+    }
+
+    /**
+     * 🔴 **Le témoin de l'isolement.** Sans lui, le détournement de `filesDir` serait une intention :
+     * une faute de frappe qui le ferait retomber sur le vrai répertoire rendrait tous les autres
+     * tests verts, et détruirait de nouveau le modèle de l'utilisateur en silence.
+     */
+    @Test
+    fun le_magasin_de_test_n_ecrit_jamais_dans_le_repertoire_reel_de_l_application() {
+        val reel = SttModelStore.repertoireDesModeles(contexteReel)
+        val detourne = SttModelStore.repertoireDesModeles(context)
+
+        assertThat(detourne.absolutePath).isNotEqualTo(reel.absolutePath)
+        assertThat(detourne.absolutePath).startsWith(contexteReel.cacheDir.absolutePath)
     }
 
     @Test

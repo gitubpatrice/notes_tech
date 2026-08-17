@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.voice
 
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.domain.voice.SttEngineUnavailableException
@@ -42,7 +43,20 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class WhisperSttTest {
 
-    private val context: Context = ApplicationProvider.getApplicationContext()
+    private val contexteReel: Context = ApplicationProvider.getApplicationContext()
+
+    /**
+     * 🔴🔴 **`filesDir` détourné, pour la même raison que dans `SttModelStoreTest`.**
+     *
+     * Ces tests purgent le répertoire des modèles avant et après chacun d'eux. Sur le vrai
+     * `filesDir`, cela **détruit le modèle de 57 Mo** importé à la main par l'utilisateur, et fait
+     * ignorer en silence `TranscriptionSurAppareilTest`. Mesuré le 2026-08-17 ;
+     * cf. `04-PIEGES.md` §72.
+     */
+    private val context: Context = object : ContextWrapper(contexteReel) {
+        override fun getFilesDir(): File = File(contexteReel.cacheDir, "faux-files-stt").apply { mkdirs() }
+    }
+
     private lateinit var magasin: SttModelStore
     private lateinit var moteur: WhisperStt
 
@@ -51,6 +65,16 @@ class WhisperSttTest {
         magasin = SttModelStore(context)
         moteur = WhisperStt(magasin)
         SttModelStore.repertoireDesModeles(context).deleteRecursively()
+    }
+
+    /** Le témoin de l'isolement — voir son jumeau dans `SttModelStoreTest`. */
+    @Test
+    fun le_magasin_de_test_n_ecrit_jamais_dans_le_repertoire_reel_de_l_application() {
+        val reel = SttModelStore.repertoireDesModeles(contexteReel)
+        val detourne = SttModelStore.repertoireDesModeles(context)
+
+        assertThat(detourne.absolutePath).isNotEqualTo(reel.absolutePath)
+        assertThat(detourne.absolutePath).startsWith(contexteReel.cacheDir.absolutePath)
     }
 
     /**
@@ -64,6 +88,7 @@ class WhisperSttTest {
     fun nettoyer() {
         runBlocking { moteur.dispose() }
         SttModelStore.repertoireDesModeles(context).deleteRecursively()
+        context.filesDir.deleteRecursively()
     }
 
     /**
