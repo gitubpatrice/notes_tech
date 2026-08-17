@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -59,6 +60,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -81,12 +83,17 @@ import kotlinx.coroutines.launch
 import kotlin.system.exitProcess
 
 /**
- * Les réglages.
+ * Les réglages, branchés : trois ViewModels, le changement de langue, et le recouvrement de panique.
  *
- * ⚠️ **Le délai d'auto-verrouillage n'est pas un confort.** Il décide combien de temps la clé d'un
- * coffre reste en mémoire après la dernière interaction. `0` veut dire « jamais », et c'est un
- * choix légitime que l'écran doit proposer sans le décourager — le verrouillage au passage en
- * arrière-plan reste actif dans tous les cas.
+ * Séparés de [SettingsScreen], qui reste **sans état** — quatrième écran à ce découpage. ⚠️ Ici il ne
+ * sert pas seulement à atteindre des états rares : il rend testable **la confirmation du mode
+ * panique** et l'affichage de sa progression, c'est-à-dire le seul geste de l'application qui
+ * détruise irrémédiablement les notes de l'utilisateur. Un test qui l'exercerait à travers le vrai
+ * `PanicViewModel` effacerait la base de l'appareil de test — et le modèle vocal avec.
+ *
+ * ⚠️ **Ce qui reste ici, et pourquoi ça ne peut pas descendre dans l'écran** : l'annonce du
+ * changement de langue et la recréation de l'activité (elles demandent `LocalActivity` et
+ * `LocalView`), et le recouvrement de panique, qui appelle `exitProcess`.
  */
 @Composable
 fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup: () -> Unit) {
@@ -102,11 +109,6 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
     val vue = LocalView.current
     val ressourcesDeLEcran = LocalResources.current
 
-    var choixDeTheme by remember { mutableStateOf(false) }
-    var choixDeLangue by remember { mutableStateOf(false) }
-    var choixDeDelai by remember { mutableStateOf(false) }
-    var choixDeTri by remember { mutableStateOf(false) }
-
     val snackbars = remember { SnackbarHostState() }
 
     // ⚠️ Le modèle de panique est obtenu ICI, et non dans la ligne qui le déclenche : son
@@ -114,8 +116,90 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
     val panique: PanicViewModel = hiltViewModel()
     val etatDePanique by panique.state.collectAsStateWithLifecycle()
 
-    Scaffold(
+    SettingsScreen(
+        state = state,
+        paniqueEnCours = etatDePanique.running,
+        onBack = onBack,
+        onTheme = viewModel::setTheme,
+        onLocale = { choisie ->
+            if (choisie != state.locale) {
+                // ⚠️ **Annoncer AVANT de recréer l'activité.** `settings_language_changed_*`
+                // existaient et n'étaient lues nulle part. Les poser après `recreate()` serait
+                // inutile : la vue qui les prononcerait est déjà détruite. La référence annonce
+                // au même moment (`settings_screen.dart:246-268`).
+                val annonce = when (choisie) {
+                    LocalePreference.FRENCH -> R.string.settings_language_changed_fr
+                    LocalePreference.ENGLISH -> R.string.settings_language_changed_en
+                    LocalePreference.SYSTEM -> null
+                }
+                // `announceForAccessibility` est déprécié et reste le seul moyen d'annoncer un
+                // changement qui n'a **aucun texte à l'écran** pour le porter : la langue vient
+                // de changer, et l'activité va être recréée. Un `liveRegion` de Compose demande
+                // un composable qui change de valeur et survit à l'annonce — il n'y en a pas ici.
+                @Suppress("DEPRECATION")
+                annonce?.let { vue.announceForAccessibility(ressourcesDeLEcran.getString(it)) }
+                viewModel.setLocale(choisie)
+                // 🔴 **La langue s'applique dans `attachBaseContext`, qui ne s'exécute qu'à la
+                // création de l'activité.** Sans cette recréation, l'utilisateur choisit
+                // « English », revient, et tout reste en français jusqu'au prochain démarrage.
+                // Le réglage était bien écrit : c'est son EFFET qui manquait.
+                //
+                // Même motif que le délai d'auto-verrouillage plus tôt dans la phase — un réglage
+                // écrit et jamais relu donne l'affichage du choix, pas le choix. Relevé par une
+                // relecture externe (GPT-5.2, 2026-08-14).
+                activite?.recreate()
+            }
+        },
+        onSort = viewModel::setSort,
+        onSecureWindow = viewModel::setSecureWindow,
+        onAutoLock = viewModel::setVaultAutoLockMinutes,
+        onPanic = panique::trigger,
+        onOpenAbout = onOpenAbout,
+        onOpenVoiceSetup = onOpenVoiceSetup,
         snackbarHost = { SnackbarHost(snackbars) },
+        ligneDExport = { LigneDExport(snackbars) },
+    )
+
+    RecouvrementDePanique(etatDePanique)
+}
+
+/**
+ * Les réglages.
+ *
+ * ⚠️ **Le délai d'auto-verrouillage n'est pas un confort.** Il décide combien de temps la clé d'un
+ * coffre reste en mémoire après la dernière interaction. `0` veut dire « jamais », et c'est un
+ * choix légitime que l'écran doit proposer sans le décourager — le verrouillage au passage en
+ * arrière-plan reste actif dans tous les cas.
+ *
+ * ⚠️ [ligneDExport] est un **emplacement** et non un contenu : la ligne d'export porte son propre
+ * ViewModel et un partage de fichier, deux choses qui n'ont pas à entrer dans un composable sans
+ * état. L'ordre des sections, lui, reste ici — c'est ce qui se compare à l'écran publié.
+ */
+@Composable
+fun SettingsScreen(
+    state: SettingsUiState,
+    paniqueEnCours: Boolean,
+    onBack: () -> Unit,
+    onTheme: (ThemePreference) -> Unit,
+    onLocale: (LocalePreference) -> Unit,
+    onSort: (NoteSortMode) -> Unit,
+    onSecureWindow: (Boolean) -> Unit,
+    onAutoLock: (Int) -> Unit,
+    onPanic: () -> Unit,
+    onOpenAbout: () -> Unit,
+    onOpenVoiceSetup: () -> Unit,
+    modifier: Modifier = Modifier,
+    snackbarHost: @Composable () -> Unit = {},
+    ligneDExport: @Composable () -> Unit = {},
+) {
+    var choixDeTheme by remember { mutableStateOf(false) }
+    var choixDeLangue by remember { mutableStateOf(false) }
+    var choixDeDelai by remember { mutableStateOf(false) }
+    var choixDeTri by remember { mutableStateOf(false) }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        snackbarHost = snackbarHost,
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -185,14 +269,36 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             TitreDeSection(stringResource(R.string.settings_section_security))
             CarteFilesTech {
                 Column {
+                    // 🔴🔴 **L'interrupteur n'avait AUCUN nom accessible**, et le balayage l'a trouvé.
+                    //
+                    // Un `Switch` posé en `trailingContent` d'un `ListItem` est un nœud **séparé** du
+                    // texte de la ligne : il porte l'action et l'état, le `ListItem` porte le libellé,
+                    // et rien ne les relie. Mesuré sur le S9 le 2026-08-17 — un actionnable de 156×96
+                    // px sans description ni texte, c'est-à-dire annoncé « interrupteur, activé » sans
+                    // dire de quoi.
+                    //
+                    // L'application publiée n'a pas ce défaut : elle emploie un `SwitchListTile`
+                    // (`settings_screen.dart:92`), qui rend **un seul** nœud portant le libellé, l'état
+                    // et le rôle. C'était donc une régression du portage. Cf. `04-PIEGES.md` §77.
+                    //
+                    // ⚠️ `toggleable` sur la LIGNE et `onCheckedChange = null` sur l'interrupteur —
+                    // exactement l'idiome que ce fichier applique déjà à ses boutons radio quelques
+                    // centaines de lignes plus bas. Laisser les deux actifs ferait **deux** cibles pour
+                    // un seul réglage, dont l'une plus petite que le minimum accessible, et deux arrêts
+                    // de focus pour une seule information.
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.settings_secure_window)) },
                         supportingContent = { Text(stringResource(R.string.settings_secure_window_subtitle)) },
                         leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
                         trailingContent = {
-                            Switch(checked = state.secureWindow, onCheckedChange = viewModel::setSecureWindow)
+                            Switch(checked = state.secureWindow, onCheckedChange = null)
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.toggleable(
+                            value = state.secureWindow,
+                            role = Role.Switch,
+                            onValueChange = onSecureWindow,
+                        ),
                     )
                     HorizontalDivider()
                     ListItem(
@@ -222,7 +328,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             // publiée (`settings_screen.dart:121`). Inventer un titre demanderait une clé i18n
             // nouvelle, donc une modification de l'ARB gelé de `notes_tech` — cf. docs/05-PARITE.md.
             TitreDeSection(stringResource(R.string.settings_export_all))
-            CarteFilesTech { LigneDExport(snackbars) }
+            CarteFilesTech { ligneDExport() }
 
             TitreDeSection(stringResource(R.string.settings_panic))
             // 🔴 **La seule carte cerclée de rouge de l'écran**, comme dans la référence
@@ -230,7 +336,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             // séparateurs : rien ne distinguait visuellement la destruction irréversible de
             // l'export ou du choix de thème.
             CarteFilesTech(bordure = MaterialTheme.colorScheme.error.copy(alpha = 0.3f)) {
-                LigneDePanique(enCours = etatDePanique.running, onDeclencher = panique::trigger)
+                LigneDePanique(enCours = paniqueEnCours, onDeclencher = onPanic)
             }
 
             // ⚠️ **Pas de ligne « mentions légales » ici.** Elle n'existe que dans « à propos » côté
@@ -269,8 +375,6 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
         }
     }
 
-    RecouvrementDePanique(etatDePanique)
-
     if (choixDeTheme) {
         DialogueDeChoix(
             titre = stringResource(R.string.settings_theme),
@@ -280,7 +384,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             onDismiss = { choixDeTheme = false },
             onSelect = {
                 choixDeTheme = false
-                viewModel.setTheme(it)
+                onTheme(it)
             },
         )
     }
@@ -291,35 +395,12 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             actif = state.locale,
             libelle = { stringResource(libelleDeLangue(it)) },
             onDismiss = { choixDeLangue = false },
+            // ⚠️ Le choix est remonté **tel quel**, y compris s'il est identique à la langue
+            // courante : c'est la `Route` qui décide de ne rien faire dans ce cas, parce que c'est
+            // elle qui recrée l'activité et qui a donc besoin de savoir si quelque chose a changé.
             onSelect = { choisie ->
                 choixDeLangue = false
-                if (choisie != state.locale) {
-                    // ⚠️ **Annoncer AVANT de recréer l'activité.** `settings_language_changed_*`
-                    // existaient et n'étaient lues nulle part. Les poser après `recreate()` serait
-                    // inutile : la vue qui les prononcerait est déjà détruite. La référence annonce
-                    // au même moment (`settings_screen.dart:246-268`).
-                    val annonce = when (choisie) {
-                        LocalePreference.FRENCH -> R.string.settings_language_changed_fr
-                        LocalePreference.ENGLISH -> R.string.settings_language_changed_en
-                        LocalePreference.SYSTEM -> null
-                    }
-                    // `announceForAccessibility` est déprécié et reste le seul moyen d'annoncer un
-                    // changement qui n'a **aucun texte à l'écran** pour le porter : la langue vient
-                    // de changer, et l'activité va être recréée. Un `liveRegion` de Compose demande
-                    // un composable qui change de valeur et survit à l'annonce — il n'y en a pas ici.
-                    @Suppress("DEPRECATION")
-                    annonce?.let { vue.announceForAccessibility(ressourcesDeLEcran.getString(it)) }
-                    viewModel.setLocale(choisie)
-                    // 🔴 **La langue s'applique dans `attachBaseContext`, qui ne s'exécute qu'à la
-                    // création de l'activité.** Sans cette recréation, l'utilisateur choisit
-                    // « English », revient, et tout reste en français jusqu'au prochain démarrage.
-                    // Le réglage était bien écrit : c'est son EFFET qui manquait.
-                    //
-                    // Même motif que le délai d'auto-verrouillage plus tôt dans la phase — un réglage
-                    // écrit et jamais relu donne l'affichage du choix, pas le choix. Relevé par une
-                    // relecture externe (GPT-5.2, 2026-08-14).
-                    activite?.recreate()
-                }
+                onLocale(choisie)
             },
         )
     }
@@ -338,7 +419,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             onDismiss = { choixDeDelai = false },
             onSelect = {
                 choixDeDelai = false
-                viewModel.setVaultAutoLockMinutes(it)
+                onAutoLock(it)
             },
         )
     }
@@ -351,7 +432,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             onDismiss = { choixDeTri = false },
             onSelect = {
                 choixDeTri = false
-                viewModel.setSort(it)
+                onSort(it)
             },
         )
     }

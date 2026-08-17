@@ -37,6 +37,22 @@
 > écran.* La leçon n'est pas « la recherche était cassée » mais : **un défaut nommé se cherche ensuite
 > partout où son motif existe**, et ça coûte quelques minutes contre une ligne de parité entière.
 >
+> ## 🔴 La QUATRIÈME ligne — les réglages, et un interrupteur muet — 2026-08-17
+>
+> `settings_screen.dart`, le plus gros des écrans. Le balayage d'accessibilité a rendu **un** rectangle
+> de 156 × 96 px : l'interrupteur de fenêtre protégée, `Switch` posé en `trailingContent` d'un
+> `ListItem`, donc un nœud **séparé** de celui qui porte le texte — annoncé « interrupteur, activé »
+> sans dire de quoi. Le publié emploie un `SwitchListTile`, qui n'a pas ce défaut. §77. **29 restantes.**
+>
+> ⚠️⚠️ **Le correctif était déjà écrit dans le même fichier**, appliqué à ses boutons radio, commentaire
+> compris. *Un idiome correct appliqué à un composant et pas à son voisin est plus difficile à voir
+> qu'une absence d'idiome* — le fichier avait l'air cohérent.
+>
+> ⚠️ **Quatre de mes six premiers échecs ne visaient pas le code** : `clickable(enabled = false)`
+> **conserve** son action `OnClick` (donc `assertIsNotEnabled`, jamais `assertDoesNotExist`),
+> `LocalSecureWindow` a levé son garde-fou volontaire, et `home_sort_mode` sert deux fois sur cet écran.
+> Sur un écran de réglages, **un libellé réutilisé est la règle**.
+>
 > ⚠️⚠️ **Le deuxième défaut a été trouvé par le TÉMOIN du premier, pas par le premier.** Le test
 > « cette carte n'est pas actionnable » se réduit à une assertion négative, donc vacante par
 > construction ; son témoin pose la même carte avec un vrai clic et exige l'inverse. Le témoin a
@@ -79,7 +95,7 @@
 | `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
 | `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` + `SearchRoute` | ✅ | `RechercheTest` (**9** cas, S9) + `RechercheEtatTest` (**7** cas JVM), 2026-08-17 : recherche en cours, accueil, échec périmé, résultats précédents maintenus, note scellée muette, ouverture, effacement, et **aucun actionnable sans nom**. 🔴 A trouvé **un** défaut — §76 |
 | `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` + `TrashRoute` | ✅ | `CorbeilleTest` (**12** cas, S9, 2026-08-17) : chargement, corbeille vide, liste, note de coffre restée scellée, les deux confirmations destructrices **et leur annulation**, la durée de rétention réelle, et **aucun actionnable sans nom**. 🔴 A trouvé **trois** défauts — §74 (deux) et §75 |
-| `settings_screen.dart` | 802 | `ui/settings/SettingsScreen.kt` | ☐ | Thème, tri, fenêtre sécurisée, langue, auto-verrouillage |
+| `settings_screen.dart` | 802 | `ui/settings/SettingsScreen.kt` + `SettingsRoute` | ✅ | `ReglagesTest` (**13** cas, S9, 2026-08-17) : balayage d'accessibilité dans deux états, ordre langue/thème mesuré aux coordonnées, valeur courante de chaque choix, « jamais » ≠ « 0 minute », interrupteur, dialogues de thème et de tri, **le mot-clé du mode panique**, ligne désactivée pendant l'effacement, les trois sorties, et l'absence des mentions légales. 🔴 A trouvé **un** défaut — §77 |
 | `about_screen.dart` | 622 | `ui/about/AboutScreen.kt` | ☐ | Version lue dynamiquement via `PackageInfo` |
 | `mentions_legales_screen.dart` | 131 | `ui/about/LegalScreen.kt` | ☐ | Rend `PRIVACY.{fr,en}.md` / `TERMS.{fr,en}.md` |
 | `voice_setup_screen.dart` | 465 | `ui/voice/VoiceSetupScreen.kt` | ☐ | Phase 7 |
@@ -87,9 +103,13 @@
 
 ⚠️ `HomeScreen.kt` est **sans état** et `HomeRoute.kt` porte toute la colle. Le découpage n'a pas
 d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'est vérifier les deux.
-`TrashScreen.kt` / `TrashRoute` suit le même partage depuis le 2026-08-17. **Les quatre écrans
-restants qui portent leur `hiltViewModel()` en propre — recherche, réglages, à propos, mentions
-légales — demanderont le même découpage avant d'être mesurables.**
+`TrashScreen.kt`, `SearchScreen.kt` et `SettingsScreen.kt` suivent le même partage depuis le
+2026-08-17. **Les écrans restants qui portent leur `hiltViewModel()` en propre — éditeur, à propos,
+mentions légales, installation de la dictée — demanderont le même découpage avant d'être mesurables.**
+
+🔴 **Sur les réglages, ce découpage ne sert pas seulement à atteindre des états rares : il rend
+mesurable la seule protection du mode panique**, le mot à recopier. À travers le vrai `PanicViewModel`,
+ce test effacerait la base du S9 **et le modèle vocal de 57 Mo** — cf. `04-PIEGES.md` §77.
 
 ### 🔴 Balayage du motif §75 sur TOUS les `stateIn` — fait le 2026-08-17, un défaut de plus localisé
 

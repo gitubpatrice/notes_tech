@@ -1878,3 +1878,84 @@ le ViewModel entier n'est pas exerçable hors appareil, cette fonction l'est.
 ⚠️ **La valeur initiale de `stateIn` passe par la même fonction**, avec `Issue()`. Deux chemins vers le
 même état demanderaient deux fois la même vérification — et c'est précisément par la valeur initiale
 que §75 était entré.
+
+## §77 — 🔴🔴 L'interrupteur de fenêtre protégée n'avait AUCUN nom accessible
+
+Quatrième ligne d'écran, et le balayage de `ui/BalayageDAccessibilite.kt` a rendu **un** rectangle :
+
+```
+expected to be empty
+but was: [Rect.fromLTRB(828.0, 1407.0, 984.0, 1503.0)]
+```
+
+156 × 96 px, soit exactement un `Switch` de 52 × 32 dp à 3× — identifié par l'arithmétique, pas par
+l'œil. Un `Switch` posé en `trailingContent` d'un `ListItem` est un nœud **séparé** de celui qui porte
+le texte : il détient l'action et l'état, la ligne détient le libellé, et **rien ne les relie**. Un
+lecteur d'écran annonçait donc « interrupteur, activé » sans dire de quoi.
+
+L'application publiée n'a pas ce défaut : elle emploie un **`SwitchListTile`**
+(`settings_screen.dart:92`), qui rend **un seul** nœud portant le libellé, l'état et le rôle. C'était
+donc une **régression du portage**.
+
+### 🔧 Le correctif était déjà écrit dans le même fichier
+
+`SettingsScreen.kt` applique depuis toujours l'idiome à ses boutons radio, avec le commentaire qui
+l'explique : *« `onClick = null` sur le bouton radio : c'est la ligne entière qui est cliquable, et un
+second point de contact ferait deux cibles pour un seul choix — l'une d'elles plus petite que le
+minimum accessible »*. Il suffisait de l'appliquer à l'interrupteur :
+
+```kotlin
+trailingContent = { Switch(checked = state.secureWindow, onCheckedChange = null) },
+modifier = Modifier.toggleable(
+    value = state.secureWindow,
+    role = Role.Switch,
+    onValueChange = onSecureWindow,
+),
+```
+
+⚠️ *Un idiome correct appliqué à un composant et pas à son voisin est plus difficile à voir qu'une
+absence d'idiome* : le fichier avait l'air cohérent, et le commentaire du bon cas donnait l'impression
+que la question était réglée partout.
+
+Trois assertions le figent, chacune tombant seule si le correctif est défait : **un seul** nœud
+basculable, ce nœud **porte le libellé** de la ligne, et son état suit l'état — le clic remontant
+l'inverse.
+
+### ⚠️⚠️ `clickable(enabled = false)` CONSERVE son action dans l'arbre de sémantique
+
+Mesuré le même jour, sur un test à moi qui a échoué. La ligne du mode panique porte
+`Modifier.clickable(enabled = !enCours)`, et j'avais écrit « pendant une panique, ce nœud n'a plus
+d'action `OnClick` ». Faux : l'action **reste**, et Compose pose la propriété `Disabled` à côté.
+
+C'est cohérent — un nœud désactivé doit rester annoncé, avec sa nature et son indisponibilité — mais
+ça se mesure par **`assertIsNotEnabled`**, jamais par `assertDoesNotExist`.
+
+🔧 **Conséquence pour le balayage** : il **voit** les actionnables désactivés, et c'est ce qu'on veut.
+Un bouton grisé sans nom reste un bouton sans nom.
+
+### ⚠️ Et deux autres échecs de mes tests, qui ne visaient pas le code
+
+- **`LocalSecureWindow` n'a aucun défaut, exprès**, et mes deux tests du dialogue de panique ont levé
+  son message : *« Aucun SecureWindowController fourni — cet écran croirait être protégé sans
+  l'être. »* Le garde-fou a fait son travail : un contrôleur muet aurait laissé le test vert sur un
+  écran non protégé. Le test fournit désormais un contrôleur **réel** — sa chaîne de construction ne
+  demande qu'un `Context`, et `SecureWindowGuard` n'appelle que `force()`/`release()`, qui ne touchent
+  qu'un compteur en mémoire.
+  ⚠️ Ce qu'il ne mesure **pas** : que le dialogue pose bien `FLAG_SECURE`. `activeNow()` mêle le
+  compteur au réglage de l'utilisateur, donc le vérifier demanderait d'**écrire dans les préférences
+  réelles** de l'application — ce que la leçon §72 interdit à un test. Dit plutôt que contourné.
+- **`home_sort_mode` sert DEUX fois sur cet écran**, au titre de section et à la ligne de réglage :
+  `onNodeWithText` seul désignait deux nœuds. Même famille que le dialogue de vidange de §74 —
+  *sur un écran de réglages, un libellé réutilisé est la règle, pas l'exception.*
+
+### 🔧 Ce que le mode panique doit au découpage sans état
+
+`SettingsScreen` ne reçoit qu'un booléen et un rappel. La confirmation du mode panique, son annulation,
+le refus de confirmer sans le mot-clé et la désactivation de la ligne pendant l'effacement se mesurent
+donc **sans rien détruire**. À travers le vrai `PanicViewModel`, ce test effacerait la base du S9 **et
+le modèle vocal de 57 Mo** — le sinistre de §72, mais volontaire. C'est le seul moyen de mesurer la
+seule protection du geste le plus destructeur de l'application : le mot à recopier.
+
+⚠️ Le mot est saisi **en minuscules** dans le test, exprès : la comparaison ignore la casse, et c'est
+un choix écrit (« quelqu'un sous stress tape sans majuscule »). Le vérifier en majuscules laisserait ce
+choix non mesuré.

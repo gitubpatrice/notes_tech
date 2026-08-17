@@ -9,7 +9,7 @@
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
 - Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **183 tests JVM**,
-  **174 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+  **187 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - 🔴 **Cette ligne était FAUSSE le 08-16**, et pas de peu : elle annonçait « 0 ignoré » alors que
   `TranscriptionSurAppareilTest` — le seul test qui prouve que la dictée transcrit — était **ignoré à
   chaque exécution de la suite**, parce que celle-ci **détruisait le modèle de 57 Mo** importé à la
@@ -491,3 +491,46 @@ initiale que §75 était entré, et deux chemins vers le même état demanderaie
 
 ⚠️ *Un balayage de motif rend des candidats, pas des défauts.* Corriger les quatre au motif que le
 motif existe aurait fait modifier du code correct — dont un repli délibéré, commenté comme tel.
+
+## 🔴 2026-08-17, ligne 4 : les RÉGLAGES — un interrupteur muet, et quatre défauts dans mes tests
+
+Une case de plus, **29 restantes**. 183 JVM + **187 instrumentés**, 0 échec, 0 ignoré, modèle intact.
+
+**Le balayage d'accessibilité a rendu un rectangle de 156 × 96 px** — soit exactement un `Switch` de
+52 × 32 dp à 3×, identifié par l'arithmétique. Un `Switch` posé en `trailingContent` d'un `ListItem`
+est un nœud **séparé** de celui qui porte le texte : il détient l'action et l'état, la ligne détient le
+libellé, rien ne les relie. Annoncé « interrupteur, activé », sans dire de quoi. Le publié emploie un
+`SwitchListTile`, qui rend un seul nœud ⇒ **régression du portage**. §77.
+
+⚠️⚠️ **Le correctif était déjà écrit dans le même fichier**, appliqué à ses boutons radio, avec le
+commentaire qui l'explique. *Un idiome correct appliqué à un composant et pas à son voisin est plus
+difficile à voir qu'une absence d'idiome* — le fichier avait l'air cohérent.
+
+### ⚠️ Quatre de mes six premiers échecs ne visaient pas le code — à retenir
+
+1. 🔧 **`clickable(enabled = false)` CONSERVE son action `OnClick`** et pose `Disabled` à côté. Se
+   mesure par **`assertIsNotEnabled`**, jamais par `assertDoesNotExist`. ⇒ Le balayage **voit** les
+   actionnables désactivés, et c'est voulu : un bouton grisé sans nom reste un bouton sans nom.
+2. **`LocalSecureWindow` n'a aucun défaut, exprès**, et il a levé son message sur mes deux tests du
+   dialogue de panique. Le garde-fou a fait son travail — un contrôleur muet aurait laissé le test vert
+   sur un écran non protégé. Le test fournit un contrôleur **réel** (sa chaîne ne demande qu'un
+   `Context`, et `SecureWindowGuard` ne touche qu'un compteur en mémoire).
+   ⚠️ Non mesuré, et dit plutôt que contourné : que le dialogue pose bien `FLAG_SECURE`. `activeNow()`
+   mêle le compteur au réglage utilisateur ⇒ le vérifier demanderait d'écrire dans les préférences
+   réelles, ce que §72 interdit à un test.
+3. **`home_sort_mode` sert DEUX fois sur cet écran** (titre de section + ligne) ⇒ `onNodeWithText` seul
+   désignait deux nœuds. *Sur un écran de réglages, un libellé réutilisé est la règle.*
+
+### 🔴 Ce que le mode panique doit au découpage sans état
+
+`SettingsScreen` ne reçoit qu'un booléen et un rappel, donc la confirmation, son annulation, **le refus
+de confirmer sans le mot-clé** et la désactivation de la ligne pendant l'effacement se mesurent **sans
+rien détruire**. À travers le vrai `PanicViewModel`, ce test effacerait la base du S9 **et le modèle
+vocal de 57 Mo** — le sinistre de §72, mais volontaire.
+
+⚠️ Le mot est saisi **en minuscules** exprès : la comparaison ignore la casse, et c'est un choix écrit
+(« quelqu'un sous stress tape sans majuscule »). Le vérifier en majuscules laisserait ce choix non
+mesuré.
+
+⚠️ Restent dans la `Route`, et ne descendront pas : l'annonce du changement de langue avec la recréation
+de l'activité (`LocalActivity`, `LocalView`) et le recouvrement de panique, qui appelle `exitProcess`.
