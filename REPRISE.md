@@ -9,7 +9,7 @@
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
 - Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **183 tests JVM**,
-  **187 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+  **192 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - 🔴 **Cette ligne était FAUSSE le 08-16**, et pas de peu : elle annonçait « 0 ignoré » alors que
   `TranscriptionSurAppareilTest` — le seul test qui prouve que la dictée transcrit — était **ignoré à
   chaque exécution de la suite**, parce que celle-ci **détruisait le modèle de 57 Mo** importé à la
