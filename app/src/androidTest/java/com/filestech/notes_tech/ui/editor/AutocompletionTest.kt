@@ -143,6 +143,34 @@ class AutocompletionTest {
     }
 
     /**
+     * ⚠️⚠️ **Deux appuis sur « Entrée » pendant l'attente ne font qu'UNE action.**
+     *
+     * C'est la règle §65 du dépôt — un événement qui **agit** doit avoir lieu une fois et pas deux — et
+     * c'est le geste que fait quelqu'un d'impatient devant une feuille qui ne réagit pas tout de suite.
+     * Le drapeau de retenue est un booléen, donc le poser deux fois ne le pose qu'une ; et il est remis
+     * à zéro **avant** que l'action ne parte, sans quoi la recomposition qui suit la rejouerait.
+     *
+     * ⚠️ Une assertion de **compte**, et pas seulement de contenu : `containsExactly` sur une liste de
+     * deux éléments identiques échouerait, là où un `contains` passerait.
+     */
+    @Test
+    fun deux_validations_pendant_l_attente_ne_font_qu_une_seule_action() {
+        poser()
+        champ().performTextInput("Alpha")
+        regle.waitForIdle()
+
+        champ().performImeAction()
+        champ().performImeAction()
+        regle.waitForIdle()
+        assertThat(titresChoisis).isEmpty()
+
+        poser(SuggestionsDeLien(pour = "Alpha", titres = listOf(note("Alpha"))))
+
+        assertThat(titresChoisis).containsExactly("Alpha")
+        assertThat(creations).isEmpty()
+    }
+
+    /**
      * ⚠️⚠️ **Une validation retenue est ANNULÉE par la frappe suivante.**
      *
      * Elle portait sur un autre titre que celui qui est à l'écran. Sans cette annulation, taper

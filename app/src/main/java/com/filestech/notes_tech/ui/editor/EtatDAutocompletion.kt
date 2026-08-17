@@ -99,6 +99,25 @@ internal sealed interface DecisionDeValidation {
  * ⚠️ Le titre rendu par [DecisionDeValidation.Lier] est celui de la **note trouvée**, pas celui qui a
  * été tapé : l'appariement est insensible à la casse et aux diacritiques, et écrire `[[impots]]` vers
  * une note « Impôts » ferait un lien qui s'affiche autrement qu'elle s'appelle.
+ *
+ * ## ⚠️⚠️ C'est un « au mieux », pas une garantie — et la condition d'échec est chiffrable
+ *
+ * La décision ne consulte que **les suggestions affichées**, c'est-à-dire au plus huit titres.
+ * `NotesRepository.suggestTitles` sur-échantillonne 32 candidats **triés par date de modification**,
+ * les filtre, puis **tronque à huit**. Il suffit donc de **huit notes** dont le titre commence par la
+ * saisie et qui ont été modifiées plus récemment que l'homonyme exact pour que celui-ci ne soit pas
+ * dans la liste — et la validation créera un doublon.
+ *
+ * ⚠️ **Ce n'est pas réparable à ce niveau, et pas davantage un cran plus bas.** Un contrôle d'existence
+ * exact demanderait une requête que la base ne sait pas faire : `LOWER()` de SQLite ignore les
+ * diacritiques, donc `LIKE 'impots%'` ne trouve pas « Impôts ». C'est précisément pourquoi
+ * l'appariement est normalisé **en Kotlin**, après un sur-échantillonnage — le montage est hérité de
+ * l'application publiée.
+ *
+ * ⚠️ **Et l'application publiée est strictement pire** : son `_onSubmit` ne consulte rien et crée
+ * **toujours**. Cette garde reste donc un gain, à condition de ne pas la lire comme une promesse.
+ * Relevé par une relecture externe (GPT-5.2, 2026-08-17), vérifié dans le dépôt, **non corrigé** —
+ * cf. `04-PIEGES.md` §84.
  */
 internal fun decisionDeValidation(etat: EtatDAutocompletion): DecisionDeValidation = when {
     etat.requete.isEmpty() -> DecisionDeValidation.Rien

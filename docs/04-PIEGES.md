@@ -2380,3 +2380,31 @@ dans l'ordre de la suite (23 verts), et la suite **complète** (228 verts).
 `AccueilTest` documente précisément contre ce genre d'intermittence *« quand la suite grandit »*. Le
 noter ici vaut mieux que de le redécouvrir à froid : **une suite de 228 tests instrumentés a désormais
 un intermittent connu**, et c'est le premier.
+
+### ⚠️⚠️ Les deux relectures se sont FRANCHEMENT contredites, et le code a départagé
+
+Second tour (GPT-5.2, Gemini 3.1 Pro) visant en priorité le mécanisme de validation retenue, celui
+dont je doutais. **Gemini n'a rien trouvé sur les quatre axes**, avec une démonstration point par
+point ; **GPT en a rendu six**. Aucun recoupement, pour la troisième fois de la journée.
+
+| Constat | Sort |
+|---|---|
+| 🔴 GPT — la garde anti-doublon ne consulte **que les suggestions affichées** : si l'homonyme exact n'y est pas, on le crée | **CONFIRMÉ, non corrigé, chiffré.** `suggestTitles` sur-échantillonne 32 candidats **triés par date de modification**, filtre, puis **tronque à 8** ⇒ il suffit de **huit** notes au titre commençant pareil et plus récentes. Pas réparable un cran plus bas : `LOWER()` de SQLite ignore les diacritiques, donc aucune requête exacte ne trouve « Impôts » depuis `impots`. **Le publié est strictement pire** — il ne consulte rien. Écart écrit dans le KDoc de `decisionDeValidation` |
+| 🔴 GPT — le contrat `pour == saisie` (brute) n'est **défendu par rien** : un ViewModel qui élaguerait laisserait la feuille en attente **indéfiniment** | **VÉRIFIÉ, tenu aujourd'hui** — `chercherUnTitre` et `transformLatest` passent la saisie brute de bout en bout. Fragilité réelle mais latente, écrite |
+| GPT — le drapeau ne mémorise pas **quelle** saisie a été validée | **ÉCARTÉ.** GPT le dit lui-même non déclenchable en l'état, et l'invariant « toute frappe annule » n'est pas une convention : il est **figé par un test**, `une_frappe_annule_une_validation_retenue`. Un refactor qui contournerait `onValueChange` le ferait tomber |
+| GPT — les tests instrumentés **injectent** la réponse, donc le contrat du ViewModel n'est pas couvert | **PARTIELLEMENT VRAI, scénario FAUX.** Le trou existe. Mais l'exemple donné — « supprimer l'émission sur saisie vide ⇒ indicateur sur un champ vierge » — **ne se produit pas** : `enAttente` exige `requete.isNotEmpty()` |
+| GPT — l'exception « poignée » ancrée sur un `Rect` ne distinguerait pas un second nœud muet aux mêmes coordonnées | **ÉCARTÉ.** `actionnablesSansNom` rend une **liste** de rectangles et `containsExactly` compte les doublons : deux nœuds muets superposés donnent `[r, r]`, l'assertion tombe |
+| 🔴🔴 GPT — déclenchement double / zéro / sur un titre remplacé | **RIEN**, et Gemini le démontre indépendamment. Un test de plus a été ajouté pour le figer : **deux appuis sur « Entrée » ne font qu'une action** |
+
+### 🔴🔴 Le plus instructif : un commentaire faux a fabriqué sa propre confirmation
+
+En vérifiant le quatrième constat, je suis tombé sur **un commentaire que je venais d'écrire et qui
+était faux** : *« sans cette émission, la feuille resterait en attente sur un champ vierge »*. Non —
+`enAttente` exige `requete.isNotEmpty()`, donc une saisie vide n'attend jamais, et **mon propre test
+JVM le prouvait déjà**.
+
+⚠️⚠️ **Gemini a repris cette affirmation telle quelle** dans son rapport, comme argument de son
+« aucun défaut trouvé ». *Un relecteur lit aussi les commentaires : un commentaire faux ne trompe pas
+seulement le prochain lecteur, il fabrique la confirmation qu'on venait chercher.* C'est une raison de
+plus de ne jamais écrire dans un commentaire un mécanisme qu'on n'a pas mesuré — et c'est le second
+commentaire menteur trouvé dans ce dépôt, après celui du §-coffre auto-détruit.

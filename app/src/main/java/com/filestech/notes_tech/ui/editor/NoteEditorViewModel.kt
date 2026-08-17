@@ -302,9 +302,21 @@ class NoteEditorViewModel @Inject constructor(
             // [SuggestionsDeLien] et `04-PIEGES.md` §84.
             emit(SuggestionsDeLien(pour = null))
             if (texte.isBlank()) {
-                // ⚠️ Une saisie vide reçoit sa réponse **tout de suite** : elle est vraie, et elle
-                // n'a rien coûté. Sans cette émission, la feuille resterait « en attente » sur un
-                // champ vierge, ce qui n'attend rien.
+                // ⚠️⚠️ **Un commentaire qui mentait, corrigé le jour même où il a été écrit.**
+                //
+                // Il affirmait : « sans cette émission, la feuille resterait en attente sur un champ
+                // vierge ». **C'est faux**, et la fonction pure le dit — `enAttente` exige
+                // `requete.isNotEmpty()`, donc une saisie vide n'attend **jamais**, quelle que soit la
+                // valeur de `pour`. Le test JVM `ouverture_de_la_feuille` fige exactement ce cas.
+                //
+                // Ce que cette émission fait réellement : elle évite une **exception** dans le contrat
+                // du flux — toute requête reçoit sa réponse, y compris la requête vide. Aucune
+                // différence à l'écran, et c'est pour ça qu'il fallait cesser de lui en prêter une.
+                //
+                // ⚠️ Une relecture externe (Gemini, 2026-08-17) a **repris l'affirmation fausse telle
+                // quelle** dans son rapport, pour conclure que le code tenait. *Un relecteur lit aussi
+                // les commentaires : un commentaire faux ne trompe pas seulement le prochain lecteur,
+                // il fabrique la confirmation qu'on venait chercher.*
                 emit(SuggestionsDeLien(pour = texte))
                 return@transformLatest
             }
