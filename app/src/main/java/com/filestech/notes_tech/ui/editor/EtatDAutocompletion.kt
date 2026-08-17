@@ -2,6 +2,10 @@ package com.filestech.notes_tech.ui.editor
 
 import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.model.Note
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.transformLatest
 
 /**
  * Les titres proposés pour un `[[…]]`, **et la saisie à laquelle ils répondent**.
@@ -31,6 +35,53 @@ import com.filestech.notes_tech.domain.model.Note
  * à laquelle on répond immédiatement et sans chercher.
  */
 data class SuggestionsDeLien(val pour: String? = null, val titres: List<Note> = emptyList())
+
+/**
+ * Le flux des suggestions : à chaque saisie, une réponse **qui porte sa question**.
+ *
+ * ## 🔴🔴 Extrait du ViewModel pour être MESURABLE, et pas pour être joli
+ *
+ * Deux fragilités avaient été relevées et écrites après le premier tour de relecture, faute de
+ * pouvoir les mesurer — `NoteEditorViewModel` demande une base, un coffre et Hilt, donc il n'est pas
+ * exerçable hors appareil :
+ *
+ * 1. **le contrat `pour == saisie` porte sur la saisie BRUTE**, et rien ne le défendait. Un jour où
+ *    quelqu'un élaguerait la requête avant de la réémettre, `repondALaSaisie` serait faux **pour
+ *    toujours** : la feuille attendrait indéfiniment, et une validation retenue ne partirait jamais ;
+ * 2. **l'ordre d'émission n'était couvert par aucun test** — les tests d'écran injectent la réponse,
+ *    donc ils court-circuitent précisément ce qu'on veut vérifier.
+ *
+ * Sorti d'ici, tout cela se mesure sur la JVM en temps virtuel : `FluxDeSuggestionsTest`. *Une
+ * fragilité qu'on sait seulement écrire est une fragilité qu'on ne saura pas voir revenir.*
+ *
+ * ## L'ordre des émissions, et ce que chacune sert
+ *
+ * 1. `pour = null` **tout de suite**, avant toute attente : la liste précédente disparaît de façon
+ *    synchrone avec la frappe. Sans elle, l'utilisateur pourrait toucher une proposition calculée
+ *    pour la requête d'avant, et insérer un lien vers une autre note que celle cherchée.
+ * 2. une saisie **vide** reçoit sa réponse immédiatement, sans chercher. Aucune différence à l'écran —
+ *    une requête vide n'est jamais « en attente » — mais le contrat du flux n'a alors **aucune
+ *    exception** : toute requête finit par recevoir sa réponse.
+ * 3. sinon, le freinage, puis la réponse **portant la saisie telle qu'elle a été reçue**.
+ *
+ * ⚠️ `transformLatest` et non `debounce` : c'est lui qui **annule** le travail en cours quand une
+ * nouvelle saisie arrive, et qui permet à la première émission de partir avant l'attente.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun Flow<String>.fluxDeSuggestions(
+    freinageMillis: Long,
+    chercher: suspend (String) -> List<Note>,
+): Flow<SuggestionsDeLien> = transformLatest { texte ->
+    emit(SuggestionsDeLien(pour = null))
+    if (texte.isBlank()) {
+        emit(SuggestionsDeLien(pour = texte))
+        return@transformLatest
+    }
+    delay(freinageMillis)
+    // ⚠️ `pour = texte` — **la saisie reçue, jamais une version retravaillée**. C'est le contrat que
+    // `repondALaSaisie` compare, et le test JVM le fige sur une saisie à espace final.
+    emit(SuggestionsDeLien(pour = texte, titres = chercher(texte)))
+}
 
 /**
  * Ce que la feuille d'autocomplétion doit montrer, dérivé d'une saisie et de la réponse en main.

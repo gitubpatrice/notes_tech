@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **202 tests JVM**,
-  **228 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **206 tests JVM**,
+  **229 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -742,3 +742,17 @@ feuilles restantes. Exception nommée **dans le test**, jamais dans l'instrument
 `le_bouton_de_vidange_reste_cache_pendant_le_chargement_meme_avec_des_notes` en échec
 (« is not displayed »), non reproduit seul, en paire, ni en suite complète. Test non touché par ce lot.
 Écrit pour ne pas être redécouvert à froid.
+
+### ✅ Les deux fragilités de la relecture sont MESURÉES, pas mieux documentées — §85
+
+Elles étaient vraies et non corrigées, pour la même raison écrite deux fois : le ViewModel n'est pas
+exerçable hors appareil, et les tests d'écran **injectent** la réponse.
+
+`fluxDeSuggestions` est donc **sorti du ViewModel** — extension sur `Flow<String>` — et quatre cas JVM
+en **temps virtuel** figent le contrat : la réponse porte la saisie **brute** (espace final compris),
+`pour = null` part **avant** le freinage, une saisie vide répond sans chercher, et une frappe pendant
+le freinage annule la recherche en cours.
+
+✅ **Contrôle positif** : `pour = texte.trim()` posé dans le vrai code fait bien tomber le test du
+contrat. Restauration vérifiée au SHA-256. ⚠️⚠️ *Une fragilité qu'on sait seulement écrire est une
+fragilité qu'on ne saura pas voir revenir — un commentaire ne tombe pas quand le code change.*

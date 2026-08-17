@@ -38,7 +38,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -277,51 +276,18 @@ class NoteEditorViewModel @Inject constructor(
      */
     // ⚠️ Pas de `distinctUntilChanged` : un `StateFlow` ne réémet déjà pas une valeur égale, et
     // l'opérateur y est déprécié pour cette raison même.
-    @OptIn(ExperimentalCoroutinesApi::class)
+    //
+    // 🔴🔴 **L'ordre des émissions et le contrat `pour` vivent dans [fluxDeSuggestions]**, à part et
+    // testés sur la JVM en temps virtuel (`FluxDeSuggestionsTest`). Ils étaient ici, et deux
+    // fragilités relevées par une relecture externe (GPT-5.2, 2026-08-17) n'étaient **écrites que
+    // dans un commentaire** faute d'être mesurables : ce ViewModel demande une base, un coffre et
+    // Hilt, donc rien de tout cela n'était exerçable hors appareil, et les tests d'écran injectent la
+    // réponse — ils court-circuitent précisément ce qu'il fallait vérifier.
+    //
+    // ⚠️ Ce qui reste ici est le seul câblage : la source des saisies, la recherche, et la portée.
     val suggestionsDeLien: StateFlow<SuggestionsDeLien> = requeteDeLien
-        .transformLatest { texte ->
-            // 🔴🔴 **Vider AVANT d'attendre, et c'est tout l'objet de `transformLatest`.**
-            //
-            // La version précédente posait `debounce` en tête : pendant les 120 ms qui suivaient une
-            // frappe, le porteur gardait **la liste calculée pour la requête d'avant**. L'utilisateur
-            // tapait « Alpha », voyait ses suggestions, remplaçait par « Beta » — et pouvait toucher
-            // une proposition « Alpha » encore affichée sous un champ qui disait « Beta ». Le lien
-            // inséré désignait alors une autre note que celle cherchée, sans un mot.
-            //
-            // Le même défaut vidait de travers : `reinitialiserLaRecherche()` posait bien la chaîne
-            // vide, mais elle passait par le freinage elle aussi — rouvrir la feuille assez vite
-            // montrait donc les résultats de la fois d'avant, sous un champ vierge.
-            //
-            // Ici la liste part à vide **à chaque nouvelle requête**, de façon synchrone avec la
-            // frappe, et ne se remplit qu'après le calme. Un affichage vide est honnête ; un
-            // affichage périmé ne l'est pas. Relevé par la relecture externe du 2026-08-15.
-            //
-            // 🔴🔴 **`pour = null`, et c'est ce qui manquait.** Vider était juste et ne suffisait pas :
-            // rien ne distinguait « je n'ai pas encore cherché » de « il n'y a rien », si bien que la
-            // feuille proposait de **créer** une note avant d'avoir regardé si elle existe. Cf.
-            // [SuggestionsDeLien] et `04-PIEGES.md` §84.
-            emit(SuggestionsDeLien(pour = null))
-            if (texte.isBlank()) {
-                // ⚠️⚠️ **Un commentaire qui mentait, corrigé le jour même où il a été écrit.**
-                //
-                // Il affirmait : « sans cette émission, la feuille resterait en attente sur un champ
-                // vierge ». **C'est faux**, et la fonction pure le dit — `enAttente` exige
-                // `requete.isNotEmpty()`, donc une saisie vide n'attend **jamais**, quelle que soit la
-                // valeur de `pour`. Le test JVM `ouverture_de_la_feuille` fige exactement ce cas.
-                //
-                // Ce que cette émission fait réellement : elle évite une **exception** dans le contrat
-                // du flux — toute requête reçoit sa réponse, y compris la requête vide. Aucune
-                // différence à l'écran, et c'est pour ça qu'il fallait cesser de lui en prêter une.
-                //
-                // ⚠️ Une relecture externe (Gemini, 2026-08-17) a **repris l'affirmation fausse telle
-                // quelle** dans son rapport, pour conclure que le code tenait. *Un relecteur lit aussi
-                // les commentaires : un commentaire faux ne trompe pas seulement le prochain lecteur,
-                // il fabrique la confirmation qu'on venait chercher.*
-                emit(SuggestionsDeLien(pour = texte))
-                return@transformLatest
-            }
-            delay(FREINAGE_SUGGESTIONS_MILLIS)
-            emit(SuggestionsDeLien(pour = texte, titres = notes.suggestTitles(texte, excludeId = noteId)))
+        .fluxDeSuggestions(FREINAGE_SUGGESTIONS_MILLIS) { texte ->
+            notes.suggestTitles(texte, excludeId = noteId)
         }
         .stateIn(
             scope = viewModelScope,

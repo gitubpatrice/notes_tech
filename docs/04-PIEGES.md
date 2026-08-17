@@ -2408,3 +2408,51 @@ JVM le prouvait déjà**.
 seulement le prochain lecteur, il fabrique la confirmation qu'on venait chercher.* C'est une raison de
 plus de ne jamais écrire dans un commentaire un mécanisme qu'on n'a pas mesuré — et c'est le second
 commentaire menteur trouvé dans ce dépôt, après celui du §-coffre auto-détruit.
+
+## §85 — ✅ Les deux fragilités « écrites faute d'être mesurables » sont désormais mesurées
+
+Le second tour de relecture avait laissé deux constats **vrais et non corrigés**, et la raison écrite
+était la même dans les deux cas : *le ViewModel n'est pas exerçable hors appareil, et les tests
+d'écran injectent la réponse*.
+
+1. **le contrat `pour == saisie` porte sur la saisie BRUTE**, et rien ne le défendait. Le jour où
+   quelqu'un élaguerait la requête avant de la réémettre, `repondALaSaisie` serait faux **pour
+   toujours** : feuille en attente indéfinie, validation retenue qui ne part jamais ;
+2. **l'ordre d'émission n'était couvert par aucun test.**
+
+⚠️⚠️ *Une fragilité qu'on sait seulement écrire est une fragilité qu'on ne saura pas voir revenir.*
+Un commentaire ne tombe pas quand le code change — c'est la leçon du commentaire menteur du §84, sous
+une autre forme : là un commentaire affirmait un mécanisme faux, ici deux commentaires **corrects**
+gardaient à eux seuls un contrat que personne ne vérifiait.
+
+### La correction : rendre le contrat mesurable, pas le documenter mieux
+
+`fluxDeSuggestions` est **sorti du ViewModel** — extension sur `Flow<String>`, paramétrée par le
+freinage et par une lambda de recherche. Le ViewModel n'en garde que le câblage. Quatre cas JVM en
+**temps virtuel** (`FluxDeSuggestionsTest`) :
+
+| Cas | Ce qu'il fige |
+|---|---|
+| réponse à une saisie **`"Alpha "`** | `pour` vaut `"Alpha "`, espace compris — **et** `etatDAutocompletion` n'attend plus |
+| `pour = null` | part à `currentTime == 0`, **avant** le freinage ; la réponse à `120` |
+| saisie **vide** | répond à `currentTime == 0` et **n'appelle jamais** la recherche |
+| frappe pendant le freinage | la recherche n'est appelée **qu'avec la dernière saisie** |
+
+⚠️ Le premier test vérifie les **deux moitiés** du contrat ensemble — ce que le flux émet, et ce que
+la fonction d'état en fait. Séparées, chacune peut dériver sans que l'autre le voie.
+
+⚠️ Le quatrième asserte la **liste** des appels et non leur **nombre** : « une seule recherche » et
+« la recherche de la dernière saisie » sont deux exigences, et un compte ne distingue pas la seconde.
+
+### ✅ Contrôle positif : le test tombe bien sur la faute qu'il vise
+
+Quatre tests verts du premier coup, donc suspects. Le contrat a été cassé **dans le vrai code**, de la
+façon exacte que la relecture redoutait — `pour = texte.trim()` — et la mesure a rendu :
+
+```
+FluxDeSuggestionsTest > la reponse porte la saisie BRUTE, espace final compris FAILED
+```
+
+Fichier restauré par l'inverse exact de l'édition, **vérifié au SHA-256** contre l'empreinte relevée
+avant. Troisième contrôle positif de la journée après §80 et §78 — *un filet qui passe ne prouve rien
+tant qu'on ne l'a pas vu attraper.*
