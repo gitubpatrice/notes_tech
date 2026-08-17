@@ -26,7 +26,16 @@
 >
 > `trash_screen.dart` a rendu : une carte de corbeille **cliquable pour rien**, une carte de note qui
 > **n'annonçait pas du tout** qu'on peut l'ouvrir (§74), et une corbeille qui annonçait « vide »
-> avant d'avoir lu la base (§75). Quatre cases cochées, **31 restantes**.
+> avant d'avoir lu la base (§75). Quatre cases cochées.
+>
+> ## ✅ La TROISIÈME ligne a été rapide, parce que son défaut était déjà trouvé — 2026-08-17
+>
+> `search_screen.dart` : le balayage du motif §75 sur les quatre `stateIn` avait **déjà localisé** sa
+> régression avant qu'on ouvre la ligne. Une case de plus, **30 restantes**.
+>
+> ⚠️ *C'est le premier défaut du portage trouvé par un balayage de motif plutôt que par l'examen d'un
+> écran.* La leçon n'est pas « la recherche était cassée » mais : **un défaut nommé se cherche ensuite
+> partout où son motif existe**, et ça coûte quelques minutes contre une ligne de parité entière.
 >
 > ⚠️⚠️ **Le deuxième défaut a été trouvé par le TÉMOIN du premier, pas par le premier.** Le test
 > « cette carte n'est pas actionnable » se réduit à une assertion négative, donc vacante par
@@ -68,7 +77,7 @@
 | `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
 | `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ✅ | `AccueilTest` (**13** cas, S9, 2026-08-17) : bannière `vault_lost_drafts` présente **et** absente, quatre états exclusifs du corps, tri, recherche, ouverture de note, sorties de la barre, et **aucun actionnable sans nom**. 🔴 A trouvé **deux** défauts — §71 et §73 |
 | `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
-| `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` | ☐ | FTS5, anti-rebond 200 ms. 🔴 **Défaut §75 déjà localisé, non corrigé** — voir ci-dessous |
+| `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` + `SearchRoute` | ✅ | `RechercheTest` (**9** cas, S9) + `RechercheEtatTest` (**7** cas JVM), 2026-08-17 : recherche en cours, accueil, échec périmé, résultats précédents maintenus, note scellée muette, ouverture, effacement, et **aucun actionnable sans nom**. 🔴 A trouvé **un** défaut — §76 |
 | `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` + `TrashRoute` | ✅ | `CorbeilleTest` (**12** cas, S9, 2026-08-17) : chargement, corbeille vide, liste, note de coffre restée scellée, les deux confirmations destructrices **et leur annulation**, la durée de rétention réelle, et **aucun actionnable sans nom**. 🔴 A trouvé **trois** défauts — §74 (deux) et §75 |
 | `settings_screen.dart` | 802 | `ui/settings/SettingsScreen.kt` | ☐ | Thème, tri, fenêtre sécurisée, langue, auto-verrouillage |
 | `about_screen.dart` | 622 | `ui/about/AboutScreen.kt` | ☐ | Version lue dynamiquement via `PackageInfo` |
@@ -91,21 +100,19 @@ La valeur initiale d'un `stateIn` n'est pas une donnée, c'est une **absence** d
 |---|---|
 | `SettingsUiState` | ✅ **rien à faire** — sa valeur initiale est **lue** (`settings.themeNow()` et consorts), pas supposée, et son commentaire dit déjà pourquoi |
 | `TrashUiState` | ✅ corrigé, cf. §75 |
-| `SearchUiState` | 🔴 **CONFIRMÉ, non corrigé** — voir ci-dessous |
+| `SearchUiState` | ✅ **corrigé le 2026-08-17**, cf. §76 — c'est ce balayage qui l'a trouvé |
 | `FoldersUiState` | ⚠️ à regarder avec la ligne `folders_drawer.dart` : `folders = emptyList()` rend `inbox` **nul** avant la première réponse |
 
-🔴 **La recherche affiche « Aucun résultat. Essayez un autre mot-clé » PENDANT la recherche.** Son
-`when` va de `query.isBlank()` à `failed` puis directement à `results.isEmpty()` : il n'a aucune
-branche pour « la requête est posée, la réponse n'est pas là ». Avec l'anti-rebond de 200 ms, le
-message paraît à chaque salve de frappe — et il **accuse la saisie de l'utilisateur** pour une
-réponse qui n'est simplement pas encore arrivée.
+✅ **Ce balayage a payé le jour même** : la recherche affichait « Aucun résultat. Essayez un autre
+mot-clé » **pendant** la recherche. Son `when` allait de `query.isBlank()` à `failed` puis directement
+à `results.isEmpty()`, sans branche pour « la requête est posée, la réponse n'est pas là ». Le message
+**accusait la saisie de l'utilisateur** pour une réponse qui n'était pas encore arrivée, alors que le
+publié rend un indicateur (`search_screen.dart:109`) : régression du portage, corrigée. Détail en
+`04-PIEGES.md` §76.
 
-L'application publiée ne fait pas cette faute : `search_screen.dart:109` rend un
-`CircularProgressIndicator` tant que `snap.connectionState == ConnectionState.waiting`. C'est donc
-une **régression du portage**, pas un écart hérité.
-
-⚠️ Corrigé **avec la ligne `search_screen.dart`**, pas avant : le correctif demande le même découpage
-sans état que la corbeille, et le faire à part le laisserait sans test.
+⚠️ **Le mécanisme est réutilisable** : faire porter à la réponse **la question à laquelle elle
+répond** (`Issue.pour`), et comparer. C'est le seul moyen fiable de distinguer « aucun résultat » de
+« pas encore de réponse » quand un `combine` mêle deux flux de rythmes différents.
 
 ## Composants (16)
 

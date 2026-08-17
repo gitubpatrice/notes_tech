@@ -1805,3 +1805,76 @@ Non corrigé, et c'est un choix écrit : l'application **publiée** n'a pas dava
 écran, la phase 8 juge la **parité**, et l'exposition n'est pas comparable — la recherche exécute du
 FTS sur une saisie utilisateur, la corbeille lit un flux Room sans argument. À reprendre si la 3.0.0
 gagne un filet d'erreur général.
+
+## §76 — 🔴🔴 La recherche annonçait « Aucun résultat » PENDANT la recherche
+
+Troisième ligne de parité, et le défaut était **déjà localisé** par le balayage du motif §75 sur les
+quatre `stateIn` du portage — pas par l'usage de l'écran.
+
+`SearchViewModel.state` est un `combine` de trois flux dont **deux ont des rythmes différents** : la
+saisie, qui émet à chaque frappe, et les résultats, qui passent par un freinage de 250 ms **puis** par
+une requête FTS. Entre les deux, l'état portait la **nouvelle** requête et l'**ancienne** issue.
+
+Pour une première recherche, l'ancienne issue est vide. Le `when` de l'écran allait de
+`query.isBlank()` à `failed` puis directement à `results.isEmpty()` : il n'avait aucune branche pour
+« la requête est posée, la réponse n'est pas là ». L'écran affichait donc **« Aucun résultat. Essayez
+un autre mot-clé »** — un message qui **accuse la saisie de l'utilisateur** pour une réponse qui
+n'était pas encore arrivée.
+
+L'application publiée ne fait pas cette faute : `search_screen.dart:109` rend un
+`CircularProgressIndicator` tant que `snap.connectionState == ConnectionState.waiting`. C'était donc
+une **régression du portage**, pas un écart hérité.
+
+### 🔧 Le mécanisme : faire porter la question à la réponse
+
+Il n'existe aucun moyen fiable de deviner si la réponse en main est celle de la question posée. Elle
+doit donc la porter :
+
+```kotlin
+internal data class Issue(
+    val pour: String? = null,          // la saisie a laquelle cette issue repond
+    val resultats: List<Note> = emptyList(),
+    val echec: Boolean = false,
+)
+
+val repondALaSaisie = issue.pour == texte
+searching = texte.isNotBlank() && !repondALaSaisie
+failed    = issue.echec && repondALaSaisie
+```
+
+⚠️ **`pour` est nullable, et pas vide par défaut.** `null` signifie « aucune réponse, pour aucune
+requête » — l'état d'ouverture de l'écran, et celui d'après une rotation. Une chaîne vide serait
+**égale** à une saisie vide, donc lue comme une réponse.
+
+⚠️ **`failed` n'est retenu que si l'issue répond à la saisie courante.** L'échec d'une requête
+abandonnée ne dit rien de la suivante, et l'afficher sous elle accuserait une panne passée d'un
+problème présent. C'est ce qui rend `failed` et `searching` **exclusifs par construction** — l'écran
+s'appuie sur cette exclusivité pour ordonner ses branches.
+
+### ⚠️⚠️ La condition d'affichage a une seconde moitié, et elle n'est pas décorative
+
+```kotlin
+state.searching && state.results.isEmpty() -> indicateur
+```
+
+Sans `&& results.isEmpty()`, **chaque frappe** remplacerait la liste par un indicateur pendant 250 ms :
+un clignotement à chaque lettre, là où le publié laisse les résultats de la requête précédente en place
+le temps du freinage (il ne remplace son `_future` qu'à l'expiration du `Debouncer`). L'indicateur ne
+paraît donc que lorsqu'il n'y a **rien** à montrer.
+
+🔴 *Le correctif évident — « toujours l'indicateur dès que `searching` » — est plus simple à écrire et
+introduit une régression d'usage à chaque frappe.* Un test le fige.
+
+### 🔴 Et la leçon de la veille appliquée : deux niveaux de test, pas un
+
+`RechercheTest` pose `searching` **à la main**. Il prouve donc ce que l'écran fait d'un état, et
+**jamais que quelque chose produit cet état** — la forme exacte du test vacant relevé la veille.
+
+D'où l'extraction de la transformation en fonction pure, `etatDeRecherche(texte, issue, noms)`, testée
+sur la JVM (`RechercheEtatTest`, 7 cas dont un balayage d'exclusivité sur 24 combinaisons).
+`SearchRepository` et `FoldersRepository` sont des classes concrètes bâties sur un `DatabaseProvider` :
+le ViewModel entier n'est pas exerçable hors appareil, cette fonction l'est.
+
+⚠️ **La valeur initiale de `stateIn` passe par la même fonction**, avec `Issue()`. Deux chemins vers le
+même état demanderaient deux fois la même vérification — et c'est précisément par la valeur initiale
+que §75 était entré.

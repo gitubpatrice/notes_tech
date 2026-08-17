@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **176 tests JVM**,
-  **165 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **183 tests JVM**,
+  **174 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - 🔴 **Cette ligne était FAUSSE le 08-16**, et pas de peu : elle annonçait « 0 ignoré » alors que
   `TranscriptionSurAppareilTest` — le seul test qui prouve que la dictée transcrit — était **ignoré à
   chaque exécution de la suite**, parce que celle-ci **détruisait le modèle de 57 Mo** importé à la
@@ -438,3 +438,50 @@ qui n'est pas encore arrivée. Le publié rend un indicateur (`search_screen.dar
 
 Le corriger demande le même découpage sans état que la corbeille — d'où le fait de le laisser à sa
 propre ligne plutôt que de le traiter à part sans test.
+
+## ✅ 2026-08-17, ligne 3 : la RECHERCHE — le premier défaut trouvé par balayage de motif
+
+Une case de plus, **30 restantes**. 183 tests JVM + 174 instrumentés, 0 échec, 0 ignoré, modèle
+intact.
+
+**Le défaut était déjà localisé avant d'ouvrir la ligne**, par le balayage du motif §75 sur les quatre
+`stateIn` du portage : la recherche affichait « Aucun résultat. Essayez un autre mot-clé » **pendant**
+la recherche. Le `combine` mêle deux flux de rythmes différents — la saisie émet à chaque frappe, les
+résultats passent par un freinage de 250 ms puis par une requête — donc l'état portait la **nouvelle**
+requête et l'**ancienne** issue. Le message accusait la saisie de l'utilisateur. Le publié rend un
+indicateur (`search_screen.dart:109`) : régression du portage.
+
+⚠️ *Premier défaut du portage trouvé par un motif plutôt que par l'examen d'un écran.* La leçon
+réutilisable : **un défaut nommé se cherche ensuite partout où son motif existe.**
+
+### 🔧 Le mécanisme, réutilisable tel quel
+
+Faire porter à la réponse **la question à laquelle elle répond** :
+`Issue(pour: String?, resultats, echec)`, puis `repondALaSaisie = issue.pour == texte`.
+
+- ⚠️ `pour` est **nullable**, pas vide par défaut : `null` veut dire « aucune réponse pour aucune
+  requête », alors qu'une chaîne vide serait **égale** à une saisie vide, donc lue comme une réponse.
+- ⚠️ `failed` n'est retenu que si l'issue répond à la saisie courante — l'échec d'une requête
+  abandonnée n'accuse pas la suivante. `failed` et `searching` sont donc **exclusifs par construction**,
+  et l'écran s'appuie sur cette exclusivité pour ordonner ses branches.
+- ⚠️⚠️ La condition d'affichage est `searching && results.isEmpty()`, **et la seconde moitié compte** :
+  sans elle, chaque frappe remplacerait la liste par un indicateur pendant 250 ms. Le correctif évident
+  est plus simple à écrire et introduit un clignotement à chaque lettre. Un test le fige.
+
+### 🔴 Deux niveaux de test, parce qu'un seul aurait été vacant
+
+`RechercheTest` pose `searching` **à la main** : il prouve ce que l'écran fait d'un état, jamais que
+quelque chose produit cet état. D'où l'extraction de la transformation en **fonction pure**
+`etatDeRecherche(texte, issue, noms)`, testée sur la JVM (`RechercheEtatTest`, 7 cas dont un balayage
+d'exclusivité sur 24 combinaisons). `SearchRepository` et `FoldersRepository` sont des classes
+concrètes bâties sur un `DatabaseProvider` — le ViewModel entier n'est pas exerçable hors appareil,
+cette fonction l'est.
+
+⚠️ **La valeur initiale de `stateIn` passe par la même fonction**, avec `Issue()` : c'est par la valeur
+initiale que §75 était entré, et deux chemins vers le même état demanderaient deux vérifications.
+
+### 🔧 Ce qui reste du balayage `stateIn`
+
+`FoldersUiState` est le dernier non tranché : `folders = emptyList()` rend `inbox` **nul** avant la
+première réponse. À regarder avec la ligne `folders_drawer.dart` — sa question n'est pas « affiche-t-il
+vide ? » mais **« que fait le tiroir d'une boîte de réception absente ? »**.
