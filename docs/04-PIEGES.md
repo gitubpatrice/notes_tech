@@ -2219,3 +2219,56 @@ attendait.**
 🔧 Le motif a été balayé sur tout le dépôt dans la foulée — `grep -rln "^import org.junit.Test$"
 app/src/test/` : **aucun autre fichier**, et 20 classes de test pour 20 rapports XML. Un défaut nommé
 se cherche partout où son motif existe.
+
+## §83 — ✅ Le troisième balayage rétro-appliqué aux quatre écrans déjà cochés : rien de neuf, et c'est le résultat
+
+`champsDeSaisieSansNom` est né au cinquième écran (§80). Les quatre premiers avaient donc été cochés
+par **deux instruments aveugles à ce motif** — l'un excluant délibérément les nœuds portant un
+`EditableText`, l'autre ne regardant que les actionnables. Les rouvrir n'était pas une précaution :
+c'était la seule façon de savoir si leur case « Vérifié » disait la vérité.
+
+**Verdict : elle la disait.** L'éditeur était le seul cas.
+
+| Écran | Zones de saisie | Ce qui a été mesuré |
+|---|---|---|
+| Accueil | **1** — la recherche | balayage vert, requête **remplie** |
+| Recherche | **1** — la requête | balayage vert, requête **remplie** |
+| Réglages | **0** dans l'écran, **1** dans le dialogue de panique | balayage vert, champ **rempli** |
+| Corbeille | **0** | fil-piège : l'écran ne porte **aucun** nœud éditable |
+
+### 🔴 Trois pièges évités en écrivant ces quatre tests, et ils se ressemblent
+
+1. **Un champ VIDE ne discrimine rien.** Son `placeholder` le nomme : le balayage serait vert avec le
+   défaut §80 comme sans. Les trois états posés portent donc du texte saisi.
+2. 🔴🔴 **Un balayage qui n'a rien trouvé À BALAYER est vert lui aussi.** C'est §78 appliqué au
+   troisième instrument : si le dialogue de panique ne s'était pas ouvert, si l'écran de recherche
+   n'avait pas composé son champ, l'assertion serait passée sans rien regarder. Chaque test **compte
+   d'abord ses champs** — `assertThat(onAllNodes(CHAMP_DE_SAISIE)).hasSize(1)` — et le compte attendu
+   est écrit par écran, jamais « au moins un ».
+3. **Sur un écran sans aucun champ, appeler le balayage serait l'assertion creuse elle-même.** La
+   corbeille affirme donc ce qui est vrai et vérifiable — *elle ne porte aucun nœud éditable* — et cette
+   assertion échouera le jour où quelqu'un y ajoutera une recherche. Ce sera l'ordre de brancher le
+   balayage, pas le signe d'un défaut. Même idiome que le fil-piège material3 d'`AccueilTest`.
+
+⚠️ Le test des réglages saisit volontairement un mot **faux** : la mesure est identique et le bouton
+qui efface les notes reste **désactivé** pendant tout le balayage, ce que le test vérifie avant
+d'affirmer quoi que ce soit. *Un test qui arme un geste destructeur pour mesurer autre chose est un
+test qu'on relit avec inquiétude.*
+
+### ⚠️ Ce que le relevé statique disait, et pourquoi il ne suffisait pas
+
+Un `grep` sur `TextField(` montrait que **tous** les autres champs du portage portent déjà un `label` —
+y compris `ChampDePhraseSecrete` des feuilles de coffre, et `PinSheet` qui n'a aucun champ (des points
+de saisie et un pavé). La conclusion était donc connue avant la mesure.
+
+Elle ne dispensait pas de mesurer : un `label` présent dans le source ne dit pas ce que l'arbre
+fusionné porte à l'exécution — c'est très exactement ce que §71 a établi pour
+`ExtendedFloatingActionButton`, dont le libellé est **écrit dans le source** et **absent de l'arbre**.
+*Un relevé statique rend des candidats ; seul l'appareil rend un verdict.*
+
+### 🔧 Ce qui reste hors de portée, et qui le sera jusqu'à sa ligne
+
+Les feuilles de coffre — `VaultSheets.kt`, où l'on saisit une phrase secrète — ne sont mesurées par
+aucun test d'écran : `FermetureDeFeuilleTest` pose une feuille **synthétique** pour étudier son veto de
+fermeture, pas la vraie. C'est l'endroit où un champ sans nom coûterait le plus, et il attend sa ligne
+de parité.

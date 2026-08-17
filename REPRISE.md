@@ -9,7 +9,7 @@
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
 - Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **194 tests JVM**,
-  **215 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+  **219 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -690,3 +690,27 @@ premier tour n'a donc jamais reçu `PlafondDuTitre.kt` — il l'a dit lui-même,
 conclure. Corrigé par un `git add -N` sur les trois fichiers neufs avant le second tour. *Un relecteur
 qui annonce qu'il lui manque un fichier a raison ; c'est le harnais qu'il faut corriger, pas son
 constat.*
+
+### ✅ Le troisième balayage rétro-appliqué aux quatre écrans déjà cochés — rien de neuf, et c'est le résultat
+
+`champsDeSaisieSansNom` est né au cinquième écran : les quatre premiers avaient donc été cochés par
+**deux instruments aveugles à ce motif**. Les rouvrir était la seule façon de savoir si leur case
+« Vérifié » disait la vérité. **Elle la disait** — l'éditeur était le seul cas. 219 instrumentés.
+
+| Écran | Champs | Mesure |
+|---|---|---|
+| Accueil | 1, la recherche | vert, requête **remplie** |
+| Recherche | 1, la requête | vert, requête **remplie** |
+| Réglages | 0 dans l'écran, 1 dans le dialogue de panique | vert, champ **rempli** |
+| Corbeille | **0** | fil-piège : aucun nœud éditable |
+
+🔴🔴 **Chaque test compte d'abord ses champs.** Un balayage qui n'a rien trouvé **à balayer** est vert
+lui aussi — §78 appliqué au troisième instrument. Le sélecteur `CHAMP_DE_SAISIE` est donc exposé à
+côté des balayages, et le compte attendu est écrit **par écran**, jamais « au moins un ».
+
+⚠️ Un champ **vide** ne discrimine rien (son placeholder le nomme) ; sur un écran **sans** champ,
+appeler le balayage serait l'assertion creuse elle-même. Détail en `04-PIEGES.md` §83.
+
+⚠️ Les feuilles de coffre — là où l'on saisit une phrase secrète — ne sont mesurées par **aucun** test
+d'écran : `FermetureDeFeuilleTest` pose une feuille **synthétique**. C'est l'endroit où un champ sans
+nom coûterait le plus, et il attend sa ligne de parité.

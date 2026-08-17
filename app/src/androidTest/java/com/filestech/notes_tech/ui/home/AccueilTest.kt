@@ -20,8 +20,10 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
+import com.filestech.notes_tech.ui.champsDeSaisieSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -192,6 +194,38 @@ class AccueilTest {
         poser(HomeUiState(notes = listOf(note("a", "Une note")), loading = false, vaultLostCount = 1))
 
         assertThat(regle.actionsPerduesALaFusion()).isEmpty()
+    }
+
+    /**
+     * 🔴🔴 **Le TROISIÈME balayage, et cet écran avait été validé sans lui.**
+     *
+     * Les deux précédents sont aveugles aux zones de saisie : `actionnablesSansNom` **exclut**
+     * délibérément les nœuds portant un `EditableText`, `actionsPerduesALaFusion` ne regarde que les
+     * actionnables. L'accueil a donc été coché le 2026-08-17 sans que son champ de recherche ait
+     * jamais été mesuré — *une exclusion raisonnable dans un instrument est un angle mort dans tous
+     * les écrans qu'il a validés.* Cf. `04-PIEGES.md` §80.
+     *
+     * ⚠️ **La requête est REMPLIE, et c'est tout l'objet du test.** Un champ vide affiche son
+     * `placeholder`, qui le nomme ; le défaut §80 n'apparaît qu'une fois du texte saisi, quand le
+     * `placeholder` disparaît de l'écran **et** de l'arbre. Sur `query = ""` cette assertion passerait
+     * avec le défaut comme sans.
+     */
+    @Test
+    fun aucun_champ_de_saisie_de_l_accueil_n_est_sans_nom() {
+        poser(
+            HomeUiState(
+                notes = listOf(note("a", "Une note")),
+                loading = false,
+                query = "impots",
+            ),
+        )
+
+        // ⚠️ **D'abord : y a-t-il quelque chose à balayer ?** Un balayage qui rend une liste vide
+        // parce qu'il n'a rien trouvé est indiscernable d'un balayage qui n'a rien à signaler — §78.
+        // L'accueil porte **un** champ, celui de la recherche.
+        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).hasSize(1)
+
+        assertThat(regle.champsDeSaisieSansNom()).isEmpty()
     }
 
     /** Les textes portés par les nœuds cliquables — sert à relever ce qu'une ouverture de menu ajoute. */

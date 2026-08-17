@@ -31,8 +31,10 @@ import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
+import com.filestech.notes_tech.ui.champsDeSaisieSansNom
 import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
@@ -177,6 +179,42 @@ class ReglagesTest {
         poser(panique = true)
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /**
+     * 🔴🔴 **Le TROISIÈME balayage, sur la seule zone de saisie que ces réglages atteignent.**
+     *
+     * L'écran de réglages n'a **aucun** champ ; son dialogue de mode panique en a un, et c'est le
+     * champ le plus important de l'application — celui où l'on recopie le mot qui détruit les notes.
+     * Un lecteur d'écran doit savoir dire ce qu'on attend qu'on y écrive.
+     *
+     * ⚠️ Les deux balayages précédents ne pouvaient pas le voir : l'un **exclut** délibérément les
+     * nœuds portant un `EditableText`, l'autre ne regarde que les actionnables. Cf. `04-PIEGES.md` §80.
+     *
+     * ⚠️ **Le champ est REMPLI**, sans quoi son `placeholder` le nommerait et l'assertion passerait avec
+     * le défaut comme sans. Et il est rempli d'un mot **faux** exprès : la mesure est la même, et le
+     * bouton qui déclenche l'effacement reste **désactivé** pendant tout le balayage. Un test qui
+     * arme un geste destructeur pour mesurer autre chose est un test qu'on relit avec inquiétude.
+     */
+    @Test
+    fun le_champ_du_mot_cle_de_panique_n_est_pas_sans_nom() {
+        poser()
+
+        regle.onNodeWithText(texte(R.string.settings_panic_subtitle)).performScrollTo().performClick()
+        regle.waitForIdle()
+        regle.onNode(hasSetTextAction() and hasAnyAncestor(isDialog())).performTextInput("pas le bon mot")
+        regle.waitForIdle()
+
+        // La garde qui rend ce test sûr : le geste destructeur est hors d'atteinte pendant la mesure.
+        regle.onNode(hasText(texte(R.string.panic_confirm_yes)) and hasAnyAncestor(isDialog()))
+            .assertIsNotEnabled()
+
+        // ⚠️ **D'abord : y a-t-il quelque chose à balayer ?** — §78. Le dialogue ouvert en apporte
+        // **un**, et l'écran de réglages lui-même n'en porte aucun : si le dialogue ne s'était pas
+        // ouvert, le balayage serait vert sans avoir rien regardé.
+        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).hasSize(1)
+
+        assertThat(regle.champsDeSaisieSansNom()).isEmpty()
     }
 
     /**

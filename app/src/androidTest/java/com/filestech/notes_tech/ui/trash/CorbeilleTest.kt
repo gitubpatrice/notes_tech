@@ -24,6 +24,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.home.NoteCard
@@ -255,6 +256,32 @@ class CorbeilleTest {
         poser(TrashUiState(notes = listOf(note("a", TITRE), note("b", "Une autre")), loading = false))
 
         assertThat(regle.actionsPerduesALaFusion()).isEmpty()
+    }
+
+    /**
+     * ⚠️⚠️ **Fil-piège, et NON un balayage : la corbeille n'a aucune zone de saisie.**
+     *
+     * Le troisième instrument, `champsDeSaisieSansNom`, a été écrit le 2026-08-17 après que les deux
+     * autres se soient révélés aveugles aux champs de texte (§80). Le brancher ici rendrait
+     * évidemment une liste vide — **mais pour la mauvaise raison** : il n'y a rien à balayer. Ce
+     * serait l'exemple même de l'assertion vacante que ce dépôt a déjà relevée deux fois dans la même
+     * journée, vraie quel que soit l'état du code.
+     *
+     * Ce test dit donc la chose qui est vraie et qui se vérifie : **cet écran ne porte aucun nœud
+     * éditable**, ni dans sa liste, ni dans ses deux dialogues de confirmation. Il échouera le jour où
+     * quelqu'un ajoutera un champ — une recherche dans la corbeille, par exemple — et ce sera l'ordre
+     * de brancher le balayage ici, pas le signe d'un défaut.
+     *
+     * ⚠️ L'état posé est celui qui porte le plus : des notes **et** un dialogue destructeur ouvert.
+     * L'affirmer sur un écran vide n'affirmerait rien.
+     */
+    @Test
+    fun la_corbeille_ne_porte_aucune_zone_de_saisie() {
+        poser(TrashUiState(notes = listOf(note("a", TITRE), note("b", "Une autre")), loading = false))
+        regle.onNodeWithContentDescription(texte(R.string.trash_empty_all)).performClick()
+        regle.waitForIdle()
+
+        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).isEmpty()
     }
 
     /**

@@ -121,14 +121,27 @@ internal fun ComposeTestRule.actionsPerduesALaFusion(): List<Rect> =
  * Son témoin est dans [BalayageDAccessibiliteTest], et son troisième cas est le champ **vide**, celui
  * qui a caché le défaut pendant cinq écrans.
  */
-internal fun ComposeTestRule.champsDeSaisieSansNom(): List<Rect> =
-    onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)).fetchSemanticsNodes()
-        .filter { noeud ->
-            val description = noeud.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
-            val texte = noeud.config.getOrNull(SemanticsProperties.Text).orEmpty()
-            description.all { it.isBlank() } && texte.all { it.text.isBlank() }
-        }
-        .map { it.boundsInRoot }
+internal fun ComposeTestRule.champsDeSaisieSansNom(): List<Rect> = onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()
+    .filter { noeud ->
+        val description = noeud.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
+        val texte = noeud.config.getOrNull(SemanticsProperties.Text).orEmpty()
+        description.all { it.isBlank() } && texte.all { it.text.isBlank() }
+    }
+    .map { it.boundsInRoot }
+
+/**
+ * **Un nœud où l'on peut écrire** — la population sur laquelle [champsDeSaisieSansNom] travaille.
+ *
+ * ⚠️⚠️ **Exposé exprès, et tout écran qui appelle le balayage doit s'en servir d'abord.** Un balayage
+ * qui rend une liste vide parce qu'il n'a **rien trouvé à balayer** est indiscernable d'un balayage qui
+ * n'a rien à signaler : c'est la leçon §78, et elle vaut pour ce troisième instrument comme pour les
+ * deux autres. Compter les champs **avant** d'affirmer qu'aucun n'est muet est ce qui sépare une
+ * mesure d'un vert vacant — et le compte attendu se choisit par écran, jamais « au moins un ».
+ *
+ * Il sert aussi de **fil-piège** sur un écran qui n'en porte aucun : y affirmer qu'il n'y a rien à
+ * balayer est vrai et vérifiable, là où appeler le balayage serait une assertion creuse.
+ */
+internal val CHAMP_DE_SAISIE = SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)
 
 /**
  * `true` si l'ancêtre fusionnant de [noeud] porte un nom **sans** porter d'action.

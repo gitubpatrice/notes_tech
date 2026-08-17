@@ -15,8 +15,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
+import com.filestech.notes_tech.ui.champsDeSaisieSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -185,6 +187,28 @@ class RechercheTest {
         )
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /**
+     * 🔴🔴 **Le TROISIÈME balayage, et cet écran avait été validé sans lui.**
+     *
+     * Les deux précédents sont aveugles aux zones de saisie — l'un **exclut** délibérément les nœuds
+     * portant un `EditableText`, l'autre ne regarde que les actionnables. La recherche a donc été
+     * cochée le 2026-08-17 sans que son champ, qui est pourtant **le** geste de cet écran, ait jamais
+     * été mesuré. Cf. `04-PIEGES.md` §80.
+     *
+     * ⚠️ **La requête est REMPLIE** : c'est le seul état qui discrimine, puisqu'un champ vide est nommé
+     * par son `placeholder` — ici son `label`, qui lui survit au remplissage, et c'est justement ce
+     * qu'on vérifie.
+     */
+    @Test
+    fun aucun_champ_de_saisie_de_la_recherche_n_est_sans_nom() {
+        poser(SearchUiState(query = "impots", results = listOf(note("a", TITRE))))
+
+        // ⚠️ **D'abord : y a-t-il quelque chose à balayer ?** — §78. Cet écran porte **un** champ.
+        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).hasSize(1)
+
+        assertThat(regle.champsDeSaisieSansNom()).isEmpty()
     }
 
     /** Le filet de régression de §74 : aucune action perdue au nœud fusionné qui l'annonce. */
