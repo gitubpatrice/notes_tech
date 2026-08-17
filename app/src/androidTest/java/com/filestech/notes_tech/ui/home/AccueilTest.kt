@@ -21,6 +21,7 @@ import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.actionnablesSansNom
+import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -174,6 +175,23 @@ class AccueilTest {
         poser(HomeUiState(notes = listOf(note("a", "Une note")), loading = false, vaultLostCount = 1))
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /**
+     * 🔴 **Le balayage du motif INVERSE : aucune action perdue à la fusion.**
+     *
+     * C'est le filet de régression de §74 — la carte de note portait son nom sur un nœud et son clic
+     * sur un autre, donc s'annonçait comme du **texte**. Le balayage précédent ne pouvait pas le voir :
+     * il cherche une action **sans nom**, celui-ci était un nom **sans action**.
+     *
+     * ⚠️ Bâti sur l'arbre **non fusionné**, seul endroit où l'action reste visible avant d'être perdue.
+     * Cf. `ui/BalayageDAccessibilite.kt` et son témoin.
+     */
+    @Test
+    fun aucune_action_de_l_accueil_n_est_perdue_a_la_fusion() {
+        poser(HomeUiState(notes = listOf(note("a", "Une note")), loading = false, vaultLostCount = 1))
+
+        assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 
     /** Les textes portés par les nœuds cliquables — sert à relever ce qu'une ouverture de menu ajoute. */

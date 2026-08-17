@@ -28,31 +28,6 @@
 > **n'annonçait pas du tout** qu'on peut l'ouvrir (§74), et une corbeille qui annonçait « vide »
 > avant d'avoir lu la base (§75). Quatre cases cochées.
 >
-> ## ✅ La TROISIÈME ligne a été rapide, parce que son défaut était déjà trouvé — 2026-08-17
->
-> `search_screen.dart` : le balayage du motif §75 sur les quatre `stateIn` avait **déjà localisé** sa
-> régression avant qu'on ouvre la ligne. Une case de plus, **30 restantes**.
->
-> ⚠️ *C'est le premier défaut du portage trouvé par un balayage de motif plutôt que par l'examen d'un
-> écran.* La leçon n'est pas « la recherche était cassée » mais : **un défaut nommé se cherche ensuite
-> partout où son motif existe**, et ça coûte quelques minutes contre une ligne de parité entière.
->
-> ## 🔴 La QUATRIÈME ligne — les réglages, et un interrupteur muet — 2026-08-17
->
-> `settings_screen.dart`, le plus gros des écrans. Le balayage d'accessibilité a rendu **un** rectangle
-> de 156 × 96 px : l'interrupteur de fenêtre protégée, `Switch` posé en `trailingContent` d'un
-> `ListItem`, donc un nœud **séparé** de celui qui porte le texte — annoncé « interrupteur, activé »
-> sans dire de quoi. Le publié emploie un `SwitchListTile`, qui n'a pas ce défaut. §77. **29 restantes.**
->
-> ⚠️⚠️ **Le correctif était déjà écrit dans le même fichier**, appliqué à ses boutons radio, commentaire
-> compris. *Un idiome correct appliqué à un composant et pas à son voisin est plus difficile à voir
-> qu'une absence d'idiome* — le fichier avait l'air cohérent.
->
-> ⚠️ **Quatre de mes six premiers échecs ne visaient pas le code** : `clickable(enabled = false)`
-> **conserve** son action `OnClick` (donc `assertIsNotEnabled`, jamais `assertDoesNotExist`),
-> `LocalSecureWindow` a levé son garde-fou volontaire, et `home_sort_mode` sert deux fois sur cet écran.
-> Sur un écran de réglages, **un libellé réutilisé est la règle**.
->
 > ⚠️⚠️ **Le deuxième défaut a été trouvé par le TÉMOIN du premier, pas par le premier.** Le test
 > « cette carte n'est pas actionnable » se réduit à une assertion négative, donc vacante par
 > construction ; son témoin pose la même carte avec un vrai clic et exige l'inverse. Le témoin a
@@ -78,6 +53,49 @@
 > et dont le correctif a dû reproduire la garde `!verrouillee`, sinon il ouvrait la fuite que la carte
 > ferme ; un `Role.Button` ; et le dialogue de suppression définitive, qui **disparaissait à la
 > rotation**. Détail et constats écartés en `04-PIEGES.md` §74.
+>
+> ## ✅ La TROISIÈME ligne a été rapide, parce que son défaut était déjà trouvé — 2026-08-17
+>
+> `search_screen.dart` : le balayage du motif §75 sur les quatre `stateIn` avait **déjà localisé** sa
+> régression avant qu'on ouvre la ligne. Une case de plus, **30 restantes**.
+>
+> ⚠️ *C'est le premier défaut du portage trouvé par un balayage de motif plutôt que par l'examen d'un
+> écran.* La leçon n'est pas « la recherche était cassée » mais : **un défaut nommé se cherche ensuite
+> partout où son motif existe**, et ça coûte quelques minutes contre une ligne de parité entière.
+>
+> ## 🔴 La QUATRIÈME ligne — les réglages, et un interrupteur muet — 2026-08-17
+>
+> `settings_screen.dart`, le plus gros des écrans. Le balayage d'accessibilité a rendu **un** rectangle
+> de 156 × 96 px : l'interrupteur de fenêtre protégée, `Switch` posé en `trailingContent` d'un
+> `ListItem`, donc un nœud **séparé** de celui qui porte le texte — annoncé « interrupteur, activé »
+> sans dire de quoi. Le publié emploie un `SwitchListTile`, qui n'a pas ce défaut. §77. **29 restantes.**
+>
+> ⚠️⚠️ **Le correctif était déjà écrit dans le même fichier**, appliqué à ses boutons radio, commentaire
+> compris. *Un idiome correct appliqué à un composant et pas à son voisin est plus difficile à voir
+> qu'une absence d'idiome* — le fichier avait l'air cohérent.
+>
+> ⚠️ **Quatre de mes six premiers échecs ne visaient pas le code** : `clickable(enabled = false)`
+> **conserve** son action `OnClick` (donc `assertIsNotEnabled`, jamais `assertDoesNotExist`),
+> `LocalSecureWindow` a levé son garde-fou volontaire, et `home_sort_mode` sert deux fois sur cet écran.
+> Sur un écran de réglages, **un libellé réutilisé est la règle**.
+>
+> ## ✅ Balayage de cohérence sur tout `ui/` — 2026-08-17
+>
+> Lancé sur le motif des cinq défauts d'accessibilité de la journée. **Un** constat : le bouton micro de
+> l'éditeur portait `voice_setup_title`, le titre d'un **autre écran**, alors que
+> `note_editor_tooltip_dictate` existait et n'était lue nulle part — et que le publié l'emploie
+> précisément là. Corrigé. ⚠️ **Aucun défaut audible** : les deux valeurs coïncident dans les deux
+> langues, c'est un défaut **latent**. §79.
+>
+> Les sept autres répertoires (`folders`, `vault`, `voice`, `panic`, `about`, `splash`, `common`) sont
+> revenus **sains** sur ce motif — un « rien trouvé » explicite, vérifié répertoire par répertoire.
+>
+> 🔧 **Et le second balayage promis depuis §74 existe enfin** : `actionsPerduesALaFusion()`, le motif
+> **inverse** — un nom sans action. ⚠️⚠️ Il a demandé **trois** versions, et **le témoin a arrêté les
+> deux premières**, muettes sur tout : *un filtre qui ne signale rien est indiscernable d'un code sans
+> défaut.* Troisième fois de la journée. Vérifié par **contrôle positif sur le vrai code** — le défaut
+> §74 remis en place le temps d'une mesure, puis restauré par `git checkout --`. §78.
+>
 
 ---
 

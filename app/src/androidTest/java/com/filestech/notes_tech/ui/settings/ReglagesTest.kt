@@ -32,6 +32,7 @@ import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.actionnablesSansNom
+import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
@@ -153,6 +154,21 @@ class ReglagesTest {
         poser()
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /**
+     * 🔴 **Le motif INVERSE, sur l'écran qui compte vingt lignes actionnables.**
+     *
+     * Le filet de régression de §74 : aucune action ne doit disparaître au nœud fusionné qui l'annonce.
+     * Sur cet écran, chaque ligne de réglage est un `ListItem` dont le clic est posé sur le
+     * modificateur — donc exactement la forme où l'action et le nom peuvent se retrouver sur deux
+     * nœuds différents.
+     */
+    @Test
+    fun aucune_action_des_reglages_n_est_perdue_a_la_fusion() {
+        poser()
+
+        assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 
     /** Le même balayage, mode panique **en cours** : le rouage remplace le chevron. */

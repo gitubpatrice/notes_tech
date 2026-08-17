@@ -1959,3 +1959,76 @@ seule protection du geste le plus destructeur de l'application : le mot à recop
 ⚠️ Le mot est saisi **en minuscules** dans le test, exprès : la comparaison ignore la casse, et c'est
 un choix écrit (« quelqu'un sous stress tape sans majuscule »). Le vérifier en majuscules laisserait ce
 choix non mesuré.
+
+## §78 — 🔴🔴 Le second balayage a demandé TROIS versions, et le témoin a arrêté les deux premières
+
+`05-PARITE.md` notait depuis §74 que *« le motif inverse demande son propre contrôle »* — un **nom sans
+action**, là où `actionnablesSansNom` cherche une **action sans nom**. La phrase est restée écrite sans
+instrument pendant deux lignes de parité. Le voici, et son écriture est plus instructive que lui.
+
+### Les deux versions muettes
+
+1. **« remonter au premier ancêtre fusionnant, soi-même inclus, et vérifier qu'il porte l'action »** —
+   rendait **0 sur tout**, y compris sur la faute. Cause : **`Modifier.clickable` fusionne lui-même ses
+   descendants**, donc le premier nœud fusionnant rencontré est toujours le nœud cliquable, qui porte
+   l'action par construction. Le filtre ne pouvait structurellement rien signaler.
+2. **« un nœud actionnable de l'arbre non fusionné, absent de l'arbre fusionné »** — **0 sur tout**
+   aussi. Le nœud cliquable **existe** dans les deux arbres : le défaut §74 n'est pas une absorption,
+   c'est **deux nœuds distincts**, l'un qui nomme et l'autre qui agit.
+
+### La version retenue
+
+Pour chaque nœud actionnable de l'arbre non fusionné, remonter à ses **ancêtres** — **en s'excluant
+soi-même** — jusqu'au premier qui fusionne. S'il porte un **nom** et **aucune action**, c'est lui que
+le lecteur d'écran focalise : nommé, et inerte.
+
+### ⚠️⚠️ La leçon, et c'est la troisième fois dans la même journée
+
+**Seul le témoin a dit que les deux premières versions étaient muettes.** Après le `grep` ancré par `$`
+dont le témoin positif (`malloc`, attendu > 0, rendu 0) a révélé la faute, et l'assertion négative sur
+la carte de corbeille dont le témoin a découvert §74 : *un filtre qui ne signale rien est indiscernable
+d'un code sans défaut.*
+
+Le témoin pose **trois** cibles dont une seule est fautive — la faute de §74, son correctif, et un
+bouton ordinaire. Le troisième cas compte autant que le premier : un filtre qui signalerait tout bouton
+de l'application deviendrait illisible, donc inutilisé.
+
+### ✅ Et un contrôle positif sur le VRAI code, pas seulement sur un vecteur
+
+Un filet qui passe ne prouve pas qu'il attraperait le défaut. Le défaut §74 a donc été **remis en place
+dans `NoteCard.kt`** — sémantique sur le `Surface`, `clickable` sur la `Column` — le temps d'une mesure
+sur le S9 :
+
+```
+1) une_carte_de_l_accueil_s_annonce_activable_sur_le_noeud_qui_porte_son_nom
+   AssertionError: Failed to assert the following: (OnClick is defined)
+2) aucune_action_de_l_accueil_n_est_perdue_a_la_fusion
+   expected to be empty
+   but was: [Rect.fromLTRB(36.0, 636.0, 1044.0, 930.0)]
+```
+
+Le rectangle est la carte de note. Fichier restauré par `git checkout --` — **pas** depuis une copie de
+travail : le `cp` de sauvegarde s'était révélé douteux, et git est la seule source qui ne mente pas sur
+ce qu'elle contient.
+
+⚠️ Les quatre écrans mesurés passent ce second balayage. Il ne trouve donc **rien de neuf aujourd'hui** :
+sa valeur est le filet de régression, et les cinq écrans qui restent.
+
+## §79 — ⚠️ Le bouton micro de l'éditeur nommait le titre d'un autre écran
+
+Relevé par un **balayage de cohérence** lancé sur tout `ui/`, sur le motif de §73 et §77 : *une clé qui
+existe pour un usage précis, orpheline, remplacée par une clé d'un domaine voisin.*
+
+`NoteEditorScreen.kt:342` portait `contentDescription = stringResource(R.string.voice_setup_title)` —
+le titre de l'**écran d'installation du modèle**, que ce bouton n'ouvre pas : `dictee.demarrer` lance un
+enregistrement. La chaîne dédiée `note_editor_tooltip_dictate` existe, traduite des deux côtés, et
+n'était lue **nulle part**. L'application publiée l'emploie précisément ici
+(`voice_record_button.dart:59`).
+
+⚠️ **Aucun défaut audible aujourd'hui** : les deux valeurs coïncident en français comme en anglais
+(« Dictée vocale » / « Voice dictation »). C'est un défaut **latent** — le jour où le titre de l'écran
+de réglages se distingue de l'action, ce bouton annoncerait un titre d'écran sans rapport, en silence.
+
+🔧 **Le discriminant réutilisable, déjà éprouvé en phase 6** : une chaîne traduite des deux côtés et lue
+nulle part est un **signal**. Ici il a suffi de demander *son jumeau est-il utilisé dans l'application
+publiée, et pour quoi ?* — et la réponse nommait le bouton exact.

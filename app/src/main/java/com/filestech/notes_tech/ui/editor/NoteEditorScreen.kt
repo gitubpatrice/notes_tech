@@ -339,7 +339,20 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Mic,
-                                contentDescription = stringResource(R.string.voice_setup_title),
+                                // 🔴 **La chaîne de CE bouton, pas le titre d'un autre écran.** Il
+                                // portait `voice_setup_title`, c'est-à-dire le titre de l'écran
+                                // d'installation du modèle — un écran que ce bouton n'ouvre pas :
+                                // `dictee.demarrer` lance un enregistrement. `note_editor_tooltip_dictate`
+                                // existait, traduite des deux côtés, et n'était lue **nulle part** ;
+                                // l'application publiée l'emploie précisément ici
+                                // (`voice_record_button.dart:59`).
+                                //
+                                // ⚠️ **Aucun défaut audible aujourd'hui** : les deux valeurs coïncident
+                                // en français comme en anglais. C'est un défaut **latent** — le jour où
+                                // le titre de l'écran de réglages se distingue de l'action, ce bouton
+                                // annoncerait un titre d'écran sans rapport, en silence. Même motif que
+                                // le ⋮ de l'accueil (§73), relevé par un balayage de cohérence.
+                                contentDescription = stringResource(R.string.note_editor_tooltip_dictate),
                             )
                         }
                         // ⚠️ « Insérer un lien » est un bouton d'icône, **pas** une entrée de menu :

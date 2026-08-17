@@ -16,6 +16,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.actionnablesSansNom
+import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -184,6 +185,20 @@ class RechercheTest {
         )
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /** Le filet de régression de §74 : aucune action perdue au nœud fusionné qui l'annonce. */
+    @Test
+    fun aucune_action_de_la_recherche_n_est_perdue_a_la_fusion() {
+        poser(
+            SearchUiState(
+                query = "impots",
+                results = listOf(note("a", TITRE), note("b", "Une autre")),
+                folderNamesById = mapOf("dossier-de-test" to "Dossier de test"),
+            ),
+        )
+
+        assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 
     /**

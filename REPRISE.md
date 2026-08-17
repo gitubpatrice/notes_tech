@@ -534,3 +534,48 @@ mesuré.
 
 ⚠️ Restent dans la `Route`, et ne descendront pas : l'annonce du changement de langue avec la recréation
 de l'activité (`LocalActivity`, `LocalView`) et le recouvrement de panique, qui appelle `exitProcess`.
+
+## ✅ 2026-08-17, balayage de cohérence sur tout `ui/` + le second instrument
+
+**192 tests instrumentés** (187 avant), 183 JVM, 0 échec, 0 ignoré, modèle intact. 29 cases de parité.
+
+### Un constat, sur le motif des cinq défauts de la journée
+
+Le bouton micro de l'éditeur portait `voice_setup_title` — le titre d'un **autre écran**, que ce bouton
+n'ouvre pas — alors que `note_editor_tooltip_dictate` existait, traduite des deux côtés, et n'était lue
+**nulle part**. Le publié l'emploie précisément là (`voice_record_button.dart:59`). Corrigé.
+
+⚠️ **Aucun défaut audible** : les deux valeurs coïncident dans les deux langues. Défaut **latent**, §79.
+
+🔧 Le discriminant, déjà éprouvé en phase 6 : *une chaîne traduite des deux côtés et lue nulle part est
+un signal* — puis *son jumeau est-il utilisé dans le publié, et pour quoi ?*
+
+Les sept autres répertoires (`folders`, `vault`, `voice`, `panic`, `about`, `splash`, `common`) sont
+revenus **sains** sur ce motif, vérifiés un par un.
+
+### 🔴🔴 Le second balayage existe enfin — et il a demandé TROIS versions
+
+`actionsPerduesALaFusion()` dans `ui/BalayageDAccessibilite.kt` : le motif **inverse** de
+`actionnablesSansNom`, c'est-à-dire un **nom sans action**. `05-PARITE.md` le promettait depuis §74 et
+il n'existait pas.
+
+**Les deux premières versions rendaient 0 sur tout**, y compris sur la faute :
+
+1. « remonter au premier ancêtre fusionnant, **soi-même inclus** » — **`Modifier.clickable` fusionne
+   lui-même ses descendants**, donc le premier nœud fusionnant est toujours le nœud cliquable ;
+2. « un actionnable de l'arbre non fusionné **absent** de l'arbre fusionné » — le nœud cliquable
+   **existe** dans les deux. §74 n'est pas une absorption, c'est **deux nœuds distincts**.
+
+⚠️⚠️ **Seul le témoin l'a dit** — troisième fois de la journée après le `grep` ancré par `$` et
+l'assertion négative sur la carte de corbeille : *un filtre qui ne signale rien est indiscernable d'un
+code sans défaut.*
+
+### ✅ Contrôle positif sur le VRAI code, pas seulement sur un vecteur
+
+Le défaut §74 a été **remis en place dans `NoteCard.kt`** le temps d'une mesure sur le S9. Les deux
+tests ont échoué comme attendu, le second en rendant `Rect(36, 636, 1044, 930)` — la carte de note.
+Fichier restauré par **`git checkout --`** : le `cp` de sauvegarde s'était révélé douteux, et git est la
+seule source qui ne mente pas sur ce qu'elle contient.
+
+⚠️ Les quatre écrans mesurés passent ce second balayage : il ne trouve **rien de neuf aujourd'hui**. Sa
+valeur est le filet de régression, et les cinq écrans restants.

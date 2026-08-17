@@ -25,6 +25,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.actionnablesSansNom
+import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.home.NoteCard
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
@@ -239,6 +240,21 @@ class CorbeilleTest {
         poser(TrashUiState(notes = listOf(note("a", TITRE), note("b", "Une autre")), loading = false))
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /**
+     * 🔴 **Le filet de régression de §74**, sur l'écran où le défaut a été trouvé : aucune action ne
+     * doit disparaître au nœud fusionné qui l'annonce.
+     *
+     * ⚠️ Vaut ici pour **les deux** formes de la carte — la ligne restaurée et le bouton de
+     * destruction sont actionnables, la carte elle-même ne l'est pas, et aucune des trois ne doit
+     * porter une action que son annonce ne dit pas.
+     */
+    @Test
+    fun aucune_action_de_la_corbeille_n_est_perdue_a_la_fusion() {
+        poser(TrashUiState(notes = listOf(note("a", TITRE), note("b", "Une autre")), loading = false))
+
+        assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 
     /**

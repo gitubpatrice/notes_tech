@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui
 
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -47,3 +48,70 @@ internal fun ComposeTestRule.actionnablesSansNom(): List<Rect> =
  * construit à la main sur la clé de l'action.
  */
 internal val APPUI_LONG = SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick)
+
+/**
+ * **Le balayage du motif INVERSE : une action perdue à la fusion.**
+ *
+ * [actionnablesSansNom] cherche une action **sans nom**. Le défaut §74 était l'inverse — un **nom sans
+ * action** — et ce filtre-là ne pouvait pas le voir : `NoteCard` portait sa `contentDescription` sur son
+ * `Surface` et son `clickable` sur la `Column` fille, si bien que le nœud **fusionné** portait le nom et
+ * **aucune** action `OnClick`. La carte s'annonçait comme du **texte**, sans dire qu'on peut l'ouvrir.
+ *
+ * ⚠️⚠️ **Les actions d'un descendant ne remontent PAS au nœud fusionné**, contrairement au texte et aux
+ * descriptions. C'est la mesure du 2026-08-17, et c'est ce qui rend le défaut invisible : le geste
+ * fonctionne quand même, parce qu'un double-appui de lecteur d'écran envoie un toucher au **centre du
+ * nœud focalisé**, qui atteint la fille cliquable. Et `performClick()` ne le voit pas non plus — il
+ * injecte un toucher aux coordonnées et n'exige aucune action de sémantique.
+ *
+ * ## Ce que ce filtre mesure, exactement
+ *
+ * Pour chaque nœud **actionnable** de l'arbre non fusionné, on remonte à ses **ancêtres** — en
+ * s'excluant soi-même — jusqu'au premier qui **fusionne** ses descendants. Si cet ancêtre porte un
+ * **nom** et **aucune action**, alors c'est lui que le lecteur d'écran focalise et annonce : nommé, et
+ * inerte. L'action existe un cran plus bas, invisible à l'annonce.
+ *
+ * ## 🔴🔴 Il a fallu TROIS versions de ce filtre, et le témoin a arrêté les deux premières
+ *
+ * 1. « remonter au premier ancêtre fusionnant, **soi-même inclus** » — **0 sur tout**, y compris sur la
+ *    faute, parce que **`Modifier.clickable` fusionne lui-même ses descendants** : le premier nœud
+ *    fusionnant était donc toujours le nœud cliquable, qui porte l'action par construction.
+ * 2. « un nœud actionnable de l'arbre non fusionné **absent** de l'arbre fusionné » — **0 sur tout**
+ *    aussi : le nœud cliquable **existe** dans les deux arbres. Le défaut §74 n'est pas une absorption,
+ *    c'est **deux nœuds distincts**, l'un qui nomme et l'autre qui agit.
+ * 3. celle-ci.
+ *
+ * ⚠️⚠️ **Les deux premières auraient fait passer les neuf écrans pour sains**, et seul le témoin l'a
+ * dit — troisième fois de la journée qu'un témoin positif rattrape un instrument muet, après le `grep`
+ * ancré par `$` et l'assertion négative sur la carte de corbeille. *Un filtre qui ne signale rien est
+ * indiscernable d'un code sans défaut.*
+ *
+ * Son témoin est dans [BalayageDAccessibiliteTest].
+ */
+internal fun ComposeTestRule.actionsPerduesALaFusion(): List<Rect> =
+    onAllNodes(hasClickAction() or APPUI_LONG, useUnmergedTree = true).fetchSemanticsNodes()
+        .filter { noeud -> annoncePerdue(noeud) }
+        .map { it.boundsInRoot }
+
+/**
+ * `true` si l'ancêtre fusionnant de [noeud] porte un nom **sans** porter d'action.
+ *
+ * ⚠️ La remontée **exclut** le nœud de départ : `clickable` fusionne, donc s'inclure ferait toujours
+ * répondre « l'action est là », ce qui était la faute de la première version.
+ */
+private fun annoncePerdue(noeud: SemanticsNode): Boolean {
+    var courant = noeud.parent
+    while (courant != null) {
+        val config = courant.config
+        if (config.isMergingSemanticsOfDescendants) {
+            val nomme = config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
+                .any { it.isNotBlank() } ||
+                config.getOrNull(SemanticsProperties.Text).orEmpty().any { it.text.isNotBlank() }
+            val agit = config.getOrNull(SemanticsActions.OnClick) != null ||
+                config.getOrNull(SemanticsActions.OnLongClick) != null
+            return nomme && !agit
+        }
+        courant = courant.parent
+    }
+    // Aucun ancêtre ne fusionne : le nœud est annoncé tel quel, avec son action. Rien à reprocher.
+    return false
+}

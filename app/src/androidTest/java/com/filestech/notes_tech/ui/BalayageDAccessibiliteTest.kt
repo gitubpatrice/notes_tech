@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onLongClick
@@ -57,5 +59,50 @@ class BalayageDAccessibiliteTest {
         regle.waitForIdle()
 
         assertThat(regle.actionnablesSansNom()).hasSize(2)
+    }
+
+    /**
+     * 🔴🔴 **Le témoin du motif INVERSE — une action perdue à la fusion.**
+     *
+     * Trois cibles, dont **une seule** est fautive, et les trois formes existent réellement dans le
+     * dépôt :
+     *
+     * 1. **la faute de §74** : la sémantique nommante sur le parent, le `clickable` sur l'enfant. Le
+     *    nœud fusionné porte le nom et **aucune** action — la carte s'annonce comme du texte ;
+     * 2. **le correctif de §74** : les deux sur le **même** nœud. Correct, ne doit pas être signalé ;
+     * 3. **un bouton ordinaire** dont le `Text` est un descendant sans action. Correct aussi, et c'est
+     *    le cas qui compte le plus : si le filtre le signalait, il crierait sur tous les boutons de
+     *    l'application et deviendrait illisible.
+     *
+     * ⚠️ Sans ce témoin, le filtre pourrait rendre une liste vide sur tous les écrans — et un
+     * détecteur qui ne détecte rien fait passer chaque écran pour sain. C'est la leçon du `grep`
+     * ancré par `$` du 2026-08-17, dont seul le **témoin positif** a révélé la faute.
+     */
+    @Test
+    fun le_detecteur_signale_une_action_perdue_a_la_fusion_mais_pas_les_formes_correctes() {
+        regle.setContent {
+            NotesTechTheme {
+                Column {
+                    // 1. La faute : nom sur le parent fusionnant, action sur l'enfant.
+                    Box(
+                        Modifier.semantics(mergeDescendants = true) { contentDescription = "la faute" },
+                    ) {
+                        Box(Modifier.size(48.dp).clickable {})
+                    }
+                    // 2. Le correctif : les deux sur le même nœud.
+                    Box(
+                        Modifier
+                            .size(48.dp)
+                            .clickable {}
+                            .semantics(mergeDescendants = true) { contentDescription = "correct" },
+                    )
+                    // 3. Un bouton ordinaire : son libellé est un descendant sans action.
+                    Button(onClick = {}) { Text("Un bouton") }
+                }
+            }
+        }
+        regle.waitForIdle()
+
+        assertThat(regle.actionsPerduesALaFusion()).hasSize(1)
     }
 }
