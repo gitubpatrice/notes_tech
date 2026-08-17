@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.editor
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -32,18 +34,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
-import com.filestech.notes_tech.domain.links.TitleNormalizer
-import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.common.HAUTEUR_MAXIMALE_LISTE_DE_CHOIX
 
 /**
@@ -64,7 +66,7 @@ import com.filestech.notes_tech.ui.common.HAUTEUR_MAXIMALE_LISTE_DE_CHOIX
  */
 @Composable
 fun FeuilleDAutocompletion(
-    suggestions: List<Note>,
+    suggestions: SuggestionsDeLien,
     onRequeteChange: (String) -> Unit,
     onChoisirUnTitre: (String) -> Unit,
     onCreer: (String) -> Unit,
@@ -76,14 +78,52 @@ fun FeuilleDAutocompletion(
     var saisie by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
 
+    val etat = etatDAutocompletion(saisie, suggestions)
+    val chargement = stringResource(R.string.common_loading)
+
+    // 🔴 **Une validation retenue, le temps que la réponse arrive.**
+    //
+    // Valider au clavier demande de savoir si le titre tapé existe déjà — sinon on crée un homonyme,
+    // ce que ce portage refuse exprès. Dans les 120 ms qui suivent une frappe, on ne le sait pas.
+    // Ignorer la touche ferait d'« Entrée » un geste sans effet ; agir quand même la ferait toujours
+    // créer. Elle est donc **retenue**, et appliquée dès que la réponse répond à la saisie.
+    //
+    // ⚠️ `remember` et **non** `rememberSaveable` : une validation qui survivrait à une mort de
+    // processus se déclencherait au retour, sans que personne n'ait rien demandé. La fenêtre qu'elle
+    // couvre est de 120 ms ; elle n'a rien à faire dans un `Bundle`.
+    var validationEnAttente by remember { mutableStateOf(false) }
+
+    val appliquer = { decision: DecisionDeValidation ->
+        when (decision) {
+            is DecisionDeValidation.Lier -> onChoisirUnTitre(decision.titre)
+            is DecisionDeValidation.Creer -> onCreer(decision.titre)
+            // ⚠️ `Attendre` est le seul cas qui **retient** ; `Rien` ne retient pas, sans quoi une
+            // validation sur un champ vide se déclencherait à la première lettre tapée ensuite.
+            DecisionDeValidation.Attendre -> validationEnAttente = true
+            DecisionDeValidation.Rien -> Unit
+        }
+    }
+
+    // ⚠️⚠️ **Remettre le drapeau à zéro AVANT d'agir** : une validation vaut une action, et pas deux.
+    // C'est la règle §65 du dépôt — un événement qui **agit** doit avoir lieu une fois et pas deux.
+    LaunchedEffect(validationEnAttente, etat.enAttente) {
+        if (!validationEnAttente || etat.enAttente) return@LaunchedEffect
+        validationEnAttente = false
+        appliquer(decisionDeValidation(etat))
+    }
+
     LaunchedEffect(Unit) {
         // ⚠️ **Réémettre la requête restaurée.**
         //
         // `saisie` survit à une mort de processus (`rememberSaveable`), mais la requête du ViewModel
         // ne survit pas : elle repart vide. La feuille revenait donc avec le titre à l'écran et
         // **zéro suggestion**, ce qui rend `proposerLaCreation` vrai — et proposait de créer une
-        // note qui existe peut-être déjà, exactement ce que [valider] cherche à éviter en consultant
-        // les suggestions. Relevé par la relecture externe du 2026-08-15.
+        // note qui existe peut-être déjà, exactement ce que [decisionDeValidation] cherche à éviter en
+        // consultant les suggestions. Relevé par la relecture externe du 2026-08-15.
+        //
+        // ⚠️ Depuis que la réponse porte sa question, ce réamorçage a une **seconde** raison, plus
+        // forte : sans lui la feuille resterait indéfiniment « en attente » — sa saisie restaurée
+        // n'ayant jamais été posée, aucune réponse ne lui répondrait jamais.
         if (saisie.isNotEmpty()) onRequeteChange(saisie)
 
         // ⚠️ Le focus est demandé **après** que la feuille a été posée. Le contenu d'un
@@ -114,6 +154,9 @@ fun FeuilleDAutocompletion(
                 value = saisie,
                 onValueChange = {
                     saisie = it
+                    // ⚠️ Toute frappe **annule** une validation retenue : elle portait sur un autre
+                    // titre que celui qui est maintenant à l'écran.
+                    validationEnAttente = false
                     onRequeteChange(it)
                 },
                 label = { Text(stringResource(R.string.link_autocomplete_hint)) },
@@ -122,23 +165,30 @@ fun FeuilleDAutocompletion(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 // Valider au clavier prend le titre tapé tel quel — jamais la première suggestion
                 // approchante. Le détail de ce que « tel quel » veut dire quand ce titre existe déjà
-                // est dans [valider], et il diverge de l'application publiée.
-                keyboardActions = KeyboardActions(onDone = { valider(saisie, suggestions, onChoisirUnTitre, onCreer) }),
+                // est dans [decisionDeValidation], et il diverge de l'application publiée.
+                keyboardActions = KeyboardActions(onDone = { appliquer(decisionDeValidation(etat)) }),
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
             Spacer(Modifier.height(12.dp))
 
-            val requete = saisie.trim()
-            val proposerLaCreation = requete.isNotEmpty() && aucuneCorrespondanceExacte(suggestions, requete)
+            when {
+                // 🔴 **Tant que la réponse n'est pas là, on ne dit rien de ce qu'elle contiendra.**
+                // Ni « Aucun résultat », ni « Créer *X* » : les deux affirment quelque chose sur une
+                // recherche qui n'a pas eu lieu. C'est le motif §76, sur un autre écran.
+                etat.enAttente -> Box(
+                    modifier = Modifier.fillMaxWidth().padding(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(Modifier.semantics { contentDescription = chargement })
+                }
 
-            if (suggestions.isEmpty() && !proposerLaCreation) {
-                Text(
+                etat.annoncerAucunResultat -> Text(
                     text = stringResource(R.string.link_autocomplete_empty),
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                 )
-            } else {
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = HAUTEUR_MAXIMALE_LISTE_DE_CHOIX)) {
-                    items(items = suggestions, key = { it.id }) { note ->
+
+                else -> LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = HAUTEUR_MAXIMALE_LISTE_DE_CHOIX)) {
+                    items(items = etat.titres, key = { it.id }) { note ->
                         ListItem(
                             headlineContent = {
                                 Text(
@@ -153,14 +203,14 @@ fun FeuilleDAutocompletion(
                             modifier = Modifier.clickable { onChoisirUnTitre(note.title) },
                         )
                     }
-                    if (proposerLaCreation) {
+                    if (etat.proposerLaCreation) {
                         item(key = CLE_CREATION) {
                             ListItem(
                                 headlineContent = {
-                                    Text(stringResource(R.string.link_autocomplete_create_new, requete))
+                                    Text(stringResource(R.string.link_autocomplete_create_new, etat.requete))
                                 },
                                 leadingContent = { Icon(Icons.Filled.Add, contentDescription = null) },
-                                modifier = Modifier.clickable { onCreer(requete) },
+                                modifier = Modifier.clickable { onCreer(etat.requete) },
                             )
                         }
                     }
@@ -170,27 +220,5 @@ fun FeuilleDAutocompletion(
         }
     }
 }
-
-private fun valider(
-    saisie: String,
-    suggestions: List<Note>,
-    onChoisirUnTitre: (String) -> Unit,
-    onCreer: (String) -> Unit,
-) {
-    val requete = saisie.trim()
-    if (requete.isEmpty()) return
-    // ⚠️ Si le titre tapé existe **déjà**, on le lie au lieu d'en créer un second du même nom.
-    // L'application publiée crée dans tous les cas (`_onSubmit` ne consulte pas les suggestions),
-    // ce qui produit deux notes homonymes et un lien qui n'en désigne qu'une — celle que l'ordre de
-    // tri décide. Divergence délibérée.
-    val existante = suggestions.firstOrNull { correspondExactement(it.title, requete) }
-    if (existante != null) onChoisirUnTitre(existante.title) else onCreer(requete)
-}
-
-private fun aucuneCorrespondanceExacte(suggestions: List<Note>, requete: String): Boolean =
-    suggestions.none { correspondExactement(it.title, requete) }
-
-private fun correspondExactement(titre: String, requete: String): Boolean =
-    TitleNormalizer.normalize(titre) == TitleNormalizer.normalize(requete)
 
 private const val CLE_CREATION = "creation"

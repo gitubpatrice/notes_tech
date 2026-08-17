@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **194 tests JVM**,
-  **219 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **202 tests JVM**,
+  **228 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -714,3 +714,31 @@ appeler le balayage serait l'assertion creuse elle-même. Détail en `04-PIEGES.
 ⚠️ Les feuilles de coffre — là où l'on saisit une phrase secrète — ne sont mesurées par **aucun** test
 d'écran : `FermetureDeFeuilleTest` pose une feuille **synthétique**. C'est l'endroit où un champ sans
 nom coûterait le plus, et il attend sa ligne de parité.
+
+## ✅ 2026-08-17, ligne 6 : la FEUILLE D'AUTOCOMPLÉTION — son défaut était écrit d'avance
+
+Une case de plus — `link_autocomplete_sheet.dart` —, **26 restantes**. **202 JVM + 228 instrumentés**,
+0 échec, 0 ignoré, modèle intact.
+
+🔴🔴 **La feuille proposait de CRÉER une note avant d'avoir cherché si elle existe**, et sa validation
+au clavier créait l'homonyme que le portage refuse **exprès**. Pendant les 120 ms de freinage la liste
+est vide par construction, et « vide parce que je n'ai pas cherché » était indiscernable de « vide
+parce qu'il n'y a rien ».
+
+⚠️ **Pas une régression de parité** — le publié crée toujours. C'est la divergence **délibérée** du
+portage qui était incomplètement efficace, ce qui est plus dangereux : elle est écrite comme une
+garantie. §84.
+
+🔧 Mécanisme de §76, la réponse porte sa question — mais **pas ses valeurs limites** : ici la chaîne
+vide est une **vraie** réponse. ⚠️⚠️ Et une validation au clavier pendant l'attente est **retenue**,
+ni exécutée ni jetée.
+
+🔴 **Premier balayage sur une feuille** : il signale un actionnable muet posé par
+`BottomSheetDefaults.DragHandle` — **deux** nœuds aux mêmes coordonnées, dont un sans nom avec un
+`OnLongClick` seul. Pas du portage, pas nommable depuis l'appelant, et il paraîtra sur **toutes** les
+feuilles restantes. Exception nommée **dans le test**, jamais dans l'instrument partagé.
+
+⚠️ **Un intermittent connu, le premier de la suite** : une exécution sur quatre a rendu
+`le_bouton_de_vidange_reste_cache_pendant_le_chargement_meme_avec_des_notes` en échec
+(« is not displayed »), non reproduit seul, en paire, ni en suite complète. Test non touché par ce lot.
+Écrit pour ne pas être redécouvert à froid.

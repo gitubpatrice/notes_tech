@@ -2272,3 +2272,111 @@ Les feuilles de coffre — `VaultSheets.kt`, où l'on saisit une phrase secrète
 aucun test d'écran : `FermetureDeFeuilleTest` pose une feuille **synthétique** pour étudier son veto de
 fermeture, pas la vraie. C'est l'endroit où un champ sans nom coûterait le plus, et il attend sa ligne
 de parité.
+
+## §84 — 🔴🔴 La feuille d'autocomplétion proposait de CRÉER une note avant d'avoir cherché si elle existe
+
+Le défaut était **localisé et écrit** avant qu'on ouvre sa ligne de parité — comme celui de la
+recherche à la sienne, et par le même motif : *une réponse qui ne dit pas à quelle question elle
+répond.*
+
+Les suggestions de `[[…]]` passent par un freinage de 120 ms, pendant lequel la liste est **vide**.
+Elle est vidée exprès, et ce vidage est lui-même un correctif : garder la liste **périmée** laissait
+toucher une proposition appartenant à la requête précédente, et insérer un lien vers une autre note
+que celle cherchée.
+
+Mais « vide parce que je n'ai pas encore cherché » et « vide parce qu'il n'y a rien » étaient
+indiscernables, et la feuille en tirait **deux** conclusions fausses :
+
+1. elle affichait **« Créer *Alpha* »** avant d'avoir regardé si « Alpha » existe ;
+2. sa validation au clavier consulte cette même liste pour décider **lier ou créer**. Une liste vide
+   la faisait toujours **créer**.
+
+### 🔴 Ce que ça coûte, et pourquoi ce n'est pas une régression de parité
+
+Le portage diverge **délibérément** de l'application publiée sur ce point : *si le titre tapé existe
+déjà, on le lie au lieu d'en créer un second du même nom.* Le publié, lui, crée toujours
+(`_onSubmit` ne consulte rien) et propose « Créer » dans la même fenêtre — son commentaire en fait
+même une garantie d'interface.
+
+**La divergence était donc annulée dans les 120 ms qui suivent une frappe**, c'est-à-dire au moment
+précis où l'on appuie sur « Entrée ». Ce n'est pas un défaut hérité ni une régression : c'est une
+amélioration **incomplètement efficace**, ce qui est plus dangereux, parce qu'elle est écrite comme
+une garantie.
+
+### 🔧 Le mécanisme, repris tel quel de §76
+
+```kotlin
+data class SuggestionsDeLien(val pour: String? = null, val titres: List<Note> = emptyList())
+
+val repondALaSaisie = reponse.pour == saisie
+val enAttente = requete.isNotEmpty() && !repondALaSaisie
+```
+
+⚠️ `pour` est **nullable**, comme au §76 — `null` veut dire « aucune réponse, pour aucune requête ».
+⚠️ **Mais ici la chaîne vide est une vraie réponse**, celle d'une saisie vide, à laquelle on répond
+sans chercher. C'est l'inverse du choix de §76, et pour une raison mesurable : sans cette émission, la
+feuille resterait « en attente » sur un champ vierge, ce qui n'attend rien. *Un mécanisme se reprend,
+pas ses valeurs limites.*
+
+⚠️ La comparaison porte sur la saisie **brute**, celle qui a été transmise au ViewModel, et non sur sa
+version élaguée : comparer deux chaînes qui n'ont pas fait le même chemin est le moyen le plus sûr de
+croire périmée une réponse qui ne l'est pas.
+
+### ⚠️⚠️ Et une validation ne se jette pas : elle se RETIENT
+
+Trois issues étaient possibles pour « Entrée » pendant l'attente, et deux sont mauvaises :
+
+| Faire | Ce que ça produit |
+|---|---|
+| créer quand même | le doublon d'origine |
+| ignorer la touche | un geste sans effet, silencieux — ce que ce dépôt refuse |
+| **retenir, puis appliquer** | la bonne décision, 120 ms plus tard |
+
+D'où `DecisionDeValidation.Attendre` et un drapeau `remember` dans la feuille.
+
+⚠️ **`remember` et non `rememberSaveable`** : une validation qui survivrait à une mort de processus
+partirait au retour sans que personne n'ait rien demandé. La fenêtre couverte est de 120 ms.
+⚠️ Le drapeau est remis à zéro **avant** d'agir — règle §65 : un événement qui **agit** doit avoir lieu
+une fois et pas deux. Et **toute frappe l'annule** : il portait sur un autre titre que celui à l'écran.
+
+### 🔴🔴 Ce que le balayage d'accessibilité a trouvé sur cette feuille — et qui n'est pas du portage
+
+Première fois qu'un balayage tourne sur un `ModalBottomSheet`. Il a signalé **un** actionnable sans
+nom, `Rect(492, 168, 588, 312)`. Mesuré : ce sont **deux nœuds distincts aux mêmes coordonnées**.
+
+| Nœud | Actions | Nom |
+|---|---|---|
+| A | `OnLongClick` **seul** | **aucun** |
+| B | `Collapse`, `Dismiss`, `OnClick` | « Poignée de déplacement » |
+
+Le nœud A est posé par `BottomSheetDefaults.DragHandle`, que `ModalBottomSheet` pose **par défaut** :
+il n'appartient pas au portage, il n'est pas nommable depuis l'appelant, et il paraîtra sur **toutes**
+les feuilles de l'application — déplacement, dossiers, coffres.
+
+⚠️⚠️ **L'instrument n'a pas été affaibli pour autant.** L'exception est nommée **dans le test**, ancrée
+sur la poignée **mesurée** — le seul nœud de cette feuille portant une action `Dismiss` — et
+l'assertion reste un `containsExactly` : tout autre actionnable muet la fait tomber, et elle tombera
+aussi le jour où material3 nommera son nœud. *Une exception se pose là où elle se justifie, jamais dans
+l'outil partagé.*
+
+⚠️ L'extension du balayage à l'appui long venait des deux relectures externes du 2026-08-17. Ce constat
+en est le premier effet de bord : *un filtre élargi voit aussi ce que les bibliothèques laissent
+traîner* — ce qui est le prix, pas le défaut.
+
+### ⚠️ Un échec INTERMITTENT observé une fois, non reproduit — écrit parce qu'il existe
+
+Pendant ce lot, une exécution de la suite complète a rendu :
+
+```
+le_bouton_de_vidange_reste_cache_pendant_le_chargement_meme_avec_des_notes(CorbeilleTest)
+Assert failed: The component with ContentDescription contains 'Le titre de la note' is not displayed!
+```
+
+Le nœud **existe** — c'est « pas affiché », pas « n'existe pas ». Non reproduit en trois exécutions
+qui ont suivi : la classe **seule** (14 tests verts), la paire `AutocompletionTest` + `CorbeilleTest`
+dans l'ordre de la suite (23 verts), et la suite **complète** (228 verts).
+
+⚠️ Ce test n'a pas été touché par ce lot, et sa `poser` passe déjà par `runOnIdle` — la précaution que
+`AccueilTest` documente précisément contre ce genre d'intermittence *« quand la suite grandit »*. Le
+noter ici vaut mieux que de le redécouvrir à froid : **une suite de 228 tests instrumentés a désormais
+un intermittent connu**, et c'est le premier.

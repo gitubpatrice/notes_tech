@@ -278,7 +278,7 @@ class NoteEditorViewModel @Inject constructor(
     // ⚠️ Pas de `distinctUntilChanged` : un `StateFlow` ne réémet déjà pas une valeur égale, et
     // l'opérateur y est déprécié pour cette raison même.
     @OptIn(ExperimentalCoroutinesApi::class)
-    val suggestionsDeLien: StateFlow<List<Note>> = requeteDeLien
+    val suggestionsDeLien: StateFlow<SuggestionsDeLien> = requeteDeLien
         .transformLatest { texte ->
             // 🔴🔴 **Vider AVANT d'attendre, et c'est tout l'objet de `transformLatest`.**
             //
@@ -295,15 +295,26 @@ class NoteEditorViewModel @Inject constructor(
             // Ici la liste part à vide **à chaque nouvelle requête**, de façon synchrone avec la
             // frappe, et ne se remplit qu'après le calme. Un affichage vide est honnête ; un
             // affichage périmé ne l'est pas. Relevé par la relecture externe du 2026-08-15.
-            emit(emptyList())
-            if (texte.isBlank()) return@transformLatest
+            //
+            // 🔴🔴 **`pour = null`, et c'est ce qui manquait.** Vider était juste et ne suffisait pas :
+            // rien ne distinguait « je n'ai pas encore cherché » de « il n'y a rien », si bien que la
+            // feuille proposait de **créer** une note avant d'avoir regardé si elle existe. Cf.
+            // [SuggestionsDeLien] et `04-PIEGES.md` §84.
+            emit(SuggestionsDeLien(pour = null))
+            if (texte.isBlank()) {
+                // ⚠️ Une saisie vide reçoit sa réponse **tout de suite** : elle est vraie, et elle
+                // n'a rien coûté. Sans cette émission, la feuille resterait « en attente » sur un
+                // champ vierge, ce qui n'attend rien.
+                emit(SuggestionsDeLien(pour = texte))
+                return@transformLatest
+            }
             delay(FREINAGE_SUGGESTIONS_MILLIS)
-            emit(notes.suggestTitles(texte, excludeId = noteId))
+            emit(SuggestionsDeLien(pour = texte, titres = notes.suggestTitles(texte, excludeId = noteId)))
         }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
-            initialValue = emptyList(),
+            initialValue = SuggestionsDeLien(),
         )
 
     fun chercherUnTitre(texte: String) {

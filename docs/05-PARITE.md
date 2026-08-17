@@ -254,7 +254,7 @@ modifier du code correct.
 | `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ☐ |
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
 | `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
-| `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ☐ |
+| `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ✅ |
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
 | `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ☐ |
@@ -263,6 +263,31 @@ modifier du code correct.
 | `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ✅ |
 | `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ☐ |
 | `sheet_handle.dart` | 27 | **sans objet** — voir ci-dessous | ☐ |
+
+### 🔴 `link_autocomplete_sheet.dart` — cochée le 2026-08-17, et son défaut était écrit d'avance
+
+`AutocompletionTest` (**9** cas, S9) + `EtatDAutocompletionTest` (**8** cas JVM). Le défaut avait été
+**localisé et consigné** en cochant la ligne de l'éditeur, sans être corrigé — exactement la situation
+qui avait rendu la ligne « recherche » rapide.
+
+⚠️ Pendant les 120 ms de freinage, la liste des suggestions est **vide par construction**. La feuille en
+tirait deux conclusions fausses : elle proposait **de créer** une note qui existe peut-être, et sa
+validation au clavier **créait** un homonyme là où elle devait lier. **Ce n'est pas une régression de
+parité** — le publié crée toujours — mais la divergence **délibérée** du portage qui était
+incomplètement efficace, ce qui est plus dangereux : elle est écrite comme une garantie. §84.
+
+🔧 Mécanisme repris de §76 : la réponse porte sa question. ⚠️ Mais **pas ses valeurs limites** — ici la
+chaîne vide est une **vraie** réponse, celle d'une saisie vide, alors que §76 s'en méfiait.
+
+⚠️⚠️ Une validation au clavier pendant l'attente n'est ni exécutée ni jetée : elle est **retenue**, puis
+appliquée quand la réponse arrive. Créer aurait produit le doublon ; ignorer aurait fait de « Entrée »
+un geste sans effet.
+
+🔴 **Premier balayage d'accessibilité sur une feuille**, et il a trouvé un actionnable sans nom qui
+**n'appartient pas au portage** : `BottomSheetDefaults.DragHandle` pose **deux** nœuds aux mêmes
+coordonnées, dont un qui ne porte qu'un `OnLongClick` et aucun nom. Il paraîtra sur **toutes** les
+feuilles restantes — déplacement, dossiers, coffres. L'exception est nommée **dans le test**, ancrée sur
+la poignée mesurée, et l'assertion reste un `containsExactly`.
 
 ### Les deux lignes sans homologue, et pourquoi ce n'est pas la même chose
 
