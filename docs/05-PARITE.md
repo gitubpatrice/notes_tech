@@ -101,7 +101,7 @@ La valeur initiale d'un `stateIn` n'est pas une donnée, c'est une **absence** d
 | `SettingsUiState` | ✅ **rien à faire** — sa valeur initiale est **lue** (`settings.themeNow()` et consorts), pas supposée, et son commentaire dit déjà pourquoi |
 | `TrashUiState` | ✅ corrigé, cf. §75 |
 | `SearchUiState` | ✅ **corrigé le 2026-08-17**, cf. §76 — c'est ce balayage qui l'a trouvé |
-| `FoldersUiState` | ⚠️ à regarder avec la ligne `folders_drawer.dart` : `folders = emptyList()` rend `inbox` **nul** avant la première réponse |
+| `FoldersUiState` | ✅ **rien à faire, vérifié le 2026-08-17** — voir ci-dessous |
 
 ✅ **Ce balayage a payé le jour même** : la recherche affichait « Aucun résultat. Essayez un autre
 mot-clé » **pendant** la recherche. Son `when` allait de `query.isBlank()` à `failed` puis directement
@@ -113,6 +113,23 @@ publié rend un indicateur (`search_screen.dart:109`) : régression du portage, 
 ⚠️ **Le mécanisme est réutilisable** : faire porter à la réponse **la question à laquelle elle
 répond** (`Issue.pour`), et comparer. C'est le seul moyen fiable de distinguer « aucun résultat » de
 « pas encore de réponse » quand un `combine` mêle deux flux de rythmes différents.
+
+### ✅ Et le tiroir des dossiers ne porte PAS ce défaut — vérifié, pas supposé
+
+`FoldersUiState` dépend bien d'une valeur initiale vide, mais deux mesures ferment la question :
+
+1. **Rien n'agit sur l'absence de boîte de réception.** Les deux seuls usages de `state.inbox` dans
+   tout le dépôt sont dans `FoldersDrawer.kt:119` et `:124`, et les deux la traitent **exprès** :
+   le nom traduit sert de repli, et le bouton de renommage disparaît plutôt que de proposer de
+   renommer ce qui n'existe pas. Les commentaires le disent depuis l'origine.
+2. **La fenêtre n'est pas atteignable par le tiroir.** `HomeRoute` collecte cet état dès sa première
+   composition, alors que le tiroir est fermé : quand l'utilisateur l'ouvre, la réponse est arrivée
+   depuis longtemps.
+
+⚠️ *Un balayage de motif rend des candidats, pas des défauts.* Trois des quatre `stateIn` du portage
+n'avaient rien à corriger — `SettingsUiState` lit sa valeur initiale, celui-ci a un repli délibéré — et
+le quatrième portait une régression réelle. Cocher les quatre au motif que le motif existe aurait fait
+modifier du code correct.
 
 ## Composants (16)
 

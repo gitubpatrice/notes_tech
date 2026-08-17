@@ -480,8 +480,14 @@ cette fonction l'est.
 ⚠️ **La valeur initiale de `stateIn` passe par la même fonction**, avec `Issue()` : c'est par la valeur
 initiale que §75 était entré, et deux chemins vers le même état demanderaient deux vérifications.
 
-### 🔧 Ce qui reste du balayage `stateIn`
+### ✅ Le balayage `stateIn` est CLOS — et trois candidats sur quatre n'étaient pas des défauts
 
-`FoldersUiState` est le dernier non tranché : `folders = emptyList()` rend `inbox` **nul** avant la
-première réponse. À regarder avec la ligne `folders_drawer.dart` — sa question n'est pas « affiche-t-il
-vide ? » mais **« que fait le tiroir d'une boîte de réception absente ? »**.
+| État | Verdict mesuré |
+|---|---|
+| `SettingsUiState` | sa valeur initiale est **lue** (`settings.themeNow()`), pas supposée |
+| `TrashUiState` | 🔴 défaut réel, corrigé (§75) |
+| `SearchUiState` | 🔴 défaut réel, corrigé (§76) |
+| `FoldersUiState` | rien à faire : les **deux seuls** usages de `state.inbox` du dépôt (`FoldersDrawer.kt:119` et `:124`) traitent son absence **exprès**, avec un repli documenté — et `HomeRoute` collecte cet état dès sa première composition, tiroir fermé, donc la fenêtre n'est pas atteignable par le tiroir |
+
+⚠️ *Un balayage de motif rend des candidats, pas des défauts.* Corriger les quatre au motif que le
+motif existe aurait fait modifier du code correct — dont un repli délibéré, commenté comme tel.
