@@ -2032,3 +2032,190 @@ de réglages se distingue de l'action, ce bouton annoncerait un titre d'écran s
 🔧 **Le discriminant réutilisable, déjà éprouvé en phase 6** : une chaîne traduite des deux côtés et lue
 nulle part est un **signal**. Ici il a suffi de demander *son jumeau est-il utilisé dans l'application
 publiée, et pour quoi ?* — et la réponse nommait le bouton exact.
+
+## §80 — 🔴🔴 Les deux champs de l'éditeur n'avaient AUCUN nom accessible, note remplie
+
+Cinquième ligne d'écran, et le défaut le plus discret de la série — parce qu'il **n'existe pas** dans
+l'état sous lequel on relit un éditeur.
+
+Le titre et le contenu étaient écrits de la façon la plus naturelle qui soit :
+
+```kotlin
+TextField(value = state.title, onValueChange = …, placeholder = { Text(…) })
+```
+
+### Ce que la mesure a donné, et dans quel ordre
+
+Sonde jetable sur le S9, trois `TextField` Material3, arbre **fusionné** :
+
+| Champ | `EditableText` | `Text`, c'est-à-dire le nom annoncé |
+|---|---|---|
+| `label` + contenu | `valeur-A` | **`[libelle-A]`** |
+| `placeholder` + contenu | `valeur-B` | **`null`** |
+| `placeholder` + contenu **vide** | `` | `[indice-C]` |
+
+Un `placeholder` ne nomme donc le champ **que tant qu'il est vide**. Dès la première lettre il
+disparaît de l'écran **et** de l'arbre : un lecteur d'écran annonçait, sur une note ouverte, deux
+zones de saisie **anonymes** — le titre lu comme du texte, puis la note entière lue comme du texte,
+sans que rien ne dise laquelle est laquelle ni ce qu'on est censé y écrire.
+
+L'application publiée porte `labelText` sur les **deux** champs (`note_editor_screen.dart:1072` et
+`:1102`), en plus de son `hintText`. C'était donc une **régression de parité**.
+
+### 🔴 Pourquoi trois lignes de parité et deux balayages ne l'avaient pas vu
+
+1. **L'état qui porte le défaut est la note REMPLIE.** Une note neuve — champs vierges, placeholders
+   à l'écran — n'a pas le défaut. C'est l'état sous lequel un éditeur se relit, se capture et se
+   démontre.
+2. 🔴 **`actionnablesSansNom` exclut délibérément les nœuds portant un `EditableText`**, au motif
+   qu'un champ vide n'est pas un défaut d'étiquetage. C'est **juste**, et ça laissait un motif entier
+   hors de portée des cinq écrans mesurés.
+3. `actionsPerduesALaFusion` ne regarde que les **actionnables** : un champ de saisie n'en est pas un.
+
+D'où un **troisième instrument**, `champsDeSaisieSansNom()`, et son témoin à trois cibles — dont la
+troisième est le **champ vide**, celui qui a caché le défaut : il ne doit **pas** être signalé, sans
+quoi le filtre crierait sur tout formulaire vierge de l'application.
+
+### ✅ Contrôle positif sur le VRAI code, comme §78
+
+Un filet qui passe ne prouve pas qu'il attraperait le défaut. Les deux `label` ont donc été
+**retirés** de `NoteEditorScreen.kt` le temps d'une mesure sur le S9 :
+
+```
+aucun_champ_de_saisie_de_l_editeur_n_est_sans_nom
+  expected to be empty
+  but was: [Rect.fromLTRB(0.0, 192.0, 1080.0, 384.0), Rect.fromLTRB(0.0, 384.0, 1080.0, 552.0)]
+```
+
+Deux rectangles : les deux champs. ⚠️ Le fichier a été restauré **par l'inverse exact de l'édition,
+puis vérifié au SHA-256** contre l'empreinte relevée avant — `git checkout --` n'était pas utilisable
+ici, contrairement à §78 : le fichier portait déjà tout le travail non commité de la session. *Une
+technique de restauration se choisit d'après l'état du fichier, pas d'après l'habitude.*
+
+### 🔧 Et la chaîne orpheline disait où poser le libellé
+
+`note_editor_content` — « Tapez votre note (Markdown supporté) » — était traduite des deux côtés et
+lue **nulle part**. Le publié en fait le `labelText` de ce champ exactement. C'est le même
+discriminant qu'au §79, sur le même écran, le même jour : *une chaîne traduite des deux côtés et lue
+nulle part est un signal*, et son jumeau publié dit où elle va.
+
+⚠️ Pas de `placeholder` sur le **titre** : il vaudrait la même chaîne que son `label`, et Material3
+affiche les deux sur un champ vide et focalisé. Le contenu garde le sien, qui dit autre chose que son
+libellé (`[[Titre]] pour lier`).
+
+## §81 — 🔴 Le titre n'était pas plafonné à la saisie, et un titre trop long gelait TOUS les enregistrements
+
+`NotesRepository.saveEdits` refuse un titre de plus de 200 caractères — et il refuse **le titre et le
+corps ensemble**, puisque c'est un seul appel. Rien, côté écran, n'empêchait d'y coller un paragraphe.
+
+Conséquence, sur une note dont le titre dépasse : **chaque** enregistrement différé échoue,
+indéfiniment. La bannière le dit tant qu'on est sur l'écran — c'est le champ `saveFailureReason`
+ajouté en phase 5 — mais l'enregistrement **au départ** échoue lui aussi, et là plus personne n'est là
+pour lire. Le texte tapé n'est écrit nulle part.
+
+L'application publiée n'a pas ce trou : `LengthLimitingTextInputFormatter(AppConstants.noteTitleMaxLength)`
+sur le champ (`note_editor_screen.dart:1080`) rend l'état **inatteignable**. Régression du portage.
+
+### ⚠️⚠️ La règle a demandé QUATRE versions, et chacune a été arrêtée par une mesure ou une relecture
+
+| Version | Ce qu'elle cassait |
+|---|---|
+| `take(200)` sec | **tronquait à 200** un titre hérité de 250 — détruit 50 caractères de l'utilisateur pour une règle qu'il n'a pas enfreinte |
+| `take(max(200, longueur))` | rendait bien 250, mais **amputés du dernier** : `performTextInput` insère au curseur, donc en tête. Une frappe, un caractère perdu, en silence. **Arrêtée par l'appareil** |
+| refus dès que le titre est au plafond, troncature sinon | 🔴 un titre de 180 et un collage de 50 **en tête** : troncature à 200, et les 30 derniers caractères **du titre existant** disparaissent. **Arrêtée par GPT-5.2** |
+| `startsWith(actuel)` exigé pour tronquer | 🔴🔴 **tout sélectionner puis coller cessait de fonctionner**, en silence, alors que le même collage dans un champ vide passait. **Arrêtée par Gemini Pro, sur le correctif de la précédente** |
+
+La règle retenue distingue une **insertion** d'un **remplacement** sans avoir la sélection sous la
+main — le titre est une `String`, pas un `TextFieldValue` :
+
+> si le **préfixe commun** et le **suffixe commun** de l'ancien et du nouveau texte couvrent à eux deux
+> tout l'ancien, alors le nouveau est l'ancien **avec quelque chose d'inséré**, et l'endroit se lit
+> dans le préfixe. Sinon l'utilisateur a **supprimé** du texte : c'est un remplacement.
+
+Seule une insertion pure **ailleurs qu'à la fin** est refusée — le seul cas où rogner la fin détruirait
+de l'existant. Tout le reste est tronqué au plafond, comme le publié. Un titre hérité trop long peut
+donc être **raccourci**, ce qui est le seul chemin qui débloque l'enregistrement.
+
+⚠️ L'application publiée a le défaut relevé par GPT : son `LengthLimitingTextInputFormatter` garde les
+200 premiers caractères du nouveau texte **quelle que soit la position du curseur**. Écart assumé de
+plus, dans le bon sens — c'est l'argument déjà retenu pour le nom de dossier dans `05-PARITE.md`.
+
+⚠️ Une troncature ne coupe jamais une **paire de substituts** : `take` compte des unités UTF-16, et
+couper un emoji en deux laisserait un demi-caractère que l'affichage rend en losange et que le stockage
+garde tel quel. La **limite**, elle, reste comptée en unités UTF-16 — comme celle du dépôt et comme
+celle du dépôt Dart publié : compter des graphèmes ferait passer des titres que `saveEdits` refuserait
+ensuite, c'est-à-dire exactement le défaut que ce plafond ferme.
+
+### 🔴 Le geste de mesure était VACANT, et c'est une mesure qui l'a dit
+
+Sur un titre de 250 caractères, dans le harnais de test — un champ **contrôlé** dont l'état n'est
+jamais réécrit, puisque le rappel se contente d'enregistrer ce qu'il reçoit :
+
+| Geste | Candidat remonté au rappel |
+|---|---|
+| `performTextInput("x")` | **250** caractères |
+| `performTextInput("x" × 300)` | **250** caractères |
+
+Le candidat n'excède **jamais** la longueur du texte en place. Aucune saisie ne peut donc produire la
+croissance que la garde refuse : le test d'écran passerait avec la garde **comme sans**.
+
+⚠️ *Je n'ai pas d'explication du mécanisme, et je n'en écris donc pas.* Le fait mesuré suffit à la
+décision : la moitié « refus » de la règle n'est pas mesurable à l'écran, elle l'est sur la JVM
+(`PlafondDuTitreTest`, 7 cas dont un balayage de longueurs). C'est la leçon §76 sous une autre
+forme — deux niveaux de test parce qu'un seul aurait été vacant — sauf qu'ici la raison est **mesurée**
+et non pressentie.
+
+Ce qui **reste** mesurable à l'écran, et qui l'est : le plafonnement d'un collage sur un champ vide
+(200 caractères remontés, contre 300 sans garde), et le fait qu'un titre déjà trop long puisse encore
+être vidé.
+
+### ⚠️⚠️ Les deux relectures externes, et la seconde a rattrapé le correctif de la première
+
+Deux tours (GPT-5.2, Gemini 3.1 Pro), **quatre constats retenus, aucun recoupement**. Encore une fois,
+chacune a vu ce que l'autre manquait — et cette fois la seconde portait **sur le correctif** de la
+première, ce qui est la règle du dépôt et n'avait jamais autant payé.
+
+| Constat | Sort |
+|---|---|
+| 🔴 GPT — **une troncature au milieu détruit du texte existant** : titre de 180, collage de 50 en tête, la troncature à 200 emporte les 30 derniers caractères **du titre**, en silence | **CONFIRMÉ, corrigé.** Le portage n'a pas la sélection sous la main — le titre est une `String` — mais il n'en a pas besoin : la comparaison des deux chaînes suffit à reconnaître une insertion |
+| 🔴🔴 Gemini — **le correctif de GPT interdisait tout remplacement** : `startsWith(actuel)` refuse « tout sélectionner puis coller », en silence, alors que le même collage dans un champ vide passe | **CONFIRMÉ, corrigé.** Un correctif de relecture est du code neuf. Discriminant final : *préfixe commun + suffixe commun couvrent-ils le texte en place ?* — si oui c'est une **insertion**, sinon un **remplacement**, et seule l'insertion ailleurs qu'à la fin est refusée |
+| 🔴 Gemini — **l'angle mort de ma table JVM** : elle mesurait le collage en tête et à la fin, pas le remplacement. C'est cette absence qui a laissé passer le défaut ci-dessus | **CONFIRMÉ, corrigé** — deux cas ajoutés, dont l'insertion **au milieu**, que le seul `startsWith` laissait passer dans l'autre sens |
+| 🔴 Gemini — **mon test d'écran partait d'un titre VIDE**, et un champ vide passe n'importe quelle garde qui regarde le texte en place | **CONFIRMÉ, corrigé** — un test de plus, sur un titre existant écrasé par `performTextReplacement`. *Le choix des données initiales d'un test peut désarmer la garde qu'il croit mesurer* |
+| 🔴 GPT — le témoin du troisième balayage n'assertait que `hasSize(1)`, pas **lequel** est signalé | **CONFIRMÉ, corrigé.** Il compare désormais les **coordonnées** du champ fautif, relevées sur son étiquette de test. Le jour où le filtre signale le champ **vide** à la place, il tombe |
+| GPT — `state.title` capturé par la lambda pourrait être **périmé** | **ÉCARTÉ, avec l'argument.** L'invariant qui compte est *un titre parti sous la limite n'y repasse jamais* : le plafond ne dépasse 200 que si `actuel` dépasse 200, et `actuel` est une valeur **déjà acceptée** de l'état. Une lecture périmée est donc une valeur antérieure, elle aussi sous la limite — la récurrence tient quelle que soit la fraîcheur |
+| GPT — comptage en **graphèmes** plutôt qu'en unités UTF-16 | **ÉCARTÉ sur le comptage, RETENU sur la coupe.** La limite doit rester en unités UTF-16, comme celle du dépôt *et* comme celle du dépôt Dart publié : compter des graphèmes ferait passer des titres que `saveEdits` refuserait ensuite, c'est-à-dire exactement le défaut que ce plafond ferme. En revanche la **coupe** pouvait scinder une paire de substituts et laisser un demi-caractère : corrigé, avec son cas |
+
+⚠️ **Ce que GPT n'a pas pu voir, et pourquoi** : `git diff HEAD` **ignore les fichiers non suivis**. Son
+premier tour n'a donc jamais reçu `PlafondDuTitre.kt` — il l'a dit lui-même, deux fois, en refusant de
+conclure. Corrigé par un `git add -N` sur les trois fichiers neufs avant le second tour. *Un relecteur
+qui annonce qu'il lui manque un fichier a raison ; c'est le harnais qu'il faut corriger, pas son
+constat.*
+
+## §82 — 🔴🔴 Un fichier de test JUnit 4 dans un dépôt JUnit 5 ne tourne pas, et rien ne le dit
+
+`PlafondDuTitreTest` a été écrit avec `import org.junit.Test`. Le gate est passé **vert** :
+`ktlintCheck`, `detekt`, `testDebugUnitTest` — `BUILD SUCCESSFUL`.
+
+Il n'avait tout simplement **pas tourné**. `app/build.gradle.kts:219` porte
+`unitTests.all { it.useJUnitPlatform() }` : sans moteur vintage, une classe JUnit 4 est ignorée
+**sans erreur, sans avertissement et sans ligne de rapport**.
+
+Ce qui l'a dit : le **décompte**. 183 tests JVM avant, 183 après, alors que sept venaient d'être
+ajoutés. Et le contrôle qui tranche, plus direct encore : `ls app/build/test-results/` ne portait
+aucun fichier au nom de la classe.
+
+| Contrôle | Ce qu'il disait |
+|---|---|
+| `BUILD SUCCESSFUL` | rien |
+| `> Task :app:testDebugUnitTest` (exécutée, pas `UP-TO-DATE`) | rien |
+| **compte des tests avant/après** | **le défaut** |
+| **présence du XML de la classe** | **le défaut**, sans ambiguïté |
+
+⚠️⚠️ C'est le jumeau exact de §72 côté JVM : *« OK (N tests) » ne dit rien de ce qui n'a pas tourné.*
+Là-bas c'était un `assumeTrue` qui ignorait en silence, ici c'est un moteur qui ne reconnaît pas
+l'annotation. **La forme du contrôle est la même dans les deux cas : compter, et comparer à ce qu'on
+attendait.**
+
+🔧 Le motif a été balayé sur tout le dépôt dans la foulée — `grep -rln "^import org.junit.Test$"
+app/src/test/` : **aucun autre fichier**, et 20 classes de test pour 20 rapports XML. Un défaut nommé
+se cherche partout où son motif existe.

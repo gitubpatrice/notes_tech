@@ -93,6 +93,44 @@ internal fun ComposeTestRule.actionsPerduesALaFusion(): List<Rect> =
         .map { it.boundsInRoot }
 
 /**
+ * **Le troisième motif : une ZONE DE SAISIE sans nom accessible.**
+ *
+ * [actionnablesSansNom] **exclut délibérément** les nœuds qui portent un `EditableText`, au motif
+ * qu'un champ vide n'est pas un défaut d'étiquetage. C'est juste, et ça laissait un motif entier hors
+ * de portée des cinq écrans mesurés : *ce champ dit-il ce qu'on est censé y écrire ?*
+ *
+ * ## 🔴🔴 Ce que la mesure a donné, et pourquoi le défaut était invisible
+ *
+ * Sondé sur le S9 le 2026-08-17, trois champs Material3 dans l'arbre **fusionné** :
+ *
+ * | Champ | `EditableText` | `Text`, c'est-à-dire le nom annoncé |
+ * |---|---|---|
+ * | `label` + contenu | `valeur-A` | **`[libelle-A]`** |
+ * | `placeholder` + contenu | `valeur-B` | **`null`** |
+ * | `placeholder` + contenu **vide** | `` | `[indice-C]` |
+ *
+ * Un `placeholder` ne nomme donc le champ **que tant qu'il est vide**. C'est exactement l'état sous
+ * lequel un écran d'édition se relit — note neuve, champs vierges — et l'état où le défaut n'existe
+ * pas. Dès la première lettre, le champ devient anonyme : un lecteur d'écran annonce son **contenu**,
+ * et rien de ce qu'il est.
+ *
+ * ⚠️ `EditableText` **n'est pas** repris dans `Text` : le filtre n'a donc pas à écarter la valeur du
+ * champ pour ne pas la confondre avec un libellé. Mesuré, pas supposé — la version qui la retirait
+ * « au cas où » se serait taue sur un champ dont le libellé égale la valeur.
+ *
+ * Son témoin est dans [BalayageDAccessibiliteTest], et son troisième cas est le champ **vide**, celui
+ * qui a caché le défaut pendant cinq écrans.
+ */
+internal fun ComposeTestRule.champsDeSaisieSansNom(): List<Rect> =
+    onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)).fetchSemanticsNodes()
+        .filter { noeud ->
+            val description = noeud.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
+            val texte = noeud.config.getOrNull(SemanticsProperties.Text).orEmpty()
+            description.all { it.isBlank() } && texte.all { it.text.isBlank() }
+        }
+        .map { it.boundsInRoot }
+
+/**
  * `true` si l'ancêtre fusionnant de [noeud] porte un nom **sans** porter d'action.
  *
  * ⚠️ La remontée **exclut** le nœud de départ : `clickable` fusionne, donc s'inclure ferait toujours

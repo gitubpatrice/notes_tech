@@ -8,8 +8,13 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **183 tests JVM**,
-  **192 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **194 tests JVM**,
+  **215 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
+  (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
+  sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
+  `app/build/test-results/testDebugUnitTest/`, et le contrôle qui tranche est la **présence du XML de
+  la classe**. Cf. `04-PIEGES.md` §82.
 - 🔴 **Cette ligne était FAUSSE le 08-16**, et pas de peu : elle annonçait « 0 ignoré » alors que
   `TranscriptionSurAppareilTest` — le seul test qui prouve que la dictée transcrit — était **ignoré à
   chaque exécution de la suite**, parce que celle-ci **détruisait le modèle de 57 Mo** importé à la
@@ -579,3 +584,109 @@ seule source qui ne mente pas sur ce qu'elle contient.
 
 ⚠️ Les quatre écrans mesurés passent ce second balayage : il ne trouve **rien de neuf aujourd'hui**. Sa
 valeur est le filet de régression, et les cinq écrans restants.
+
+## 🔴 2026-08-17, ligne 5 : l'ÉDITEUR — deux champs anonymes, et un test qui n'a jamais tourné
+
+Deux cases de plus — `note_editor_screen.dart` et `backlinks_panel.dart` —, **27 restantes**.
+**194 tests JVM** (183 avant) et **215 instrumentés** (192 avant), 0 échec, **0 ignoré**, modèle de
+57 Mo intact et empreinte revérifiée après la suite.
+
+`NoteEditorScreen` est le cinquième écran scindé en `NoteEditorRoute` + composable **sans état**. Ici
+le découpage ne rend pas atteignables une ou deux fenêtres rares mais **six états** : les quatre
+issues de chargement, l'échec d'enregistrement, et sa raison nommée. C'est aussi le seul écran du
+portage où « essayer pour voir » n'est pas neutre — l'essai écrit.
+
+### 🔴🔴 §80 — les deux zones de saisie n'avaient AUCUN nom accessible
+
+Elles n'avaient qu'un `placeholder`. Mesuré sur le S9, arbre fusionné, trois champs :
+
+| Champ | `EditableText` | nom annoncé |
+|---|---|---|
+| `label` + contenu | `valeur-A` | **`[libelle-A]`** |
+| `placeholder` + contenu | `valeur-B` | **`null`** |
+| `placeholder` + **vide** | `` | `[indice-C]` |
+
+Un placeholder ne nomme le champ **que tant qu'il est vide** — c'est-à-dire exactement l'état sous
+lequel un éditeur se relit. Sur une note ouverte, un lecteur d'écran annonçait deux zones **anonymes**.
+Le publié porte `labelText` sur les deux : régression de parité.
+
+⚠️⚠️ **Aucun des deux balayages ne pouvait le voir.** `actionnablesSansNom` **exclut** les nœuds
+portant un `EditableText` — au motif, juste, qu'un champ vide n'est pas un défaut d'étiquetage — et
+`actionsPerduesALaFusion` ne regarde que les actionnables. *Une exclusion raisonnable dans un
+instrument est un angle mort dans tous les écrans qu'il a validés.*
+
+D'où `champsDeSaisieSansNom()`, troisième instrument, son témoin à trois cibles — la troisième étant
+le champ **vide**, qui ne doit **pas** être signalé — et un **contrôle positif sur le vrai code** : les
+deux `label` retirés le temps d'une mesure rendent bien deux rectangles, ceux des deux champs.
+
+⚠️ Restauration **par l'inverse exact de l'édition, vérifiée au SHA-256**, et non par `git checkout --`
+comme au §78 : le fichier portait tout le travail non commité de la session. *Une technique de
+restauration se choisit d'après l'état du fichier, pas d'après l'habitude.*
+
+🔧 Et c'est une **chaîne orpheline** qui disait où poser le libellé : `note_editor_content`, traduite
+des deux côtés, lue nulle part, employée par le publié comme `labelText` de ce champ exactement. Même
+discriminant qu'au §79, même écran, même jour.
+
+### 🔴 §81 — le titre n'était pas plafonné à la saisie
+
+`saveEdits` refuse au-delà de 200 caractères, et refuse **le titre et le corps ensemble**. Un
+paragraphe collé dans le titre gelait donc **tous** les enregistrements de la note ; quitter l'écran
+emportait le texte en silence, l'enregistrement au départ échouant lui aussi. Le publié pose un
+`LengthLimitingTextInputFormatter` et rend l'état inatteignable.
+
+La règle a demandé **quatre** versions : deux arrêtées par l'appareil, **deux par les relectures
+externes** — dont la dernière portait sur le correctif de l'avant-dernière. Elle distingue une
+**insertion** d'un **remplacement** par le préfixe et le suffixe communs, et ne refuse que l'insertion
+faite ailleurs qu'à la fin, seul cas où rogner la fin détruirait de l'existant.
+
+⚠️ **Le geste de mesure était vacant, et c'est une mesure qui l'a dit** : dans ce harnais, sur un titre
+de 250 caractères, ni une frappe ni un collage de 300 caractères ne produisent un candidat plus long
+que le texte en place. Aucune saisie ne peut donc produire la croissance que la garde refuse. D'où la
+table JVM `PlafondDuTitreTest`. *Un geste de test peut être vacant comme une assertion peut l'être.*
+
+### 🔴🔴 §82 — un fichier de test JUnit 4 dans un dépôt JUnit 5 ne tourne pas, sous un gate vert
+
+`PlafondDuTitreTest` avait `import org.junit.Test`. `app/build.gradle.kts:219` porte
+`useJUnitPlatform()` : la classe a été ignorée **sans erreur, sans avertissement, sans rapport**, et
+`BUILD SUCCESSFUL` s'est affiché.
+
+Ce qui l'a dit : **183 tests avant, 183 après**, sept ajoutés. Et l'absence du XML de la classe dans
+`app/build/test-results/`. Jumeau exact de §72 côté JVM — *une ligne verte ne dit rien de ce qui n'a
+pas tourné* — et **la forme du contrôle est la même : compter, et comparer à ce qu'on attendait**.
+
+Motif balayé sur tout le dépôt dans la foulée : aucun autre fichier, 20 classes pour 20 rapports.
+
+### 🔧 Un défaut LOCALISÉ pour la ligne suivante, non corrigé
+
+`link_autocomplete_sheet.dart` : `suggestionsDeLien` vide sa liste à chaque frappe et ne la remplit
+qu'après 120 ms — c'est voulu, et documenté. Mais pendant cette fenêtre, `proposerLaCreation` vaut
+**vrai** par construction, et la garde que le portage a ajoutée exprès — *« si le titre tapé existe
+déjà, on le lie »* — consulte une liste **vide**. Valider au clavier dans les 120 ms crée le doublon
+que cette garde existe pour empêcher.
+
+⚠️ **Pas une régression** : le publié affiche « Créer … » dans la même fenêtre et sa `_onSubmit` crée
+toujours. C'est la divergence délibérée du portage qui est **incomplètement efficace**. Le mécanisme du
+correctif est déjà écrit et éprouvé (§76 : faire porter à la réponse la question à laquelle elle
+répond). À traiter à sa propre ligne.
+
+### ⚠️⚠️ Les deux relectures externes, et la seconde a rattrapé le correctif de la première
+
+Deux tours (GPT-5.2, Gemini 3.1 Pro), **quatre constats retenus, aucun recoupement**. Encore une fois,
+chacune a vu ce que l'autre manquait — et cette fois la seconde portait **sur le correctif** de la
+première, ce qui est la règle du dépôt et n'avait jamais autant payé.
+
+| Constat | Sort |
+|---|---|
+| 🔴 GPT — **une troncature au milieu détruit du texte existant** : titre de 180, collage de 50 en tête, la troncature à 200 emporte les 30 derniers caractères **du titre**, en silence | **CONFIRMÉ, corrigé.** Le portage n'a pas la sélection sous la main — le titre est une `String` — mais il n'en a pas besoin : la comparaison des deux chaînes suffit à reconnaître une insertion |
+| 🔴🔴 Gemini — **le correctif de GPT interdisait tout remplacement** : `startsWith(actuel)` refuse « tout sélectionner puis coller », en silence, alors que le même collage dans un champ vide passe | **CONFIRMÉ, corrigé.** Un correctif de relecture est du code neuf. Discriminant final : *préfixe commun + suffixe commun couvrent-ils le texte en place ?* — si oui c'est une **insertion**, sinon un **remplacement**, et seule l'insertion ailleurs qu'à la fin est refusée |
+| 🔴 Gemini — **l'angle mort de ma table JVM** : elle mesurait le collage en tête et à la fin, pas le remplacement. C'est cette absence qui a laissé passer le défaut ci-dessus | **CONFIRMÉ, corrigé** — deux cas ajoutés, dont l'insertion **au milieu**, que le seul `startsWith` laissait passer dans l'autre sens |
+| 🔴 Gemini — **mon test d'écran partait d'un titre VIDE**, et un champ vide passe n'importe quelle garde qui regarde le texte en place | **CONFIRMÉ, corrigé** — un test de plus, sur un titre existant écrasé par `performTextReplacement`. *Le choix des données initiales d'un test peut désarmer la garde qu'il croit mesurer* |
+| 🔴 GPT — le témoin du troisième balayage n'assertait que `hasSize(1)`, pas **lequel** est signalé | **CONFIRMÉ, corrigé.** Il compare désormais les **coordonnées** du champ fautif, relevées sur son étiquette de test. Le jour où le filtre signale le champ **vide** à la place, il tombe |
+| GPT — `state.title` capturé par la lambda pourrait être **périmé** | **ÉCARTÉ, avec l'argument.** L'invariant qui compte est *un titre parti sous la limite n'y repasse jamais* : le plafond ne dépasse 200 que si `actuel` dépasse 200, et `actuel` est une valeur **déjà acceptée** de l'état. Une lecture périmée est donc une valeur antérieure, elle aussi sous la limite — la récurrence tient quelle que soit la fraîcheur |
+| GPT — comptage en **graphèmes** plutôt qu'en unités UTF-16 | **ÉCARTÉ sur le comptage, RETENU sur la coupe.** La limite doit rester en unités UTF-16, comme celle du dépôt *et* comme celle du dépôt Dart publié : compter des graphèmes ferait passer des titres que `saveEdits` refuserait ensuite, c'est-à-dire exactement le défaut que ce plafond ferme. En revanche la **coupe** pouvait scinder une paire de substituts et laisser un demi-caractère : corrigé, avec son cas |
+
+⚠️ **Ce que GPT n'a pas pu voir, et pourquoi** : `git diff HEAD` **ignore les fichiers non suivis**. Son
+premier tour n'a donc jamais reçu `PlafondDuTitre.kt` — il l'a dit lui-même, deux fois, en refusant de
+conclure. Corrigé par un `git add -N` sur les trois fichiers neufs avant le second tour. *Un relecteur
+qui annonce qu'il lui manque un fichier a raison ; c'est le harnais qu'il faut corriger, pas son
+constat.*

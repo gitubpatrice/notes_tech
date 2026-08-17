@@ -79,6 +79,56 @@
 > `LocalSecureWindow` a levé son garde-fou volontaire, et `home_sort_mode` sert deux fois sur cet écran.
 > Sur un écran de réglages, **un libellé réutilisé est la règle**.
 >
+> ## 🔴 La CINQUIÈME ligne — l'éditeur, et deux champs anonymes — 2026-08-17
+>
+> `note_editor_screen.dart`, 1 123 lignes côté publié : l'écran où l'utilisateur passe son temps, et
+> le seul qui **écrit** des notes. **27 restantes** — l'écran et son panneau de liens.
+>
+> ⚠️⚠️ **Les deux zones de saisie n'avaient AUCUN nom accessible dès qu'elles portaient du texte.**
+> Elles n'avaient qu'un `placeholder`, et un placeholder disparaît de l'arbre de sémantique en même
+> temps que de l'écran — mesuré. Sur une note **vide**, il est là et nomme le champ : c'est l'état
+> sous lequel un éditeur se relit, se capture et se démontre, et c'est l'état où le défaut n'existe
+> pas. Le publié porte `labelText` sur les deux. §80.
+>
+> 🔴 **Et aucun des deux balayages ne pouvait le voir** : `actionnablesSansNom` **exclut** délibérément
+> les nœuds portant un `EditableText` — au motif, juste, qu'un champ vide n'est pas un défaut
+> d'étiquetage — et `actionsPerduesALaFusion` ne regarde que les actionnables. *Une exclusion
+> raisonnable dans un instrument est un angle mort dans tous les écrans qu'il a validés.* D'où le
+> **troisième** instrument, `champsDeSaisieSansNom`, son témoin à trois cibles, et un contrôle positif
+> sur le vrai code : les deux `label` retirés le temps d'une mesure rendent bien **deux** rectangles.
+>
+> 🔴 **Second défaut, du côté de la perte de données** : le titre n'était pas plafonné à la saisie
+> alors que le publié le plafonne à 200 caractères. Au-delà, `saveEdits` refuse **le titre et le corps
+> ensemble** — donc plus rien ne s'enregistre, et quitter l'écran emporte le texte en silence. §81.
+>
+> ⚠️ La règle du plafond a demandé **trois** versions, et deux ont été arrêtées par l'appareil : la
+> troisième refuse la saisie plutôt que de rogner un titre hérité trop long. Sa moitié « refus » n'est
+> **pas mesurable à l'écran** — mesuré : dans ce harnais, aucun geste ne produit un candidat plus long
+> que le texte en place — d'où une table de cas JVM. *Un geste de test peut être vacant comme une
+> assertion peut l'être, et ça se mesure de la même façon.*
+>
+> ### 🔴🔴 Et un fichier de test qui n'a jamais tourné, sous un gate vert — §82
+>
+> `PlafondDuTitreTest` importait JUnit 4 dans un dépôt qui tourne en **JUnit 5** : ignoré sans erreur,
+> sans avertissement, sans ligne de rapport. `BUILD SUCCESSFUL`. Ce qui l'a dit est le **compte** —
+> 183 tests avant, 183 après, sept ajoutés — et l'absence du XML de la classe. Jumeau exact de §72 :
+> *une ligne verte ne dit rien de ce qui n'a pas tourné.* Motif balayé sur tout le dépôt : aucun autre
+> cas, 20 classes pour 20 rapports.
+>
+> ### 🔧 Un défaut LOCALISÉ, non corrigé, pour la ligne `link_autocomplete_sheet.dart`
+>
+> Comme la recherche l'avait été à sa ligne : `suggestionsDeLien` vide sa liste **à chaque frappe** et
+> ne la remplit qu'après 120 ms de calme — c'est voulu, et c'est même un correctif documenté. Mais
+> pendant cette fenêtre, `proposerLaCreation` vaut **vrai** par construction, et la garde que le
+> portage a ajoutée exprès — *« si le titre tapé existe déjà, on le lie au lieu d'en créer un second du
+> même nom »* — consulte une liste **vide**. Valider au clavier dans les 120 ms crée donc le doublon
+> que cette garde existe pour empêcher.
+>
+> ⚠️ **Ce n'est pas une régression** : le publié affiche « Créer … » dans la même fenêtre (`snap.data ??
+> const []`) et sa `_onSubmit` crée **toujours**. C'est la divergence délibérée du portage qui est
+> **incomplètement efficace**. Le mécanisme du correctif est déjà écrit et éprouvé — §76, faire porter
+> à la réponse la question à laquelle elle répond. À traiter à sa propre ligne, avec ses tests.
+>
 > ## ✅ Balayage de cohérence sur tout `ui/` — 2026-08-17
 >
 > Lancé sur le motif des cinq défauts d'accessibilité de la journée. **Un** constat : le bouton micro de
@@ -110,7 +160,7 @@
 |---|---:|---|:---:|---|
 | `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
 | `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ✅ | `AccueilTest` (**13** cas, S9, 2026-08-17) : bannière `vault_lost_drafts` présente **et** absente, quatre états exclusifs du corps, tri, recherche, ouverture de note, sorties de la barre, et **aucun actionnable sans nom**. 🔴 A trouvé **deux** défauts — §71 et §73 |
-| `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` | ☐ | Auto-sauvegarde 500 ms, backlinks, autocomplétion `[[…]]` |
+| `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` + `NoteEditorRoute` | ✅ | `EditeurTest` (**22** cas, S9, 2026-08-17) + `PlafondDuTitreTest` (**11** cas JVM) : les **trois** balayages d'accessibilité, les quatre issues de chargement, l'échec d'enregistrement et sa raison nommée, les deux sorties, le micro désactivé pendant une dictée, les six entrées de menu et l'inverse qu'elles remontent, le panneau de liens dans ses trois états. 🔴 A trouvé **deux** défauts — §80 et §81 |
 | `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` + `SearchRoute` | ✅ | `RechercheTest` (**9** cas, S9) + `RechercheEtatTest` (**7** cas JVM), 2026-08-17 : recherche en cours, accueil, échec périmé, résultats précédents maintenus, note scellée muette, ouverture, effacement, et **aucun actionnable sans nom**. 🔴 A trouvé **un** défaut — §76 |
 | `trash_screen.dart` | 263 | `ui/trash/TrashScreen.kt` + `TrashRoute` | ✅ | `CorbeilleTest` (**12** cas, S9, 2026-08-17) : chargement, corbeille vide, liste, note de coffre restée scellée, les deux confirmations destructrices **et leur annulation**, la durée de rétention réelle, et **aucun actionnable sans nom**. 🔴 A trouvé **trois** défauts — §74 (deux) et §75 |
 | `settings_screen.dart` | 802 | `ui/settings/SettingsScreen.kt` + `SettingsRoute` | ✅ | `ReglagesTest` (**13** cas, S9, 2026-08-17) : balayage d'accessibilité dans deux états, ordre langue/thème mesuré aux coordonnées, valeur courante de chaque choix, « jamais » ≠ « 0 minute », interrupteur, dialogues de thème et de tri, **le mot-clé du mode panique**, ligne désactivée pendant l'effacement, les trois sorties, et l'absence des mentions légales. 🔴 A trouvé **un** défaut — §77 |
@@ -121,9 +171,16 @@
 
 ⚠️ `HomeScreen.kt` est **sans état** et `HomeRoute.kt` porte toute la colle. Le découpage n'a pas
 d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'est vérifier les deux.
-`TrashScreen.kt`, `SearchScreen.kt` et `SettingsScreen.kt` suivent le même partage depuis le
-2026-08-17. **Les écrans restants qui portent leur `hiltViewModel()` en propre — éditeur, à propos,
-mentions légales, installation de la dictée — demanderont le même découpage avant d'être mesurables.**
+`TrashScreen.kt`, `SearchScreen.kt`, `SettingsScreen.kt` et `NoteEditorScreen.kt` suivent le même
+partage depuis le 2026-08-17. **Les écrans restants qui portent leur `hiltViewModel()` en propre — à
+propos, mentions légales, installation de la dictée — demanderont le même découpage avant d'être
+mesurables.**
+
+🔴 **Sur l'éditeur, ce découpage rend atteignables SIX états d'un coup** : les quatre issues de
+chargement (introuvable, dossier coffre disparu, contenu abîmé, coffre refermé pendant la frappe),
+l'échec d'enregistrement et sa raison nommée. Aucun ne s'obtient sur un téléphone sans abîmer une
+vraie base — et c'est le seul écran du portage où l'on ne peut pas simplement « essayer pour voir »,
+puisque l'essai écrit.
 
 🔴 **Sur les réglages, ce découpage ne sert pas seulement à atteindre des états rares : il rend
 mesurable la seule protection du mode panique**, le mot à recopier. À travers le vrai `PanicViewModel`,
@@ -179,6 +236,14 @@ modifier du code correct.
 >
 > 🔴 Cocher `note_card.dart` a coûté **deux** défauts, opposés l'un à l'autre : une carte cliquable
 > pour rien, et une carte qui n'annonçait pas du tout qu'elle est ouvrable. Cf. `04-PIEGES.md` §74.
+>
+> **`backlinks_panel.dart` est coché par `EditeurTest`**, pour la même raison et de la même façon :
+> le panneau vit **dans** la colonne défilante de l'éditeur, et ce qu'il ferait ailleurs n'intéresse
+> personne. Il y est mesuré dans ses **trois** états — absent quand la note n'a aucun lien, un lien
+> **résolu** qui ouvre sa cible, un lien **fantôme** qui propose de créer la note et **dit** qu'elle
+> n'existe pas encore — plus les mentions. ⚠️ L'absence a son témoin : la même note avec des liens
+> montre bien ses sections, sans quoi l'assertion négative passerait sur un panneau qui n'apparaîtrait
+> jamais.
 
 | Composant Flutter | Lignes | Kotlin | Vérifié |
 |---|---:|---|:---:|
@@ -188,7 +253,7 @@ modifier du code correct.
 | `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ☐ |
 | `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ☐ |
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
-| `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ☐ |
+| `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ☐ |
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |

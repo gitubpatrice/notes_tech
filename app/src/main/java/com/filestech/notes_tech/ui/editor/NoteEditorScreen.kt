@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -250,22 +251,103 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     DisposableEffect(Unit) {
         onDispose { viewModel.saveNow() }
     }
-    BackHandler {
+
+    // ⚠️ **Un seul geste, trois chemins** : le Retour système, la flèche de la barre et la coche
+    // « Terminé ». Les trois vident puis quittent — deux chemins pour un seul geste, pas deux
+    // comportements. C'est le commentaire de la coche, appliqué là où il se vérifie.
+    val quitter = {
         viewModel.saveNow()
         onBack()
     }
+    BackHandler(onBack = quitter)
 
+    NoteEditorScreen(
+        state = state,
+        liens = liens,
+        messages = messages,
+        dicteeActive = dictee.actif,
+        onQuitter = quitter,
+        onTitreChange = viewModel::onTitleChange,
+        onContenuChange = viewModel::onContentChange,
+        onDicter = dictee.demarrer,
+        onInsererUnLien = { autocompletionOuverte = true },
+        onEpingler = viewModel::setPinned,
+        onFavori = viewModel::setFavorite,
+        onDeplacer = { deplacementOuvert = true },
+        onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
+        onCopier = {
+            // Retour haptique sur un geste réussi, comme l'application publiée
+            // (`note_editor_screen.dart:544`). Il part à l'appui, pas à l'issue : c'est l'accusé de
+            // réception du geste, pas celui de son résultat, que le message se charge d'annoncer.
+            retourHaptique.performHapticFeedback(HapticFeedbackType.ContextClick)
+            viewModel.copierEnMarkdown()
+        },
+        // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a REUSSI, depuis
+        // l'observation de `action` ci-dessus. Quitter tout de suite laissait croire à une note
+        // supprimée qui ne l'était pas.
+        onCorbeille = viewModel::moveToTrash,
+        onOuvrirNote = ouvrirUneAutreNote,
+        // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite : l'appuyer la crée, avec
+        // le titre du lien. Le texte de la note, lui, ne bouge pas — le `[[Titre]]` y est déjà, et
+        // c'est l'indexation qui rattachera le lien à sa cible une fois la note née.
+        onLienFantome = viewModel::creerLaNoteManquante,
+    )
+
+    state.lockedVault?.let { dossier ->
+        UnlockVaultSheet(
+            folder = dossier,
+            onDismiss = onBack,
+            onUnlocked = viewModel::retryAfterUnlock,
+        )
+    }
+}
+
+/**
+ * L'éditeur d'une note, **sans état** : ce qu'il montre ne dépend que de [state] et de [liens].
+ *
+ * ## 🔴 Cinquième écran à recevoir ce découpage, et pour la même raison que les quatre autres
+ *
+ * `HomeScreen`, `TrashScreen`, `SearchScreen` et `SettingsScreen` l'ont reçu parce que les états qui
+ * portaient leurs défauts sont ceux qu'on **n'atteint pas** en pilotant l'application : la fenêtre
+ * entre une requête et sa réponse (§75, §76), une ligne désactivée le temps d'un effacement (§77).
+ *
+ * Ici, ce sont les **quatre issues de chargement** — introuvable, dossier coffre disparu, contenu
+ * abîmé, coffre refermé pendant la frappe — plus l'échec d'enregistrement et sa raison. Aucune ne
+ * s'obtient sur un téléphone sans abîmer une vraie base ; toutes se posent en une ligne ici.
+ *
+ * ⚠️ Ce qui **reste** dans [NoteEditorRoute] et n'en descendra pas : les quatre feuilles (elles
+ * lisent des flux du ViewModel et ont chacune leur propre ligne de parité), `SecureWindowGuard` — qui
+ * agit sur la **fenêtre** et non sur l'affichage, et dont le contrôleur manquant est une erreur
+ * volontaire (§77) —, l'annonce d'enregistrement freinée, et l'enregistrement au départ.
+ */
+@Composable
+fun NoteEditorScreen(
+    state: EditorUiState,
+    liens: PanneauDeLiens,
+    messages: SnackbarHostState,
+    dicteeActive: Boolean,
+    onQuitter: () -> Unit,
+    onTitreChange: (String) -> Unit,
+    onContenuChange: (TextFieldValue) -> Unit,
+    onDicter: () -> Unit,
+    onInsererUnLien: () -> Unit,
+    onEpingler: (Boolean) -> Unit,
+    onFavori: (Boolean) -> Unit,
+    onDeplacer: () -> Unit,
+    onExporter: () -> Unit,
+    onCopier: () -> Unit,
+    onCorbeille: () -> Unit,
+    onOuvrirNote: (String) -> Unit,
+    onLienFantome: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(messages) },
         topBar = {
             TopAppBar(
                 navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            viewModel.saveNow()
-                            onBack()
-                        },
-                    ) {
+                    IconButton(onClick = onQuitter) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.common_close),
@@ -312,12 +394,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         // La coche reste visible et découvrable, et sa description la nomme : c'est
                         // le « bouton visible » que le retour utilisateur réclamait, à la largeur
                         // des autres.
-                        IconButton(
-                            onClick = {
-                                viewModel.saveNow()
-                                onBack()
-                            },
-                        ) {
+                        IconButton(onClick = onQuitter) {
                             // 🔴 Verte, et pas de la teinte des icônes ordinaires : relevé sur le
                             // S9 le 2026-08-16, « on la voit pas bien ». Elle avait le même poids
                             // visuel que le micro et le lien, alors qu'elle seule dit « c'est
@@ -334,8 +411,8 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         // `DictationViewModel` refuse le second appel de toute façon, mais un
                         // bouton qui accepte un geste sans effet se réappuie.
                         IconButton(
-                            onClick = dictee.demarrer,
-                            enabled = !dictee.actif,
+                            onClick = onDicter,
+                            enabled = !dicteeActive,
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Mic,
@@ -358,7 +435,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         // ⚠️ « Insérer un lien » est un bouton d'icône, **pas** une entrée de menu :
                         // c'est le geste d'écriture le plus fréquent de cet écran, et l'application
                         // publiée le place au même endroit, à côté de l'épingle et du favori.
-                        IconButton(onClick = { autocompletionOuverte = true }) {
+                        IconButton(onClick = onInsererUnLien) {
                             Icon(
                                 imageVector = Icons.Outlined.Link,
                                 contentDescription = stringResource(R.string.note_editor_tooltip_insert_link),
@@ -367,22 +444,16 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         MenuDeDebordement(
                             epinglee = note.pinned,
                             favorite = note.favorite,
-                            onEpingler = { viewModel.setPinned(!note.pinned) },
-                            onFavori = { viewModel.setFavorite(!note.favorite) },
-                            onDeplacer = { deplacementOuvert = true },
-                            onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
-                            onCopier = {
-                                // Retour haptique sur un geste réussi, comme l'application publiée
-                                // (`note_editor_screen.dart:544`). Il part à l'appui, pas à l'issue :
-                                // c'est l'accusé de réception du geste, pas celui de son résultat,
-                                // que le message se charge d'annoncer.
-                                retourHaptique.performHapticFeedback(HapticFeedbackType.ContextClick)
-                                viewModel.copierEnMarkdown()
-                            },
-                            // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a
-                            // REUSSI, depuis l'observation de `action` ci-dessus. Quitter tout de
-                            // suite laissait croire à une note supprimée qui ne l'était pas.
-                            onCorbeille = viewModel::moveToTrash,
+                            // ⚠️ **La valeur inverse est calculée ICI**, où la note est connue, et le
+                            // rappel ne reçoit qu'un booléen. Faire calculer `!note.pinned` à la
+                            // `Route` l'obligerait à relire `state.note` — deux lecteurs du même champ
+                            // pour un même geste, dont l'un peut être en retard d'une recomposition.
+                            onEpingler = { onEpingler(!note.pinned) },
+                            onFavori = { onFavori(!note.favorite) },
+                            onDeplacer = onDeplacer,
+                            onExporter = onExporter,
+                            onCopier = onCopier,
+                            onCorbeille = onCorbeille,
                         )
                     }
                 },
@@ -443,10 +514,51 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                         .imePadding(),
                 ) {
                     if (state.saveFailed) BanniereEchecEnregistrement(state.saveFailureReason)
+                    // 🔴🔴 **`label` et non `placeholder` : les deux champs n'avaient AUCUN nom
+                    // accessible dès qu'ils portaient du texte.**
+                    //
+                    // Un `placeholder` de Material3 disparaît à la première lettre, et le nom
+                    // accessible du champ redevient alors son seul contenu. Un lecteur d'écran
+                    // annonçait donc, sur une note ouverte, deux zones de saisie **anonymes** : le
+                    // titre lu comme du texte, puis la note entière lue comme du texte, sans que rien
+                    // ne dise laquelle est laquelle ni ce qu'on est censé y écrire. Sur une note
+                    // **vide** le défaut était invisible — le placeholder est là, il nomme le champ,
+                    // et c'est l'état sous lequel l'écran a toujours été relu.
+                    //
+                    // L'application publiée porte `labelText` sur les deux (`note_editor_screen.dart`
+                    // :1072 et :1102), en plus de son `hintText`. Un `label` Material3 fait la même
+                    // chose : il flotte au-dessus du champ rempli, donc il **reste** annoncé.
+                    //
+                    // ⚠️ **Le balayage `actionnablesSansNom` ne pouvait pas le voir** : il exclut
+                    // délibérément les nœuds qui portent un `EditableText`, au motif qu'un champ vide
+                    // n'est pas un défaut d'étiquetage. C'est juste, et ça laissait un motif entier
+                    // hors de portée — d'où `champsDeSaisieSansNom`, le troisième instrument.
+                    //
+                    // ⚠️ Pas de `placeholder` sur le titre : il vaudrait la même chaîne que le
+                    // `label`, et Material3 les affiche **tous les deux** sur un champ vide et
+                    // focalisé. Le contenu, lui, garde le sien — `note_editor_content_hint` dit
+                    // `[[Titre]] pour lier`, ce que son libellé ne dit pas.
                     TextField(
                         value = state.title,
-                        onValueChange = viewModel::onTitleChange,
-                        placeholder = { Text(stringResource(R.string.note_editor_title)) },
+                        // 🔴 **Le titre est plafonné À LA SAISIE, comme dans l'application publiée**
+                        // (`LengthLimitingTextInputFormatter(AppConstants.noteTitleMaxLength)`).
+                        //
+                        // Sans ce plafond, coller un paragraphe dans le titre faisait échouer
+                        // **chaque** enregistrement de la note — `saveEdits` refuse au-delà de
+                        // [NotesRepository.TITLE_MAX_LENGTH], et il refuse le titre **et le corps
+                        // ensemble**, puisque c'est un seul appel. Le texte tapé ensuite n'était donc
+                        // écrit nulle part. La bannière le dit tant qu'on est sur l'écran ; quitter
+                        // l'emportait en silence, l'enregistrement au départ échouant lui aussi.
+                        //
+                        // ⚠️ La règle elle-même vit dans [PlafondDuTitre], à part et testée sur la
+                        // JVM : ce qui peut s'y tromper est un rapport de **longueurs**, et une table
+                        // de cas le dit mieux qu'un écran. Elle rend `null` pour une saisie à
+                        // ignorer — un titre déjà au plafond n'accepte plus rien, plutôt que de se
+                        // faire manger la fin à chaque frappe.
+                        onValueChange = { nouveau ->
+                            PlafondDuTitre.applique(state.title, nouveau)?.let(onTitreChange)
+                        },
+                        label = { Text(stringResource(R.string.note_editor_title)) },
                         textStyle = MaterialTheme.typography.headlineSmall,
                         singleLine = true,
                         colors = champSansDecor(),
@@ -454,7 +566,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                     )
                     TextField(
                         value = state.content,
-                        onValueChange = viewModel::onContentChange,
+                        onValueChange = onContenuChange,
+                        // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
+                        // part** — le publié en fait le `labelText` de ce champ exactement. Même
+                        // discriminant que §79, appliqué au même écran le même jour.
+                        label = { Text(stringResource(R.string.note_editor_content)) },
                         placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
                         textStyle = MaterialTheme.typography.bodyLarge,
                         colors = champSansDecor(),
@@ -465,26 +581,14 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
                     // l'écran de fin du mode panique.
                     LiensDeLaNote(
                         liens = liens,
-                        onOuvrirNote = ouvrirUneAutreNote,
-                        // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite :
-                        // l'appuyer la crée, avec le titre du lien. Le texte de la note, lui, ne
-                        // bouge pas — le `[[Titre]]` y est déjà, et c'est l'indexation qui
-                        // rattachera le lien à sa cible une fois la note née.
-                        onLienFantome = viewModel::creerLaNoteManquante,
+                        onOuvrirNote = onOuvrirNote,
+                        onLienFantome = onLienFantome,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     Spacer(Modifier.height(48.dp))
                 }
             }
         }
-    }
-
-    state.lockedVault?.let { dossier ->
-        UnlockVaultSheet(
-            folder = dossier,
-            onDismiss = onBack,
-            onUnlocked = viewModel::retryAfterUnlock,
-        )
     }
 }
 
