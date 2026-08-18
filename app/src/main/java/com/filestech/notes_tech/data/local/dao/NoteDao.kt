@@ -128,10 +128,23 @@ interface NoteDao {
      * Elle est invisible aujourd'hui — **aucun écran de la 2.0.3 ne permet d'archiver une note**,
      * le seul `archive` de `lib/ui/` est une icône d'export. La colonne vaut donc `0` partout.
      *
-     * Elle est conservée telle quelle parce que la parité est le critère de sortie de la phase 8 :
-     * un « correctif » silencieux qui ferait disparaître des notes d'une liste serait indiscernable
-     * d'un défaut de portage le jour où quelqu'un compare les deux applications. Consignée dans
-     * `docs/05-PARITE.md` pour être tranchée quand l'archivage sera câblé, s'il l'est.
+     * ## ✅ Tranchée le 2026-08-18 : ce n'est pas un écart à corriger, c'est la définition d'une archive
+     *
+     * Sortie de sa liste, toujours atteignable ailleurs — c'est ce que fait une archive, et
+     * l'asymétrie est donc **juste**. La filtrer des deux côtés rendrait la note **invisible
+     * partout**, sans aucun écran pour la retrouver, alors qu'aucun geste ne permet de la
+     * désarchiver : le « correctif » évident aurait perdu des notes.
+     *
+     * 🔴 **Et elle est désormais MESURÉE**, par trois cas de `NotesRepositoryTest` — dont le
+     * retour en arrière et le paramètre `includeArchived`. Ce qui la rendait fragile n'était pas
+     * l'asymétrie mais le fait que **rien ne l'exerçait** : `NotesRepository.setArchived` n'a aucun
+     * appelant, la colonne vaut `0` partout, et une règle que rien n'exerce est une règle qu'un
+     * refactor déplace sans que personne ne le voie. Le jour où l'archivage sera câblé, il héritera
+     * d'un comportement **décidé** et non d'un accident de deux requêtes écrites à deux moments.
+     *
+     * ⚠️ Le chemin d'écriture n'est **pas** du code mort à supprimer : c'est la surface que
+     * l'application publiée expose aussi. Le retirer ferait divergence, et la parité est le critère
+     * de sortie de la phase 8.
      */
     fun observeAllAlive(sort: NoteSortMode): Flow<List<NoteEntity>> =
         observeSorted(SimpleSQLiteQuery("SELECT * FROM notes WHERE trashed_at IS NULL ORDER BY ${sort.orderBy}"))
@@ -252,6 +265,19 @@ interface NoteDao {
 
     @Query("SELECT COUNT(*) FROM notes WHERE folder_id = :folderId AND trashed_at IS NULL")
     suspend fun countInFolder(folderId: String): Int
+
+    /**
+     * Toutes les notes du dossier, **corbeille comprise**.
+     *
+     * 🔴 **C'est ce que la suppression du dossier détruit**, et donc le seul nombre qu'on ait le
+     * droit d'annoncer. `folder_id` est une clé étrangère `ON DELETE CASCADE`, et mettre une note à
+     * la corbeille **conserve** son `folder_id` : supprimer le dossier emporte donc aussi ses notes
+     * en corbeille, qui étaient pourtant visibles depuis l'écran Corbeille. [countInFolder], qui
+     * filtre sur `trashed_at IS NULL`, sous-évaluerait — et un message qui annonce trois notes quand
+     * cinq disparaissent est pire qu'un message absent.
+     */
+    @Query("SELECT COUNT(*) FROM notes WHERE folder_id = :folderId")
+    suspend fun countAllInFolder(folderId: String): Int
 
     @Query("SELECT * FROM notes WHERE id IN (:ids)")
     suspend fun findByIds(ids: List<String>): List<NoteEntity>

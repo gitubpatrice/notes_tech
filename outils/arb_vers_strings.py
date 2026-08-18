@@ -52,6 +52,30 @@ AJOUTS_EN = {
     -->
     <string name="common_more_options">More options</string>
 """,
+    "folder": """\
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. La version Flutter ecrit « {n} note(s) »,
+         le contournement qu'on emploie quand on n'a pas de pluriel — et Android en a un. -->
+    <plurals name="folder_delete_decrypt_failed">
+        <item quantity="one">Cannot decrypt %1$d note.</item>
+        <item quantity="other">Cannot decrypt %1$d notes.</item>
+    </plurals>
+
+    <!-- Ajouts du portage : SUPPRIMER un dossier a une consequence qu'on ne VOIT pas.
+         Renommer ou creer se lit dans le tiroir, sous les yeux de l'utilisateur, et n'a donc
+         besoin d'aucun message — c'est le choix de l'application publiee, et il se tient.
+         Supprimer, non : le dossier disparait de l'ecran, mais le sort de ses notes — deplacees
+         vers la boite de reception, ou detruites avec lui — n'apparait nulle part. Le publie se
+         taisait sur les deux. Cf. 04-PIEGES.md §97. -->
+    <string name="folder_deleted">Folder deleted.</string>
+    <plurals name="folder_deleted_notes_moved">
+        <item quantity="one">Folder deleted, %1$d note moved to the Inbox.</item>
+        <item quantity="other">Folder deleted, %1$d notes moved to the Inbox.</item>
+    </plurals>
+    <plurals name="folder_deleted_notes_removed">
+        <item quantity="one">Folder deleted, along with %1$d note.</item>
+        <item quantity="other">Folder deleted, along with %1$d notes.</item>
+    </plurals>
+""",
     "note": """\
     <!--
       Ajout du portage : la note publiee copiait une chaine vide, ce qui EFFACE ce que
@@ -187,6 +211,27 @@ AJOUTS_FR = {
     <string name="common_back">Retour</string>
     <string name="common_more_options">Plus d\\'options</string>
 """,
+    "folder": """\
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. -->
+    <plurals name="folder_delete_decrypt_failed">
+        <item quantity="one">Déchiffrement impossible pour %1$d note.</item>
+        <item quantity="other">Déchiffrement impossible pour %1$d notes.</item>
+        <item quantity="many">Déchiffrement impossible pour %1$d de notes.</item>
+    </plurals>
+
+    <!-- Voir le commentaire cote EN. -->
+    <string name="folder_deleted">Dossier supprimé.</string>
+    <plurals name="folder_deleted_notes_moved">
+        <item quantity="one">Dossier supprimé, %1$d note déplacée vers la Boîte de réception.</item>
+        <item quantity="other">Dossier supprimé, %1$d notes déplacées vers la Boîte de réception.</item>
+        <item quantity="many">Dossier supprimé, %1$d de notes déplacées vers la Boîte de réception.</item>
+    </plurals>
+    <plurals name="folder_deleted_notes_removed">
+        <item quantity="one">Dossier supprimé, ainsi que %1$d note.</item>
+        <item quantity="other">Dossier supprimé, ainsi que %1$d notes.</item>
+        <item quantity="many">Dossier supprimé, ainsi que %1$d de notes.</item>
+    </plurals>
+""",
     "note": """\
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
 """,
@@ -194,6 +239,7 @@ AJOUTS_FR = {
     <plurals name="trash_emptied">
         <item quantity="one">%1$d note supprimée définitivement</item>
         <item quantity="other">%1$d notes supprimées définitivement</item>
+        <item quantity="many">%1$d de notes supprimées définitivement</item>
     </plurals>
 """,
     "vault": """\
@@ -260,6 +306,30 @@ AJOUTS_FR = {
 """,
 }
 
+# ── La categorie CLDR `many` du francais, ecrite A LA MAIN ──────────────────────────────────────
+#
+# `lintDebug` la reclamait sur les quatre pluriels francais (MissingQuantity). Elle ne vaut que
+# pour les multiples EXACTS d'un million, et Android retombe sur `other` quand elle manque : le
+# comportement etait donc correct. Mais s'appuyer sur ce repli, c'est declarer une ressource
+# incomplete et compter sur une regle de secours — et un avertissement que tout le monde apprend a
+# ignorer finit par en cacher un vrai.
+#
+# ⚠️⚠️ **Ecrite a la main, cle par cle, et NON derivee de `other`.** La forme francaise insere
+# « de » apres le nombre (« 1 000 000 de notes »), ce qui suppose que le nombre soit suivi d'un nom.
+# La regle mecanique serait juste sur ces trois chaines et fausse des la premiere qui dirait
+# « %1$d sur 5 ». Un `assert` plus bas exige une entree par pluriel : un pluriel neuf fait donc
+# echouer ce script tant que personne n'a ecrit sa forme.
+#
+# ⚠️ **Apostrophes BRUTES ici**, contrairement aux AJOUTS_* : ces valeurs passent par `echappe`,
+# les AJOUTS_* sont du XML deja echappe. Deux conventions, deux endroits — ne pas les melanger.
+MANY_FR = {
+    "homeVaultLostBanner":
+        "%1$d de notes de coffre ont perdu leurs dernières modifications "
+        "(coffre verrouillé pendant l'enregistrement).",
+    "folderRemoveVaultDone": "%1$d de notes déchiffrées. Le dossier n'est plus un coffre.",
+    "settingsVaultAutoLockMinutes": "%1$d de minutes",
+}
+
 # Cles de l'ARB dont le portage REECRIT la valeur. Elles sont sautees a la transposition et leur
 # version reecrite vit dans AJOUTS_*. Sans cette liste, le controle de doublons leverait — ce qui
 # est le bon comportement : un doublon silencieux serait pire.
@@ -271,8 +341,13 @@ AJOUTS_FR = {
 # affirment que l'audio n'est « jamais persiste ». C'est faux — le moteur de transcription lit un
 # FICHIER — et c'est exactement la formulation corrigee le meme jour dans `privacy.md`. Les laisser
 # ici aurait fait dire a l'ecran l'inverse de la politique de confidentialite de l'application.
+# `folderDeleteDecryptFailed` : la version Flutter ecrit « pour {n} note(s). ». Le « (s) » est le
+# contournement qu'on emploie quand on n'a pas de pluriel — `lintDebug` le signale d'ailleurs
+# (PluralsCandidate) — et Android en a un. Reecrite en `<plurals>`, elle dit « 1 note » ou
+# « 3 notes » au lieu de « 1 note(s) ».
 REMPLACEES = {
     "panicIncomplete",
+    "folderDeleteDecryptFailed",
     "voiceSetupSubtitle",
     "voiceSetupOfflineBanner",
     "voiceSetupSecurityFooterBody",
@@ -544,6 +619,9 @@ for cle in cles:
                 corps = re.sub(r"(?<![0-9])1(?![0-9])", "{%s}" % variable, corps, count=1)
             texte = echappe(deplie(transpose(corps, idx, typ)), True)
             lignes.append('        <item quantity="%s">%s</item>' % (quantite, texte))
+        if langue == "fr":
+            # Voir MANY_FR. L'absence de la cle est une erreur, pas un cas a ignorer.
+            lignes.append('        <item quantity="many">%s</item>' % echappe(MANY_FR[cle], True))
         lignes.append("    </plurals>")
         pour_langue[langue] = ("plurals", "\n".join(lignes))
     if pour_langue["fr"][0] != pour_langue["en"][0]:
@@ -586,6 +664,30 @@ for _nom, _ajouts in (("AJOUTS_EN", AJOUTS_EN), ("AJOUTS_FR", AJOUTS_FR)):
                 "Ecrire \\\\' dans la source Python pour produire \\' dans le XML. Valeur : %r"
                 % (_nom, _section, _valeur)
             )
+
+# ⚠️ Un pluriel de l'ARB sans forme `many` fait echouer ce script — et non pas passer en silence.
+_sans_many = pluriels - set(MANY_FR)
+assert not _sans_many, (
+    "pluriel(s) sans forme `many` francaise : %r. Ajouter l'entree dans MANY_FR, ecrite a la main "
+    "(voir le commentaire de MANY_FR) — la deriver de `other` serait faux des qu'une chaine ne "
+    "place pas un nom apres le nombre." % sorted(_sans_many)
+)
+_many_orphelines = set(MANY_FR) - pluriels
+assert not _many_orphelines, (
+    "MANY_FR cite des cles qui ne sont plus des pluriels : %r" % sorted(_many_orphelines)
+)
+
+# ⚠️ Meme exigence pour les pluriels ecrits a la main dans AJOUTS_FR : le controle ci-dessus ne
+# les voit pas, puisqu'ils ne passent pas par l'emetteur. Sans ce second garde, la moitie des
+# pluriels du fichier echapperait a la regle — exactement le genre de trou qu'un garde partiel
+# laisse en donnant l'impression d'etre couvert.
+_PLURIEL_FR = re.compile(r'<plurals name="(\w+)">(.*?)</plurals>', re.S)
+for _section, _bloc in AJOUTS_FR.items():
+    for _nom_pl, _corps in _PLURIEL_FR.findall(_bloc):
+        assert 'quantity="many"' in _corps, (
+            "AJOUTS_FR[%r] : le pluriel `%s` n'a pas de forme `many` francaise. "
+            "Voir le commentaire de MANY_FR." % (_section, _nom_pl)
+        )
 
 ordre = {p: i for i, (p, _) in enumerate(SECTIONS)}
 groupes = {}

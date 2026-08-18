@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.home
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -35,6 +36,7 @@ import com.filestech.notes_tech.ui.folders.FolderNameDialog
 import com.filestech.notes_tech.ui.folders.FoldersDrawer
 import com.filestech.notes_tech.ui.folders.FoldersDrawerViewModel
 import com.filestech.notes_tech.ui.folders.GesteDeDossier
+import com.filestech.notes_tech.ui.folders.SortDesNotes
 import com.filestech.notes_tech.ui.folders.deverrouillageRequis
 import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
@@ -396,7 +398,13 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
     LaunchedEffect(viewModel, ressources) {
         viewModel.eventFlow.collect { evenement ->
             val message = when (evenement) {
-                is FolderEvent.Renamed, is FolderEvent.Created, is FolderEvent.Deleted -> null
+                // ⚠️ Renommer et créer **ne disent rien, exprès** : le tiroir se met à jour sous les
+                // yeux de l'utilisateur, et le nom qu'il vient de taper s'affiche. Ajouter
+                // « Dossier renommé » serait du bruit — c'est le choix de l'application publiée, et
+                // il se tient. Supprimer, non : voir [messageDeSuppression].
+                is FolderEvent.Renamed, is FolderEvent.Created -> null
+
+                is FolderEvent.Deleted -> messageDeSuppression(ressources, evenement)
 
                 is FolderEvent.VaultRemoved -> ressources.getQuantityString(
                     R.plurals.folder_remove_vault_done,
@@ -407,8 +415,13 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
                 // 🔴 Un retrait de protection partiel laisse le dossier COFFRE et ses notes
                 // rescellées. Le taire ferait croire à une réussite, donc à des notes désormais
                 // lisibles sans secret — exactement l'inverse de ce qui s'est passé.
-                is FolderEvent.VaultPartiallyRemoved ->
-                    ressources.getString(R.string.folder_delete_decrypt_failed, evenement.failed)
+                // ⚠️ Un pluriel, et non plus « %1$d note(s) » : le contournement venait de
+                // l'application publiée, qui n'avait pas de pluriel là où Android en a un.
+                is FolderEvent.VaultPartiallyRemoved -> ressources.getQuantityString(
+                    R.plurals.folder_delete_decrypt_failed,
+                    evenement.failed,
+                    evenement.failed,
+                )
 
                 is FolderEvent.Failed ->
                     ressources.getString(R.string.folder_delete_cancelled_error, evenement.message ?: erreurGenerique)
@@ -417,6 +430,39 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
             if (message != null) portee.launch { snackbars.showSnackbar(message) }
         }
     }
+}
+
+/**
+ * Ce que dit la suppression d'un dossier.
+ *
+ * ## 🔴🔴 Pourquoi celle-ci parle, quand renommer et créer se taisent
+ *
+ * Le critère n'est pas l'importance du geste mais **ce que l'utilisateur voit se produire**. Un
+ * renommage change le nom dans le tiroir, une création y fait apparaître une ligne : le retour est
+ * l'écran lui-même. Une suppression, elle, ne montre que la **disparition du dossier** — et tait
+ * entièrement le sort de ses notes, qui n'étaient pas à l'écran. Elles ont été déplacées vers la
+ * boîte de réception, ou détruites, et rien ne le disait.
+ *
+ * ⚠️⚠️ **Le cas des notes en corbeille est le plus injuste des trois** : supprimer un dossier détruit
+ * aussi ses notes déjà en corbeille — `folder_id` est une clé étrangère `ON DELETE CASCADE` et la
+ * mise en corbeille conserve ce lien — alors qu'elles étaient visibles depuis l'écran Corbeille et
+ * qu'on pouvait encore les restaurer. C'est pourquoi le nombre annoncé vient de
+ * `countAllInFolder` et non de `countInFolder`.
+ *
+ * ⚠️ **Zéro note n'est pas « zéro » mais « rien à dire de plus »** : `getQuantityString` avec `0`
+ * rendrait « Dossier supprimé, 0 note déplacée » en français, la catégorie `one` couvrant zéro. Un
+ * dossier vide n'a pas de sort de notes à annoncer, donc une phrase courte et vraie.
+ *
+ * ⚠️ Le `when` est exhaustif sur [SortDesNotes] : un troisième sort fera échouer la compilation
+ * plutôt que d'afficher le message d'un autre geste.
+ */
+internal fun messageDeSuppression(ressources: Resources, evenement: FolderEvent.Deleted): String {
+    if (evenement.notes == 0) return ressources.getString(R.string.folder_deleted)
+    val pluriel = when (evenement.sort) {
+        SortDesNotes.DEPLACEES -> R.plurals.folder_deleted_notes_moved
+        SortDesNotes.SUPPRIMEES -> R.plurals.folder_deleted_notes_removed
+    }
+    return ressources.getQuantityString(pluriel, evenement.notes, evenement.notes)
 }
 
 /**

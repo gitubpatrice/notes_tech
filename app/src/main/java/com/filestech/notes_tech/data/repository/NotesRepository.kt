@@ -108,6 +108,9 @@ class NotesRepository @Inject constructor(
 
     suspend fun countInFolder(folderId: String): Int = databases.get().noteDao().countInFolder(folderId)
 
+    /** Corbeille comprise — voir `NoteDao.countAllInFolder`, qui dit pourquoi. */
+    suspend fun countAllInFolder(folderId: String): Int = databases.get().noteDao().countAllInFolder(folderId)
+
     /**
      * Charge plusieurs notes en une fois, par tranches.
      *

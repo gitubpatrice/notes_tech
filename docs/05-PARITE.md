@@ -679,7 +679,7 @@ horloges séparées, et je les avais confondues en écrivant cette section une p
 surfaces du site, et le `.yml` F-Droid.
 
 
-## Écarts relevés dans l'application publiée — REPRODUITS, à trancher par Patrice
+## ✅ Écarts relevés dans l'application publiée — les QUATRE sont tranchés
 
 *Relevés pendant la phase 5, le 2026-08-14.*
 
@@ -704,25 +704,65 @@ demandait de toucher à l'ARB de `notes_tech`, dont trois fichiers l10n étaient
 intervention ». Vérification faite : ces trois fichiers étaient **identiques à `HEAD`**, aux fins de
 ligne près. Cf. `docs/04-PIEGES.md` §42.
 
-### 2. 🟢 « Toutes les notes » inclut les archives, un dossier non
+### 2. ✅ CLOS le 2026-08-18 — « Toutes les notes » inclut les archives, un dossier non : **ce n'est pas un écart, c'est la définition d'une archive**
 
 `notes_dao.dart:156` filtre sur `trashed_at IS NULL` seul ; `listByFolder` (ligne 59) ajoute
 `archived = 0`. Une note archivée disparaît donc de son dossier et reste dans « toutes les notes ».
 
-**Invisible aujourd'hui** : aucun écran de la 2.0.3 ne permet d'archiver une note — le seul
-`archive` de `lib/ui/` est une icône d'export. La colonne vaut `0` partout.
+**Sortie de sa liste, toujours atteignable ailleurs** — c'est exactement ce qu'on attend d'une
+archive, et l'asymétrie est donc juste. Le « correctif » évident — filtrer des deux côtés — rendrait
+la note **invisible partout**, sans aucun écran pour la retrouver, alors qu'aucun geste ne permet de
+la désarchiver : il aurait perdu des notes.
 
-### 3. 🟢 Renommer ou supprimer un dossier n'affiche aucun message
+🔴 **Ce qui la rendait fragile n'était pas l'asymétrie mais le fait que rien ne l'exerçait.**
+`NotesRepository.setArchived` n'a **aucun appelant** — comme dans la 2.0.3, dont aucun écran n'archive
+non plus, le seul `archive` de `lib/ui/` étant une icône d'export : la colonne vaut `0` partout, et
+l'asymétrie est **inobservable**. Une règle que rien n'exerce est une règle qu'un refactor déplace
+sans que personne ne le voie.
 
-Et c'est défendable : le tiroir se met à jour sous les yeux de l'utilisateur. Noté parce que la
-tentation d'ajouter « Dossier renommé » était forte, et qu'y céder aurait créé deux clés i18n que la
-version Flutter n'a pas.
+🔧 **Trois cas de `NotesRepositoryTest`** l'épinglent désormais — l'archivage, le retour en arrière, et
+le paramètre `includeArchived` — avec leur témoin **avant** archivage, sans quoi un test qui ne trouve
+la note nulle part passerait pour une preuve. Le jour où l'archivage sera câblé, il héritera d'un
+comportement **décidé**. ⚠️ Le chemin d'écriture n'est **pas** du code mort à supprimer : c'est la
+surface que l'application publiée expose aussi.
 
-### 4. ℹ️ Pluriel français : la catégorie CLDR `many` n'est pas définie
+### 3. ✅ CLOS le 2026-08-18 — renommer ne dit rien, **supprimer le dit** : cf. `04-PIEGES.md` §97
 
-`lintDebug` la signale sur les trois `<plurals>`. Elle ne vaut qu'à partir d'un million, et Android
-retombe sur `other` quand elle manque — le comportement est donc correct. La définir demanderait une
-forme grammaticale (« un million **de** notes ») qui ne sera jamais atteinte.
+L'argument d'origine — *« le tiroir se met à jour sous les yeux de l'utilisateur »* — est vrai pour le
+renommage et la création, et **faux pour la suppression**. Le critère n'est pas l'importance du geste
+mais **ce que l'utilisateur voit se produire** : un renommage montre le nouveau nom, une création la
+nouvelle ligne ; une suppression ne montre que la disparition du dossier, et tait le sort de ses notes,
+qui n'étaient pas à l'écran.
+
+🔧 Renommer et créer restent **muets**, exprès. Supprimer annonce le nombre de notes **et leur sort** —
+déplacées vers la boîte de réception, ou détruites. `FolderEvent.Deleted` portait déjà le décompte,
+calculé puis jeté (§92).
+
+⚠️⚠️ **Le cas le plus injuste** : supprimer un dossier détruit aussi ses notes **en corbeille**
+(`ON DELETE CASCADE`, et la mise en corbeille conserve le `folder_id`) — des notes encore visibles
+depuis l'écran Corbeille et encore restaurables. Le nombre annoncé vient donc de `countAllInFolder`,
+**sans** le filtre `trashed_at IS NULL`.
+
+⚠️ Deux clés i18n ont bien été ajoutées, que la version Flutter n'a pas. C'était la crainte d'origine,
+et elle ne tient pas face à un geste destructeur dont la conséquence est invisible.
+
+### 4. ✅ CLOS le 2026-08-18 — la catégorie CLDR `many` est définie, et **elle ne sort pas sur le S9** : cf. `04-PIEGES.md` §98
+
+`lintDebug` la signalait sur les **quatre** `<plurals>` français (et non trois). Les quatre formes sont
+écrites, `MissingQuantity` est à **0**. S'appuyer sur le repli vers `other` revenait à confier une règle
+de grammaire à un mécanisme de secours.
+
+🔴 **Mesuré, pas supposé** : la forme `many` **n'est pas sélectionnée** sur le S9 — l'ICU d'Android 10
+ignore cette catégorie, entrée dans CLDR 38 (2020), et retombe sur `other`. Le premier test, qui
+exigeait « 1 000 000 **de** notes », a échoué. Il accepte désormais les deux formes et refuse tout le
+reste : exiger l'une ou l'autre reviendrait à mesurer la version d'ICU de la machine de test.
+
+🔧 Deux `assert` dans `arb_vers_strings.py` — un par famille de pluriels, transposés et écrits à la
+main — parce qu'un garde qui n'en couvre qu'une donne l'impression de couvrir les deux. Le second a
+levé immédiatement, sur `trash_emptied`.
+
+🔧 Au passage, `folder_delete_decrypt_failed` passe de « %1$d note(s) » à un vrai `<plurals>`
+(`PluralsCandidate`).
 
 ## Défauts de l'application publiée **corrigés dans `notes_tech`**
 

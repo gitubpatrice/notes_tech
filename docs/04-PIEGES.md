@@ -2525,7 +2525,7 @@ le test tomberait **à tort** sur le réglage qu'il défend.
 
 ---
 
-## §88 — ⚠️ Le champ de phrase secrète est éligible à l'**autoremplissage**, que le publié désactive
+## §88 — ✅ CLOS le 2026-08-18 : l'autoremplissage du champ de phrase secrète est **conservé**, contre le choix du publié
 
 Relevé en mesurant autre chose. L'arbre sémantique du champ porte `ContentType` — la propriété qui le
 rend visible du service d'autoremplissage Android (Samsung Pass, Google). L'application publiée s'en
@@ -2543,13 +2543,36 @@ Origine mesurée, trois variantes du même champ :
 ⇒ `ContentType` vient du **type de clavier**, `Password` de la **transformation**. Deux propriétés,
 deux origines — ne pas les confondre.
 
-🔴 **Écrit, NON corrigé, et c'est une décision de Patrice.** Le seul levier interne à Compose est de
-retirer `KeyboardType.Password`, ce qui **échangerait** l'opt-out contre le comportement mot de passe
-du clavier (pas de suggestions, pas d'apprentissage de la frappe) — un moins bon marché. Le levier
-plateforme (`importantForAutofill = NO_EXCLUDE_DESCENDANTS` sur la fenêtre de la feuille) existe, mais
-son **effet** n'est pas mesurable avec les instruments de ce dépôt : on prouverait qu'un drapeau est
-posé, pas qu'un service tiers l'honore. *Une garde qu'on ne sait pas mesurer est une garde qu'on ne
-sait pas défendre.*
+### ✅ Décision de Patrice, 2026-08-18 : on **garde** l'autoremplissage
+
+Et la mesure qui a tranché n'était pas celle qu'on cherchait. Sondé sur le S9, sur le champ de phrase
+secrète :
+
+| Action de sémantique | Présente ? |
+|---|:---:|
+| `PasteText` | **oui**, champ vide comme rempli |
+| `CopyText` / `CutText` | **non** — Compose les retire d'un champ à transformation mot de passe (§90) |
+| `SetSelection` | oui, une fois rempli |
+
+**Le champ laisse coller et pas copier.** Un gestionnaire de mots de passe peut donc y **déposer** un
+secret, et personne ne peut en **extraire** un : c'est l'asymétrie qu'on veut, et elle tient déjà sans
+rien couper.
+
+Ce qui fait pencher la décision : un secret de coffre perdu, ce sont des **notes perdues pour
+toujours** — il n'y a aucune récupération, par construction. Un gestionnaire de mots de passe est la
+seule sauvegarde réaliste d'un tel secret, et le bloquer pousse vers un secret mémorisable, donc plus
+faible, ou vers un secret noté sur papier.
+
+⚠️ **Divergence assumée avec l'application publiée**, qui s'en retire explicitement
+(`autofillHints: const <String>[]`, décision U1 v1.0.9, *« le service Autofill pourrait capturer /
+proposer la valeur cross-app »*). Le risque qu'elle nomme est réel ; il est mis en balance avec une
+perte définitive, et non écarté.
+
+⚠️ **Ce qui n'a PAS changé** : rien. Aucune ligne de code n'a été touchée pour ce point — l'état
+mesuré était déjà l'état voulu. Le levier qui aurait fermé l'autoremplissage restait par ailleurs
+douteux : retirer `KeyboardType.Password` **échangerait** l'opt-out contre le comportement mot de passe
+du clavier, et `importantForAutofill = NO_EXCLUDE_DESCENDANTS` prouverait qu'un drapeau est posé, pas
+qu'un service l'honore. *Une garde qu'on ne sait pas mesurer est une garde qu'on ne sait pas défendre.*
 
 ---
 
@@ -2885,3 +2908,109 @@ peuvent pas diverger. C'est précisément près de la borne qu'un écart compter
 **Contrôle positif fait** : `>=` remis en `==` fait tomber le cas du dépassement et lui seul ; le
 compteur remis **dans** la région active fait tomber les deux cas d'annonce. Restaurations vérifiées
 au SHA-256.
+
+---
+
+## §97 — 🔴🔴 Supprimer un dossier ne disait rien, et c'est le seul des trois gestes dont la conséquence est invisible
+
+`05-PARITE.md` portait un écart « à trancher » : *renommer ou supprimer un dossier n'affiche aucun
+message*, avec pour justification *« le tiroir se met à jour sous les yeux de l'utilisateur »*.
+
+**La justification est vraie pour deux des trois gestes, et fausse pour le troisième.** Le critère
+n'est pas l'importance du geste mais **ce que l'utilisateur voit se produire** :
+
+| Geste | Ce que l'écran montre | Message |
+|---|---|:---:|
+| renommer | le nouveau nom, dans le tiroir | **non** — le retour est l'écran lui-même |
+| créer | la nouvelle ligne | **non** |
+| supprimer en gardant les notes | la disparition du dossier ; **rien** sur les N notes déplacées | **oui** |
+| supprimer avec les notes | la disparition du dossier ; **rien** sur les N notes détruites | **oui** |
+
+Les notes n'étaient pas à l'écran : leur sort ne peut pas se lire. `FolderEvent.Deleted(movedNotes)`
+portait déjà le décompte, **calculé puis jeté** — relevé au §92 et laissé ouvert.
+
+### ⚠️⚠️ Le cas le plus injuste des quatre : les notes déjà en corbeille
+
+Supprimer un dossier détruit **aussi ses notes en corbeille**. `folder_id` est une clé étrangère
+`ON DELETE CASCADE`, et la mise en corbeille **conserve** ce lien : les notes que l'utilisateur avait
+mises de côté, qu'il voyait encore depuis l'écran Corbeille et qu'il pouvait restaurer, disparaissent
+avec le dossier. Rien ne le disait, et rien ne les listait au moment du choix.
+
+🔧 Le nombre annoncé vient donc de `countAllInFolder` — **sans** le filtre `trashed_at IS NULL` — et
+non de `countInFolder`, qui l'a. *Un message qui annonce trois notes quand cinq disparaissent est pire
+qu'un message absent.*
+
+⚠️ Compté **avant** la cascade, sinon il n'y a plus rien à compter.
+
+### 🔴🔴 Le jumeau qu'on refuse de créer en réparant
+
+Le réflexe est de brancher le message sur `movedNotes` : *zéro ⇒ suppression avec les notes, sinon
+déplacement*. **C'est faux**, et d'une façon qui ne se voit pas : `0` veut dire aussi bien
+« suppression avec les notes » que **« dossier vide dont on gardait les notes »**. Le message aurait
+annoncé une destruction à quelqu'un qui venait de supprimer un dossier vide.
+
+🔧 L'événement **porte le geste** : `Deleted(sort: SortDesNotes, notes: Int)`, énumération à deux
+valeurs, `when` exhaustif chez le consommateur. Même leçon qu'au §96 — *un appelant ne peut pas
+oublier de regarder ce qu'il reçoit, alors qu'il peut très bien mal interpréter un compteur.*
+
+⚠️ **Zéro note n'est pas « zéro » mais « rien à dire de plus »** : `getQuantityString` avec `0` rend
+« Dossier supprimé, 0 note déplacée » en français, la catégorie `one` couvrant zéro. Un dossier vide
+n'a pas de sort de notes à annoncer, donc une phrase courte et vraie.
+
+**Contrôle positif fait** : les deux sorts branchés sur le même pluriel font tomber
+`les_deux_gestes_ne_disent_PAS_la_meme_chose`, et lui seul. Restauration vérifiée au SHA-256.
+
+---
+
+## §98 — ⚠️⚠️ La catégorie `many` du français : lint la réclame, l'appareil ne la sélectionne pas
+
+`lintDebug` signalait `MissingQuantity` sur les **quatre** pluriels français : *« pour la locale "fr"
+la quantité suivante devrait aussi être définie : many »*. Elle ne vaut que pour les multiples
+**exacts** d'un million, et Android retombe sur `other` quand elle manque — le comportement était
+donc correct, et l'avertissement passait pour un faux positif.
+
+Ce n'en est pas un : la ressource était **incomplète pour sa locale**, et s'appuyer sur un repli
+revient à confier une règle de grammaire à un mécanisme de secours. Les quatre formes sont écrites,
+`MissingQuantity` est à **0**.
+
+### 🔴 Mais elle ne sort pas sur le S9, et c'est la mesure qui l'a dit
+
+Le premier test affirmait « 1 000 000 **de** notes » et a **échoué** : Android 10 rend
+« 1000000 notes ». La catégorie `many` du français est entrée dans **CLDR 38 (2020)**, et l'ICU
+embarquée par cette version du système ne la connaît pas. Sur un système plus récent, dont l'ICU est
+mise à jour par les modules, elle est sélectionnée.
+
+⚠️⚠️ **Le test accepte donc les deux formes et refuse tout le reste.** Exiger `many` le ferait échouer
+sur les vieux appareils, exiger `other` sur les neufs : dans les deux cas il mesurerait la version
+d'ICU de la machine de test et rien d'autre. Ce qui doit tenir partout, c'est que la phrase reste
+grammaticale et porte le nombre. Son témoin est le cas à un million **moins un**, qui n'a droit qu'à
+`other` sur toute version — sans lui, une ressource dont les deux formes seraient identiques
+passerait.
+
+*Une forme correcte qu'on déclare sans la mesurer est une forme dont on ignore si elle sort.*
+
+### 🔧 Le garde-fou vaut mieux que la règle écrite
+
+Deux `assert` dans `arb_vers_strings.py`, parce qu'il y a **deux** familles de pluriels :
+
+1. ceux transposés de l'ARB — une table `MANY_FR` doit couvrir **exactement** l'ensemble des pluriels,
+   dans les deux sens (aucun pluriel sans forme, aucune forme orpheline) ;
+2. ceux écrits à la main dans `AJOUTS_FR` — un balayage exige `quantity="many"` dans chaque bloc.
+
+⚠️ **Le second n'est pas du zèle** : sans lui, la moitié des pluriels du fichier échappait à la règle
+tout en donnant l'impression d'être couverte. Il a d'ailleurs levé **immédiatement**, sur
+`trash_emptied`, que la première version du garde ne voyait pas.
+
+⚠️ **La forme est écrite À LA MAIN, cle par cle, et non dérivée de `other`.** La forme française
+insère « de » après le nombre, ce qui suppose que le nombre soit suivi d'un nom : une règle mécanique
+serait juste sur ces quatre chaînes et fausse dès la première qui dirait « %1$d sur 5 ».
+
+⚠️ **Deux conventions d'échappement, deux endroits** : `MANY_FR` porte des apostrophes **brutes** et
+passe par `echappe` ; `AJOUTS_*` est du XML **déjà échappé**. Les mélanger fait tronquer la chaîne par
+aapt, sans erreur.
+
+### 🔧 Au passage : `%1$d note(s)`
+
+`folder_delete_decrypt_failed` écrivait « pour {n} note(s). », signalé `PluralsCandidate`. Le « (s) »
+est le contournement qu'on emploie quand on n'a pas de pluriel — et Android en a un. Réécrite en
+`<plurals>` via le mécanisme `REMPLACEES` déjà prévu pour ce cas.

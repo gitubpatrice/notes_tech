@@ -3,6 +3,7 @@ package com.filestech.notes_tech.ui.folders
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.repository.FoldersRepository
+import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -38,15 +39,57 @@ data class FoldersUiState(
 sealed interface FolderEvent {
     data class Renamed(val name: String) : FolderEvent
     data class Created(val folder: Folder) : FolderEvent
-    data class Deleted(val movedNotes: Int) : FolderEvent
+
+    /**
+     * Un dossier a été supprimé, et [notes] notes ont subi [sort].
+     *
+     * ## 🔴🔴 Pourquoi le sort est PORTÉ et non déduit du nombre
+     *
+     * Cet événement ne portait qu'un `movedNotes: Int`, valant `0` pour une suppression **avec**
+     * les notes. Deux gestes très différents — déplacer vers la boîte de réception, ou détruire —
+     * se lisaient donc à travers le même entier, et un `0` était ambigu : suppression avec notes,
+     * **ou** dossier vide dont on gardait les notes. Brancher le message sur `notes == 0` aurait
+     * annoncé une destruction à quelqu'un qui venait de vider un dossier vide.
+     *
+     * Même leçon qu'au §96 : *un appelant ne peut pas oublier de regarder ce qu'il reçoit, alors
+     * qu'il peut très bien mal interpréter un compteur.*
+     */
+    data class Deleted(val sort: SortDesNotes, val notes: Int) : FolderEvent
     data class VaultRemoved(val decrypted: Int) : FolderEvent
     data class VaultPartiallyRemoved(val failed: Int) : FolderEvent
-    data class Failed(val message: String) : FolderEvent
+
+    /**
+     * ⚠️⚠️ **`null` autorisé, et c'est le point.** Ce champ était non-nullable, et l'émetteur y
+     * mettait `e::class.java.simpleName` quand l'exception n'avait pas de message — c'est-à-dire
+     * qu'il affichait « SQLiteConstraintException » à l'utilisateur. Un nom de classe n'est pas un
+     * message, et un ViewModel n'a pas à décider du texte lu à l'écran.
+     *
+     * Effet de bord révélateur : l'écran portait bien un repli vers `common_error`, mais sur une
+     * valeur qui ne pouvait pas être nulle — le compilateur signalait un elvis mort. *Un repli
+     * inatteignable et une valeur de secours inventée ailleurs sont le même défaut vu des deux
+     * bouts.*
+     */
+    data class Failed(val message: String?) : FolderEvent
+}
+
+/**
+ * Ce qu'il est advenu des notes d'un dossier supprimé.
+ *
+ * ⚠️ `when` exhaustif chez le consommateur : un troisième sort ne pourra pas naître sans qu'on
+ * décide de ce qu'il dit à l'utilisateur.
+ */
+enum class SortDesNotes {
+    /** Déplacées vers la boîte de réception. */
+    DEPLACEES,
+
+    /** Détruites avec le dossier, définitivement. */
+    SUPPRIMEES,
 }
 
 @HiltViewModel
 class FoldersDrawerViewModel @Inject constructor(
     private val folders: FoldersRepository,
+    private val notes: NotesRepository,
     private val vaults: FolderVaultService,
 ) : ViewModel() {
 
@@ -96,7 +139,7 @@ class FoldersDrawerViewModel @Inject constructor(
             }
         }
         val deplacees = folders.deleteKeepingNotes(folder.id, Folder.INBOX_ID)
-        events.emit(FolderEvent.Deleted(deplacees))
+        events.emit(FolderEvent.Deleted(SortDesNotes.DEPLACEES, deplacees))
     }
 
     /**
@@ -111,9 +154,12 @@ class FoldersDrawerViewModel @Inject constructor(
         // Libère la clé du coffre en mémoire avant la suppression, et évite qu'un futur dossier
         // réutilisant l'identifiant hérite d'une session fantôme.
         if (folder.isVault) vaults.lock(folder.id)
+        // 🔴 **Compté AVANT la cascade**, sinon il n'y a plus rien à compter. Corbeille comprise :
+        // voir `NoteDao.countAllInFolder`.
+        val detruites = notes.countAllInFolder(folder.id)
         folders.delete(folder.id)
         if (folder.vault?.mode == VaultMode.PIN) vaults.deletePinKey(folder.id)
-        events.emit(FolderEvent.Deleted(movedNotes = 0))
+        events.emit(FolderEvent.Deleted(SortDesNotes.SUPPRIMEES, detruites))
     }
 
     /**
@@ -144,7 +190,9 @@ class FoldersDrawerViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                events.emit(FolderEvent.Failed(e.message ?: e::class.java.simpleName))
+                // ⚠️ Le message brut, tel quel — et `null` s'il n'y en a pas. C'est l'écran qui
+                // choisit quoi dire dans ce cas ; voir [FolderEvent.Failed].
+                events.emit(FolderEvent.Failed(e.message))
             }
         }
     }

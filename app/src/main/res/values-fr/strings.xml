@@ -55,6 +55,7 @@
     <plurals name="home_vault_lost_banner">
         <item quantity="one">%1$d note de coffre a perdu ses dernières modifications (coffre verrouillé pendant l\'enregistrement).</item>
         <item quantity="other">%1$d notes de coffre ont perdu leurs dernières modifications (coffre verrouillé pendant l\'enregistrement).</item>
+        <item quantity="many">%1$d de notes de coffre ont perdu leurs dernières modifications (coffre verrouillé pendant l\'enregistrement).</item>
     </plurals>
     <string name="home_announce_vault_unlocked">Coffre déverrouillé</string>
     <string name="home_vault_create_error">Création du coffre échouée : %1$s</string>
@@ -86,15 +87,34 @@
     <plurals name="folder_remove_vault_done">
         <item quantity="one">%1$d note déchiffrée. Le dossier n\'est plus un coffre.</item>
         <item quantity="other">%1$d notes déchiffrées. Le dossier n\'est plus un coffre.</item>
+        <item quantity="many">%1$d de notes déchiffrées. Le dossier n\'est plus un coffre.</item>
     </plurals>
     <string name="folder_delete_vault_choice_body">« %1$s » est un coffre. Déplacer ses notes vers la Boîte de réception les DÉCHIFFRE toutes et les écrit en clair dans la base, sans protection par mot de passe. Action irréversible : elles auront transité hors chiffrement, même si vous les remettez ensuite dans un coffre.</string>
     <string name="folder_delete_permanent">Supprimer définitivement</string>
     <string name="folder_delete_move_to_inbox">Déplacer vers Boîte de réception</string>
     <string name="folder_delete_move_to_inbox_vault">Déchiffrer et déplacer</string>
-    <string name="folder_delete_decrypt_failed">Déchiffrement impossible pour %1$d note(s).</string>
     <string name="folder_delete_cancelled_error">Suppression annulée : %1$s</string>
     <string name="folder_convert_progress_title">Conversion du coffre…</string>
     <string name="folder_convert_progress_body">Re-chiffrement des notes verrouillées en cours.</string>
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. -->
+    <plurals name="folder_delete_decrypt_failed">
+        <item quantity="one">Déchiffrement impossible pour %1$d note.</item>
+        <item quantity="other">Déchiffrement impossible pour %1$d notes.</item>
+        <item quantity="many">Déchiffrement impossible pour %1$d de notes.</item>
+    </plurals>
+
+    <!-- Voir le commentaire cote EN. -->
+    <string name="folder_deleted">Dossier supprimé.</string>
+    <plurals name="folder_deleted_notes_moved">
+        <item quantity="one">Dossier supprimé, %1$d note déplacée vers la Boîte de réception.</item>
+        <item quantity="other">Dossier supprimé, %1$d notes déplacées vers la Boîte de réception.</item>
+        <item quantity="many">Dossier supprimé, %1$d de notes déplacées vers la Boîte de réception.</item>
+    </plurals>
+    <plurals name="folder_deleted_notes_removed">
+        <item quantity="one">Dossier supprimé, ainsi que %1$d note.</item>
+        <item quantity="other">Dossier supprimé, ainsi que %1$d notes.</item>
+        <item quantity="many">Dossier supprimé, ainsi que %1$d de notes.</item>
+    </plurals>
 
     <!-- ── Éditeur de note ─────────────────────────────────────────────── -->
     <string name="note_untitled">Sans titre</string>
@@ -165,6 +185,7 @@
     <plurals name="trash_emptied">
         <item quantity="one">%1$d note supprimée définitivement</item>
         <item quantity="other">%1$d notes supprimées définitivement</item>
+        <item quantity="many">%1$d de notes supprimées définitivement</item>
     </plurals>
 
     <!-- ── Coffres — passphrase et code PIN ────────────────────────────── -->
@@ -226,6 +247,7 @@
     <plurals name="settings_vault_auto_lock_minutes">
         <item quantity="one">%1$d minute</item>
         <item quantity="other">%1$d minutes</item>
+        <item quantity="many">%1$d de minutes</item>
     </plurals>
     <string name="settings_vault_auto_lock_never">Jamais</string>
     <string name="settings_export_all">Exporter toutes mes notes</string>

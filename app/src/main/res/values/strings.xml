@@ -102,10 +102,31 @@
     <string name="folder_delete_permanent">Delete permanently</string>
     <string name="folder_delete_move_to_inbox">Move to Inbox</string>
     <string name="folder_delete_move_to_inbox_vault">Decrypt and move</string>
-    <string name="folder_delete_decrypt_failed">Cannot decrypt %1$d note(s).</string>
     <string name="folder_delete_cancelled_error">Deletion cancelled: %1$s</string>
     <string name="folder_convert_progress_title">Converting vault…</string>
     <string name="folder_convert_progress_body">Re-encrypting locked notes.</string>
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. La version Flutter ecrit « {n} note(s) »,
+         le contournement qu'on emploie quand on n'a pas de pluriel — et Android en a un. -->
+    <plurals name="folder_delete_decrypt_failed">
+        <item quantity="one">Cannot decrypt %1$d note.</item>
+        <item quantity="other">Cannot decrypt %1$d notes.</item>
+    </plurals>
+
+    <!-- Ajouts du portage : SUPPRIMER un dossier a une consequence qu'on ne VOIT pas.
+         Renommer ou creer se lit dans le tiroir, sous les yeux de l'utilisateur, et n'a donc
+         besoin d'aucun message — c'est le choix de l'application publiee, et il se tient.
+         Supprimer, non : le dossier disparait de l'ecran, mais le sort de ses notes — deplacees
+         vers la boite de reception, ou detruites avec lui — n'apparait nulle part. Le publie se
+         taisait sur les deux. Cf. 04-PIEGES.md §97. -->
+    <string name="folder_deleted">Folder deleted.</string>
+    <plurals name="folder_deleted_notes_moved">
+        <item quantity="one">Folder deleted, %1$d note moved to the Inbox.</item>
+        <item quantity="other">Folder deleted, %1$d notes moved to the Inbox.</item>
+    </plurals>
+    <plurals name="folder_deleted_notes_removed">
+        <item quantity="one">Folder deleted, along with %1$d note.</item>
+        <item quantity="other">Folder deleted, along with %1$d notes.</item>
+    </plurals>
 
     <!-- ── Éditeur de note ─────────────────────────────────────────────── -->
     <string name="note_untitled">Untitled</string>
