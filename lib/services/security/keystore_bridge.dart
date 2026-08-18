@@ -46,6 +46,30 @@ class KeystoreBridge {
     }
   }
 
+  /// Re-scelle la KEK de la base sous l'alias que lira **la version Kotlin**.
+  ///
+  /// C'est toute la passerelle 2.0.4 : cette version migre sa propre clé pendant
+  /// qu'elle est encore installée et qu'elle sait la lire, au lieu de laisser la
+  /// 3.0.0 rejouer à l'envers la cryptographie interne de `flutter_secure_storage`.
+  ///
+  /// Idempotent, et rejouable à chaque démarrage sans risque.
+  ///
+  /// ⚠️ **Les 32 octets bruts, pas la chaîne hexadécimale.** Une `String` portant la
+  /// KEK serait une copie du secret **que Dart ne sait pas effacer** — une `String`
+  /// est immuable et survit jusqu'au ramasse-miettes, alors que le `Uint8List`, lui,
+  /// est effacé dès la base ouverte.
+  ///
+  /// ⚠️ **N'échoue jamais l'application** : voir le `catch` de l'appelant. La 2.0.4
+  /// est une version de transition ; un échec de scellement ne doit pas empêcher
+  /// d'ouvrir ses notes, il fera simplement basculer la 3.0.0 sur sa couche de
+  /// secours, qui existe pour ça.
+  ///
+  /// Retourne `true` si un scellé a été écrit, `false` s'il y en avait déjà un.
+  Future<bool> sealDatabaseKek(Uint8List kek) async {
+    final ok = await _channel.invokeMethod<bool>('sealDatabaseKek', {'kek': kek});
+    return ok ?? false;
+  }
+
   /// Vérifie qu'une clé existe pour cet alias (sans la matérialiser).
   Future<bool> hasKey(String alias) async {
     final has = await _channel.invokeMethod<bool>('hasKey', {'alias': alias});

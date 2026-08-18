@@ -2,6 +2,7 @@ package com.filestech.notes_tech
 
 import android.content.Context
 import android.os.Build
+import android.util.Base64
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyPermanentlyInvalidatedException
@@ -40,12 +41,26 @@ import javax.crypto.spec.GCMParameterSpec
  *
  * Pattern aligné sur Pass Tech v2 (KeystoreBridge équivalent).
  */
-class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallHandler {
+class KeystoreBridge(private val ctx: Context) : MethodCallHandler {
 
     companion object {
         const val CHANNEL_NAME = "notes_tech/keystore"
         private const val KEYSTORE_PROVIDER = "AndroidKeyStore"
         private const val GCM_TAG_BITS = 128
+
+        // ── Passerelle 2.0.4 : le contrat que lit la version Kotlin ────────────────────────
+        //
+        // Ces quatre valeurs sont un CONTRAT avec `KeystoreSealedKekSource` du portage Kotlin.
+        // Les changer ici sans les changer la-bas rend la migration silencieusement inoperante :
+        // la 2.0.4 aurait l'air d'avoir fonctionne, et la 3.0.0 basculerait sur la couche ② de
+        // secours sans que personne ne le sache. Cf. `notes_files_tech/docs/10-PASSERELLE-2.0.4.md`.
+        private const val KEK_ALIAS = "notes_tech.db.kek.v1"
+        private const val KEK_PREFS_NAME = "notes_tech.kek"
+        private const val KEK_BLOB = "db_kek_v1.blob"
+        private const val KEK_NONCE = "db_kek_v1.nonce"
+
+        /** La KEK fait 32 octets, soit 64 caracteres hexadecimaux. */
+        private const val KEK_BYTES = 32
     }
 
     private val ks: KeyStore = KeyStore.getInstance(KEYSTORE_PROVIDER).apply { load(null) }
@@ -98,6 +113,11 @@ class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallH
                     }
                     result.success(toDelete.size)
                 }
+                "sealDatabaseKek" -> {
+                    val kek = call.argument<ByteArray>("kek")
+                        ?: return result.error("BAD_ARG", "kek missing", null)
+                    result.success(sealDatabaseKek(kek))
+                }
                 "hasKey" -> {
                     val alias = call.argument<String>("alias")
                         ?: return result.error("BAD_ARG", "alias missing", null)
@@ -129,6 +149,68 @@ class KeystoreBridge(@Suppress("unused") private val ctx: Context) : MethodCallH
                 null,
             )
         }
+    }
+
+    /**
+     * Re-scelle la KEK de la base sous l'alias que lira la version Kotlin.
+     *
+     * C'est TOUTE la passerelle : la 2.0.4 migre sa propre cle pendant qu'elle est encore
+     * installee et qu'elle sait la lire, au lieu de laisser la 3.0.0 rejouer a l'envers la
+     * cryptographie interne de `flutter_secure_storage`.
+     *
+     * 🔴 **Les preferences sont ecrites ICI, en natif.** Le greffon `shared_preferences` prefixe
+     * toutes ses cles par `flutter.` et utilise son propre fichier : une ecriture Dart de
+     * `db_kek_v1.blob` atterrirait en `flutter.db_kek_v1.blob` dans `FlutterSharedPreferences`,
+     * pas dans `notes_tech.kek`. La version Kotlin ne trouverait rien, et la 2.0.4 aurait l'air
+     * d'avoir fonctionne. C'est le piege qu'on rate en ecrivant cette release.
+     *
+     * ⚠️⚠️ **Des OCTETS BRUTS, et non la chaine hexadecimale que decrivait la procedure.**
+     * `docs/10-PASSERELLE-2.0.4.md` prevoyait un parametre `kekHex`, parce qu'il partait de ce que
+     * `flutter_secure_storage` contient (64 caracteres hexadecimaux). Mais au point d'appel reel la
+     * KEK est deja materialisee en `Uint8List` — et la repasser par une `String` creerait une copie
+     * du secret **que Dart ne sait pas effacer** : une `String` est immuable, elle survit jusqu'au
+     * ramasse-miettes. Le code Flutter prend d'ailleurs soin d'effacer son `Uint8List` des la base
+     * ouverte (`database.dart`, `VaultService.wipe`). Reintroduire une copie ineffacable pour la
+     * commodite d'un parametre serait defaire ce soin.
+     *
+     * Ce que la version Kotlin lit ne change pas : le clair scelle reste les 32 octets bruts.
+     *
+     * ⚠️ **`Base64.NO_WRAP`, jamais `DEFAULT`** : `DEFAULT` insere des retours a la ligne que le
+     * decodage strict cote Kotlin refuse.
+     *
+     * ⚠️⚠️ **La longueur est verifiee, et ce n'est pas du zele.** Sceller une valeur de mauvaise
+     * taille produirait un scelle **valide contenant une mauvaise cle** : la version Kotlin le
+     * lirait sans rien soupconner et n'aurait aucune raison de basculer sur la couche ② de secours.
+     * *Une absence de scelle se rattrape ; un scelle faux, non.*
+     *
+     * ⚠️ **Idempotence : les preferences ET l'alias.** Un scelle present sans sa cle Keystore est
+     * indechiffrable — il faut le refaire, pas le garder. Ne regarder que les preferences
+     * condamnerait cet appareil a la couche ② pour toujours.
+     *
+     * @param kek les 32 octets bruts de la KEK de la base.
+     * @return `true` si un scelle a ete ecrit, `false` s'il y en avait deja un d'utilisable.
+     */
+    private fun sealDatabaseKek(kek: ByteArray): Boolean {
+        val prefs = ctx.getSharedPreferences(KEK_PREFS_NAME, Context.MODE_PRIVATE)
+        val dejaScelle = prefs.contains(KEK_BLOB) && prefs.contains(KEK_NONCE)
+        if (dejaScelle && ks.containsAlias(KEK_ALIAS)) return false
+
+        require(kek.size == KEK_BYTES) { "KEK attendue en $KEK_BYTES octets, recu ${kek.size}" }
+
+        try {
+            createKey(KEK_ALIAS)
+            val sealed = wrap(KEK_ALIAS, kek)
+            prefs.edit()
+                .putString(KEK_BLOB, Base64.encodeToString(sealed["ciphertext"], Base64.NO_WRAP))
+                .putString(KEK_NONCE, Base64.encodeToString(sealed["nonce"], Base64.NO_WRAP))
+                .apply()
+        } finally {
+            // ⚠️ Le tampon decode par le codec Flutter nous appartient : l'effacer ici evite qu'une
+            // copie de la KEK traine dans le tas de la JVM apres l'appel. Sur le chemin d'echec
+            // aussi — c'est meme la qu'on l'oublierait.
+            kek.fill(0)
+        }
+        return true
     }
 
     private fun createKey(alias: String): Boolean {
