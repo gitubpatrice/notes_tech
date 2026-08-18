@@ -424,7 +424,7 @@ rôle ? » qui a mené au défaut, pas la question « est-ce que ça marche ? »
 
 | Service | Lignes | Kotlin | Vérifié | Point de vigilance |
 |---|---:|---|:---:|---|
-| `folder_vault_service.dart` | 1 582 | `security/vault/FolderVaultService.kt` | ☐ | Ouvrir un coffre **créé par la version Flutter** |
+| `folder_vault_service.dart` | 1 582 | `security/vault/FolderVaultService.kt` | ✅ | Ouvrir un coffre **créé par la version Flutter** — voir la note ci-dessous |
 | `note_export_service.dart` | 519 | `data/export/NoteExporter.kt` + `domain/export/` | ☐ | Export `.md` d'une note de coffre — le corps ne doit pas être vide |
 | `panic_service.dart` | 478 | `security/panic/PanicService.kt` | ☐ | Ordre des étapes ; un rapport ne doit jamais mentir sur un effacement |
 | `voice_service.dart` | 450 | `data/voice/WhisperStt.kt` + `VoiceCapture.kt` + `SttModelStore.kt` | ☐ | Phase 7 |
@@ -436,6 +436,28 @@ rôle ? » qui a mené au défaut, pas la question « est-ce que ça marche ? »
 ⚠️ Un service Dart se disperse souvent sur **plusieurs** fichiers Kotlin : la séparation
 domaine / données que le portage impose n'a pas d'équivalent côté Flutter. Cocher la ligne veut dire
 avoir vérifié le **comportement**, pas chacun des fichiers listés.
+
+> **`folder_vault_service.dart` est coché le 2026-08-18**, et voici **exactement** ce qui a été
+> comparé — parce qu'une case cochée sur 1 582 lignes doit dire ce qu'elle couvre.
+>
+> | Axe | Verdict |
+> |---|---|
+> | Dérivation Argon2id, déballage de KEK, vérificateur, enveloppe de note | **concordent octet pour octet** avec le Dart (`PariteCoffreAvecFlutterTest`, 10 cas, vecteurs recoupés contre le C de référence et OpenSSL) |
+> | Ouvrir un coffre écrit par Flutter | mesuré (`la_cle_dun_coffre_ecrit_par_flutter_souvre_depuis_kotlin`) |
+> | Freinage après échec | **identique** : 1/2/4/8/16/30 s, même plafond, horloge monotone des deux côtés. Une seule table au lieu de deux — équivalent, un dossier n'ayant qu'un mode |
+> | Longueurs de secret | **identiques** : phrase ≥ 8, code 4–6, chiffres ASCII seulement |
+> | Ordre de l'auto-effacement | **identique**, et amélioré sur deux points déjà documentés (échecs comptés, drapeau conservé si la reprise échoue) |
+> | Report d'échéance sur consultation | **défaut trouvé et corrigé — `04-PIEGES.md` §99** |
+> | Migration v1 → v2 | **aucun test des deux côtés — comblé, `04-PIEGES.md` §100** |
+>
+> ⚠️ **Ce qui n'a PAS été comparé ligne à ligne** : les trois traitements par lot
+> (`encryptAll`/`decryptAll`/`removeVaultProtection`) au-delà des cas déjà couverts par
+> `FolderVaultServiceTest`, et `dispose()`. Ils ont des tests ; ils n'ont pas eu de relecture
+> croisée avec le Dart dans ce tour. *Le dire vaut mieux que de laisser lire la case comme
+> « tout est vérifié ».*
+>
+> ⚠️ `encryptNoteLegacyV1`, côté publié, est un outil `@visibleForTesting` **que personne n'appelle**
+> — y compris les tests pour lesquels il a été écrit. Cf. §100.
 
 ## Promesses publiques à ne pas casser
 

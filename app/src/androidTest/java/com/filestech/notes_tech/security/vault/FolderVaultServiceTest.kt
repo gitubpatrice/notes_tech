@@ -334,6 +334,125 @@ class FolderVaultServiceTest {
         assertThat(relue.content).isEqualTo(vecteur.NOTE_CONTENU)
     }
 
+    // ── Migration du format hérité v1 vers v2 ───────────────────────────────────────────────────
+
+    /**
+     * 🔴🔴 **Le chemin qui perdrait les titres, et que rien n'exerçait — ni ici, ni dans le publié.**
+     *
+     * Le format v1 laisse le **titre en clair** dans sa colonne et ne chiffre que le contenu. Le v2
+     * met les deux dans le blob. La migration doit donc, en une seule écriture, poser le nouveau blob
+     * **et** vider la colonne de titre. Une inversion, une écriture partielle, un `pack` qui oublie le
+     * titre — et le titre disparaît des deux côtés, sans erreur.
+     *
+     * ⚠️⚠️ **L'application publiée porte une fonction faite EXPRÈS pour rendre ce chemin vérifiable**
+     * — `encryptNoteLegacyV1`, `@visibleForTesting`, dont le commentaire dit : *« sans ça, la
+     * migration v1 → v2 ne serait vérifiable que sur des données simulées, c'est-à-dire pas vérifiée
+     * du tout : c'est précisément le chemin où une erreur ferait perdre les titres des
+     * utilisateurs »*. **Aucun test ne l'appelle.** Le seul test Dart qui mentionne la migration
+     * `grep` le code source pour s'assurer que l'appel existe — il mesure une chaîne de caractères,
+     * pas un comportement.
+     *
+     * Ce cas-ci fabrique une note v1 **avec la vraie clé du coffre** — celle que le service vient de
+     * dériver — et non avec une clé de laboratoire. Le format du blob, lui, est déjà recoupé octet
+     * pour octet contre le Dart par `PariteCoffreAvecFlutterTest.lesBlobsDeNoteSeRelisent`.
+     *
+     * ⚠️ Le **témoin avant migration** n'est pas décoratif : sans lui, un test qui trouve le titre
+     * dans le blob à la fin ne distinguerait pas « migré » de « n'a jamais été en v1 ».
+     */
+    @Test
+    fun une_note_au_format_v1_est_migree_en_v2_SANS_perdre_son_titre(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val idNote = "11111111-2222-4333-8444-555555555555"
+        poserUneNoteV1(idNote, titre = TITRE_V1, contenu = CONTENU_V1)
+
+        // Témoin : la note est bien en v1, titre en clair dans sa colonne.
+        assertThat(colonne(idNote, "enc_v")).isEqualTo("1")
+        assertThat(colonne(idNote, "title")).isEqualTo(TITRE_V1)
+
+        coffres.lock(DOSSIER)
+        coffres.unlockWithPassphrase(DOSSIER, PHRASE)
+
+        // Le format a changé, et la colonne claire est vidée : le titre n'est plus qu'à un endroit.
+        assertThat(colonne(idNote, "enc_v")).isEqualTo("2")
+        assertThat(colonne(idNote, "title")).isEmpty()
+
+        // 🔴 Et il n'a pas disparu pour autant.
+        val relue = coffres.decrypt(notes.find(idNote)!!)
+        assertThat(relue.title).isEqualTo(TITRE_V1)
+        assertThat(relue.content).isEqualTo(CONTENU_V1)
+    }
+
+    /**
+     * 🔴🔴 **Une note v1 illisible doit être LAISSÉE INTACTE, pas détruite.**
+     *
+     * C'est la propriété qui sépare une migration d'une perte de données. Un blob corrompu — support
+     * abîmé, restauration partielle, clé d'un autre coffre — ne se déchiffre pas ; la tentation est
+     * d'écrire quand même « ce qu'on a pu lire », et le titre encore présent dans la colonne claire
+     * partirait avec.
+     *
+     * ⚠️ Le témoin est la **note saine du même dossier** : sans elle, un test où rien ne bouge
+     * passerait aussi bien sur une migration qui ne trouve **aucune** note — c'est-à-dire sur une
+     * requête cassée. Ici l'une migre pendant que l'autre est épargnée, dans le même passage.
+     */
+    @Test
+    fun une_note_v1_illisible_est_laissee_INTACTE_et_ne_bloque_pas_les_autres(): Unit = runBlocking {
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        val saine = "aaaaaaaa-2222-4333-8444-555555555555"
+        val abimee = "bbbbbbbb-2222-4333-8444-555555555555"
+        poserUneNoteV1(saine, titre = TITRE_V1, contenu = CONTENU_V1)
+        poserUneNoteV1(abimee, titre = "Titre a sauver", contenu = "peu importe", corrompre = true)
+
+        coffres.lock(DOSSIER)
+        coffres.unlockWithPassphrase(DOSSIER, PHRASE)
+
+        // La saine est passée en v2 : la migration a bien tourné sur ce dossier.
+        assertThat(colonne(saine, "enc_v")).isEqualTo("2")
+
+        // L'abîmée n'a pas bougé — et surtout, son titre est toujours là.
+        assertThat(colonne(abimee, "enc_v")).isEqualTo("1")
+        assertThat(colonne(abimee, "title")).isEqualTo("Titre a sauver")
+    }
+
+    /**
+     * Écrit une note au format v1 : blob = nonce ‖ scellé du **contenu seul**, titre laissé en clair.
+     *
+     * ⚠️ Scellée avec la clé de session **réelle** du coffre, pas une clé fabriquée : une clé de
+     * laboratoire mesurerait la crypto, pas la migration.
+     *
+     * @param corrompre retourne un octet du scellé — l'étiquette GCM refusera, comme sur un support
+     *   abîmé.
+     */
+    private suspend fun poserUneNoteV1(id: String, titre: String, contenu: String, corrompre: Boolean = false) {
+        val cle = requireNotNull(sessions.sessionKey(DOSSIER)) { "le coffre doit etre ouvert" }
+        val nonce = ByteArray(VaultParams.NONCE_BYTES) { (it + 1).toByte() }
+        val scelle = VaultCrypto.seal(
+            key = cle,
+            nonce = nonce,
+            plaintext = contenu.toByteArray(Charsets.UTF_8),
+            aad = id.toByteArray(Charsets.UTF_8),
+        )
+        cle.fill(0)
+        if (corrompre) scelle[0] = (scelle[0].toInt() xor 0xFF).toByte()
+
+        provider.get().openHelper.writableDatabase.execSQL(
+            """
+            INSERT INTO notes (id, title, content, encrypted_content, folder_id, tags, pinned,
+                               favorite, archived, trashed_at, created_at, updated_at, enc_v)
+            VALUES (?, ?, '', ?, ?, '', 0, 0, 0, NULL, 1, 1, 1)
+            """.trimIndent(),
+            arrayOf(id, titre, NoteEnvelope.composeBlob(nonce, scelle), DOSSIER),
+        )
+    }
+
+    /** Lit une colonne brute — ce que le DAO rend est déjà interprété, et masquerait la migration. */
+    private suspend fun colonne(idNote: String, nom: String): String {
+        val base = provider.get().openHelper.writableDatabase
+        return base.query("SELECT $nom FROM notes WHERE id = ?", arrayOf(idNote)).use { curseur ->
+            assertThat(curseur.moveToFirst()).isTrue()
+            curseur.getString(0) ?: ""
+        }
+    }
+
     @Test
     fun convertir_un_dossier_deja_coffre_est_refuse(): Unit = runBlocking {
         coffres.createPassphraseVault(DOSSIER, PHRASE)
@@ -642,6 +761,10 @@ class FolderVaultServiceTest {
         const val DOSSIER = LegacyDatabaseFixture.Fixtures.FOLDER_WORK
         const val PHRASE = "ma phrase de coffre"
         const val CODE = "482913"
+
+        /** ⚠️ Un titre ACCENTUÉ : un `pack` qui compterait des caractères et non des octets passerait sur « abc ». */
+        const val TITRE_V1 = "Relevé de février"
+        const val CONTENU_V1 = "Contenu hérité du format 1"
     }
 
     /**

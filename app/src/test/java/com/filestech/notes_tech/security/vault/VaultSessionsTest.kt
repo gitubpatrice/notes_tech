@@ -70,6 +70,68 @@ class VaultSessionsTest {
         assertThat(sessions.isUnlocked("coffre")).isTrue()
     }
 
+    /**
+     * 🔴🔴 **Demander « ce coffre est-il ouvert ? » ne doit rien repousser.**
+     *
+     * `isUnlocked` reportait l'échéance. Aucun appelant d'alors n'en souffrait — les deux sont des
+     * gestes de l'utilisateur — mais c'était un piège armé : le jour où ce prédicat est consulté
+     * depuis une recomposition, un flux ou un rendu de liste, chaque redessin repousserait
+     * l'échéance et **le verrouillage automatique cesserait, en silence**. Rien ne l'aurait signalé,
+     * parce qu'aucun test n'observe un écran qui se redessine.
+     *
+     * ⚠️ Le témoin est l'appel **répété** : une seule consultation ne distinguerait pas un prédicat
+     * pur d'un prédicat effectif. Ici on consulte à chaque tour, sur toute la durée du délai — si la
+     * consultation reportait, le coffre serait encore ouvert à la fin.
+     */
+    @Test
+    @DisplayName("consulter l'état d'un coffre ne repousse PAS son échéance")
+    fun consulterLEtatNeRepoussePasLEcheance() {
+        sessions.open("coffre", cle(1))
+
+        repeat(4) {
+            horloge.avance(20_000)
+            sessions.isUnlocked("coffre")
+        }
+
+        // 80 s se sont écoulées pour un délai de 60 s. Le coffre doit être fermé.
+        assertThat(sessions.isUnlocked("coffre")).isFalse()
+        assertThat(sessions.sessionKey("coffre")).isNull()
+    }
+
+    /**
+     * ⚠️ Le pendant du cas précédent, sans lequel il serait ambigu : [VaultSessions.touch], lui,
+     * **reporte**. Les deux ensemble disent que la distinction est intentionnelle et non un oubli.
+     */
+    @Test
+    @DisplayName("touch, lui, repousse bien l'échéance")
+    fun touchRepousseBienLEcheance() {
+        sessions.open("coffre", cle(1))
+
+        repeat(4) {
+            horloge.avance(20_000)
+            sessions.touch("coffre")
+        }
+
+        assertThat(sessions.isUnlocked("coffre")).isTrue()
+    }
+
+    /**
+     * ⚠️ **L'expiration paresseuse reste**, et c'est ce que ce cas sépare du précédent : consulter
+     * une session déjà périmée doit la **fermer** au passage, pas seulement répondre « non ». Sans
+     * cela, la clé resterait dans le tas jusqu'au prochain balayage.
+     */
+    @Test
+    @DisplayName("consulter une session périmée la ferme au passage")
+    fun consulterUneSessionPerimeeLaFerme() {
+        sessions.open("coffre", cle(3))
+        horloge.avance(60_000)
+
+        assertThat(sessions.isUnlocked("coffre")).isFalse()
+
+        // Fermée pour de bon : l'ensemble des coffres ouverts ne la porte plus.
+        assertThat(sessions.unlockedFolderIds.value).doesNotContain("coffre")
+    }
+
     @Test
     @DisplayName("l'activité sur un coffre ne repousse PAS l'échéance de l'autre")
     fun lActiviteSurUnCoffreNAffameParLAutre() {

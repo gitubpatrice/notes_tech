@@ -115,27 +115,57 @@ class VaultSessions @Inject constructor(private val clock: MonotonicClock) {
     }
 
     /**
-     * `true` si une session vivante existe, **sans en matérialiser la clé**.
+     * `true` si une session vivante existe, **sans en matérialiser la clé et sans repousser son
+     * échéance**.
      *
      * Séparé de [sessionKey] pour qu'un simple prédicat d'affichage — « ce carnet est-il ouvert ? »
      * — ne recopie pas un secret que personne n'effacera ensuite.
+     *
+     * ## 🔴🔴 Pourquoi il ne repousse PAS l'échéance
+     *
+     * Il le faisait. Aucun appelant d'aujourd'hui n'en souffrait — les deux sont des gestes de
+     * l'utilisateur — mais c'était un piège **posé et armé** : le jour où quelqu'un demande « ce
+     * dossier est-il ouvert ? » depuis une recomposition, un flux ou un rendu de liste, chaque
+     * redessin repousserait l'échéance et **le verrouillage automatique cesserait, en silence**.
+     * Aucun test ne l'aurait vu, parce qu'aucun test n'observe un écran qui se redessine.
+     *
+     * *Une garde dont l'annulation ne se voit nulle part n'est pas une garde.* L'application publiée
+     * a raison sur ce point : son `isUnlocked` est un `containsKey`, et rien d'autre. Le report
+     * d'échéance est un geste **explicite**, [touch], ou la conséquence d'un vrai usage de la clé
+     * ([sessionKey]).
+     *
+     * ⚠️ **L'expiration paresseuse, elle, reste** : consulter une session périmée la ferme au
+     * passage. C'est un point où ce portage est meilleur que le publié, qui s'en remet à son
+     * balayage périodique — un prédicat qui répondrait « ouvert » sur une session expirée serait un
+     * mensonge, même bref.
      */
     fun hasLiveSession(folderId: String): Boolean = synchronized(lock) {
         val session = sessions[folderId] ?: return false
-        val now = clock.elapsedMillis()
-        if (hasExpired(session, now)) {
+        if (hasExpired(session, clock.elapsedMillis())) {
             lockLocked(folderId)
             return false
         }
-        session.lastActivityMillis = now
         true
     }
 
     fun isUnlocked(folderId: String): Boolean = hasLiveSession(folderId)
 
-    /** Repousse l'échéance sans consommer la clé — une frappe, un défilement, une sauvegarde. */
-    fun touch(folderId: String) {
-        hasLiveSession(folderId)
+    /**
+     * Repousse l'échéance sans consommer la clé — une frappe, un défilement, une sauvegarde.
+     *
+     * ⚠️ **Aucun appelant en production aujourd'hui, et c'est normal**, pas un câblage oublié :
+     * les chemins qui comptent — enregistrer, créer, ouvrir une note de coffre — passent tous par
+     * [sessionKey], qui reporte déjà. L'application publiée appelle son `touchActivity` depuis
+     * quatre endroits, **tous des chemins d'écriture**, donc exactement les mêmes événements.
+     *
+     * Elle reste parce qu'elle est la seule façon **explicite** de reporter, et que le jour où un
+     * geste sans lecture de clé doit compter comme de l'activité, c'est ici qu'il faut passer — et
+     * non en rendant un prédicat effectif.
+     */
+    fun touch(folderId: String): Unit = synchronized(lock) {
+        val session = sessions[folderId] ?: return
+        val now = clock.elapsedMillis()
+        if (hasExpired(session, now)) lockLocked(folderId) else session.lastActivityMillis = now
     }
 
     /** Ferme un coffre et efface sa clé. Idempotent. */

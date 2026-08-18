@@ -3014,3 +3014,90 @@ aapt, sans erreur.
 `folder_delete_decrypt_failed` écrivait « pour {n} note(s). », signalé `PluralsCandidate`. Le « (s) »
 est le contournement qu'on emploie quand on n'a pas de pluriel — et Android en a un. Réécrite en
 `<plurals>` via le mécanisme `REMPLACEES` déjà prévu pour ce cas.
+
+---
+
+## §99 — 🔴 Demander « ce coffre est-il ouvert ? » repoussait le verrouillage automatique
+
+`VaultSessions.isUnlocked` déléguait à `hasLiveSession`, qui posait `lastActivityMillis = now`. Le
+prédicat était donc **effectif** : consulter l'état d'un coffre reportait son échéance.
+
+⚠️ **Aucun appelant d'alors n'en souffrait**, et c'est ce qui rend le cas intéressant. Les deux
+appels de production — un choix de dossier de destination, un garde de navigation — sont des **gestes
+de l'utilisateur**, où reporter est légitime. Le défaut était donc **posé et armé, pas déclenché**.
+
+🔴 Ce qu'il attendait : que quelqu'un demande « ce dossier est-il ouvert ? » depuis une
+recomposition, un flux ou un rendu de liste. À partir de là, **chaque redessin** repousse l'échéance
+et le verrouillage automatique cesse — en silence, sans qu'aucun test ne le voie, parce qu'aucun test
+n'observe un écran qui se redessine. *Une garde dont l'annulation ne se voit nulle part n'est pas une
+garde.*
+
+L'application publiée a raison sur ce point : son `isUnlocked` est un `containsKey`, et rien d'autre.
+
+🔧 Le prédicat redevient pur ; le report est **explicite** (`touch`) ou la conséquence d'un vrai usage
+de la clé (`sessionKey`). Deux cas JVM le disent — l'un que consulter ne reporte pas, l'autre que
+`touch` reporte —, et **le second n'est pas décoratif** : sans lui, le premier serait indiscernable
+d'une classe qui ne reporte jamais.
+
+⚠️ **L'expiration paresseuse, elle, reste** : consulter une session périmée la ferme au passage. C'est
+un point où ce portage est meilleur que le publié, qui s'en remet à son balayage périodique.
+
+⚠️ **`touch` n'a aucun appelant en production, et ce n'est PAS un câblage oublié.** Vérifié des deux
+côtés : le publié appelle son `touchActivity` depuis quatre endroits, **tous des chemins d'écriture**
+— enregistrer, créer, ouvrir une note liée — et ces mêmes chemins passent ici par `sessionKey`, qui
+reporte déjà. Les événements couverts sont les mêmes. C'est écrit sur la fonction, pour qu'on ne
+« répare » pas une absence qui n'en est pas une.
+
+**Contrôle positif fait** : le report remis dans le prédicat fait tomber le cas prévu, et lui seul.
+Restauration vérifiée au SHA-256.
+
+---
+
+## §100 — 🔴🔴 La migration v1 → v2 n'était exercée par AUCUN test — des deux côtés
+
+Le format v1 laisse le **titre en clair** dans sa colonne et ne chiffre que le contenu ; le v2 met les
+deux dans le blob. La migration doit donc, en **une seule écriture**, poser le nouveau blob *et* vider
+la colonne de titre. Une inversion, une écriture partielle, un `pack` qui oublie le titre, et le titre
+disparaît des deux côtés — sans erreur, et sans retour possible.
+
+### ⚠️⚠️ Le publié porte une fonction faite EXPRÈS pour rendre ce chemin vérifiable, et personne ne l'appelle
+
+`folder_vault_service.dart` déclare `encryptNoteLegacyV1`, `@visibleForTesting`, avec ce commentaire :
+
+> *« Existe uniquement pour que les tests de migration puissent fabriquer une note héritée
+> authentique […] Sans ça, la migration v1 → v2 ne serait vérifiable que sur des données simulées,
+> c'est-à-dire pas vérifiée du tout : c'est précisément le chemin où une erreur ferait perdre les
+> titres des utilisateurs. »*
+
+Mesuré : **zéro appelant**, tests compris. Et le seul test Dart qui mentionne la migration
+(`audit_v1_1_7_test.dart`) **`grep` le code source** pour vérifier que l'appel `_migrateLegacyEncryptedNotes(`
+y figure. Il mesure une chaîne de caractères, pas un comportement.
+
+*Un outil écrit pour rendre un chemin vérifiable, et jamais employé, laisse ce chemin exactement aussi
+peu vérifié que s'il n'existait pas — mais donne l'impression du contraire.* Côté portage, le même
+chemin était câblé, documenté, et aussi peu exercé.
+
+### 🔧 Ce qui le mesure maintenant
+
+Deux cas instrumentés, sur une note v1 fabriquée avec **la vraie clé de session du coffre** — une clé
+de laboratoire mesurerait la crypto, pas la migration. Le format du blob, lui, est déjà recoupé octet
+pour octet contre le Dart (`PariteCoffreAvecFlutterTest.lesBlobsDeNoteSeRelisent`).
+
+1. **La migration préserve le titre.** Témoin **avant** : `enc_v = 1` et le titre dans sa colonne —
+   sans lui, trouver le titre dans le blob à la fin ne distinguerait pas « migré » de « n'a jamais
+   été en v1 ». Après : `enc_v = 2`, colonne vidée, et le titre **et** le contenu relus intacts.
+   ⚠️ Titre **accentué** : un `pack` qui compterait des caractères et non des octets passerait sur
+   « abc ».
+2. **Une note v1 illisible est laissée INTACTE.** C'est la propriété qui sépare une migration d'une
+   perte de données : la tentation est d'écrire « ce qu'on a pu lire », et le titre encore présent
+   dans la colonne claire partirait avec. ⚠️ Le témoin est la **note saine du même dossier**, migrée
+   dans le même passage — sans elle, un test où rien ne bouge passerait aussi bien sur une requête
+   cassée qui ne trouve aucune note.
+
+**Contrôles positifs faits** : écrire malgré l'échec de déchiffrement fait tomber le cas de la note
+abîmée ; garder le titre dans sa colonne fait tomber celui de la migration. Chacun le sien, et lui
+seul. Restaurations vérifiées au SHA-256.
+
+⚠️ Le câblage, lui, était **déjà juste** : `onSessionOpened` est appelé depuis un point unique
+partagé par les deux chemins de déverrouillage, avec le raisonnement anti-jumeau écrit sur place
+(§25). Ce n'est pas ce qui manquait.
