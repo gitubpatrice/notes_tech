@@ -1015,11 +1015,30 @@ code touchée** — l'état mesuré était déjà l'état voulu.
 ⚠️ **Réfutés, ne pas rechercher** : freinage identique au chiffre près, longueurs de secret
 identiques, ordre de l'auto-effacement identique.
 
-### 🔧 La passerelle 2.0.4 — écrite, mesurée, **non publiée**
+### ✅ La passerelle 2.0.4 — **PUBLIÉE le 2026-08-18**
 
-`notes_tech` **2.0.4+52**. Vérifié sur le S9 : `notes_tech.kek.xml` écrit, **blob 48 octets** (32 +
-tag GCM), **nonce 12**, aucun retour à la ligne. La couche ① la relit — 8 cas, dont un scellé produit
-*comme la passerelle le produit*.
+`notes_tech` **`be6fe0d`** sur `main`, tag **`v2.0.4`**, versionCode **2052**, trois APK par ABI,
+les trois workflows verts. Vérifié sur le S9 avant publication : `notes_tech.kek.xml` écrit, **blob
+48 octets** (32 + tag GCM), **nonce 12**, aucun retour à la ligne. La couche ① la relit — 8 cas, dont
+un scellé produit *comme la passerelle le produit*.
+
+**Vérifié sur l'artefact PUBLIÉ, et non sur le dépôt** : certificat **identique à la 2.0.3**
+(`ddb385de…42e9` — le chemin de mise à jour tient), `versionCode` 2052 / `versionName` 2.0.4, et
+`sealDatabaseKek` + les trois valeurs du contrat **présents dans le dex**.
+
+⚠️⚠️ **Le changelog fastlane a une règle qu'aucun document ne portait** : les quatre derniers sont en
+**ASCII pur**, 471–492 octets. Le cap F-Droid compte des **caractères** ; en ASCII octets =
+caractères, donc `wc -c` suffit à le vérifier, et un accent casse cette égalité. `52.txt` : **487**
+(FR), **435** (EN), zéro non-ASCII.
+
+⚠️ Site `files-tech.com` bumpé sur ses **cinq** surfaces (`939de98`) et **vérifié en ligne** — pas
+seulement déployé, la leçon de mai.
+
+⚠️ **La MR F-Droid `!37885` n'a pas été touchée**, exprès.
+
+⚠️ **Un contrôle m'avait échappé** : `flutter analyze lib/` au lieu de `flutter analyze`, donc un
+import inutile de mon propre test est passé. *Restreindre le périmètre d'un contrôle, c'est se
+garantir qu'il ne dira rien de ce qu'on a laissé dehors.* Corrigé avant la fusion.
 
 ⚠️ **Deux écarts assumés** avec la procédure écrite : octets bruts plutôt qu'hexadécimal (une `String`
 portant la KEK est ineffaçable en Dart), et idempotence sur les préférences **et** l'alias.
