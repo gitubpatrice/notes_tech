@@ -2813,26 +2813,75 @@ réserve.
 
 ---
 
-## §96 — 🟠 Écrit, NON corrigé : la borne de deux minutes est silencieuse
+## §96 — 🔴🔴 Une borne qui s'applique en silence, et les deux moments où il faut le dire
 
-`VoiceCapture` arrête la capture à `OCTETS_MAX`, soit **120 secondes**, et la boucle sort alors
-exactement comme si l'utilisateur avait appuyé sur « Arrêter » : le WAV part à la transcription, le
-texte s'insère, la superposition se referme. **Rien ne distingue les deux fins**, ni à l'écran ni
-dans un message.
+`VoiceCapture` arrêtait la capture à `OCTETS_MAX`, soit **120 secondes**, et la boucle sortait alors
+exactement comme si l'utilisateur avait appuyé sur « Arrêter » : même `File`, même transcription,
+même insertion, **même message** « Texte inséré. ». Rien ne distinguait les deux fins.
 
-Le parcours : on dicte trois minutes, on relit la note, et il en manque la dernière. Sans le savoir,
-et sans moyen de le savoir.
+Le parcours : on dicte trois minutes, on relit la note, il en manque une. Sans le savoir, et sans
+moyen de le savoir.
 
 ⚠️ **L'application publiée n'a aucune borne** — vérifié dans `stt_session.dart` et
-`voice_service.dart`, il n'y en a nulle part — mais elle affiche un **chronomètre mm:ss** en région
-active pendant l'enregistrement. Le portage n'a ni l'un ni l'autre : ni la borne annoncée, ni le
-temps écoulé.
+`voice_service.dart`, il n'y en a nulle part. Elle affiche en revanche un **chronomètre mm:ss** en
+région active. Le portage n'avait ni l'un ni l'autre : ni la borne annoncée, ni le temps écoulé. La
+borne elle-même est justifiée et documentée — un micro qui reste ouvert est un micro qui reste
+ouvert ; ce n'était pas elle le défaut, c'était son silence.
 
-La borne elle-même est **justifiée et documentée** (un micro qui reste ouvert est un micro qui reste
-ouvert) ; ce n'est pas elle le défaut, c'est son silence.
+### 🔧 Deux réponses, à deux moments, et aucune ne remplace l'autre
 
-⚠️ **Non corrigé ici, et pour une raison de périmètre** : le savoir remonter demande de changer ce
-que `VoiceCapture.enregistrer` rend — aujourd'hui un `File?`, qui ne peut pas dire *pourquoi* la
-capture s'est arrêtée. Or `voice_service.dart` est une **autre ligne de parité**, encore décochée.
-La corriger ici serait toucher un contrat qu'on n'a pas encore audité. Décision de Patrice :
-message à l'atteinte de la borne, chronomètre comme le publié, ou les deux.
+| Quand | Quoi | À quoi ça sert |
+|---|---|---|
+| **pendant** qu'on parle | le compteur « 1:37 / 2:00 » | ne pas y arriver |
+| **après** l'insertion | « Texte inséré. Limite de 2:00 atteinte : la suite n'a pas été enregistrée. » | savoir qu'on y est arrivé |
+
+⚠️ **Le compteur NOMME la borne**, il n'affiche pas le seul temps écoulé. On ne se méfie pas d'un
+chiffre qui monte ; « 1:37 / 2:00 » dit qu'il y a une fin avant qu'elle n'arrive. Le publié, lui,
+n'a qu'un temps écoulé — mais il n'a rien à annoncer.
+
+⚠️ **La durée du message est celle de l'écran**, par la même constante et le même formateur
+(`dureeMmSs`, `DUREE_MAX_SECONDES`). Écrire « 2 minutes » dans la traduction aurait créé un second
+endroit où la borne est dite, et le jour où elle change, l'un des deux mentirait.
+
+### ⚠️⚠️ Ce que la mesure a corrigé dans le correctif lui-même
+
+Le compteur était d'abord **masqué par `clearAndSetSemantics`**, par analogie avec le témoin de
+niveau sonore, et le raisonnement paraissait solide : la colonne est une région active, un texte qui
+change chaque seconde y serait annoncé chaque seconde.
+
+Sauf qu'**un nœud effacé disparaît des DEUX arbres**. Le compteur n'était plus lisible par personne,
+même à l'exploration au doigt — on l'avait rendu invisible pour éviter qu'il ne crie. Le test l'a dit
+en tombant, et la bonne construction est de le poser en **frère** de la région plutôt que dedans :
+*ne pas crier n'oblige pas à se taire.* Le témoin de niveau, lui, reste effacé — il n'a rien à lire.
+
+### 🔧 Ce qui a dû changer pour que la borne puisse parler
+
+`enregistrer()` rendait un `File?`, qui **ne peut pas dire pourquoi** la capture s'est arrêtée. Il
+rend désormais une `Capture(fichier, fin)` sur une énumération `FinDeCapture` à deux valeurs.
+
+⚠️ **Un type de retour, et non un drapeau lu à côté** : un appelant ne peut pas oublier de regarder
+ce qu'il reçoit, alors qu'il peut très bien ne jamais lire une propriété.
+
+⚠️⚠️ **`fin` voyage AVEC le texte**, dans `IssueDeDictee.Texte`, plutôt que de faire un cas à part.
+Un `TexteTronque` séparé aurait obligé à reprendre **deux** endroits — celui qui insère et celui qui
+parle — et le premier l'aurait oublié : l'insertion se lit par `is IssueDeDictee.Texte`, et un type
+neuf serait passé à côté **sans que rien ne le signale**. Le texte s'insère de la même façon dans les
+deux cas ; seul ce qu'on dit ensuite change. C'est le jumeau qu'on refuse de créer en réparant.
+
+🔧 **La classification est extraite** en `VoiceCapture.finDeCapture(octetsEcrits)` — troisième
+application de l'idiome après `GesteDeDossier` (§91) et `gesteDuMicro` (§95). Elle vivait en une
+ligne dans une fonction **privée et suspendue exigeant un `AudioRecord` réel** : la règle la plus
+facile à écrire de travers du fichier était la seule qu'aucun test ne pouvait atteindre.
+
+⚠️ **`>=` et non `==`, et c'est le cas qui compte.** `micro.read` rend ce qu'il a, pas ce qu'on
+aurait voulu : le dernier tampon fait presque toujours franchir la borne de quelques milliers
+d'octets. Un `==` laisserait passer **tous** les cas réels tout en gardant au vert le cas exact —
+d'où deux cas de test distincts, la borne pile et le dépassement.
+
+⚠️ Les secondes affichées sont **dérivées des octets écrits**, pas d'une horloge : c'est le même
+compteur qui déclenche la borne, si bien que ce que l'écran montre et ce qui coupe la capture ne
+peuvent pas diverger. C'est précisément près de la borne qu'un écart compterait.
+
+**Contrôle positif fait** : `>=` remis en `==` fait tomber le cas du dépassement et lui seul ; le
+compteur remis **dans** la région active fait tomber les deux cas d'annonce. Restaurations vérifiées
+au SHA-256.

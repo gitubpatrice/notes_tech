@@ -15,8 +15,10 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 
 /**
@@ -28,6 +30,24 @@ import com.filestech.notes_tech.ui.common.ActionDeDialogue
  * parlez pour rien ». Sans lui, l'utilisateur ne l'apprend qu'à la transcription vide — après avoir
  * dicté un paragraphe. `WavPcm16.niveau` le dit déjà : *ce n'est en aucun cas une détection de
  * parole*, seulement un témoin.
+ *
+ * ## 🔴🔴 La borne de deux minutes se dit, elle ne s'applique plus en silence
+ *
+ * `VoiceCapture` coupe la capture à `DUREE_MAX_SECONDES` là où l'application publiée n'a **aucune**
+ * borne. Elle s'appliquait sans un mot : le WAV partait à la transcription, le texte s'insérait, et
+ * le message était celui d'un arrêt au doigt. On dictait trois minutes, il en manquait une, et rien
+ * ne permettait de l'apprendre — `04-PIEGES.md` §96.
+ *
+ * Deux réponses, à deux moments : le **compteur** « 1:37 / 2:00 » prévient pendant qu'on parle ; le
+ * **message** d'après-coup constate ce qui a été perdu. Le premier sert à ne pas y arriver, le second
+ * à savoir qu'on y est arrivé — aucun des deux ne remplace l'autre.
+ *
+ * ⚠️ Le compteur **nomme la borne** plutôt que d'afficher le seul temps écoulé : on ne se méfie pas
+ * d'un chiffre qui monte, et le publié n'a de chronomètre que parce qu'il n'a rien à annoncer.
+ *
+ * ⚠️ La durée écrite dans le message est **la même** qu'à l'écran, par la même constante et le même
+ * formateur ([dureeMmSs]). L'écrire en toutes lettres dans la traduction aurait créé un second
+ * endroit où la borne est dite, et le jour où elle change, l'un des deux mentirait.
  *
  * ## 🔴🔴 « Arrêter » et « Annuler » sont deux gestes, et les deux doivent être là
  *
@@ -84,7 +104,13 @@ import com.filestech.notes_tech.ui.common.ActionDeDialogue
  * texte propre** et n'annoncerait rien. Même construction qu'au §86.
  */
 @Composable
-fun SuperpositionDeDictee(etape: EtapeDeDictee, niveau: Float, onArreter: () -> Unit, onAbandonner: () -> Unit) {
+fun SuperpositionDeDictee(
+    etape: EtapeDeDictee,
+    niveau: Float,
+    secondes: Int,
+    onArreter: () -> Unit,
+    onAbandonner: () -> Unit,
+) {
     if (etape == EtapeDeDictee.INACTIVE) return
 
     val enregistre = etape == EtapeDeDictee.ENREGISTREMENT
@@ -110,10 +136,7 @@ fun SuperpositionDeDictee(etape: EtapeDeDictee, niveau: Float, onArreter: () -> 
             )
         },
         text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-            ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // ⚠️ « Parlez » n'apparaît QU'UNE FOIS le micro ouvert : le dire pendant
                 // l'initialisation ferait commencer l'utilisateur trop tôt, et son premier mot
                 // n'arriverait jamais dans le fichier.
@@ -128,22 +151,52 @@ fun SuperpositionDeDictee(etape: EtapeDeDictee, niveau: Float, onArreter: () -> 
                     EtapeDeDictee.ENREGISTREMENT -> R.string.voice_recording_hint
                     EtapeDeDictee.TRANSCRIPTION, EtapeDeDictee.INACTIVE -> R.string.voice_transcribing_hint
                 }
-                Text(stringResource(consigne), style = MaterialTheme.typography.bodyMedium)
                 if (enregistre) {
-                    // ⚠️ Masqué aux lecteurs d'écran : un témoin qui change dix fois par seconde
-                    // serait annoncé dix fois par seconde. Le texte au-dessus porte l'information
-                    // utile, et un utilisateur non voyant a d'autres retours que celui-ci.
+                    // 🔴🔴 **Le compteur dit qu'il y a une limite, et c'est là tout son intérêt.**
                     //
-                    // ⚠️⚠️ Et c'est **ce masquage** qui rend la région active ci-dessus tenable : sans
-                    // lui, la consigne fusionnerait un indicateur qui change en continu, et la région
-                    // annoncerait à chaque échantillon.
-                    LinearProgressIndicator(
-                        progress = { niveau },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 4.dp)
-                            .clearAndSetSemantics {},
+                    // La capture s'arrête à `DUREE_MAX_SECONDES` là où l'application publiée n'a
+                    // aucune borne. Un temps écoulé seul ne préviendrait de rien — on ne se méfie
+                    // pas d'un chiffre qui monte. Écrit « 1:37 / 2:00 », il nomme la borne avant
+                    // qu'elle ne coupe, et la même durée se retrouve **mot pour mot** dans le
+                    // message d'après-coup. Cf. `04-PIEGES.md` §96.
+                    //
+                    // 🔴🔴 **Hors de la région active, et NON effacé.** La première version l'avait
+                    // masqué par `clearAndSetSemantics` comme le témoin de niveau — mais un nœud
+                    // effacé disparaît des **deux** arbres, et le compteur devenait illisible même à
+                    // l'exploration. Le poser en **frère** de la région le rend lisible au doigt sans
+                    // qu'il soit annoncé chaque seconde : *ne pas crier n'oblige pas à se taire.*
+                    Text(
+                        text = "${dureeMmSs(secondes)} / ${dureeMmSs(VoiceCapture.DUREE_MAX_SECONDES)}",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            // ⚠️ Chiffres à chasse fixe : sans cela la largeur saute à chaque seconde,
+                            // et un texte qui bouge sous les yeux pendant qu'on parle est une gêne.
+                            fontFamily = FontFamily.Monospace,
+                        ),
                     )
+                }
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.semantics(mergeDescendants = true) {
+                        liveRegion = LiveRegionMode.Polite
+                    },
+                ) {
+                    Text(stringResource(consigne), style = MaterialTheme.typography.bodyMedium)
+                    if (enregistre) {
+                        // ⚠️ Masqué aux lecteurs d'écran : un témoin qui change dix fois par seconde
+                        // serait annoncé dix fois par seconde. Le texte au-dessus porte l'information
+                        // utile, et un utilisateur non voyant a d'autres retours que celui-ci.
+                        //
+                        // ⚠️⚠️ Et c'est **ce masquage** qui rend la région active tenable : sans lui, la
+                        // consigne fusionnerait un indicateur qui change en continu, et la région
+                        // annoncerait à chaque échantillon.
+                        LinearProgressIndicator(
+                            progress = { niveau },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp)
+                                .clearAndSetSemantics {},
+                        )
+                    }
                 }
             }
         },
@@ -162,3 +215,18 @@ fun SuperpositionDeDictee(etape: EtapeDeDictee, niveau: Float, onArreter: () -> 
         dismissButton = if (enregistre) annuler else null,
     )
 }
+
+/**
+ * `secondes` en `m:ss`.
+ *
+ * ⚠️ Construit à la main plutôt que par un formateur : deux chiffres et un deux-points n'ont pas de
+ * variante régionale ici, et un `String.format` sans `Locale` explicite est précisément le genre
+ * d'appel dont le comportement change avec la langue de l'appareil.
+ */
+internal fun dureeMmSs(secondes: Int): String {
+    val minutes = secondes / SECONDES_PAR_MINUTE
+    val reste = secondes % SECONDES_PAR_MINUTE
+    return "$minutes:${reste.toString().padStart(2, '0')}"
+}
+
+private const val SECONDES_PAR_MINUTE = 60

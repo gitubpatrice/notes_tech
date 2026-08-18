@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **216 tests JVM**,
-  **277 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **221 tests JVM**,
+  **280 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -903,7 +903,7 @@ vérifiée au **SHA-256**. Compte JVM vérifié classe par classe : 206 → **21
 
 `voice_recording_overlay.dart` et `voice_record_button.dart`. **19 cases vides** restantes (21 avant).
 
-Gate : ktlint, detekt, lint `--rerun-tasks`, **216 tests JVM**, **277 tests instrumentés** (S9),
+Gate : ktlint, detekt, lint `--rerun-tasks`, **221 tests JVM**, **280 tests instrumentés** (S9),
 0 échec, **0 ignoré**, modèle de 57 Mo intact, `font_scale` restauré à 1,0.
 
 ### Ce que ce tour apprend, et qui vaut au-delà de la dictée
@@ -941,17 +941,31 @@ d'installation n'était atteignable que depuis les réglages. Le publié l'ouvre
 🔧 La décision est extraite en `gesteDuMicro`, interface scellée à trois issues — idiome du §91 —
 donc mesurable en JVM là où elle était hors d'atteinte.
 
-### §96 — écrit, NON corrigé
+### §96 — la borne de deux minutes s'appliquait en silence
 
-La borne de **120 secondes** de `VoiceCapture` s'applique en silence : rien ne distingue « la limite
-est atteinte » de « l'utilisateur a appuyé sur Arrêter ». Le publié n'a **aucune** borne mais affiche
-un chronomètre. Corriger demande de changer ce que `VoiceCapture.enregistrer` rend, or
-`voice_service.dart` est une autre ligne de parité, encore décochée. **Décision de Patrice.**
+Rien ne distinguait « la limite est atteinte » de « l'utilisateur a appuyé sur Arrêter » : on dictait
+trois minutes, il en manquait une, sans moyen de le savoir. Le publié n'a **aucune** borne mais
+affiche un chronomètre.
+
+🔧 Deux réponses, à deux moments : le compteur « 1:37 / 2:00 » **nomme** la borne pendant qu'on
+parle, le message la constate après coup. Aucune ne remplace l'autre — la première sert à ne pas y
+arriver, la seconde à savoir qu'on y est arrivé. `enregistrer()` rend une `Capture(fichier, fin)` au
+lieu d'un `File?`, parce qu'un `File` ne peut pas dire **pourquoi** la capture s'est arrêtée.
+
+⚠️⚠️ **Le correctif a eu son propre défaut, et le test l'a dit.** Le compteur était masqué par
+`clearAndSetSemantics` — raisonnement solide, la colonne est une région active — mais **un nœud
+effacé disparaît des deux arbres** : il n'était plus lisible par personne, même à l'exploration. Il
+est posé en **frère** de la région. *Ne pas crier n'oblige pas à se taire.*
+
+⚠️ Ce correctif touche `VoiceCapture`, donc la ligne `voice_service.dart`, qui **reste décochée** :
+il en ferme un défaut, il ne la mesure pas.
 
 ### Contrôles
 
 Décompte des actionnables mesuré et posé **avant** les balayages. Contrôle positif : les deux
 défauts réintroduits dans le vrai code font tomber **4 cas sur 10** ; restauration vérifiée au
-**SHA-256**. Suite rejouée **à `font_scale 2,0`** — 10/10, les deux boutons restent entiers — puis
-échelle restaurée. Compte JVM vérifié classe par classe : 211 → **216**, XML de `GesteDuMicroTest`
-présent (§82).
+**SHA-256**. Deux autres contrôles pour §96 : `>=` remis en `==` fait tomber le cas du dépassement
+et lui seul ; le compteur remis **dans** la région active fait tomber les deux cas d'annonce —
+restaurations vérifiées au SHA-256. Suite rejouée **à `font_scale 2,0`** — les deux boutons
+restent entiers — puis échelle restaurée. Compte JVM vérifié classe par classe : 211 → **221**,
+XML de `GesteDuMicroTest` et `BorneDeDureeTest` présents (§82).

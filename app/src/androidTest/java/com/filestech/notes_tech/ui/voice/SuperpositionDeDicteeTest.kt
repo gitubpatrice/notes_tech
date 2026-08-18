@@ -62,6 +62,7 @@ class SuperpositionDeDicteeTest {
     val regle = createAndroidComposeRule<ComponentActivity>()
 
     private val etapeCourante = mutableStateOf(EtapeDeDictee.INACTIVE)
+    private val secondesCourantes = mutableStateOf(0)
     private var pose = false
     private val arrets = mutableListOf<Unit>()
     private val abandons = mutableListOf<Unit>()
@@ -69,20 +70,26 @@ class SuperpositionDeDicteeTest {
     private fun texte(id: Int): String = regle.activity.getString(id)
 
     /** Pose la superposition **une fois**, puis ne fait plus que changer d'étape. */
-    private fun poser(etape: EtapeDeDictee) {
+    private fun poser(etape: EtapeDeDictee, secondes: Int = SECONDES_TEMOIN) {
         if (pose) {
-            regle.runOnIdle { etapeCourante.value = etape }
+            regle.runOnIdle {
+                etapeCourante.value = etape
+                secondesCourantes.value = secondes
+            }
             regle.waitForIdle()
             return
         }
         etapeCourante.value = etape
+        secondesCourantes.value = secondes
         pose = true
         regle.setContent {
             NotesTechTheme {
                 val courante by etapeCourante
+                val ecoulees by secondesCourantes
                 SuperpositionDeDictee(
                     etape = courante,
                     niveau = NIVEAU_TEMOIN,
+                    secondes = ecoulees,
                     onArreter = { arrets += Unit },
                     onAbandonner = { abandons += Unit },
                 )
@@ -274,6 +281,56 @@ class SuperpositionDeDicteeTest {
         assertThat(annuler.boundsInRoot.height).isGreaterThan(0f)
     }
 
+    // -----------------------------------------------------------------------
+    // 🔴 Le compteur, et la borne qu'il nomme — §96
+    // -----------------------------------------------------------------------
+
+    /**
+     * 🔴🔴 **Le compteur nomme la borne, il ne montre pas seulement le temps qui passe.**
+     *
+     * La capture s'arrête à deux minutes là où l'application publiée n'a aucune borne. Un temps
+     * écoulé seul ne préviendrait de rien — on ne se méfie pas d'un chiffre qui monte. Écrit
+     * « 1:37 / 2:00 », il dit qu'il y a une fin avant qu'elle n'arrive.
+     */
+    @Test
+    fun le_compteur_affiche_le_temps_ECOULE_et_la_BORNE() {
+        poser(EtapeDeDictee.ENREGISTREMENT, secondes = 97)
+
+        regle.onNodeWithText("1:37 / 2:00").assertExists()
+    }
+
+    /**
+     * ⚠️⚠️ **Le compteur est masqué aux lecteurs d'écran, et c'est mesuré.** La colonne qui le porte
+     * est une **région active** : un texte qui change chaque seconde y serait annoncé chaque seconde,
+     * et couvrirait la consigne. Ce qu'un utilisateur non voyant reçoit, c'est le message
+     * d'après-coup — qui, lui, ne se déclenche qu'une fois.
+     *
+     * ⚠️⚠️ **Affiché ET lisible, mais pas annoncé** — les deux cas ensemble le disent, et il a fallu
+     * une mesure pour y arriver : la première version masquait le compteur par `clearAndSetSemantics`,
+     * et un nœud effacé disparaît des **deux** arbres. Le cas précédent tombait, ce qui était juste :
+     * le compteur n'était plus lisible par personne, même à l'exploration.
+     */
+    @Test
+    fun le_compteur_n_est_PAS_annonce() {
+        poser(EtapeDeDictee.ENREGISTREMENT, secondes = 97)
+
+        val annonces = regionsActives().map { it.first }
+
+        assertThat(annonces).doesNotContain("1:37 / 2:00")
+        assertThat(annonces.none { it.contains("1:37") }).isTrue()
+        assertThat(annonces).contains(texte(R.string.voice_recording_hint))
+    }
+
+    /** ⚠️ Hors enregistrement il n'y a rien à compter — le micro est fermé ou le calcul est lancé. */
+    @Test
+    fun hors_enregistrement_aucun_compteur() {
+        for (etape in listOf(EtapeDeDictee.INITIALISATION, EtapeDeDictee.TRANSCRIPTION)) {
+            poser(etape, secondes = 97)
+
+            regle.onNodeWithText("1:37 / 2:00").assertDoesNotExist()
+        }
+    }
+
     private companion object {
         val ETATS_ACTIFS = listOf(
             EtapeDeDictee.INITIALISATION,
@@ -283,5 +340,11 @@ class SuperpositionDeDicteeTest {
 
         /** ⚠️ Ni 0 ni 1 : un témoin de niveau qui vaudrait une borne cacherait un indicateur figé. */
         const val NIVEAU_TEMOIN = 0.4f
+
+        /**
+         * ⚠️ Ni 0 ni un multiple de 60 : un formateur qui perdrait les minutes, ou qui oublierait de
+         * remplir les secondes, rendrait la même chose que le bon sur « 0:00 » et sur « 1:00 ».
+         */
+        const val SECONDES_TEMOIN = 97
     }
 }

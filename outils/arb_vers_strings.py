@@ -156,6 +156,12 @@ AJOUTS_EN = {
 
     <string name="voice_setup_remove_confirm_title">Remove the model?</string>
     <string name="voice_setup_remove_confirm_body">You will have to download and import it again to dictate. Your notes are not affected.</string>
+    <!-- Ajout du portage : la capture est bornee a 2 min (VoiceCapture.DUREE_MAX_SECONDES), la ou
+         l'application publiee n'a AUCUNE borne. Elle s'appliquait en SILENCE : rien ne distinguait
+         « la limite est atteinte » de « l'utilisateur a appuye sur Arreter », si bien qu'on dictait
+         trois minutes et qu'il en manquait une. Cf. 04-PIEGES.md §96. L'argument porte la duree
+         formatee (« 2:00 »), exactement celle que le compteur affichait pendant la dictee. -->
+    <string name="voice_limit_reached">Text inserted. Limit of %1$s reached: the rest was not recorded.</string>
 """,
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
@@ -237,6 +243,8 @@ AJOUTS_FR = {
 
     <string name="voice_setup_remove_confirm_title">Retirer le modèle ?</string>
     <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
+    <!-- Voir le commentaire cote EN : la borne de 2 min s'appliquait en silence (04-PIEGES.md §96). -->
+    <string name="voice_limit_reached">Texte inséré. Limite de %1$s atteinte : la suite n\\'a pas été enregistrée.</string>
 """,
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->

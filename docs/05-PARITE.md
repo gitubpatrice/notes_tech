@@ -319,10 +319,17 @@ modifier du code correct.
 > perdue à la fusion, aucun champ de saisie — et pourtant l'écran ne disait rien. *Un écran sans nœud
 > anonyme peut être un écran qui ne dit rien.*
 >
-> Écrit et **non corrigé** : **§96**, la borne de deux minutes de `VoiceCapture` s'applique en silence
-> — le publié n'a aucune borne mais affiche un chronomètre. Le corriger demande de changer ce que
-> `VoiceCapture.enregistrer` rend, or `voice_service.dart` est une **autre ligne de parité**, encore
-> décochée. Décision de Patrice.
+> **§96 — corrigé.** La borne de deux minutes de `VoiceCapture` s'appliquait **en silence** : rien
+> ne distinguait « la limite est atteinte » de « l'utilisateur a appuyé sur Arrêter », si bien qu'on
+> perdait la fin d'une dictée sans jamais l'apprendre. Le publié n'a aucune borne mais affiche un
+> chronomètre. Deux réponses, à deux moments : un compteur « 1:37 / 2:00 » qui **nomme** la borne
+> pendant qu'on parle, et un message qui constate après coup. `enregistrer()` rend désormais une
+> `Capture(fichier, fin)` au lieu d'un `File?` — un `File` ne peut pas dire **pourquoi** la capture
+> s'est arrêtée.
+>
+> ⚠️ Ce correctif touche `VoiceCapture`, qui appartient à la ligne `voice_service.dart` — **encore
+> décochée**. Il en ferme un défaut, il ne la coche pas : le reste de cette ligne (le moteur, le
+> magasin de modèles, l'empreinte) n'a pas été mesuré.
 >
 > ⚠️ Écarts écrits, assumés : le retour ne coupe pas la dictée (le publié l'annule, mais ici retour et
 > appui à côté arrivent par le même rappel) ; le bouton micro du portage est **désarmé** pendant une

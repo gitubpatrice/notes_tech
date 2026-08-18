@@ -343,6 +343,8 @@
 
     <string name="voice_setup_remove_confirm_title">Retirer le modèle ?</string>
     <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
+    <!-- Voir le commentaire cote EN : la borne de 2 min s'appliquait en silence (04-PIEGES.md §96). -->
+    <string name="voice_limit_reached">Texte inséré. Limite de %1$s atteinte : la suite n\'a pas été enregistrée.</string>
 
     <!-- ── À propos ────────────────────────────────────────────────────── -->
     <string name="about_title">À propos</string>

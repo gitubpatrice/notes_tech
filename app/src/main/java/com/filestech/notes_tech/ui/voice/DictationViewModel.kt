@@ -41,8 +41,16 @@ enum class EtapeDeDictee { INACTIVE, INITIALISATION, ENREGISTREMENT, TRANSCRIPTI
  * réessayer, ou rien du tout.
  */
 sealed interface IssueDeDictee {
-    /** ⚠️ Un événement à consommer **une fois**, pas un état : le texte s'insère, puis s'oublie. */
-    data class Texte(val contenu: String) : IssueDeDictee
+    /**
+     * ⚠️ Un événement à consommer **une fois**, pas un état : le texte s'insère, puis s'oublie.
+     *
+     * 🔴🔴 **[fin] voyage AVEC le texte**, plutôt que de faire un cas à part. Un `TexteTronque`
+     * séparé aurait obligé à reprendre **deux** endroits — celui qui insère et celui qui parle — et
+     * le premier l'aurait oublié : l'insertion se lit par `is IssueDeDictee.Texte`, et un nouveau
+     * type serait passé à côté sans que rien ne le signale. Le texte s'insère de la même façon dans
+     * les deux cas ; seul ce qu'on **dit** ensuite change.
+     */
+    data class Texte(val contenu: String, val fin: VoiceCapture.FinDeCapture) : IssueDeDictee
 
     /** L'utilisateur n'a rien dit. Ce n'est **pas** un échec. */
     data object Silence : IssueDeDictee
@@ -125,6 +133,14 @@ class DictationViewModel @Inject constructor(
     /** Le niveau sonore, pour que l'écran montre qu'on l'entend. Voir [VoiceCapture.niveau]. */
     val niveau: StateFlow<Float> = capture.niveau
 
+    /**
+     * Les secondes déjà capturées, pour que l'écran montre **où en est la borne**.
+     *
+     * 🔴 Prévenir vaut mieux que constater : le message d'après-coup dit ce qui a été perdu, ce
+     * compteur permet de ne pas le perdre. Les deux servent, et à des moments différents.
+     */
+    val secondes: StateFlow<Int> = capture.secondes
+
     private var travail: Job? = null
 
     /**
@@ -145,7 +161,7 @@ class DictationViewModel @Inject constructor(
             }
 
             _etape.value = EtapeDeDictee.INITIALISATION
-            var audio: File? = null
+            var audio: VoiceCapture.Capture? = null
             // ⚠️ Le passage à « parlez » est commandé par la CAPTURE, pas par l'horloge : c'est
             // elle qui sait quand le micro enregistre vraiment. Un délai fixe se tromperait sur
             // les appareils lents, c'est-à-dire précisément ceux qu'il faudrait couvrir.
@@ -170,9 +186,17 @@ class DictationViewModel @Inject constructor(
                 // chaque dictée coûte une relecture, et c'est le prix de la promesse « vérifié avant
                 // chaque chargement ». Le moteur, lui, ne se recharge pas.
                 moteur.initialize(modele)
-                val resultat = moteur.transcribeFile(audio.absolutePath)
+                val resultat = moteur.transcribeFile(audio.fichier.absolutePath)
 
-                emettre(if (resultat.isEmpty) IssueDeDictee.Silence else IssueDeDictee.Texte(resultat.text))
+                // ⚠️ La borne atteinte **ne change rien au silence** : si rien n'a été entendu, il n'y a
+                // pas de « suite » à annoncer comme perdue. C'est bien `Silence` dans les deux cas.
+                emettre(
+                    if (resultat.isEmpty) {
+                        IssueDeDictee.Silence
+                    } else {
+                        IssueDeDictee.Texte(resultat.text, audio.fin)
+                    },
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: SttPermissionDeniedException) {
@@ -200,7 +224,7 @@ class DictationViewModel @Inject constructor(
                 )
             } finally {
                 // 🔴 Toujours, sur les trois sorties. Voir la note de classe.
-                audio?.let(::effacerOuSignaler)
+                audio?.fichier?.let(::effacerOuSignaler)
                 _etape.value = EtapeDeDictee.INACTIVE
             }
         }
@@ -214,7 +238,7 @@ class DictationViewModel @Inject constructor(
      * a réellement lieu. Une suppression ici aurait coupé le fil au milieu.
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    private suspend fun capturerPuisArreterLeSuivi(suivi: Job): File? = try {
+    private suspend fun capturerPuisArreterLeSuivi(suivi: Job): VoiceCapture.Capture? = try {
         capture.enregistrer()
     } finally {
         suivi.cancel()

@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -51,6 +52,8 @@ import timber.log.Timber
 class ControleurDeDictee internal constructor(
     val etape: EtapeDeDictee,
     val niveau: Float,
+    /** Secondes déjà capturées. Voir `VoiceCapture.secondes`. */
+    val secondes: Int,
     internal val refusDefinitif: Boolean,
     internal val onRefusVu: () -> Unit,
     internal val onReglagesInjoignables: () -> Unit,
@@ -127,6 +130,7 @@ fun rememberControleurDeDictee(
     val dictee: DictationViewModel = hiltViewModel()
     val etape by dictee.etape.collectAsStateWithLifecycle()
     val niveau by dictee.niveau.collectAsStateWithLifecycle()
+    val secondes by dictee.secondes.collectAsStateWithLifecycle()
     val issue by dictee.issue.collectAsStateWithLifecycle()
     val message by dictee.message.collectAsStateWithLifecycle()
 
@@ -141,6 +145,14 @@ fun rememberControleurDeDictee(
     val portee = rememberCoroutineScope()
 
     val texteInsere = stringResource(R.string.voice_transcribed)
+
+    // 🔴 **La durée affichée dans le message est la MÊME que celle du compteur**, parce qu'elle vient
+    // de la même constante et du même formateur. Écrire « 2 minutes » dans la traduction aurait créé
+    // un second endroit où la borne est dite — et le jour où elle change, l'un des deux mentirait.
+    val limiteAtteinte = stringResource(
+        R.string.voice_limit_reached,
+        dureeMmSs(VoiceCapture.DUREE_MAX_SECONDES),
+    )
     val rienEntendu = stringResource(R.string.voice_nothing_heard)
     val aucunModele = stringResource(R.string.error_voice_no_model_installed)
     val captureImpossible = stringResource(R.string.error_voice_start_capture_failed)
@@ -185,7 +197,15 @@ fun rememberControleurDeDictee(
         val courant = message ?: return@LaunchedEffect
         messages.showSnackbar(
             when (courant) {
-                is IssueDeDictee.Texte -> texteInsere
+                // 🔴🔴 **Deux fins de capture, deux phrases.** Elles produisaient le même « Texte
+                // inséré. », si bien qu'une dictée coupée à la borne était indiscernable d'une
+                // dictée terminée au doigt : on en perdait la fin sans jamais l'apprendre
+                // (`04-PIEGES.md` §96). ⚠️ `when` exhaustif sur l'énumération, et non un `if` : une
+                // troisième fin de capture ne pourra pas naître sans qu'on décide de ce qu'elle dit.
+                is IssueDeDictee.Texte -> when (courant.fin) {
+                    VoiceCapture.FinDeCapture.GESTE -> texteInsere
+                    VoiceCapture.FinDeCapture.BORNE_DE_DUREE -> limiteAtteinte
+                }
                 // ⚠️ Le silence n'est PAS un échec : l'utilisateur n'a rien dit. Il affichait
                 // pourtant « échec de la transcription » — une erreur technique pour un geste
                 // ordinaire. Même règle que le `null` de `VoiceCapture.enregistrer`. Relevé par les
@@ -208,6 +228,7 @@ fun rememberControleurDeDictee(
     return ControleurDeDictee(
         etape = etape,
         niveau = niveau,
+        secondes = secondes,
         refusDefinitif = refusDefinitif,
         onRefusVu = { refusDefinitif = false },
         onReglagesInjoignables = { messages.annoncer(portee, reglagesInjoignables) },
@@ -267,6 +288,7 @@ fun SurcoucheDeDictee(controleur: ControleurDeDictee) {
     SuperpositionDeDictee(
         etape = controleur.etape,
         niveau = controleur.niveau,
+        secondes = controleur.secondes,
         onArreter = controleur.arreter,
         onAbandonner = controleur.abandonner,
     )

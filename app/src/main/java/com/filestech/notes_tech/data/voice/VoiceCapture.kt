@@ -68,6 +68,30 @@ class VoiceCapture @Inject constructor(
     /** Ce que la capture est en train de faire. */
     enum class Etat { ARRETEE, EN_COURS }
 
+    /**
+     * Pourquoi la capture s'est arrêtée.
+     *
+     * 🔴🔴 **Sans cette distinction, la borne de durée trahit en silence.** Les deux fins
+     * produisaient le **même** `File`, et la suite du traitement était identique : transcription,
+     * insertion, message « Texte inséré. ». Un utilisateur qui dictait trois minutes en perdait une,
+     * et **rien** dans l'application ne le lui disait (`04-PIEGES.md` §96).
+     */
+    enum class FinDeCapture {
+        /** [arreter] a été appelé — le cas ordinaire. */
+        GESTE,
+
+        /** [DUREE_MAX_SECONDES] atteint : **la suite de la dictée n'a pas été enregistrée**. */
+        BORNE_DE_DUREE,
+    }
+
+    /**
+     * Ce qu'une capture a produit, **et pourquoi elle s'est terminée**.
+     *
+     * ⚠️ Un type de retour, et **pas** un drapeau lu à côté : un appelant ne peut pas oublier de
+     * regarder ce qu'il reçoit, alors qu'il peut très bien ne jamais lire une propriété.
+     */
+    data class Capture(val fichier: File, val fin: FinDeCapture)
+
     private val _etat = MutableStateFlow(Etat.ARRETEE)
     val etat: StateFlow<Etat> = _etat.asStateFlow()
 
@@ -80,6 +104,17 @@ class VoiceCapture @Inject constructor(
      */
     private val _niveau = MutableStateFlow(0f)
     val niveau: StateFlow<Float> = _niveau.asStateFlow()
+
+    /**
+     * Les secondes déjà capturées.
+     *
+     * 🔴 **Dérivées des octets écrits, pas d'une horloge.** C'est le **même** compteur qui déclenche
+     * [DUREE_MAX_SECONDES], si bien que ce que l'écran affiche et ce qui coupe la capture ne peuvent
+     * pas diverger. Une horloge parallèle dériverait de l'audio réellement écrit — et c'est
+     * précisément près de la borne que l'écart compterait.
+     */
+    private val _secondes = MutableStateFlow(0)
+    val secondes: StateFlow<Int> = _secondes.asStateFlow()
 
     /**
      * Un seul enregistrement à la fois.
@@ -100,7 +135,11 @@ class VoiceCapture @Inject constructor(
     private var enregistreur: AudioRecord? = null
 
     /**
-     * Enregistre jusqu'à ce que [arreter] soit appelé, et rend le fichier WAV produit — ou `null`.
+     * Enregistre jusqu'à ce que [arreter] soit appelé **ou que [DUREE_MAX_SECONDES] soit atteint**, et
+     * rend la [Capture] produite — ou `null`.
+     *
+     * ⚠️⚠️ **Les deux fins ne se valent pas et la [Capture] les distingue** : la seconde veut dire que
+     * la suite de ce que l'utilisateur disait **n'a pas été enregistrée**. Cf. [FinDeCapture].
      *
      * ⚠️ **`null` n'est pas un échec** : c'est un arrêt demandé avant qu'un seul échantillon
      * n'arrive, c'est-à-dire un appui bref. Le signaler par une exception ferait afficher « échec de
@@ -122,7 +161,7 @@ class VoiceCapture @Inject constructor(
      * fonction sans jamais rien demander, et découvrir le refus à l'usage.
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    suspend fun enregistrer(): File? {
+    suspend fun enregistrer(): Capture? {
         // 🔴 **Le drapeau se remet à zéro ICI, avant le verrou — pas dans [capturer].**
         //
         // Il y était. Séquence relevée par les DEUX relectures externes (2026-08-15) : l'utilisateur
@@ -157,11 +196,11 @@ class VoiceCapture @Inject constructor(
         // lecture sur celui de l'appelant. La machinerie des coroutines établit probablement la
         // relation de précédence, mais « probablement » ne convient pas pour décider d'effacer un
         // fichier de voix.
-        val produit = AtomicReference<File?>(null)
+        val produit = AtomicReference<Capture?>(null)
         try {
             return verrou.withLock { withContext(Dispatchers.IO) { capturer()?.also(produit::set) } }
         } catch (e: Throwable) {
-            produit.get()?.let(::effacerOuSignaler)
+            produit.get()?.fichier?.let(::effacerOuSignaler)
             throw traduire(e)
         }
     }
@@ -254,7 +293,7 @@ class VoiceCapture @Inject constructor(
         PackageManager.PERMISSION_GRANTED
 
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    private suspend fun capturer(): File? {
+    private suspend fun capturer(): Capture? {
         // 🔴 **Contrôlée une SECONDE fois, ici, après le verrou.** Le contrôle de [enregistrer] a
         // lieu avant l'attente du verrou : une capture qui l'a franchi et patiente derrière une
         // autre ne l'a jamais revu. C'est ici, et ici seulement, que l'interdiction garantit
@@ -284,7 +323,7 @@ class VoiceCapture @Inject constructor(
         return try {
             val octets = ecrireLeWav(micro, fichier, tailleTampon)
             if (octets > 0L) {
-                fichier
+                Capture(fichier, finDeCapture(octets))
             } else {
                 // Arrêt demandé avant le premier échantillon : rien à transcrire, et rien à garder.
                 effacerOuSignaler(fichier)
@@ -297,6 +336,7 @@ class VoiceCapture @Inject constructor(
         } finally {
             _etat.value = Etat.ARRETEE
             _niveau.value = 0f
+            _secondes.value = 0
             enregistreur = null
             arreterEtLiberer(micro)
         }
@@ -409,6 +449,9 @@ class VoiceCapture @Inject constructor(
                     octetsEcrits += lus
                     lecturesVides = 0
                     _niveau.value = WavPcm16.niveau(tampon, lus)
+                    // ⚠️ Mis à jour **au même endroit** que le compteur d'octets, et dérivé de lui : voir
+                    // [secondes]. Une seule source, donc pas d'écart possible avec la borne.
+                    _secondes.value = (octetsEcrits / OCTETS_PAR_SECONDE).toInt()
                 } else {
                     // ⚠️ Une lecture à zéro octet ne devrait pas arriver en mode bloquant, et
                     // certaines implémentations le font quand même. Sans compteur, la boucle
@@ -514,6 +557,37 @@ class VoiceCapture @Inject constructor(
         private const val LECTURES_VIDES_MAX = 50
 
         /**
+         * Pourquoi la boucle s'est arrêtée, lu sur **le compteur qui l'a fait sortir**.
+         *
+         * 🔴 **Extraite pour être mesurable.** Elle vivait en une ligne dans `capturer()`, une fonction
+         * privée et suspendue qui exige un `AudioRecord` réel : la règle la plus facile à écrire de
+         * travers du fichier était aussi la seule qu'aucun test ne pouvait atteindre. Même idiome que
+         * `gesteDuMicro` et `GesteDeDossier`.
+         *
+         * ⚠️ **`>=` et non `==`.** Le dernier tampon lu peut faire dépasser la borne : `micro.read`
+         * rend ce qu'il a, pas ce qu'on aurait voulu. Un `==` classerait une capture bornée comme un
+         * arrêt au doigt, c'est-à-dire exactement le silence qu'on répare ici.
+         *
+         * ⚠️ **Un drapeau posé dans la boucle aurait un second endroit où se tromper** — celui qui le
+         * pose et celui qui le lit. Le nombre d'octets écrits, lui, **est** la condition de sortie.
+         */
+        internal fun finDeCapture(octetsEcrits: Long): FinDeCapture =
+            if (octetsEcrits >= OCTETS_MAX) FinDeCapture.BORNE_DE_DUREE else FinDeCapture.GESTE
+
+        /** ⚠️ Une seule définition du débit : 16 kHz × 2 octets, mono. */
+        private const val OCTETS_PAR_SECONDE = FREQUENCE_HZ.toLong() * 2
+
+        /**
+         * La borne de durée, **en secondes et publique**.
+         *
+         * 🔴 **L'écran doit pouvoir la NOMMER.** Elle s'appliquait en silence : rien ne distinguait
+         * « la limite est atteinte » de « l'utilisateur a appuyé sur Arrêter », si bien qu'on dictait trois
+         * minutes, qu'il en manquait une, et qu'aucun moyen ne permettait de l'apprendre
+         * (`04-PIEGES.md` §96). Une borne qu'on ne peut pas afficher est une borne qui trahit.
+         */
+        const val DUREE_MAX_SECONDES = 120
+
+        /**
          * Deux minutes d'audio, soit environ 3,8 Mo.
          *
          * ⚠️ **Une borne, parce qu'un micro qui reste ouvert est un micro qui reste ouvert.** Un
@@ -522,6 +596,6 @@ class VoiceCapture @Inject constructor(
          * l'utilisateur sur le disque. La transcription d'une dictée de note ne dure pas deux
          * minutes ; ce qui dépasse est presque sûrement un accident.
          */
-        private const val OCTETS_MAX = FREQUENCE_HZ.toLong() * 2 * 120
+        private const val OCTETS_MAX = OCTETS_PAR_SECONDE * DUREE_MAX_SECONDES
     }
 }
