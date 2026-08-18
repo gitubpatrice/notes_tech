@@ -249,7 +249,7 @@ modifier du code correct.
 |---|---:|---|:---:|
 | `vault_pin_sheets.dart` | 857 | `ui/vault/VaultSheets.kt` → `PinSheet` | ✅ |
 | `folders_drawer.dart` | 780 | `ui/folders/FoldersDrawer.kt` | ✅ |
-| `voice_recording_overlay.dart` | 460 | `ui/voice/SuperpositionDeDictee.kt` | ☐ |
+| `voice_recording_overlay.dart` | 460 | `ui/voice/SuperpositionDeDictee.kt` | ✅ |
 | `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ✅ |
 | `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ✅ |
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
@@ -258,7 +258,7 @@ modifier du code correct.
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
 | `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ✅ |
-| `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ☐ |
+| `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ✅ |
 | `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ☐ |
 | `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ✅ |
 | `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ✅ |
@@ -299,6 +299,35 @@ modifier du code correct.
 > commentaire d'`arb_vers_strings.py` note l'ajout mais **pas le refus ni sa raison**. Le portage
 > atténue (la visibilité retombe à chaque étape, `FLAG_SECURE` est forcé) ; l'argument du publié tient
 > quand même. **Décision de Patrice**, pas un défaut à corriger de sa propre initiative.
+
+> **`voice_recording_overlay.dart` et `voice_record_button.dart` sont cochés par
+> `SuperpositionDeDicteeTest`** (10 cas, S9, 2026-08-18) et `GesteDuMicroTest` (5 cas JVM).
+>
+> La superposition était **déjà sans état** — elle ne reçoit qu'une étape et un niveau sonore — donc
+> aucun découpage à faire. Ce qui est mesuré : les trois balayages avec le décompte des actionnables
+> dans les trois états actifs ; les **régions actives**, titre et consigne, état par état ; le fait que
+> l'étape inactive n'affiche **rien**, qui est le témoin de l'instrument ; les deux gestes de
+> l'enregistrement, distingués par **le rappel qui part** ; et la hauteur égale des deux boutons.
+>
+> **Défauts trouvés et corrigés** : `04-PIEGES.md` **§93** — pendant l'enregistrement il n'existait
+> **aucune sortie qui ne transcrive**, `abandonner` était câblé jusqu'au moteur natif et aucun bouton
+> ne l'appelait ; **§94** — `régionsActives=[]` dans les trois états, si bien que le « Parlez » qui
+> dit que le micro est ouvert n'était **jamais** annoncé ; **§95** — le micro sans modèle installé
+> affichait un constat et n'allait nulle part, là où le publié ouvre l'écran d'installation.
+>
+> ⚠️⚠️ **Les trois balayages étaient verts avant comme après.** Aucun nœud anonyme, aucune action
+> perdue à la fusion, aucun champ de saisie — et pourtant l'écran ne disait rien. *Un écran sans nœud
+> anonyme peut être un écran qui ne dit rien.*
+>
+> Écrit et **non corrigé** : **§96**, la borne de deux minutes de `VoiceCapture` s'applique en silence
+> — le publié n'a aucune borne mais affiche un chronomètre. Le corriger demande de changer ce que
+> `VoiceCapture.enregistrer` rend, or `voice_service.dart` est une **autre ligne de parité**, encore
+> décochée. Décision de Patrice.
+>
+> ⚠️ Écarts écrits, assumés : le retour ne coupe pas la dictée (le publié l'annule, mais ici retour et
+> appui à côté arrivent par le même rappel) ; le bouton micro du portage est **désarmé** pendant une
+> dictée là où le publié change son icône selon l'état — sans effet visible, la superposition étant
+> modale et couvrant la barre.
 
 > **`folders_drawer.dart` et `folder_dialogs.dart` sont cochés par `TiroirDesDossiersTest`**
 > (19 cas, S9, 2026-08-18) et `GesteDeDossierTest` (5 cas JVM).

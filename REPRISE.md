@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **211 tests JVM**,
-  **267 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **216 tests JVM**,
+  **277 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -896,3 +896,62 @@ Décompte des actionnables **mesuré** (9) et posé **avant** le balayage — §
 `deverrouillageRequis` : la clause `isVault` retirée du vrai code fait tomber un cas ; restauration
 vérifiée au **SHA-256**. Compte JVM vérifié classe par classe : 206 → **211**, XML de
 `GesteDeDossierTest` présent — le piège §82 ne s'est pas refermé.
+
+---
+
+## 🔴 2026-08-18, lignes 13 et 14 : LA DICTÉE — un écran aux balayages verts qui ne disait rien
+
+`voice_recording_overlay.dart` et `voice_record_button.dart`. **19 cases vides** restantes (21 avant).
+
+Gate : ktlint, detekt, lint `--rerun-tasks`, **216 tests JVM**, **277 tests instrumentés** (S9),
+0 échec, **0 ignoré**, modèle de 57 Mo intact, `font_scale` restauré à 1,0.
+
+### Ce que ce tour apprend, et qui vaut au-delà de la dictée
+
+**Les trois balayages étaient verts avant comme après.** Aucun nœud anonyme, aucune action perdue à
+la fusion, aucun champ de saisie — et pourtant l'écran ne disait rien du tout à un lecteur d'écran
+une fois ouvert. *Un écran sans nœud anonyme peut être un écran qui ne dit rien.* La question « que
+reçoit un lecteur d'écran ? » n'a de réponse que posée **état par état**, et c'est le troisième
+fichier de suite où c'est elle, et non les balayages, qui trouve le défaut.
+
+### §93 — pendant qu'on parle, aucune sortie qui ne transcrive
+
+« Arrêter » transcrit et insère ; « Annuler » jette. Seul le premier existait pendant
+l'enregistrement. `abandonner` était posé sur le contrôleur, câblé au `ViewModel`, traversait
+jusqu'au moteur natif — et **aucun bouton ne l'appelait dans cet état**.
+
+⚠️⚠️ **Le commentaire de la feuille argumentait en faveur du défaut** : il tenait les deux boutons
+pour « deux mots pour un même geste ». Quatrième forme du commentaire qui ment, et la plus coûteuse —
+un relecteur qui le lisait avait sa réponse et passait.
+
+### §94 — le changement d'étape n'était annoncé à personne
+
+`régionsActives=[]` dans les trois états. Un `AlertDialog` est annoncé à son ouverture ; ce qui
+change ensuite dans ses emplacements ne l'est pas. Le « Parlez » qui dit que le micro est ouvert
+n'était **jamais** dit — alors que l'étape `INITIALISATION` avait été ajoutée en phase 7 précisément
+pour ne pas le dire trop tôt.
+
+🔧 Deux régions, `Polite` : le titre et la consigne vivent dans deux emplacements distincts, et l'un
+sans l'autre ment. `Assertive` couperait la première annonce par la seconde.
+
+### §95 — le micro sans modèle était une impasse
+
+Il affichait « Aucun modèle de transcription installé. » et n'allait nulle part ; l'écran
+d'installation n'était atteignable que depuis les réglages. Le publié l'ouvre directement.
+🔧 La décision est extraite en `gesteDuMicro`, interface scellée à trois issues — idiome du §91 —
+donc mesurable en JVM là où elle était hors d'atteinte.
+
+### §96 — écrit, NON corrigé
+
+La borne de **120 secondes** de `VoiceCapture` s'applique en silence : rien ne distingue « la limite
+est atteinte » de « l'utilisateur a appuyé sur Arrêter ». Le publié n'a **aucune** borne mais affiche
+un chronomètre. Corriger demande de changer ce que `VoiceCapture.enregistrer` rend, or
+`voice_service.dart` est une autre ligne de parité, encore décochée. **Décision de Patrice.**
+
+### Contrôles
+
+Décompte des actionnables mesuré et posé **avant** les balayages. Contrôle positif : les deux
+défauts réintroduits dans le vrai code font tomber **4 cas sur 10** ; restauration vérifiée au
+**SHA-256**. Suite rejouée **à `font_scale 2,0`** — 10/10, les deux boutons restent entiers — puis
+échelle restaurée. Compte JVM vérifié classe par classe : 211 → **216**, XML de `GesteDuMicroTest`
+présent (§82).

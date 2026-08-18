@@ -2685,3 +2685,154 @@ abîmée » : il affiche le **nom traduit de repli** au lieu du nom réel et **r
 renommage**. Motif §75/§76. L'application publiée a exactement la même faiblesse
 (`snap.data ?? const <Folder>[]` avec un dossier de repli fabriqué). **Figé par un test plutôt que
 corrigé** : ce que le tiroir montre à ce moment-là ne changera plus par accident.
+
+---
+
+## §93 — 🔴🔴 Pendant qu'on parle, aucune sortie qui ne transcrive
+
+La superposition de dictée proposait **une seule** action par étape. Mesuré sur le S9,
+`onClick=1` dans les trois états actifs. Or « Arrêter » et « Annuler » ne diffèrent pas par le mot
+mais par ce qu'ils font de la voix captée :
+
+| Geste | la capture | le fichier WAV | la note |
+|---|---|---|---|
+| **Arrêter** | se termine | transcrit puis effacé | **le texte s'y insère** |
+| **Annuler** | est coupée | effacé sans être lu | **rien** |
+
+Pendant l'enregistrement, seul le premier existait. Un appui involontaire sur le micro, une phrase
+dite à voix haute qu'on ne voulait pas garder, et il ne restait qu'à **laisser la dictée aller au
+bout** puis effacer le texte inséré. Sur une note de coffre, cela veut dire faire transcrire ce
+qu'on venait de décider de ne pas écrire.
+
+⚠️⚠️ **Le commentaire de la feuille justifiait l'absence**, et c'est ce qui l'a fait tenir : il
+tenait les deux boutons pour *« deux mots pour un même geste »*. Quatrième forme du commentaire qui
+ment — non pas faux sur un détail, mais **argumentant en faveur du défaut**. Un relecteur qui le
+lisait avait sa réponse et passait.
+
+🔴 `abandonner` **existait** : posé sur le contrôleur, câblé au `ViewModel`, traversant jusqu'au
+moteur natif via `WhisperStt`, et documenté. **Aucun bouton ne l'appelait dans cet état.** Chemin
+mort classique — sauf que celui-ci était mort du côté où l'utilisateur en avait besoin.
+
+🔧 Un `dismissButton` pendant l'enregistrement seulement, et **une seule définition** du bouton
+d'annulation (`val annuler: @Composable () -> Unit`) posée tantôt dans l'emplacement de confirmation,
+tantôt dans celui de rejet. Deux définitions auraient divergé au premier changement de libellé —
+c'est le jumeau qu'on refuse de créer en réparant l'autre.
+
+⚠️ **Écart assumé** : le publié annule aussi sur le **retour** (`PopScope`,
+`onPopInvokedWithResult`). Ici le retour et l'appui à côté arrivent par le **même** rappel,
+`onDismissRequest`, qui ne dit pas lequel des deux l'a déclenché — et l'appui à côté, lui, ne doit
+surtout pas couper une dictée en cours. Le bouton couvre le besoin sans reprendre la fenêtre du
+dialogue.
+
+---
+
+## §94 — 🔴🔴 Le changement d'étape n'était annoncé à personne, sur un écran aux balayages VERTS
+
+Mesuré état par état, `régionsActives=[]` dans les **trois** états actifs. Un `AlertDialog` est
+annoncé **à son ouverture** ; le texte qui change ensuite dans ses emplacements ne l'est pas. Le
+parcours réel d'un utilisateur non voyant :
+
+| Ce qui se passe | Ce qu'il entend |
+|---|---|
+| la superposition s'ouvre | « Initialisation du micro… Veuillez patienter… Annuler » |
+| le micro s'ouvre, **il faut parler** | *rien* |
+| la transcription commence | *rien* |
+| le texte s'insère | le message de la barre, plus tard |
+
+L'étape `INITIALISATION` avait justement été ajoutée en phase 7 parce que dire « Parlez » trop tôt
+faisait perdre le premier mot — sa note de code le dit. **Au lecteur d'écran, « Parlez » n'était
+jamais dit du tout.**
+
+⚠️⚠️ **Et les trois balayages étaient verts avant comme après.** `actionnablesSansNom`,
+`actionsPerduesALaFusion`, le décompte des champs : rien à signaler, aucun nœud anonyme, aucune
+action perdue. *Un écran sans nœud anonyme peut être un écran qui ne dit rien.* C'est le troisième
+fichier où la question « que reçoit un lecteur d'écran ? » n'a de réponse que si on la pose **état
+par état**, après §86 (les feuilles de coffre) et l'idiome déjà présent dans `PanicScreens.kt:229`.
+
+🔧 **Deux régions et non une**, parce que le titre et la consigne vivent dans deux emplacements
+distincts d'`AlertDialog` et que l'un sans l'autre ment : le titre seul dirait « Dictée en cours »
+sans dire de parler ; la consigne seule dirait « Veuillez patienter… » pendant l'initialisation
+**comme** pendant la transcription, sans jamais nommer l'étape.
+
+⚠️ **`Polite` et non `Assertive`** — seul point où cette feuille diverge de §86, et pour une raison
+tenant au nombre : là-bas il y a **un** nœud à annoncer, ici **deux**. En `Assertive`, la seconde
+annonce couperait la première et le titre serait perdu.
+
+⚠️ La consigne **fusionne** ses descendants, sans quoi la région porterait sur un conteneur sans
+texte propre et n'annoncerait rien — même construction qu'au §86. Et c'est le `clearAndSetSemantics`
+du témoin de niveau sonore qui rend cette fusion tenable : sans lui, la région annoncerait à chaque
+échantillon.
+
+⚠️⚠️ **Le test lit l'arbre FUSIONNÉ, et rend une LISTE, pas une table.** L'arbre non fusionné rendrait
+la consigne vide — la région y est posée sur le conteneur. Et une table indexée par le texte
+effondrerait deux régions de même libellé en une seule clé : un troisième nœud annonceur passerait
+inaperçu.
+
+**Contrôle positif fait** : les deux défauts réintroduits dans le vrai code font tomber **4 cas sur
+10** ; restauration vérifiée au SHA-256.
+
+---
+
+## §95 — 🔴 Le micro sans modèle était une impasse, et le publié n'en a pas
+
+Sans modèle de transcription installé, l'appui sur le micro affichait « Aucun modèle de
+transcription installé. » — un constat exact, et rien d'autre. L'écran d'installation **existait**,
+mais n'était atteignable que depuis les réglages : quitter l'éditeur, ouvrir le menu, trouver la
+bonne entrée, sans que rien ne l'indique. L'application publiée, elle, ouvre cet écran
+**directement** depuis ce bouton (`voice_record_button.dart:33-38`).
+
+🔧 La destination remplace le message : `onInstallerLaDictee` traverse `NoteEditorRoute` jusqu'à
+`Destination.VoiceSetup`.
+
+⚠️ Le message **reste**, pour l'autre chemin : le modèle peut disparaître entre le contrôle et
+l'ouverture du micro, et `DictationViewModel` émet alors `ModeleAbsent`. Ce n'est plus le cas
+ordinaire mais une course — et elle n'a pas de destination à proposer, l'utilisateur venant
+peut-être de désinstaller le modèle lui-même. Ne pas prendre ce message pour un chemin mort.
+
+🔧 **La décision est extraite** en `gesteDuMicro(modeleInstalle, permissionAccordee)` sur une
+interface scellée à trois issues — même idiome que `GesteDeDossier` au §91. Elle était écrite en
+`if` imbriqués dans un rappel Compose, donc **hors d'atteinte de toute mesure** : il aurait fallu
+Hilt, un magasin de modèles et une permission réelle pour savoir laquelle partait.
+
+⚠️ **L'ordre entre les deux contrôles est le fond du sujet**, et il a son cas à lui : sans modèle
+**ni** permission, c'est l'installation qui gagne. Demander le micro pour une dictée qui ne peut pas
+aboutir, c'est faire refuser durablement une permission dont on n'avait pas encore l'usage — et un
+refus définitif ne se reprend que dans les réglages système.
+
+⚠️ Les deux contrôles sont désormais évalués **avant** la décision, alors que l'ancien code
+n'interrogeait la permission que dans la branche « modèle présent ». Sans effet :
+`checkSelfPermission` **interroge**, il ne demande rien. C'est la *demande* qui doit attendre, et
+elle attend toujours.
+
+⚠️⚠️ **Limite écrite** : les 5 cas JVM mesurent la **décision**, pas le câblage — ni que le rappel
+passe par elle, ni que `NotesTechNavHost` mène bien à `VoiceSetup`. Comme au §91, ce qui protège
+cette partie est structurel (un seul appel, un `when` exhaustif) et non mesuré.
+
+`signalerModeleAbsent()` n'ayant plus d'appelant, elle est **supprimée** plutôt que laissée en
+réserve.
+
+---
+
+## §96 — 🟠 Écrit, NON corrigé : la borne de deux minutes est silencieuse
+
+`VoiceCapture` arrête la capture à `OCTETS_MAX`, soit **120 secondes**, et la boucle sort alors
+exactement comme si l'utilisateur avait appuyé sur « Arrêter » : le WAV part à la transcription, le
+texte s'insère, la superposition se referme. **Rien ne distingue les deux fins**, ni à l'écran ni
+dans un message.
+
+Le parcours : on dicte trois minutes, on relit la note, et il en manque la dernière. Sans le savoir,
+et sans moyen de le savoir.
+
+⚠️ **L'application publiée n'a aucune borne** — vérifié dans `stt_session.dart` et
+`voice_service.dart`, il n'y en a nulle part — mais elle affiche un **chronomètre mm:ss** en région
+active pendant l'enregistrement. Le portage n'a ni l'un ni l'autre : ni la borne annoncée, ni le
+temps écoulé.
+
+La borne elle-même est **justifiée et documentée** (un micro qui reste ouvert est un micro qui reste
+ouvert) ; ce n'est pas elle le défaut, c'est son silence.
+
+⚠️ **Non corrigé ici, et pour une raison de périmètre** : le savoir remonter demande de changer ce
+que `VoiceCapture.enregistrer` rend — aujourd'hui un `File?`, qui ne peut pas dire *pourquoi* la
+capture s'est arrêtée. Or `voice_service.dart` est une **autre ligne de parité**, encore décochée.
+La corriger ici serait toucher un contrat qu'on n'a pas encore audité. Décision de Patrice :
+message à l'atteinte de la borne, chronomètre comme le publié, ou les deux.

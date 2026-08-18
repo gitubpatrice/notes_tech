@@ -65,15 +65,65 @@ class ControleurDeDictee internal constructor(
 }
 
 /**
+ * Ce que l'appui sur le micro doit déclencher.
+ *
+ * 🔴 **Trois issues, une seule décision.** Elles étaient écrites en `if` imbriqués dans le corps du
+ * rappel, donc inatteignables à la mesure : il fallait Hilt, un magasin de modèles et une permission
+ * réelle pour savoir laquelle partait. Extraites ici, elles se mesurent en trois lignes — même
+ * idiome que `GesteDeDossier` (`04-PIEGES.md` §91).
+ */
+internal sealed interface GesteDuMicro {
+    /**
+     * 🔴🔴 **Sans modèle, on EMMÈNE l'utilisateur l'installer.**
+     *
+     * Ce chemin se contentait d'afficher « Aucun modèle de transcription installé. » : un constat
+     * exact, et une impasse. L'écran d'installation existait, mais n'était atteignable que depuis
+     * les réglages — donc en quittant l'éditeur, en ouvrant un menu et en trouvant la bonne entrée,
+     * sans que rien ne l'indique. L'application publiée ouvre cet écran **directement** depuis le
+     * bouton micro (`voice_record_button.dart:33-38`).
+     */
+    data object InstallerLeModele : GesteDuMicro
+
+    data object DemanderLaPermission : GesteDuMicro
+
+    data object Demarrer : GesteDuMicro
+}
+
+/**
+ * 🔴 **Le modèle d'abord, la permission ensuite.** Demander le micro pour une dictée qui ne peut pas
+ * aboutir, faute de modèle, c'est faire refuser durablement une permission dont on n'avait pas
+ * encore l'usage — et un refus définitif ne se reprend que dans les réglages système.
+ *
+ * ⚠️ La permission n'est **pas** redemandée quand elle est déjà accordée : rouvrir une boîte système
+ * à chaque dictée est le meilleur moyen de faire refuser celle-là aussi.
+ *
+ * ⚠️ Ce que cette fonction ne couvre pas : le modèle peut disparaître **entre** ce contrôle et
+ * l'ouverture du micro. `DictationViewModel` émet alors `IssueDeDictee.ModeleAbsent`, qui reste
+ * affiché en message — c'est une course, pas le cas ordinaire, et elle n'a pas de destination à
+ * proposer puisque l'utilisateur vient peut-être de désinstaller le modèle lui-même.
+ */
+internal fun gesteDuMicro(modeleInstalle: Boolean, permissionAccordee: Boolean): GesteDuMicro = when {
+    !modeleInstalle -> GesteDuMicro.InstallerLeModele
+    !permissionAccordee -> GesteDuMicro.DemanderLaPermission
+    else -> GesteDuMicro.Demarrer
+}
+
+/**
  * Câble la dictée, et rend de quoi la piloter.
  *
  * ⚠️ N'émet **rien**. L'affichage — superposition et dialogue de refus — est à [SurcoucheDeDictee],
  * que l'appelant place où il veut dans son arbre.
  *
  * @param onTexte reçoit la transcription, à insérer là où l'appelant le juge bon.
+ * @param onInstallerLeModele appelé quand aucun modèle n'est installé. ⚠️ **Ce n'est pas un message
+ *   d'erreur mais une destination** : voir [gesteDuMicro].
  */
 @Composable
-fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHostState): ControleurDeDictee {
+fun rememberControleurDeDictee(
+    onTexte: (String) -> Unit,
+    messages: SnackbarHostState,
+    onInstallerLeModele: () -> Unit,
+): ControleurDeDictee {
     val dictee: DictationViewModel = hiltViewModel()
     val etape by dictee.etape.collectAsStateWithLifecycle()
     val niveau by dictee.niveau.collectAsStateWithLifecycle()
@@ -162,17 +212,20 @@ fun rememberControleurDeDictee(onTexte: (String) -> Unit, messages: SnackbarHost
         onRefusVu = { refusDefinitif = false },
         onReglagesInjoignables = { messages.annoncer(portee, reglagesInjoignables) },
         demarrer = {
-            // 🔴 **Le modèle d'abord, la permission ensuite.** Demander le micro pour une dictée
-            // qui ne peut pas aboutir, faute de modèle, c'est faire refuser durablement une
-            // permission dont on n'avait pas encore l'usage.
-            if (!dictee.modeleDisponible()) {
-                dictee.signalerModeleAbsent()
-            } else {
-                // ⚠️ Le contrôle préalable évite de rouvrir une boîte système à chaque dictée : une
-                // permission déjà accordée ne se redemande pas.
-                val accordee = ContextCompat.checkSelfPermission(contexte, Manifest.permission.RECORD_AUDIO) ==
-                    PackageManager.PERMISSION_GRANTED
-                if (accordee) dictee.demarrer() else demande.launch(Manifest.permission.RECORD_AUDIO)
+            // ⚠️ Les deux contrôles sont évalués avant la décision, et aucun n'a d'effet de bord :
+            // `checkSelfPermission` **interroge**, il ne demande rien. C'est la demande qui doit
+            // attendre — voir [gesteDuMicro].
+            val geste = gesteDuMicro(
+                modeleInstalle = dictee.modeleDisponible(),
+                permissionAccordee = ContextCompat.checkSelfPermission(
+                    contexte,
+                    Manifest.permission.RECORD_AUDIO,
+                ) == PackageManager.PERMISSION_GRANTED,
+            )
+            when (geste) {
+                GesteDuMicro.InstallerLeModele -> onInstallerLeModele()
+                GesteDuMicro.DemanderLaPermission -> demande.launch(Manifest.permission.RECORD_AUDIO)
+                GesteDuMicro.Demarrer -> dictee.demarrer()
             }
         },
         arreter = dictee::arreter,

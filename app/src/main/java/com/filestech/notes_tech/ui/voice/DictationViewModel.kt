@@ -235,11 +235,6 @@ class DictationViewModel @Inject constructor(
      */
     fun modeleDisponible(): Boolean = SttModelCatalogue.tous.any { magasin.estPresent(it) }
 
-    /** Signale l'absence de modèle sans rien tenter d'autre. Voir [modeleDisponible]. */
-    fun signalerModeleAbsent() {
-        emettre(IssueDeDictee.ModeleAbsent)
-    }
-
     /**
      * Pose les deux moitiés de l'événement : celle qui agit, et celle qui parle.
      *

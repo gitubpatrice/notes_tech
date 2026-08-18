@@ -48,6 +48,10 @@ fun NotesTechNavHost(navController: NavHostController) {
                 // Ouvrir une note liée **empile** une entrée, comme l'application publiée : le
                 // chemin parcouru se remonte lien par lien avec le bouton retour.
                 onOpenNote = { navController.navigate(Destination.Editor(it).route) },
+                // 🔴 **Le micro sans modèle EMMÈNE ici**, il ne se contente pas de dire qu'il
+                // manque quelque chose. Cet écran n'était atteignable que depuis les réglages, et
+                // rien dans l'éditeur ne l'indiquait. Cf. `ControleurDeDictee.demarrer`.
+                onInstallerLaDictee = { navController.navigate(Destination.VoiceSetup.route) },
             )
         }
 

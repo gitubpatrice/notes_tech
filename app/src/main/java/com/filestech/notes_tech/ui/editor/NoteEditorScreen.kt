@@ -96,7 +96,7 @@ import kotlinx.coroutines.launch
  * non à un formulaire — c'est la mise en page de la version publiée.
  */
 @Composable
-fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
+fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstallerLaDictee: () -> Unit) {
     val viewModel: NoteEditorViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val liens by viewModel.liens.collectAsStateWithLifecycle()
@@ -135,10 +135,14 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val messages = remember { SnackbarHostState() }
 
     // ⚠️ La dictée est **entièrement déportée** : permission, lanceur, superposition, dialogue de
-    // refus et six messages distincts. Posée ici, elle a fait franchir à cette fonction les seuils
+    // refus et sept messages distincts. Posée ici, elle a fait franchir à cette fonction les seuils
     // de longueur ET de complexité que detekt garde — et le gate avait raison. Cf.
     // `ui/voice/ControleurDeDictee.kt`.
-    val dictee = rememberControleurDeDictee(onTexte = viewModel::insererAuCurseur, messages = messages)
+    val dictee = rememberControleurDeDictee(
+        onTexte = viewModel::insererAuCurseur,
+        messages = messages,
+        onInstallerLeModele = onInstallerLaDictee,
+    )
 
     val retourHaptique = LocalHapticFeedback.current
     val contexte = LocalContext.current
