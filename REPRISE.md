@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **206 tests JVM**,
-  **248 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **211 tests JVM**,
+  **267 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -837,3 +837,62 @@ le code**, pas dans le commentaire.
 ⚠️ Un relecteur externe a par ailleurs rendu un rapport entier sur **des fichiers absents du diff**
 (`NoteEditorScreen.kt`, `PlafondDuTitre` — le lot de la veille), avec des numéros de ligne préfixés de
 `~`. Rapport jeté. *Un constat qui ne cite pas une ligne réelle du diff n'en est pas un.*
+
+---
+
+## 🔴 2026-08-18, lignes 11 et 12 : le TIROIR DES DOSSIERS — un geste destructeur qui s'évaporait
+
+`folders_drawer.dart` et `folder_dialogs.dart`. **21 cases vides** restantes (23 avant).
+
+Gate : ktlint, detekt, lint `--rerun-tasks`, **211 tests JVM**, **267 tests instrumentés** (S9),
+0 échec, **0 ignoré**, modèle de 57 Mo intact.
+
+### La prémisse du tour était fausse, et il a fallu vingt minutes pour le voir
+
+`PROMPT-REPRISE.md` proposait ce tour parce que « c'est le tiroir qui appelle les feuilles de coffre,
+et rien ne mesure ce qu'il fait des issues qu'elles remontent ». **C'est faux** : dans le portage,
+`HomeRoute` et `NoteEditorScreen` les appellent. Le publié, lui, les ouvre bien depuis son tiroir.
+*Une proposition écrite la veille se vérifie comme le reste.*
+
+### §91 — le défaut, sur le chemin le plus destructeur de l'application
+
+Deux gestes déchiffrent tout un dossier, donc exigent une session ouverte : **retirer la protection**
+et **supprimer en gardant les notes**. Un seul mémorisait son intention avant d'ouvrir la feuille de
+déverrouillage. Le parcours réel de l'autre : confirmer, saisir le secret, le coffre s'ouvre… et le
+dossier est toujours là, sans un mot.
+
+⚠️⚠️ **Le KDoc du porteur décrivait exactement ce mal — pour l'autre geste**, quinze lignes plus haut :
+*« Sans ce report, l'utilisateur confirmait le geste le plus destructeur de l'application, saisissait
+sa phrase secrète… et il ne se passait rien. »* Juste, au bon endroit, et sans effet. *Un commentaire
+qui nomme un défaut ne protège que la ligne qu'il commente.*
+
+🔧 Correction par **suppression du jumeau** : `GesteDeDossier` (interface scellée), une décision
+unique `deverrouillageRequis`, un seul chemin `lancerLeGeste`, un `when` exhaustif à l'exécution.
+
+⚠️ Et une limite écrite plutôt que masquée : les 5 cas JVM mesurent la **décision**, pas le câblage.
+Prouver le câblage demanderait Hilt + base chiffrée + coffre réel. Ce qui protège cette partie est
+**structurel** — un seul chemin, un `when` exhaustif — et non mesuré.
+
+### §92 — le reste du tiroir : rien de cassé
+
+Le soupçon principal est tombé : un `IconButton` posé dans le slot `badge` d'un
+`NavigationDrawerItem` — un cliquable **dans** un cliquable qui fusionne — **reste atteignable**.
+Mesuré par **le rappel qui part**, pas par la présence d'un nœud : `onNodeWithContentDescription`
+aurait rendu la rangée fusionnée, dont le nom contient bien « Options du dossier », et
+`assertHasClickAction` serait passé pendant qu'un appui sélectionnait le dossier.
+
+Trois écarts écrits, non corrigés : **aucun appui long** dans le portage (assumé, trois raisons) ;
+`FolderEvent.Deleted` porte un décompte que **personne ne lit** ⇒ supprimer un dossier déplace ses
+notes en silence ; les feuilles de coffre ouvertes par `HomeRoute` et non par le tiroir. Et le tiroir
+**en cours de chargement** affiche une boîte de réception de repli — motif §75/§76, hérité du publié,
+**figé par un test plutôt que corrigé**.
+
+⚠️ Un commentaire de plus corrigé : le KDoc du tiroir disait « l'appui long fait la même chose » —
+vrai du publié, **faux d'ici**. Sixième de la série.
+
+### Contrôles
+
+Décompte des actionnables **mesuré** (9) et posé **avant** le balayage — §83. Contrôle positif sur
+`deverrouillageRequis` : la clause `isVault` retirée du vrai code fait tomber un cas ; restauration
+vérifiée au **SHA-256**. Compte JVM vérifié classe par classe : 206 → **211**, XML de
+`GesteDeDossierTest` présent — le piège §82 ne s'est pas refermé.

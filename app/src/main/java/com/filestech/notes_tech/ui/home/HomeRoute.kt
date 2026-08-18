@@ -34,6 +34,8 @@ import com.filestech.notes_tech.ui.folders.FolderEvent
 import com.filestech.notes_tech.ui.folders.FolderNameDialog
 import com.filestech.notes_tech.ui.folders.FoldersDrawer
 import com.filestech.notes_tech.ui.folders.FoldersDrawerViewModel
+import com.filestech.notes_tech.ui.folders.GesteDeDossier
+import com.filestech.notes_tech.ui.folders.deverrouillageRequis
 import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
@@ -72,17 +74,46 @@ fun HomeRoute(
     var dossierADeproteger by remember { mutableStateOf<Folder?>(null) }
 
     /**
-     * Le dossier dont la déprotection a été **confirmée** et n'attend plus que le secret.
+     * Le geste **confirmé** qui n'attend plus que le secret du coffre.
      *
      * ⚠️ Sans ce report, l'utilisateur confirmait le geste le plus destructeur de l'application,
      * saisissait sa phrase secrète… et il ne se passait rien. Un geste accepté puis abandonné en
      * silence, ce que ce dépôt refuse partout ailleurs.
+     *
+     * 🔴 Et ce porteur ne servait qu'au **retrait de protection** : la suppression en gardant les
+     * notes ouvrait la même feuille **sans rien mémoriser**, donc reproduisait exactement le défaut
+     * que le paragraphe ci-dessus décrit. Les deux gestes passent maintenant par [lancerLeGeste].
+     * Cf. [GesteDeDossier].
      */
-    var deprotectionEnAttente by remember { mutableStateOf<String?>(null) }
+    var gesteEnAttente by remember { mutableStateOf<GesteDeDossier?>(null) }
     var creationDeDossier by remember { mutableStateOf(false) }
     var dossierAOuvrir by remember { mutableStateOf<Folder?>(null) }
     var dossierAProteger by remember { mutableStateOf<Folder?>(null) }
     var modeChoisi by remember { mutableStateOf<VaultMode?>(null) }
+
+    /**
+     * Exécute un geste dont le coffre est **ouvert**. Séparé de [lancerLeGeste] parce que la reprise
+     * après déverrouillage ne doit **pas** repasser par le contrôle : l'ensemble des coffres ouverts
+     * vient d'un flux, et il peut ne pas encore porter celui qu'on vient d'ouvrir — on rouvrirait la
+     * feuille en boucle.
+     *
+     * ⚠️ `when` **exhaustif** : un troisième geste ne pourra pas naître sans qu'on décide de sa
+     * reprise. C'est ce qui remplace la vigilance par une erreur de compilation.
+     */
+    fun executerLeGeste(geste: GesteDeDossier) = when (geste) {
+        is GesteDeDossier.RetirerLaProtection -> foldersViewModel.removeVaultProtection(geste.dossier.id)
+        is GesteDeDossier.SupprimerEnGardantLesNotes -> foldersViewModel.deleteKeepingNotes(geste.dossier)
+    }
+
+    /** Le **seul** chemin par lequel ces gestes partent : il décide, puis exécute ou fait attendre. */
+    fun lancerLeGeste(geste: GesteDeDossier) {
+        if (deverrouillageRequis(geste, foldersState.unlockedFolderIds)) {
+            gesteEnAttente = geste
+            dossierAOuvrir = geste.dossier
+        } else {
+            executerLeGeste(geste)
+        }
+    }
 
     // La purge de la corbeille est un rattrapage d'arrière-plan, lancé une fois par entrée sur
     // l'écran. `Unit` en clé : la relancer à chaque recomposition ferait un balayage par frappe.
@@ -233,11 +264,7 @@ fun HomeRoute(
                 dossierASupprimer = null
                 when (choix) {
                     FolderDeletionChoice.MOVE_TO_INBOX ->
-                        if (dossier.isVault && dossier.id !in foldersState.unlockedFolderIds) {
-                            dossierAOuvrir = dossier
-                        } else {
-                            foldersViewModel.deleteKeepingNotes(dossier)
-                        }
+                        lancerLeGeste(GesteDeDossier.SupprimerEnGardantLesNotes(dossier))
 
                     FolderDeletionChoice.DELETE_EVERYTHING -> foldersViewModel.deleteWithNotes(dossier)
                 }
@@ -257,12 +284,7 @@ fun HomeRoute(
                 // tomber pendant ce temps-là. Une décision prise à l'ouverture du dialogue serait
                 // périmée à sa fermeture — c'est le même motif que l'état d'écran périmé de
                 // l'éditeur, à une échelle où il coûterait un dossier entier.
-                if (dossier.id in foldersState.unlockedFolderIds) {
-                    foldersViewModel.removeVaultProtection(dossier.id)
-                } else {
-                    deprotectionEnAttente = dossier.id
-                    dossierAOuvrir = dossier
-                }
+                lancerLeGeste(GesteDeDossier.RetirerLaProtection(dossier))
             },
         )
     }
@@ -272,18 +294,19 @@ fun HomeRoute(
             folder = dossier,
             onDismiss = {
                 dossierAOuvrir = null
-                // Renoncer au secret, c'est renoncer au geste : la déprotection en attente tombe
-                // avec la feuille. La laisser armée la ferait partir au prochain déverrouillage,
-                // pour une tout autre raison.
-                deprotectionEnAttente = null
+                // Renoncer au secret, c'est renoncer au geste : celui qui attendait tombe avec la
+                // feuille. Le laisser armé le ferait partir au prochain déverrouillage, pour une
+                // tout autre raison.
+                gesteEnAttente = null
             },
             onUnlocked = {
                 dossierAOuvrir = null
                 // ⚠️ Comparer l'identifiant, pas se contenter d'un booléen : la feuille peut avoir
-                // été ouverte pour un autre dossier que celui dont la déprotection est en attente.
-                val aDeproteger = deprotectionEnAttente
-                deprotectionEnAttente = null
-                if (aDeproteger == dossier.id) foldersViewModel.removeVaultProtection(dossier.id)
+                // été ouverte pour un autre dossier que celui dont le geste attend — le verrouillage
+                // automatique en ouvre une, lui aussi.
+                val geste = gesteEnAttente
+                gesteEnAttente = null
+                if (geste != null && geste.dossier.id == dossier.id) executerLeGeste(geste)
             },
         )
     }

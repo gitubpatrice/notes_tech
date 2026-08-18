@@ -47,9 +47,18 @@ import com.filestech.notes_tech.ui.theme.Formes
  *
  * - **Le cadenas rouge d'un coffre**, au lieu de l'icône de dossier. Le même signal que le liseré
  *   d'une note verrouillée : reconnaissable sans lire.
- * - **Le bouton `⋮` explicite** à côté de chaque dossier. L'appui long fait la même chose, mais
- *   personne ne le découvre — et sans lui, renommer, protéger ou supprimer un dossier n'existe pas
- *   pour l'utilisateur.
+ * - **Le bouton `⋮` explicite** à côté de chaque dossier. Sans lui, renommer, protéger ou supprimer
+ *   un dossier n'existerait pas pour l'utilisateur.
+ *
+ * ⚠️ **Ce portage n'a AUCUN appui long**, contrairement à l'application publiée qui en pose un sur
+ * chaque dossier et sur la boîte de réception, en plus du bouton. La divergence est assumée pour
+ * trois raisons : le commentaire du publié dit lui-même que *« le long-press n'est pas
+ * découvrable »* ; un geste long n'a pas d'équivalent pour qui pilote au lecteur d'écran, alors
+ * qu'un bouton en a un ; et la boîte de réception, qui n'avait **que** l'appui long, n'était donc
+ * renommable par personne dans le portage avant qu'on lui donne son bouton.
+ *
+ * ⚠️ La rédaction précédente de ce paragraphe disait « l'appui long fait la même chose » — vrai du
+ * publié, **faux d'ici**, et rien ne le distinguait.
  */
 @Composable
 fun FoldersDrawer(

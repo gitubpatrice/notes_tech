@@ -2602,3 +2602,86 @@ Et la `ModalBottomSheet` compose dans une fenêtre qui **repose ses propres `Com
 `LocalDensity` ni `LocalTextToolbar` fournis au-dessus d'elle n'y entrent. Deux mesures à l'échelle ×2
 rendaient des bornes identiques **au pixel près** — impossible, et c'est ce qui a dénoncé l'instrument.
 La taille de texte se mesure par `adb shell settings put system font_scale`, pas autrement.
+
+---
+
+## §91 — 🔴🔴 Un geste destructeur accepté, un secret saisi, et **rien**
+
+Deux gestes de dossier déchiffrent tout son contenu, donc exigent une session de coffre ouverte :
+**retirer la protection** et **supprimer en gardant les notes**. Ils étaient écrits séparément dans
+`HomeRoute`, et un seul mémorisait son intention avant d'ouvrir la feuille de déverrouillage.
+
+| Geste | coffre fermé ⇒ | intention mémorisée |
+|---|---|---|
+| retirer la protection | feuille de déverrouillage | **oui** (`deprotectionEnAttente`) |
+| supprimer en gardant les notes | feuille de déverrouillage | **NON** |
+
+Le parcours réel : l'utilisateur choisit « Supprimer », confirme « Déchiffrer et déplacer », on lui
+demande le secret du coffre, il le tape **correctement** — le coffre s'ouvre, le dossier est toujours
+là, et rien ne dit que le geste a été abandonné. L'application publiée enchaîne les deux
+(`folders_drawer.dart`, `_withVaultSession`).
+
+⚠️⚠️ **Le KDoc du porteur décrivait exactement ce mal — pour l'autre geste** : *« Sans ce report,
+l'utilisateur confirmait le geste le plus destructeur de l'application, saisissait sa phrase
+secrète… et il ne se passait rien. »* Il était juste, il était au bon endroit, et il n'a pas empêché
+le jumeau de naître à quinze lignes de là. *Un commentaire qui nomme un défaut ne protège que la
+ligne qu'il commente.*
+
+🔧 **La correction supprime le jumeau plutôt qu'elle n'ajoute la ligne manquante** : une interface
+scellée `GesteDeDossier`, une décision unique `deverrouillageRequis(geste, coffresOuverts)`, un seul
+chemin de départ `lancerLeGeste`, et un `when` exhaustif pour l'exécution — un troisième geste ne
+pourra pas naître sans qu'on décide de sa reprise.
+
+⚠️ **La reprise après déverrouillage ne repasse PAS par le contrôle.** L'ensemble des coffres ouverts
+vient d'un flux, et il peut ne pas encore porter celui qu'on vient d'ouvrir : rouvrir la feuille en
+boucle serait le remède pire que le mal. `onUnlocked` exécute directement, après avoir comparé
+l'**identifiant** du dossier — la feuille peut avoir été ouverte pour un autre, le verrouillage
+automatique en ouvre une lui aussi.
+
+⚠️⚠️ **Ce que les tests couvrent, et ce qu'ils ne couvrent pas.** `GesteDeDossierTest` (5 cas JVM)
+mesure que la **décision** est identique pour tous les gestes — c'est le jumeau supprimé. Il ne
+mesure **pas** que `HomeRoute` passe par elle : cela tiendrait à un harnais Hilt + base chiffrée +
+coffre réel, hors de proportion. Ce qui protège cette partie-là est structurel — un seul chemin, un
+`when` exhaustif — et non mesuré. *Le dire vaut mieux que de laisser croire le contraire.*
+
+🔧 Le filet contre la re-divergence n'est pas dans les cas de test mais dans une fonction `etiquette`
+à `when` exhaustif : un troisième geste **fait échouer la compilation du fichier de test** tant que
+personne n'a décidé de sa reprise. Contrôle positif fait : la clause `isVault` retirée du vrai code
+fait tomber un cas ; restauration vérifiée au SHA-256.
+
+---
+
+## §92 — ✅ Le tiroir des dossiers : rien de cassé, et trois observations écrites
+
+Quatorze mesures sur `FoldersDrawer`, cinq sur ses dialogues. **Aucun défaut d'annonce.** Le soupçon
+principal est tombé :
+
+⚠️ **Un `IconButton` posé dans le slot `badge` d'un `NavigationDrawerItem` reste atteignable.** C'est
+un cliquable **dans** un cliquable qui fusionne ses descendants — la forme même de §74 — et le `⋮`
+comme le bouton de renommage de la boîte auraient pu être absorbés. Mesuré par **comportement** et
+non par présence : `onNodeWithContentDescription` aurait rendu la rangée fusionnée, dont le nom
+contient bien « Options du dossier », et l'assertion `assertHasClickAction` serait passée pendant
+qu'un appui sélectionnait le dossier. Le test appuie et regarde **quel rappel part**.
+
+Trois écarts avec l'application publiée, **écrits et non corrigés** :
+
+1. **Le portage n'a aucun appui long.** Le publié en pose un sur chaque dossier et sur la boîte de
+   réception, en plus du bouton. Divergence assumée : le publié écrit lui-même que *« le long-press
+   n'est pas découvrable »*, un geste long n'a pas d'équivalent au lecteur d'écran, et la boîte de
+   réception — qui n'avait **que** l'appui long — n'était renommable par personne ici avant qu'on lui
+   donne son bouton. ⚠️ Le KDoc du tiroir disait « l'appui long fait la même chose » : vrai du publié,
+   **faux d'ici**. Corrigé.
+2. **`FolderEvent.Deleted(movedNotes)` porte un décompte que personne ne lit.** Supprimer un dossier
+   déplace ses notes vers la boîte de réception **en silence** ; le nombre est calculé puis jeté. Le
+   publié ne dit rien non plus — c'est donc de la parité, mais la donnée est là et la phrase serait
+   utile. Décision de Patrice.
+3. **Les feuilles de coffre sont ouvertes par `HomeRoute`, pas par le tiroir.** Le publié les ouvre
+   depuis `folders_drawer.dart`. Divergence d'architecture sans effet sur ce qui est annoncé — mais
+   elle a fait tomber la prémisse avec laquelle ce tour avait été proposé.
+
+⚠️ **Le tiroir en cours de chargement affirme quelque chose de faux, et c'est hérité.** La valeur
+initiale de `stateIn` est `FoldersUiState()`, donc `inbox == null` — que le code traite comme « base
+abîmée » : il affiche le **nom traduit de repli** au lieu du nom réel et **retire le bouton de
+renommage**. Motif §75/§76. L'application publiée a exactement la même faiblesse
+(`snap.data ?? const <Folder>[]` avec un dossier de repli fabriqué). **Figé par un test plutôt que
+corrigé** : ce que le tiroir montre à ce moment-là ne changera plus par accident.

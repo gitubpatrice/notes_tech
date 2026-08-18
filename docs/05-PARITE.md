@@ -248,10 +248,10 @@ modifier du code correct.
 | Composant Flutter | Lignes | Kotlin | Vérifié |
 |---|---:|---|:---:|
 | `vault_pin_sheets.dart` | 857 | `ui/vault/VaultSheets.kt` → `PinSheet` | ✅ |
-| `folders_drawer.dart` | 780 | `ui/folders/FoldersDrawer.kt` | ☐ |
+| `folders_drawer.dart` | 780 | `ui/folders/FoldersDrawer.kt` | ✅ |
 | `voice_recording_overlay.dart` | 460 | `ui/voice/SuperpositionDeDictee.kt` | ☐ |
 | `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ✅ |
-| `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ☐ |
+| `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ✅ |
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
 | `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ✅ |
@@ -299,6 +299,34 @@ modifier du code correct.
 > commentaire d'`arb_vers_strings.py` note l'ajout mais **pas le refus ni sa raison**. Le portage
 > atténue (la visibilité retombe à chaque étape, `FLAG_SECURE` est forcé) ; l'argument du publié tient
 > quand même. **Décision de Patrice**, pas un défaut à corriger de sa propre initiative.
+
+> **`folders_drawer.dart` et `folder_dialogs.dart` sont cochés par `TiroirDesDossiersTest`**
+> (19 cas, S9, 2026-08-18) et `GesteDeDossierTest` (5 cas JVM).
+>
+> Le tiroir était **déjà sans état** : aucun découpage à faire. Ce qui est mesuré : les trois
+> balayages avec le **décompte** des actionnables (9, mesuré) ; le fait qu'un `IconButton` posé dans
+> le slot `badge` d'un `NavigationDrawerItem` reste atteignable, vérifié **par le rappel qui part** et
+> non par la présence d'un nœud ; les trois états du menu de dossier, dont les entrées de coffre
+> s'excluent ; le champ du dialogue de nom et son refus d'un nom blanc ; et les deux dialogues
+> destructeurs — dont le fait que les **deux choix de suppression ont la même hauteur**, ce qui est la
+> seule forme qui distingue un bouton entier d'un bouton tronqué.
+>
+> **Défaut trouvé et corrigé : `04-PIEGES.md` §91** — sur un coffre **fermé**, « supprimer en gardant
+> les notes » ouvrait la feuille de déverrouillage **sans mémoriser l'intention**. L'utilisateur
+> confirmait, tapait son secret, et le geste s'évaporait. Le retrait de protection, lui, mémorisait :
+> jumeau asymétrique. Les deux passent désormais par un seul chemin, `GesteDeDossier`.
+>
+> **Trois écarts écrits et non corrigés — §92** : le portage n'a **aucun appui long** là où le publié
+> en a un (assumé : non découvrable, et sans équivalent au lecteur d'écran) ; `FolderEvent.Deleted`
+> porte un décompte de notes déplacées que **personne ne lit**, si bien que supprimer un dossier
+> déplace ses notes en silence ; et les feuilles de coffre sont ouvertes par `HomeRoute` et non par le
+> tiroir, contrairement au publié.
+>
+> ⚠️ **Le tiroir en cours de chargement affiche une boîte de réception de repli** — nom traduit au
+> lieu du nom réel, pas de bouton de renommage — parce que la valeur initiale de `stateIn` est
+> indiscernable d'une base sans dossiers (motif §75/§76). L'application publiée a la même faiblesse.
+> **Figé par un test plutôt que corrigé.**
+
 
 
 ### 🔴 `link_autocomplete_sheet.dart` — cochée le 2026-08-17, et son défaut était écrit d'avance
