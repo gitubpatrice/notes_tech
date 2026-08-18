@@ -489,7 +489,7 @@ peut y injecter une permission :
 
 | Cas | Vérifié | Par quoi, ou bloqué par quoi |
 |---|:---:|---|
-| 2.0.3 → 2.0.4 → 3.0.0 (chemin nominal, couche ①) | ☐ | **La passerelle 2.0.4 n'existe pas.** Sa publication demande la clé de signature et une décision de Patrice, et `notes_tech` est gelé — cf. `10-PASSERELLE-2.0.4.md` §7. Rien à tester tant qu'elle n'est pas écrite. |
+| 2.0.3 → 2.0.4 → 3.0.0 (chemin nominal, couche ①) | ◐ | **La passerelle EXISTE depuis le 2026-08-18** (`notes_tech`, `f216390`, 2.0.4+52) et ses deux moitiés sont mesurées **séparément** : elle écrit un scellé de la bonne forme — vérifié sur le S9, blob 48 octets, nonce 12, sans retour à la ligne — et `KeystoreSealedKekSourceTest` (8 cas, S9) relit un scellé **produit comme la passerelle le produit**, sans passer par `store()`. Ce qui manque : les deux **sur la même installation**, avec de vraies données. Cela demande des builds **signées** des deux côtés (`applicationIdSuffix = ".debug"` interdit la prise de place en debug), et **le portage n'a aucun `key.properties`** — cf. `10-PASSERELLE-2.0.4.md` §9. |
 | 2.0.3 → 3.0.0 direct (couche ② de secours) | ◐ | **Mécanisme prouvé, bout-en-bout non.** `FlutterSecureStorageKekSourceTest` (12 cas) rejoue une valeur écrite **exactement comme la bibliothèque l'écrit**, vérifie que MGF1-SHA1 est imposé par la plateforme, que l'alias visé est celui de l'application publiée, et que la lecture **ne modifie pas** le stockage. Ce qui manque n'est pas le code : c'est la lecture du vrai stockage d'une vraie installation, qui n'arrive qu'à la bascule. |
 | KEK introuvable, base présente → refus, **base intacte après** (couche ③) | ✅ | `LegacyDatabaseOpeningTest.sans_kek_et_avec_une_base_presente_l_ouverture_est_refusee_et_la_base_intacte`, doublé côté logique par `KekRepositoryTest.aucune cle et une base presente donne un refus, et AUCUNE ecriture`. **Le refus ET l'intégrité après refus sont tous deux vérifiés.** |
 | Installation neuve | ✅ | `KekRepositoryTest.aucune cle et aucune base declenche une generation persistee AVANT d'etre rendue` — l'ordre compte : une clé rendue avant d'être persistée chiffrerait des notes sous une clé que le redémarrage suivant ne retrouverait pas. |
@@ -497,9 +497,15 @@ peut y injecter une permission :
 | Coffre PIN créé en Flutter, ouvert en Kotlin | ◐ | **Irréproductible hors bascule, et ce n'est pas un manque de rigueur.** Le scellement extérieur d'un coffre à code est fait par une clé Keystore **liée à l'appareil et à l'UID** : aucun vecteur ne peut la rejouer. Ce qui **entre** dans le Keystore est vérifié octet pour octet (`PariteCoffreAvecFlutterTest.lesCouchesInternesDuCoffrePinConcordent`) ; l'enveloppe ne peut l'être qu'avec le vrai Keystore de la vraie installation. |
 | Auto-effacement interrompu (`vault_wipe_pending_*`) repris au démarrage | ✅ | `FolderVaultServiceTest.un_effacement_interrompu_est_repris_au_demarrage` — le drapeau posé, l'application tuée, la reprise détruit bien les notes **et** retire le matériel de coffre. Complété par `le_drapeau_dun_dossier_disparu_est_retire`, qui vérifie que c'est le **seul** retrait légitime : retirer le drapeau sur échec permettrait de sauver un coffre condamné en provoquant un plantage. |
 
-**Reste donc trois lignes, et elles tiennent en une phrase** : la couche ① attend une décision de
-publication, les couches ② et PIN attendent le seul geste qui ne se simule pas — installer par-dessus
-une vraie installation. Ce sont les trois cases du geste de bascule, pas des cases de développement.
+**Reste donc trois lignes, et elles tiennent en une phrase** : toutes les trois attendent le seul
+geste qui ne se simule pas — installer par-dessus une vraie installation, avec de vraies données. Ce
+sont les trois cases du geste de bascule, pas des cases de développement.
+
+⚠️ **La couche ① n'attend plus une décision de rédaction mais une clé.** La passerelle est écrite et
+ses deux moitiés sont mesurées ; ce qui manque est une build **signée** du portage, donc un
+`key.properties` pointant sur `notes_tech/android/notestech-release.jks`. Sans cette clé, la 3.0.0 ne
+s'installera par-dessus Notes Tech pour personne — ce n'est pas un détail de publication, c'est une
+condition de la migration.
 
 ⚠️ **Aucune de ces trois ne se coche depuis un poste de travail.** Elles demandent le S9, une
 installation 2.0.3 réelle, et le drapeau `-Pnotestech.replaceInstalledApp=true` — cf.

@@ -2,9 +2,12 @@
 
 > Créé le 2026-08-13, après avoir écrit et éprouvé la couche ②.
 >
-> ⚠️ **Rien de ce document n'a été appliqué à `notes_tech`.** Le dépôt Flutter est gelé pendant le
-> chantier, et publier une 2.0.4 demande la clé de signature de Patrice et sa décision. Ce fichier
-> décrit exactement quoi faire, pour que ce soit relisible avant de l'être.
+> ✅ **Écrite et vérifiée le 2026-08-18** — `notes_tech`, branche `fix/defauts-releves-pendant-le-portage`,
+> commit `f216390`, version **2.0.4+52**. La passerelle **n'est pas publiée** : elle est écrite,
+> mesurée sur le S9, et attend une décision de publication.
+>
+> ⚠️ Ce document décrivait quoi faire. **Deux points ont été faits autrement**, et une affirmation
+> s'est révélée fausse à la mesure — voir §8.
 
 ---
 
@@ -53,8 +56,15 @@ silencieux, mais la migration ne se ferait pas.
 **Il faut donc décoder l'hexadécimal avant de sceller.**
 
 **2. `Base64.NO_WRAP`, jamais `Base64.DEFAULT`.**
-`DEFAULT` insère des retours à la ligne. Une valeur ainsi encodée traverse `SharedPreferences` sans
-dommage, mais le décodage strict côté Kotlin échoue.
+`DEFAULT` insère des retours à la ligne. C'est la bonne hygiène, et le contrat reste écrit ainsi.
+
+⚠️⚠️ **Mais la raison donnée ici était FAUSSE, et c'est un test qui l'a dit.** Ce paragraphe affirmait
+que « le décodage strict côté Kotlin échoue ». Il n'échoue pas : `KeystoreSealedKekSource.decodeBase64`
+appelle `Base64.decode(value, Base64.DEFAULT)`, et le décodeur d'Android **ignore les blancs**. Mesuré
+par `KeystoreSealedKekSourceTest.un_scelle_encode_avec_des_retours_a_la_ligne_est_TOLERE_par_le_decodeur`.
+
+*Une garde supposée est pire qu'une garde absente : on cesse de la chercher ailleurs.* Écrire en
+`NO_WRAP` reste juste ; croire qu'un contrôle rattraperait l'oubli ne l'était pas.
 
 ## 3. 🔴 Pourquoi la passerelle doit écrire les préférences **en Kotlin**, jamais en Dart
 
@@ -69,6 +79,11 @@ aurait l'air d'avoir fonctionné.
 L'écriture doit se faire **dans le même appel natif** que le scellement.
 
 ## 4. Ce qu'il y a à ajouter
+
+> ⚠️⚠️ **L'extrait ci-dessous est le PLAN, et le code livré en diverge sur deux points** — voir §8.
+> Il prend `kekHex` là où l'implémentation prend des **octets bruts**, et son idempotence ne regarde
+> que les préférences. Il est gardé tel quel parce qu'il documente le raisonnement d'origine ; **la
+> source de vérité est `notes_tech/android/.../KeystoreBridge.kt`**, pas ce bloc.
 
 `android/app/src/main/kotlin/com/filestech/notes_tech/KeystoreBridge.kt` existe déjà et fait
 l'essentiel : `createKey(alias)` est idempotent, tente StrongBox puis retombe sur le TEE, et pose
@@ -104,7 +119,8 @@ private fun sealDatabaseKek(kekHex: String): Boolean {
     try {
         createKey(KEK_ALIAS)
         val sealed = wrap(KEK_ALIAS, raw)
-        // ⚠️ NO_WRAP : `DEFAULT` insère des retours à la ligne que le décodage strict refuse.
+        // ⚠️ NO_WRAP : `DEFAULT` insère des retours à la ligne. Voir §2 — la raison donnée
+        // à l'origine était fausse, le décodeur les tolère ; la consigne, elle, reste.
         prefs.edit()
             .putString(KEK_BLOB, Base64.encodeToString(sealed["ciphertext"], Base64.NO_WRAP))
             .putString(KEK_NONCE, Base64.encodeToString(sealed["nonce"], Base64.NO_WRAP))
@@ -160,9 +176,9 @@ toutes les clés existantes. À décider avant d'écrire un tel travail, pas apr
 
 ## 6. Procédure de vérification, sur le S9 uniquement
 
-⚠️ Le S9 porte déjà `com.filestech.notes_tech` en **2.0.1**. Toute manipulation ci-dessous **efface
-ou remplace cette installation** : s'assurer qu'elle ne contient rien à conserver, ou faire le
-parcours sur une installation neuve.
+⚠️ Le S9 portait `com.filestech.notes_tech` en **2.0.3** (versionCode 2051) au 2026-08-18 — et non
+2.0.1 comme écrit ici jusque-là. Toute manipulation ci-dessous **efface ou remplace cette
+installation** ; le S9 est un téléphone de test, confirmé par Patrice.
 
 1. installer la version Flutter, créer dossiers, notes, liens, un coffre passphrase, un coffre PIN ;
 2. installer la **2.0.4** par-dessus, l'ouvrir une fois, la fermer ;
@@ -184,3 +200,62 @@ Puis en sautant 2 **et** en effaçant la valeur `flutter_secure_storage`, pour v
 | Publier une 2.0.4 | demande la clé de signature et une décision de Patrice |
 | Dégeler `notes_tech` le temps du correctif | le dépôt est gelé pour éviter la dérive de parité |
 | Numéro de version et `versionCode` | dépend de la 2.0.3 publiée et du décalage des splits ABI |
+
+---
+
+## 8. ✅ Ce qui a été fait le 2026-08-18, et les trois écarts avec ce document
+
+### Fait
+
+| | |
+|---|---|
+| `KeystoreBridge.sealDatabaseKek` | écrit, côté natif, avec les quatre valeurs du §2 |
+| Appel Dart au démarrage | après l'ouverture de la base, **avant** le `wipe` de la KEK, `catch` large |
+| Version | **2.0.4+52**, `AppConstants.appVersion` bumpée avec le `pubspec` |
+| Contrat d'appel | mesuré — `test/keystore_bridge_seal_test.dart`, 3 cas |
+| **La moitié lectrice** | mesurée — `KeystoreSealedKekSourceTest`, **8 cas**, dont un scellé produit *comme la passerelle le produit* |
+| Vérification sur le S9 | §6 étapes 1 à 3 : `notes_tech.kek.xml` écrit, **blob 48 octets** (32 + tag GCM), **nonce 12**, aucun retour à la ligne |
+
+### 🔴 Écart 1 — l'argument est en **octets bruts**, pas en hexadécimal
+
+Ce document prévoyait `kekHex`, parce qu'il partait de ce que `flutter_secure_storage` contient. Mais
+au point d'appel réel la KEK est **déjà matérialisée** en `Uint8List` : la repasser par une `String`
+créerait une copie du secret **que Dart ne sait pas effacer** — une `String` est immuable et survit
+jusqu'au ramasse-miettes. Le code Flutter prend justement soin d'effacer son `Uint8List` dès la base
+ouverte. *Réintroduire une copie ineffaçable pour la commodité d'un paramètre serait défaire ce soin.*
+
+Ce que la version Kotlin lit ne change pas : le clair scellé reste les 32 octets bruts.
+
+### 🔴 Écart 2 — l'idempotence regarde les préférences **et** l'alias
+
+Le document proposait `if (prefs.contains(BLOB) && prefs.contains(NONCE)) return false`. Un scellé
+présent **sans sa clé Keystore** est indéchiffrable : il faut le refaire, pas le garder. Ne regarder
+que les préférences condamnerait cet appareil à la couche ② pour toujours.
+
+### ⚠️ Écart 3 — la raison donnée au `NO_WRAP` était fausse
+
+Voir §2. La consigne reste ; sa justification est corrigée.
+
+---
+
+## 9. 🔴 Ce qui reste, et qui n'est PAS une décision de rédaction
+
+### La vérification de bout en bout (§6 étapes 4-5) n'est pas faite
+
+Elle demande une build **signée** des deux côtés : `applicationIdSuffix = ".debug"` fait qu'une build
+debug du portage s'installe sous `com.filestech.notes_tech.debug` et ne peut donc pas prendre la place
+de l'application Flutter. Le code du portage le dit lui-même : *« un test de migration sur base réelle
+doit être mené sur une build SIGNÉE, pas en debug »*.
+
+Ce qui est mesuré aujourd'hui : la passerelle **écrit** un scellé de la bonne forme (S9), et la couche
+① **relit** un scellé écrit de cette façon (S9). Ce qui ne l'est pas : les deux **sur la même
+installation**, avec les vraies données.
+
+### 🔴🔴 Le portage n'a **aucun `key.properties`** — il ne peut pas produire de build signée
+
+`app/build.gradle.kts` prévoit la configuration de signature, mais le fichier est absent. Or la 3.0.0
+**doit** être signée avec la clé de l'application publiée — `notes_tech/android/notestech-release.jks` —
+sans quoi elle ne s'installera pas par-dessus Notes Tech, pour personne.
+
+⚠️ **Ce n'est pas un détail de release, c'est une condition de la migration elle-même.** Sans cette
+clé, il n'y a ni vérification de bout en bout, ni bascule possible.
