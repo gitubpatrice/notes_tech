@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **221 tests JVM**,
-  **280 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **224 tests JVM**,
+  **297 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -969,3 +969,71 @@ et lui seul ; le compteur remis **dans** la région active fait tomber les deux 
 restaurations vérifiées au SHA-256. Suite rejouée **à `font_scale 2,0`** — les deux boutons
 restent entiers — puis échelle restaurée. Compte JVM vérifié classe par classe : 211 → **221**,
 XML de `GesteDuMicroTest` et `BorneDeDureeTest` présents (§82).
+
+---
+
+## ✅ 2026-08-18, fin de journée : les quatre écarts du publié, §88, la passerelle 2.0.4, et le COFFRE
+
+**42 cases cochées / 17 restantes.** Gate : ktlint, detekt, lint `--rerun-tasks`, **224 tests JVM**,
+**297 tests instrumentés** (S9), 0 échec, **0 ignoré**, modèle de 57 Mo intact.
+
+### Les commits
+
+| Dépôt | Commit | Ce qu'il ferme |
+|---|---|---|
+| portage | `cc1d36d` | les **quatre** écarts du publié + §88 |
+| portage | `816c207` | la couche ① de la migration n'avait **aucun** test |
+| portage | `92eb02f` | la clé de signature, vérifiée contre l'APK publié |
+| portage | `84707a4` | **§99 + §100** — le coffre |
+| `notes_tech` | `f216390` | la **passerelle 2.0.4** (branche `fix/defauts-releves-pendant-le-portage`) |
+
+### ✅ §88 — l'autoremplissage est CONSERVÉ, décision de Patrice
+
+Et la mesure qui a tranché n'était pas celle qu'on cherchait : le champ expose **`PasteText` et pas
+`CopyText`**. Un gestionnaire de mots de passe peut donc y **déposer** un secret, personne ne peut en
+**extraire** un. Un secret de coffre perdu, ce sont des notes perdues pour toujours. **Aucune ligne de
+code touchée** — l'état mesuré était déjà l'état voulu.
+
+### ✅ Les quatre écarts du publié sont tranchés
+
+1. **Archives** — ce n'est pas un écart, c'est la définition d'une archive. Le « correctif » évident
+   aurait rendu des notes **invisibles partout**. Épinglé par 3 cas.
+2. **Messages de dossier — §97** : renommer se voit, **supprimer non**. Le plus injuste : supprimer un
+   dossier détruit **aussi ses notes en corbeille**, encore restaurables. D'où `countAllInFolder`.
+3. **Pluriel `many` — §98** : les 4 formes écrites, `MissingQuantity` à **0** — mais **elle ne sort
+   pas sur le S9**, l'ICU d'Android 10 l'ignore. Le test accepte les deux formes plutôt que de mesurer
+   la version d'ICU de la machine.
+4. **`%1$d note(s)`** converti en vrai `<plurals>`.
+
+### 🔴 Le coffre — §99 et §100
+
+- **§99** : `isUnlocked` **repoussait** l'échéance du verrouillage automatique. Défaut *posé et armé,
+  pas déclenché* — il attendait un appelant venu d'une recomposition.
+- **§100** : la migration **v1 → v2** n'était exercée par **aucun test, des deux côtés**. Le publié
+  porte `encryptNoteLegacyV1`, écrite exprès pour la rendre vérifiable, et **personne ne l'appelle**.
+
+⚠️ **Réfutés, ne pas rechercher** : freinage identique au chiffre près, longueurs de secret
+identiques, ordre de l'auto-effacement identique.
+
+### 🔧 La passerelle 2.0.4 — écrite, mesurée, **non publiée**
+
+`notes_tech` **2.0.4+52**. Vérifié sur le S9 : `notes_tech.kek.xml` écrit, **blob 48 octets** (32 +
+tag GCM), **nonce 12**, aucun retour à la ligne. La couche ① la relit — 8 cas, dont un scellé produit
+*comme la passerelle le produit*.
+
+⚠️ **Deux écarts assumés** avec la procédure écrite : octets bruts plutôt qu'hexadécimal (une `String`
+portant la KEK est ineffaçable en Dart), et idempotence sur les préférences **et** l'alias.
+
+⚠️ **Une affirmation de la doc était fausse** : `Base64.DEFAULT` ne fait **pas** échouer le décodage,
+le décodeur d'Android tolère les retours à la ligne. Mesuré, et corrigé dans le document.
+
+### 🔴 Ce qui bloque la bascule, et ce n'est pas une décision de rédaction
+
+**Le portage n'a aucun `key.properties`.** La 3.0.0 doit être signée avec
+`notes_tech/android/notestech-release.jks` — dont l'empreinte a été **vérifiée contre l'APK
+réellement publié** (`ddb385de…42e9` des deux côtés). Sans cette clé : ni vérification de bout en
+bout, ni bascule.
+
+⚠️ **F-Droid ne s'y oppose pas** : la MR `!37885` est épinglée sur 2.0.3/51 et porte
+`AutoUpdateMode: Version` + `UpdateCheckMode: Tags` — une fois fusionnée, le bot suit les tags seul.
+Publier une 2.0.4 ne la dérange donc pas. ⚠️ Le sens du label `waiting-for-upstream` reste **inconnu**.
