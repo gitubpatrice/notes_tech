@@ -251,6 +251,20 @@ Ce qui est mesuré aujourd'hui : la passerelle **écrit** un scellé de la bonne
 ① **relit** un scellé écrit de cette façon (S9). Ce qui ne l'est pas : les deux **sur la même
 installation**, avec les vraies données.
 
+### ✅ La clé est identifiée, et vérifiée contre l'artefact publié
+
+`notes_tech/android/notestech-release.jks`, alias déclaré dans `notes_tech/android/key.properties`.
+
+| | |
+|---|---|
+| Certificat du keystore | `DD:B3:85:DE:E3:A4:16:AA:D9:FE:5A:46:17:3E:36:84:E0:76:2D:C4:33:C7:E8:DE:6D:B4:8F:64:ED:E6:42:E9` |
+| Certificat de `notes-tech-arm64-v8a-2.0.3.apk` **publié** | `ddb385dee3a416aad9fe5a46173e3684e0762dc433c7e8de6db48f64ede642e9` |
+| Verdict | **identiques** |
+
+⚠️ Comparé à l'**APK réellement diffusé** — téléchargé depuis la release GitHub `v2.0.3` et lu par
+`apksigner verify --print-certs` — et non à une valeur recopiée d'une note. *Une empreinte notée
+quelque part n'est pas une empreinte vérifiée.*
+
 ### 🔴🔴 Le portage n'a **aucun `key.properties`** — il ne peut pas produire de build signée
 
 `app/build.gradle.kts` prévoit la configuration de signature, mais le fichier est absent. Or la 3.0.0
