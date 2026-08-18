@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -45,11 +46,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -286,14 +291,92 @@ private fun PassphraseSheet(
     val viewModel: VaultViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    ResultatDeTentative(state.attempt, onSuccess = onDone, onConsumed = viewModel::consumeAttempt)
+
+    FeuilleDePhraseSecrete(
+        state = state,
+        nomDuDossier = folder.name,
+        creating = creating,
+        chiffrementEnCours = viewModel::chiffrementEnCours,
+        // ⚠️ **Un seul rappel de sortie pour les trois chemins** — Retour, balayage, « Annuler ».
+        // Ils étaient écrits deux fois, et différemment : la sortie par geste rapportait une
+        // conversion incomplète, « Annuler » non. La différence était **sans effet**, et vérifiable :
+        // « Annuler » n'existe que sous `!plusRienAEssayer()`, or les deux issues que
+        // [rapporterUneConversionIncomplete] retient sont précisément celles de `coffreExiste()`,
+        // que ce prédicat contient.
+        // Deux jumeaux dont l'un était un sous-ensemble muet de l'autre.
+        onQuitter = {
+            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
+            viewModel.cancelAttempt()
+            onDismiss()
+        },
+        onValider = { secret ->
+            if (creating) {
+                viewModel.createPassphraseVault(folder.id, secret)
+            } else {
+                viewModel.unlockWithPassphrase(folder.id, secret)
+            }
+        },
+        onFermerSurUneIssueFinale = {
+            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
+            viewModel.consumeAttempt()
+            onDismiss()
+        },
+    )
+}
+
+/**
+ * La feuille à phrase secrète **sans son ViewModel** : un état, des rappels, rien d'autre.
+ *
+ * ## 🔴 Ce que ce découpage rend mesurable, et qui ne l'était pas
+ *
+ * Quatre états de cette feuille **ne s'atteignent pas à la main** : une temporisation, une conversion
+ * partielle, un coffre créé dont le contenu n'a pas pu être chiffré, et la phase de chiffrement
+ * elle-même. Tant que l'état venait de Hilt et d'une base chiffrée, aucun test ne pouvait les poser.
+ *
+ * ⚠️ Ce paragraphe en annonçait **cinq**, et comptait « un coffre effacé après cinq échecs ». C'est
+ * faux : `VaultPinWipedException` n'est levée que par `FolderVaultService.unlockWithPin` — une phrase
+ * secrète ne détruit rien. La phrase avait été recopiée du jumeau. Relevé par une relecture externe
+ * (GPT-5.2, 2026-08-18), qui l'a vu en constatant qu'elle **contredisait** le KDoc de
+ * [plusRienAEssayer] quinze cents lignes plus bas.
+ *
+ * ⚠️⚠️ Et le seul test de ce fichier, `FermetureDeFeuilleTest`, mesurait une feuille **synthétique**
+ * qui ne partageait avec celle-ci que quatre lignes **recopiées à la main**. Il a rendu un vrai
+ * service — il a départagé deux relectures qui se contredisaient — mais il ne disait rien de *cette*
+ * feuille-ci. C'est la même séparation que `HomeRoute`/`HomeScreen`, `TrashRoute`, `SearchRoute`,
+ * `SettingsRoute` et `NoteEditorRoute`.
+ *
+ * ⚠️⚠️ [chiffrementEnCours] est passé en **fonction**, pas en booléen — pour **deux** raisons
+ * distinctes qu'il vaut mieux ne pas confondre :
+ *
+ * 1. il est **lu à l'instant** où l'on tente de fermer, donc un booléen figerait le veto sur la
+ *    valeur qu'il avait à la composition ;
+ * 2. c'est `confirmValueChange` — la lambda qui le referme — qui sert de **clé au
+ *    `rememberSaveable`** construisant l'état de la feuille ; une lambda instable recréerait donc cet
+ *    état à chaque frappe. Une **référence de méthode liée** satisfait les deux points.
+ *
+ * ⚠️ La première rédaction de ce paragraphe disait que `chiffrementEnCours` **était** cette clé. C'est
+ * faux : la clé est `confirmValueChange`. Relevé par une relecture externe (Gemini, 2026-08-18) —
+ * troisième « commentaire qui ment » de ce dépôt, et le premier attrapé avant d'être commité.
+ * Cf. `etatDeFeuilleDeCoffre` et `FermetureDeFeuilleTest`.
+ */
+@Composable
+internal fun FeuilleDePhraseSecrete(
+    state: VaultSheetState,
+    nomDuDossier: String,
+    creating: Boolean,
+    chiffrementEnCours: () -> Boolean,
+    onQuitter: () -> Unit,
+    onValider: (String) -> Unit,
+    onFermerSurUneIssueFinale: () -> Unit,
+) {
     var secret by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
     var erreurLocale by remember { mutableStateOf<String?>(null) }
 
     val tropCourte = stringResource(R.string.vault_pass_min_length, VaultParams.PASSPHRASE_MIN_LENGTH)
     val discordance = stringResource(R.string.vault_pass_mismatch)
-
-    ResultatDeTentative(state.attempt, onSuccess = onDone, onConsumed = viewModel::consumeAttempt)
+    val plusRienAEssayer = state.attempt.plusRienAEssayer()
 
     ModalBottomSheet(
         // ⚠️ Fermer la feuille ANNULE la dérivation en cours. Sans ça, le travail continue dans
@@ -315,12 +398,10 @@ private fun PassphraseSheet(
             // le 2026-08-16 : le Retour arrive ici sans toucher à l'état, le balayage n'y arrive
             // qu'après avoir déjà fait disparaître la feuille. Le veto du balayage est posé sur
             // l'état ci-dessous. Cf. `FermetureDeFeuilleTest`.
-            if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
-            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
-            viewModel.cancelAttempt()
-            onDismiss()
+            if (chiffrementEnCours()) return@ModalBottomSheet
+            onQuitter()
         },
-        sheetState = etatDeFeuilleDeCoffre(bloquer = viewModel::chiffrementEnCours),
+        sheetState = etatDeFeuilleDeCoffre(bloquer = chiffrementEnCours),
     ) {
         Column(
             modifier = Modifier
@@ -336,33 +417,39 @@ private fun PassphraseSheet(
                 text = if (creating) {
                     stringResource(R.string.vault_pass_create_body)
                 } else {
-                    stringResource(R.string.vault_pass_unlock_body, folder.name)
+                    stringResource(R.string.vault_pass_unlock_body, nomDuDossier)
                 },
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (creating) BanniereDAvertissement(stringResource(R.string.vault_pass_warning_lost))
 
-            ChampDePhraseSecrete(
-                valeur = secret,
-                onValeurChange = {
-                    secret = it
-                    erreurLocale = null
-                },
-                label = stringResource(R.string.vault_pass_field),
-                actionClavier = if (creating) ImeAction.Next else ImeAction.Done,
-                actif = !state.busy,
-            )
-            if (creating) {
+            // 🔴 **Les champs disparaissent quand il n'y a plus rien à essayer.** Ils restaient
+            // affichés sous un bouton « Fermer », à côté d'un message annonçant que des notes sont
+            // restées en clair : une surface de saisie qui laisse croire qu'on peut réessayer, alors
+            // que le seul geste offert est de partir. Cf. [plusRienAEssayer].
+            if (!plusRienAEssayer) {
                 ChampDePhraseSecrete(
-                    valeur = confirmation,
+                    valeur = secret,
                     onValeurChange = {
-                        confirmation = it
+                        secret = it
                         erreurLocale = null
                     },
-                    label = stringResource(R.string.vault_pass_confirm_field),
-                    actionClavier = ImeAction.Done,
+                    label = stringResource(R.string.vault_pass_field),
+                    actionClavier = if (creating) ImeAction.Next else ImeAction.Done,
                     actif = !state.busy,
                 )
+                if (creating) {
+                    ChampDePhraseSecrete(
+                        valeur = confirmation,
+                        onValeurChange = {
+                            confirmation = it
+                            erreurLocale = null
+                        },
+                        label = stringResource(R.string.vault_pass_confirm_field),
+                        actionClavier = ImeAction.Done,
+                        actif = !state.busy,
+                    )
+                }
             }
 
             MessageDEtat(
@@ -371,16 +458,12 @@ private fun PassphraseSheet(
                 phase = state.phase,
             )
 
-            if (state.attempt.coffreExiste()) {
+            if (plusRienAEssayer) {
                 // 🔴 **`onDismiss`, PAS `onDone`.** On n'arrive ici qu'après une conversion
                 // PARTIELLE — des notes sont restées en clair, et le message au-dessus vient de
                 // le dire. Passer par le chemin de réussite ferait afficher « Coffre activé »
                 // par-dessus, c'est-à-dire contredire l'avertissement qu'on vient de lire.
-                BoutonDeFermeture {
-                    rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
-                    viewModel.consumeAttempt()
-                    onDismiss()
-                }
+                BoutonDeFermeture(onFermerSurUneIssueFinale)
             } else {
                 Button(
                     shape = Formes.bouton,
@@ -391,11 +474,7 @@ private fun PassphraseSheet(
                             else -> null
                         }
                         if (erreurLocale != null) return@Button
-                        if (creating) {
-                            viewModel.createPassphraseVault(folder.id, secret)
-                        } else {
-                            viewModel.unlockWithPassphrase(folder.id, secret)
-                        }
+                        onValider(secret)
                     },
                     enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth(),
@@ -408,10 +487,7 @@ private fun PassphraseSheet(
                 }
                 ActionDeDialogue(
                     texte = stringResource(R.string.common_cancel),
-                    onClick = {
-                        viewModel.cancelAttempt()
-                        onDismiss()
-                    },
+                    onClick = onQuitter,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -491,6 +567,52 @@ private fun PinSheet(
     val viewModel: VaultViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    ResultatDeTentative(state.attempt, onSuccess = onDone, onConsumed = viewModel::consumeAttempt)
+
+    FeuilleDeCode(
+        state = state,
+        nomDuDossier = folder.name,
+        creating = creating,
+        chiffrementEnCours = viewModel::chiffrementEnCours,
+        // Même raison qu'à la feuille à phrase secrète : les trois chemins de sortie faisaient deux
+        // gestes différents pour un effet identique.
+        onQuitter = {
+            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
+            viewModel.cancelAttempt()
+            onDismiss()
+        },
+        onValider = { code ->
+            if (creating) viewModel.createPinVault(folder.id, code) else viewModel.unlockWithPin(folder.id, code)
+        },
+        onFermerSurUneIssueFinale = {
+            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
+            // ⚠️ **Consommer.** Ce ViewModel vit plus longtemps que la feuille : sans ça, l'issue
+            // survit et le message de conversion partielle réapparaît à l'ouverture de la feuille
+            // d'un AUTRE dossier. Relevé PROBABLE par une relecture externe (GPT-5.2), et vérifié :
+            // `hiltViewModel()` s'accroche à l'entrée de navigation.
+            viewModel.consumeAttempt()
+            onDismiss()
+        },
+    )
+}
+
+/**
+ * La feuille de code **sans son ViewModel**. Mêmes raisons que [FeuilleDePhraseSecrete] : les issues
+ * qui comptent — coffre effacé, temporisation, conversion partielle — ne s'atteignent pas à la main.
+ *
+ * ⚠️ La machine à deux temps de la création (saisir, puis confirmer) **reste ici** : elle, on
+ * l'atteint au doigt, et la sortir la rendrait moins fidèle sans rien rendre de mesurable.
+ */
+@Composable
+internal fun FeuilleDeCode(
+    state: VaultSheetState,
+    nomDuDossier: String,
+    creating: Boolean,
+    chiffrementEnCours: () -> Boolean,
+    onQuitter: () -> Unit,
+    onValider: (String) -> Unit,
+    onFermerSurUneIssueFinale: () -> Unit,
+) {
     var saisi by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf<String?>(null) }
     var erreurLocale by remember { mutableStateOf<String?>(null) }
@@ -501,6 +623,7 @@ private fun PinSheet(
         VaultParams.PIN_MAX_LENGTH,
     )
     val discordance = stringResource(R.string.vault_pin_mismatch)
+    val plusRienAEssayer = state.attempt.plusRienAEssayer()
 
     // 🔴 **Le code saisi est vidé après CHAQUE tentative, réussie OU NON.**
     //
@@ -519,11 +642,6 @@ private fun PinSheet(
     LaunchedEffect(state.attempt) {
         if (state.attempt != null) saisi = ""
     }
-
-    // 🔴 **La clôture passe par le MÊME composable que la feuille à phrase secrète.** Elle était
-    // recopiée à la main ici, avec sa propre condition : deux jumeaux à corriger ensemble, qui ont
-    // failli diverger dès l'évolution suivante. Cf. [chiffreesSiTermine].
-    ResultatDeTentative(state.attempt, onSuccess = onDone, onConsumed = viewModel::consumeAttempt)
 
     val enConfirmation = creating && confirmation != null
 
@@ -547,12 +665,10 @@ private fun PinSheet(
             // le 2026-08-16 : le Retour arrive ici sans toucher à l'état, le balayage n'y arrive
             // qu'après avoir déjà fait disparaître la feuille. Le veto du balayage est posé sur
             // l'état ci-dessous. Cf. `FermetureDeFeuilleTest`.
-            if (viewModel.chiffrementEnCours()) return@ModalBottomSheet
-            rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
-            viewModel.cancelAttempt()
-            onDismiss()
+            if (chiffrementEnCours()) return@ModalBottomSheet
+            onQuitter()
         },
-        sheetState = etatDeFeuilleDeCoffre(bloquer = viewModel::chiffrementEnCours),
+        sheetState = etatDeFeuilleDeCoffre(bloquer = chiffrementEnCours),
     ) {
         Column(
             modifier = Modifier
@@ -573,21 +689,26 @@ private fun PinSheet(
             )
             if (!creating) {
                 Text(
-                    text = stringResource(R.string.vault_pin_unlock_body, folder.name),
+                    text = stringResource(R.string.vault_pin_unlock_body, nomDuDossier),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
             if (creating) BanniereDAvertissement(stringResource(R.string.vault_pin_warning_wipe))
 
-            // 🔴 **La visibilité retombe à chaque étape, et ce n'est pas une commodité.**
-            //
-            // `saisi` est vidé entre la première saisie et sa confirmation, et après chaque
-            // tentative. Laisser l'œil ouvert d'une étape à l'autre afficherait en clair, sur un
-            // écran qu'on peut lire par-dessus l'épaule, un code que l'utilisateur avait révélé
-            // pour une saisie précédente. La clé du `remember` est donc l'étape elle-même.
-            var codeVisible by remember(enConfirmation, state.attempt) { mutableStateOf(false) }
+            // 🔴 **Les pastilles disparaissent quand il n'y a plus rien à essayer** — même raison
+            // que les champs de la feuille jumelle : six pastilles vides sous « le coffre a été
+            // effacé » proposent une saisie qui n'ira nulle part.
+            if (!plusRienAEssayer) {
+                // 🔴 **La visibilité retombe à chaque étape, et ce n'est pas une commodité.**
+                //
+                // `saisi` est vidé entre la première saisie et sa confirmation, et après chaque
+                // tentative. Laisser l'œil ouvert d'une étape à l'autre afficherait en clair, sur un
+                // écran qu'on peut lire par-dessus l'épaule, un code que l'utilisateur avait révélé
+                // pour une saisie précédente. La clé du `remember` est donc l'étape elle-même.
+                var codeVisible by remember(enConfirmation, state.attempt) { mutableStateOf(false) }
 
-            PointsDeSaisie(saisi = saisi, visible = codeVisible, onBasculer = { codeVisible = !codeVisible })
+                PointsDeSaisie(saisi = saisi, visible = codeVisible, onBasculer = { codeVisible = !codeVisible })
+            }
 
             MessageDEtat(
                 message = erreurLocale ?: messageDeTentative(state.attempt),
@@ -605,16 +726,8 @@ private fun PinSheet(
             //
             // Jumeau asymétrique relevé par une relecture externe (Gemini, 2026-08-15) : le garde
             // avait été écrit une fois, sur une seule des deux feuilles.
-            if (state.attempt.coffreExiste()) {
-                BoutonDeFermeture {
-                    rapporterUneConversionIncomplete(state.attempt, onConversionIncomplete)
-                    // ⚠️ **Consommer.** Ce ViewModel vit plus longtemps que la feuille : sans ça,
-                    // l'issue survit et le message de conversion partielle réapparaît à l'ouverture
-                    // de la feuille d'un AUTRE dossier. Relevé PROBABLE par une relecture externe
-                    // (GPT-5.2), et vérifié : `hiltViewModel()` s'accroche à l'entrée de navigation.
-                    viewModel.consumeAttempt()
-                    onDismiss()
-                }
+            if (plusRienAEssayer) {
+                BoutonDeFermeture(onFermerSurUneIssueFinale)
                 return@Column
             }
 
@@ -638,7 +751,7 @@ private fun PinSheet(
                         return@Button
                     }
                     when {
-                        !creating -> viewModel.unlockWithPin(folder.id, saisi)
+                        !creating -> onValider(saisi)
                         // Première saisie d'une création : on retient et on redemande. Le code
                         // n'est PAS envoyé au service tant que les deux saisies ne concordent pas.
                         confirmation == null -> {
@@ -650,7 +763,7 @@ private fun PinSheet(
                             confirmation = null
                             saisi = ""
                         }
-                        else -> viewModel.createPinVault(folder.id, saisi)
+                        else -> onValider(saisi)
                     }
                 },
                 enabled = !state.busy,
@@ -660,10 +773,7 @@ private fun PinSheet(
             }
             ActionDeDialogue(
                 texte = stringResource(R.string.common_cancel),
-                onClick = {
-                    viewModel.cancelAttempt()
-                    onDismiss()
-                },
+                onClick = onQuitter,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -735,18 +845,63 @@ private fun BanniereDAvertissement(texte: String) {
 }
 
 /**
- * L'emplacement du message d'état — occupé **en permanence**, même vide.
+ * L'emplacement du message d'état — occupé **en permanence**, même vide, et **annoncé**.
  *
- * ⚠️ Sans hauteur réservée, l'apparition d'un message décale le clavier numérique de quelques
- * pixels vers le bas. Le doigt est déjà en route : la touche visée à l'instant du contact n'est
- * plus celle qu'on frappe. Sur un écran qui détruit le coffre au cinquième essai, un décalage de
- * mise en page est un défaut de sécurité.
+ * ## 🔴🔴 La hauteur réservée valait UNE ligne, et le commentaire disait qu'elle suffisait
+ *
+ * Sans hauteur réservée, l'apparition d'un message décale le pavé numérique vers le bas. Le doigt
+ * est déjà en route : la touche visée à l'instant du contact n'est plus celle qu'on frappe. Sur un
+ * écran qui détruit le coffre au cinquième essai, un décalage de mise en page est un défaut de
+ * sécurité — l'application publiée l'a vécu (« on dirait que le clavier n'est pas tactile du tout »,
+ * S24 FE, 2026-08-07) et réserve **deux** lignes suivant `textScaler`.
+ *
+ * ⚠️⚠️ Ici, la ligne blanche n'en réservait qu'**une**, et à la taille de texte par défaut les
+ * messages tiennent sur une ligne : **le décalage est nul, donc invisible**. Mesuré sur le S9 le
+ * 2026-08-18, `font_scale` à **2,0** — le réglage d'accessibilité, exactement le public de cette
+ * passe — la touche « 5 » descend de **96 px (32 dp)** entre un état sans message et « PIN
+ * incorrect. Tentatives restantes : 3 », soit 40 % du pas entre deux touches. La garde existait,
+ * elle était **dimensionnée sur la seule taille de texte que son auteur avait sous les yeux**.
+ *
+ * ⚠️ **Un minimum, pas une hauteur fixe.** L'application publiée fige la hauteur et tronque à deux
+ * lignes (`maxLines: 2`, ellipse). À 200 %, « Trop de tentatives — le coffre a été effacé. » prend
+ * trois lignes : la figer reviendrait à **amputer la phrase qui annonce la destruction**. Le pavé,
+ * lui, n'est plus là à ce moment — cf. [plusRienAEssayer]. Réserver deux lignes couvre donc tous les
+ * messages devant lesquels on retape encore, sans en tronquer aucun.
+ *
+ * ## 🔴🔴 Rien de tout cela n'était annoncé
+ *
+ * Mesuré le 2026-08-18 : **aucun nœud de ces deux feuilles ne portait de région active**, dans
+ * aucun état — ni « PIN incorrect, 3 tentatives restantes », ni « le coffre a été effacé », ni la
+ * dérivation en cours. L'application publiée annonce les trois (`Semantics(liveRegion: true)` sur le
+ * témoin d'activité des deux feuilles, `SemanticsService.announce` sur l'effacement). Quelqu'un qui
+ * n'a pas l'écran voyait donc son coffre détruit **sans un mot**.
+ *
+ * ⚠️ `Assertive` : ces messages interrompent ce qui est en train d'être lu, et c'est voulu. Même
+ * choix qu'à l'issue du mode panique, pour la même raison.
+ *
+ * ⚠️ La région n'est posée **que s'il y a quelque chose à dire** : sur l'emplacement vide, elle
+ * ferait annoncer le silence à chaque effacement de message.
  */
 @Composable
 private fun MessageDEtat(message: String?, busy: Boolean, phase: PhaseDeCoffre) {
+    val aQuelqueChoseADire = busy || message != null
+    // ⚠️ `toDp()` exige une hauteur de ligne en `sp` — c'est le cas de `bodySmall`, dont le thème ne
+    // redéfinit que la taille. **Ne pas « durcir » ceci en repli sur une valeur en `dp` :** un repli
+    // fixe cesserait de suivre la taille de texte du système, c'est-à-dire réintroduirait en silence
+    // le défaut que cette ligne répare. Un plantage en développement vaut mieux qu'un repli du
+    // mauvais côté.
+    val deuxLignes = with(LocalDensity.current) { MaterialTheme.typography.bodySmall.lineHeight.toDp() * 2 }
     Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .heightIn(min = deuxLignes)
+            .testTag(EMPLACEMENT_DU_MESSAGE)
+            .semantics(mergeDescendants = true) {
+                if (aQuelqueChoseADire) liveRegion = LiveRegionMode.Assertive
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -770,13 +925,16 @@ private fun MessageDEtat(message: String?, busy: Boolean, phase: PhaseDeCoffre) 
 
                 message != null -> Text(
                     text = message,
+                    textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Medium,
                 )
 
-                // Une ligne vide, mais présente : c'est elle qui empêche le décalage.
-                else -> Text(text = " ", style = MaterialTheme.typography.bodySmall)
+                // Rien : c'est la hauteur minimale du conteneur qui tient la place, et elle suit la
+                // taille de texte du système. La ligne blanche qu'il y avait ici n'en réservait
+                // qu'une, et se laissait déborder dès que l'utilisateur agrandissait le texte.
+                else -> Unit
             }
         }
 
@@ -949,6 +1107,34 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
  * ⚠️ Ne dit rien dans les autres cas — déverrouillage, mauvais secret, conversion complète : ceux-là
  * ont déjà leur propre retour, et en ajouter un second serait du bruit.
  */
+/**
+ * **Il n'y a plus rien à essayer sur cette feuille** : ni pavé, ni pastilles, ni champ de saisie, ni
+ * « Annuler » — seulement « Fermer ».
+ *
+ * ⚠️ Cette phrase a d'abord été **fausse pour la feuille à phrase secrète**, dont les deux champs
+ * restaient affichés sous le bouton « Fermer », à côté d'un message annonçant que des notes sont
+ * restées en clair. Relevé par une relecture externe (GPT-5.2, 2026-08-18) : le code a été mis
+ * d'accord avec le commentaire, sur les deux feuilles.
+ *
+ * ## 🔴 Le jumeau que le correctif de la conversion partielle n'avait pas couvert
+ *
+ * Ce garde n'existait que pour [coffreExiste] — un coffre créé dont le contenu n'est pas
+ * entièrement chiffré. La raison en était : *relancer l'action échouerait, et ce refus écraserait le
+ * message qui compte*. Or [VaultAttempt.Wiped] a **exactement** cette forme, et n'était pas couvert :
+ * après cinq codes faux, le coffre est détruit, et le portage laissait le pavé, « Valider » et
+ * « Annuler » actifs. Retaper un code sur un coffre qui n'existe plus fait remonter « ce dossier
+ * n'est pas un coffre » **par-dessus** la seule phrase qui disait que les notes ont été effacées.
+ *
+ * L'application publiée retire son pavé sur ce chemin (`vault_pin_sheets.dart:565`) et remplace
+ * « Annuler » par « Fermer ». Le portage avait transposé le garde une fois sur deux — le motif du
+ * jumeau asymétrique, pour la troisième fois dans ce fichier.
+ *
+ * ⚠️ Posé sur les **deux** feuilles, bien que [VaultAttempt.Wiped] ne puisse pas naître d'une phrase
+ * secrète : un garde écrit sur une seule des deux est précisément ce qui a produit les deux
+ * précédents.
+ */
+internal fun VaultAttempt?.plusRienAEssayer(): Boolean = coffreExiste() || this is VaultAttempt.Wiped
+
 private fun rapporterUneConversionIncomplete(attempt: VaultAttempt?, onIncomplete: (VaultAttempt) -> Unit) {
     when {
         attempt is VaultAttempt.Created && !attempt.isComplete -> onIncomplete(attempt)
@@ -1045,6 +1231,13 @@ private fun messageDeRefus(reason: VaultValidationException.Reason): Int = when 
 }
 
 private fun Modifier.clickableListItem(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)
+
+/**
+ * L'emplacement du message, nommé pour être **mesuré**. Sa hauteur est la garde de §87 : c'est elle
+ * qu'un test compare à la hauteur d'une ligne, et il n'y a pas d'autre façon de la voir — vide, cet
+ * emplacement n'affiche rien.
+ */
+internal const val EMPLACEMENT_DU_MESSAGE = "emplacement-du-message-de-coffre"
 
 private val TOUCHES = listOf(
     charArrayOf('1', '2', '3'),

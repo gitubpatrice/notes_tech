@@ -2456,3 +2456,149 @@ FluxDeSuggestionsTest > la reponse porte la saisie BRUTE, espace final compris F
 Fichier restauré par l'inverse exact de l'édition, **vérifié au SHA-256** contre l'empreinte relevée
 avant. Troisième contrôle positif de la journée après §80 et §78 — *un filet qui passe ne prouve rien
 tant qu'on ne l'a pas vu attraper.*
+
+---
+
+## §86 — 🔴🔴 Le coffre était détruit et **personne ne l'annonçait**
+
+Mesuré sur le S9 le 2026-08-18, arbre sémantique des deux feuilles de coffre, **tous états posés** :
+
+```
+CODE/DEVERROUILLAGE régionsActives=[]
+CODE/MAUVAIS        régionsActives=[]      (PIN incorrect. Tentatives restantes : 3)
+CODE/EFFACE         régionsActives=[]      (Trop de tentatives — le coffre a été effacé.)
+CODE/CHIFFREMENT    régionsActives=[]
+CODE/PARTIEL        régionsActives=[]
+PHRASE/CREATION     régionsActives=[]
+```
+
+**Aucun nœud, dans aucun état.** Cinq codes faux détruisent le contenu du dossier ; le message part à
+l'écran et rien ne le dit à quelqu'un qui ne l'a pas. L'application publiée annonce **trois** choses
+sur ces mêmes écrans : le témoin d'activité des deux feuilles (`Semantics(liveRegion: true)`), et
+l'effacement (`SemanticsService.announce`, commenté « annonce critique »).
+
+🔧 `MessageDEtat` devient une région **`Assertive`** — mais **seulement quand elle a quelque chose à
+dire**. Posée en permanence, elle ferait annoncer le silence à chaque frappe sur le pavé, qui remet
+l'erreur locale à zéro. Ce cas-là a son propre test : *sans lui, les trois autres passeraient tout
+aussi bien avec une région toujours posée, qui est un défaut d'un autre genre.*
+
+⚠️ Le dépôt savait déjà poser une région active — `PanicScreens.kt:229` en a une, `Assertive`, pour
+la même raison. **L'idiome existait et n'avait pas traversé.** Ce n'est pas une ignorance, c'est un
+oubli, et seul un balayage état par état pouvait le trouver.
+
+---
+
+## §87 — 🔴🔴 La garde anti-décalage était **dimensionnée sur la taille de texte de son auteur**
+
+`MessageDEtat` réservait une ligne blanche, avec ce commentaire : *« Sans hauteur réservée,
+l'apparition d'un message décale le clavier numérique. […] Une ligne vide, mais présente : c'est elle
+qui empêche le décalage. »* L'application publiée réserve **deux** lignes suivant `textScaler`, après
+un bug utilisateur — « on dirait que le clavier n'est pas tactile du tout » (S24 FE, 2026-08-07).
+
+Mesuré, bornes de la touche « 5 » :
+
+| `font_scale` | sans message | avec « PIN incorrect. Tentatives restantes : 3 » | écart |
+|---|---|---|---|
+| **1,0** | `y = 1032` | `y = 1032` | **0** |
+| **2,0** | `y = 1334` | `y = 1430` | **96 px = 32 dp** |
+
+32 dp, c'est **40 % du pas entre deux touches** (72 dp de touche + 8 dp d'écart), sous un doigt déjà
+en route, sur un écran qui détruit le coffre au cinquième essai.
+
+⚠️⚠️ **Le défaut était invisible parce que le commentaire était vrai à la taille par défaut.** Tous
+les messages de cette feuille tiennent sur une ligne à 100 % ; il faut le réglage d'accessibilité —
+c'est-à-dire exactement le public de cette passe — pour qu'ils en prennent deux. *Une garde peut être
+réelle et dimensionnée sur le seul cas que son auteur avait sous les yeux.* Troisième forme du
+« commentaire qui ment » : ni faux ni vrai, **incomplètement vrai**, comme la divergence du §84.
+
+🔧 Hauteur **minimale** de deux lignes, mesurée en `sp` donc suivant le système. ⚠️ **Pas une hauteur
+fixe** : le publié fige et tronque à l'ellipse, mais à 200 % « Trop de tentatives — le coffre a été
+effacé. » prend trois lignes, et la figer amputerait la phrase qui annonce la destruction. Le pavé,
+lui, n'est plus là à ce moment (§89).
+
+⚠️⚠️ **Le test ne compare pas des positions de touche**, ce qui serait **vacant** à la taille par
+défaut — rien ne bouge, avant comme après le correctif. Il mesure l'invariant : *la hauteur réservée à
+vide vaut au moins deux fois celle d'une ligne de message*, la hauteur d'une ligne étant **mesurée** et
+non écrite. ⚠️ Le témoin de cette mesure doit être **le message le plus court** que la feuille sache
+produire : avec « PIN incorrect… », à 200 % il en prendrait deux, l'assertion en exigerait quatre, et
+le test tomberait **à tort** sur le réglage qu'il défend.
+
+---
+
+## §88 — ⚠️ Le champ de phrase secrète est éligible à l'**autoremplissage**, que le publié désactive
+
+Relevé en mesurant autre chose. L'arbre sémantique du champ porte `ContentType` — la propriété qui le
+rend visible du service d'autoremplissage Android (Samsung Pass, Google). L'application publiée s'en
+retire **explicitement** : `autofillHints: const <String>[]`, décision **U1 v1.0.9**, commentée *« Le
+service Autofill pourrait capturer / proposer la valeur cross-app. »*
+
+Origine mesurée, trois variantes du même champ :
+
+| Champ | `ContentType` | `Password` |
+|---|---|---|
+| transformation mot de passe **+ `KeyboardType.Password`** | **présent** | présent |
+| transformation mot de passe + `KeyboardType.Text` | **absent** | présent |
+| sans transformation + `KeyboardType.Password` | **présent** | absent |
+
+⇒ `ContentType` vient du **type de clavier**, `Password` de la **transformation**. Deux propriétés,
+deux origines — ne pas les confondre.
+
+🔴 **Écrit, NON corrigé, et c'est une décision de Patrice.** Le seul levier interne à Compose est de
+retirer `KeyboardType.Password`, ce qui **échangerait** l'opt-out contre le comportement mot de passe
+du clavier (pas de suggestions, pas d'apprentissage de la frappe) — un moins bon marché. Le levier
+plateforme (`importantForAutofill = NO_EXCLUDE_DESCENDANTS` sur la fenêtre de la feuille) existe, mais
+son **effet** n'est pas mesurable avec les instruments de ce dépôt : on prouverait qu'un drapeau est
+posé, pas qu'un service tiers l'honore. *Une garde qu'on ne sait pas mesurer est une garde qu'on ne
+sait pas défendre.*
+
+---
+
+## §89 — 🔴 Après l'effacement, le portage laissait le pavé et « Valider »
+
+Le garde qui retire les commandes quand l'action n'a plus de sens n'existait que pour `coffreExiste()`
+— un coffre créé dont le contenu n'est pas entièrement chiffré. Sa raison était : *relancer l'action
+échouerait, et ce refus écraserait le message qui compte.*
+
+`VaultAttempt.Wiped` a **exactement** cette forme et n'était pas couvert. Après cinq codes faux, le
+coffre est détruit et le portage laissait pavé, « Valider » et « Annuler » actifs. Retaper un code sur
+un coffre qui n'existe plus fait remonter « ce dossier n'est pas un coffre » **par-dessus** la seule
+phrase qui disait que les notes ont été effacées. Le publié retire son pavé sur ce chemin
+(`vault_pin_sheets.dart:565`) et remplace « Annuler » par « Fermer ».
+
+**Motif du jumeau asymétrique, troisième occurrence dans ce seul fichier** — après
+`ChampDePhraseSecrete` et `chiffreesSiTermine`. 🔧 Un prédicat unique,
+`plusRienAEssayer() = coffreExiste() || Wiped`, posé sur les **deux** feuilles bien que `Wiped` ne
+puisse naître que d'`unlockWithPin` (vérifié : les trois `throw VaultPinWipedException` du service y
+sont tous). *Un garde écrit sur une seule des deux feuilles est précisément ce qui a produit les deux
+précédents.*
+
+⚠️ Et son KDoc promettait « ni pavé, ni champ » alors que la feuille à phrase secrète **gardait ses
+deux champs** affichés sous le bouton « Fermer », à côté du message annonçant que des notes sont
+restées en clair. Le code a été mis d'accord avec le commentaire, des deux côtés — pastilles comprises.
+
+---
+
+## §90 — ✅ Ce que la mesure a **réfuté**, et qu'il ne faut pas re-chercher
+
+Le résultat le plus utile de ce tour n'est pas une correction. Trois soupçons sérieux, tous fondés sur
+une lecture du code publié, sont tombés à la mesure :
+
+| Soupçon | Mesure | Verdict |
+|---|---|---|
+| Les champs perdent leur nom une fois remplis (§80) | `texte=[Passphrase]` avec 22 caractères saisis | **NON** — c'est un `label`, pas un `placeholder` |
+| `EditableText` livre le secret à tout service d'accessibilité | `editable=••••••••••••••••••••••` | **NON** — la transformation s'applique |
+| « Copier »/« Couper » exposent la phrase, comme le craignait le publié | `CopyText=false`, `CutText=false` | **NON** — Compose les retire déjà |
+
+⚠️⚠️ **Le troisième a coûté trois instruments.** Un espion de `TextToolbar` n'a rien enregistré — mais
+**pas davantage sur un champ ordinaire**, donc il ne prouvait rien : *un échec d'outillage n'est pas un
+verdict négatif.* Le geste a été corrigé (l'appui long tombait au centre d'un champ large, loin après
+la fin du texte), sans plus de succès. C'est la **sémantique** qui a tranché, avec son témoin :
+`CopyText`/`CutText` présents sur un champ ordinaire, absents sur un champ à transformation mot de
+passe. Le `contextMenuBuilder` du publié n'a donc pas d'équivalent à écrire ici.
+
+⚠️ Deux autres pistes fermées : `error_vault_pin_wrong` et `error_vault_pin_wiped` sont orphelines
+**dans l'application publiée aussi** — ce n'est pas le signal « chaîne traduite et jamais lue » de §79.
+Et la `ModalBottomSheet` compose dans une fenêtre qui **repose ses propres `CompositionLocal`** : ni
+`LocalDensity` ni `LocalTextToolbar` fournis au-dessus d'elle n'y entrent. Deux mesures à l'échelle ×2
+rendaient des bornes identiques **au pixel près** — impossible, et c'est ce qui a dénoncé l'instrument.
+La taille de texte se mesure par `adb shell settings put system font_scale`, pas autrement.

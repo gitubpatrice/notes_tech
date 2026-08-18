@@ -1,6 +1,6 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-17**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-18**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
 ## État en trois lignes
@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-17 : ktlint, detekt, lint (`--rerun-tasks`), **206 tests JVM**,
-  **229 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **206 tests JVM**,
+  **248 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -756,3 +756,84 @@ le freinage annule la recherche en cours.
 ✅ **Contrôle positif** : `pour = texte.trim()` posé dans le vrai code fait bien tomber le test du
 contrat. Restauration vérifiée au SHA-256. ⚠️⚠️ *Une fragilité qu'on sait seulement écrire est une
 fragilité qu'on ne saura pas voir revenir — un commentaire ne tombe pas quand le code change.*
+
+---
+
+## 🔴 2026-08-18, lignes 7 à 10 : les FEUILLES DE COFFRE — trois défauts, et trois soupçons réfutés
+
+Quatre lignes de `docs/05-PARITE.md` d'un coup, parce qu'elles vivent dans **un seul** fichier Kotlin,
+`ui/vault/VaultSheets.kt` : `vault_pin_sheets.dart`, `vault_passphrase_sheets.dart`,
+`passphrase_text_field.dart`, `vault_warning_banner.dart`. **23 cases vides** restantes (27 avant).
+
+Gate : ktlint, detekt, lint `--rerun-tasks`, **206 tests JVM**, **248 tests instrumentés** (S9),
+0 échec, **0 ignoré**, modèle de 57 Mo intact et empreinte revérifiée après la suite.
+
+### Le découpage, et pourquoi il était obligatoire
+
+`FermetureDeFeuilleTest` était le seul test de ce fichier — et il mesurait une feuille **synthétique**,
+quatre lignes recopiées à la main. Il a rendu un vrai service le 08-16 (il a départagé deux relectures
+qui se contredisaient), mais il ne disait **rien** des vraies feuilles. Quatre de leurs états ne
+s'atteignent pas au doigt : coffre effacé, temporisation, conversion partielle, phase de chiffrement.
+
+`PinSheet`/`PassphraseSheet` restent branchées à Hilt et délèguent à `FeuilleDeCode`/
+`FeuilleDePhraseSecrete`, qui ne reçoivent qu'un `VaultSheetState` et des rappels. Même découpage que
+`HomeRoute`/`HomeScreen`. Effet de bord utile : les trois chemins de sortie (Retour, balayage,
+« Annuler ») faisaient **deux gestes différents pour un effet identique** — un jumeau de moins.
+
+### Les trois défauts
+
+- **§86 — la destruction du coffre n'était annoncée à personne.** Aucune région active sur ces deux
+  feuilles, dans **aucun** état. Le publié en a trois. `PanicScreens.kt` savait déjà le faire :
+  *l'idiome existait et n'avait pas traversé.*
+- **§87 — la garde anti-décalage réservait UNE ligne.** À `font_scale 2,0` la touche « 5 » descend de
+  **96 px (32 dp)** quand un message apparaît, soit 40 % du pas entre deux touches. À 100 %, zéro —
+  d'où l'invisibilité. *Une garde peut être réelle et dimensionnée sur le seul cas que son auteur avait
+  sous les yeux.*
+- **§89 — après l'effacement, le pavé et « Valider » restaient actifs.** Retaper un code sur un coffre
+  détruit fait remonter un refus qui écrase la phrase annonçant la destruction. Le garde existait pour
+  la conversion partielle et pas pour l'effacement : **troisième jumeau asymétrique du même fichier.**
+
+### 🔴 Ce qui a été RÉFUTÉ — §90, et c'est le résultat le plus utile
+
+Trois soupçons sérieux, tous fondés sur une lecture du code publié, sont tombés à la mesure : les
+champs **gardent** leur nom une fois remplis, `EditableText` ne porte que des **puces**, et Compose
+**retire déjà** `CopyText`/`CutText` d'un champ à transformation mot de passe. Le `contextMenuBuilder`
+du publié n'a donc pas d'équivalent à écrire.
+
+⚠️⚠️ Le troisième a coûté **trois instruments**. Un espion de `TextToolbar` n'a rien vu — **ni sur le
+témoin**, donc il ne prouvait rien. C'est la sémantique qui a tranché, avec son témoin. *Un échec
+d'outillage n'est pas un verdict négatif*, et ce dépôt vient de le repayer.
+
+⚠️ Deuxième instrument vacant du jour : une `ModalBottomSheet` compose dans une fenêtre qui **repose
+ses propres `CompositionLocal`**. `LocalDensity` fourni au-dessus d'elle n'y entre pas — d'où deux
+mesures à l'échelle ×2 **identiques au pixel près**, ce qui est impossible et a dénoncé l'instrument.
+La taille de texte se change par `adb shell settings put system font_scale`, et se **restaure**.
+
+### Contrôle positif
+
+Les trois défauts ont été **remis dans le vrai code** en même temps : exactement les **six** tests
+attendus sont tombés, et aucun autre. Fichier restauré par l'édition inverse, **vérifié au SHA-256**.
+
+### Points ouverts, à décider et non à redécouvrir
+
+- **§88 — le champ de phrase secrète est éligible à l'autoremplissage.** Mesuré : `ContentType` vient
+  de `KeyboardType.Password`. Le publié s'en retire exprès (décision U1 v1.0.9). Le seul levier interne
+  à Compose échangerait l'opt-out contre le comportement mot de passe du clavier — un moins bon marché.
+  Le levier plateforme existe mais son **effet** n'est pas mesurable ici. **Écrit, non corrigé.**
+- **L'œil du code à quatre chiffres** est un ajout du portage ; le publié le **refuse** et donne sa
+  raison (défense contre le regard par-dessus l'épaule). Le commentaire d'`arb_vers_strings.py` note
+  l'ajout mais pas le refus. Décision de Patrice.
+- **La promesse publique « Coffres par dossier » reste décochée** : elle porte sur la crypto du
+  service, pas sur ces feuilles. Rien de ce tour ne la mesure.
+
+### Deux commentaires de plus qui mentaient — les miens, attrapés avant le commit
+
+Écrits dans ce lot même, et corrigés : le KDoc de `FeuilleDePhraseSecrete` annonçait « cinq états »
+dont « un coffre effacé », alors que `VaultPinWipedException` n'est levée que par `unlockWithPin`
+(vérifié : ses trois sites y sont tous) ; et le KDoc de `plusRienAEssayer` promettait « ni pavé, ni
+champ » alors que la feuille à phrase secrète gardait ses deux champs. Le second a été corrigé **dans
+le code**, pas dans le commentaire.
+
+⚠️ Un relecteur externe a par ailleurs rendu un rapport entier sur **des fichiers absents du diff**
+(`NoteEditorScreen.kt`, `PlafondDuTitre` — le lot de la veille), avec des numéros de ligne préfixés de
+`~`. Rapport jeté. *Un constat qui ne cite pas une ligne réelle du diff n'en est pas un.*

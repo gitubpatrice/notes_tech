@@ -247,22 +247,59 @@ modifier du code correct.
 
 | Composant Flutter | Lignes | Kotlin | Vérifié |
 |---|---:|---|:---:|
-| `vault_pin_sheets.dart` | 857 | `ui/vault/VaultSheets.kt` → `PinSheet` | ☐ |
+| `vault_pin_sheets.dart` | 857 | `ui/vault/VaultSheets.kt` → `PinSheet` | ✅ |
 | `folders_drawer.dart` | 780 | `ui/folders/FoldersDrawer.kt` | ☐ |
 | `voice_recording_overlay.dart` | 460 | `ui/voice/SuperpositionDeDictee.kt` | ☐ |
-| `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ☐ |
+| `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ✅ |
 | `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ☐ |
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
 | `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ✅ |
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
-| `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ☐ |
+| `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ✅ |
 | `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ☐ |
 | `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ☐ |
 | `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ✅ |
-| `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ☐ |
+| `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ✅ |
 | `sheet_handle.dart` | 27 | **sans objet** — voir ci-dessous | ☐ |
+
+> **Les quatre lignes de coffre sont cochées par `FeuillesDeCoffreTest`** (18 cas, S9, 2026-08-18).
+> Elles vivent dans **un seul** fichier Kotlin, `ui/vault/VaultSheets.kt`, et se mesurent ensemble :
+>
+> - `vault_pin_sheets.dart` → `FeuilleDeCode`, dans ses six états — déverrouillage, création,
+>   confirmation, code faux, coffre effacé, conversion partielle ;
+> - `vault_passphrase_sheets.dart` → `FeuilleDePhraseSecrete`, création et déverrouillage ;
+> - `passphrase_text_field.dart` → `ChampDePhraseSecrete` : nom conservé une fois rempli, propriété
+>   `Password` posée, `EditableText` réduit aux puces, `CopyText`/`CutText` absents — chacun avec son
+>   témoin ;
+> - `vault_warning_banner.dart` → `BanniereDAvertissement`, présente **aux deux étapes** de la
+>   création (le publié avait le défaut inverse, et le pavé sautait d'une hauteur de touche entre les
+>   deux) et absente au déverrouillage.
+>
+> ⚠️ **Les deux feuilles ont été rendues sans état pour ce fichier** — `PinSheet`/`PassphraseSheet`
+> branchées à Hilt délèguent à `FeuilleDeCode`/`FeuilleDePhraseSecrete`. Sans ce découpage, quatre
+> états ne s'atteignaient pas : coffre effacé, temporisation, conversion partielle, phase de
+> chiffrement. `FermetureDeFeuilleTest` reste utile — c'est lui qui a départagé deux relectures qui se
+> contredisaient — mais il mesurait une feuille **synthétique**, et ne disait rien de celles-ci.
+>
+> Défauts trouvés et corrigés : `04-PIEGES.md` **§86** (aucune annonce, dans aucun état), **§87** (la
+> hauteur réservée au message valait une ligne, le pavé sautait de 32 dp à 200 % de taille de texte),
+> **§89** (après l'effacement, le pavé et « Valider » restaient actifs). Écrit et **non corrigé** :
+> **§88**, l'éligibilité du champ à l'autoremplissage, que le publié désactive exprès. Trois soupçons
+> **réfutés** par la mesure : **§90**.
+>
+> ⚠️ **La promesse publique « Coffres par dossier » reste décochée**, et exprès : elle porte sur
+> « Argon2id + AES-256-GCM, paramètres identiques », c'est-à-dire sur la crypto du service, pas sur
+> ces feuilles. Rien de ce tour ne la mesure.
+>
+> ⚠️ **Divergence assumée, à ne pas re-découvrir** : le portage offre un **œil** pour révéler le code
+> à quatre chiffres ; l'application publiée le refuse, et le dit — *« pas de visibility toggle (un PIN
+> court visible = défense de l'épaule trop coûteuse à perdre) »* (`vault_pin_sheets.dart:5`). Le
+> commentaire d'`arb_vers_strings.py` note l'ajout mais **pas le refus ni sa raison**. Le portage
+> atténue (la visibilité retombe à chaque étape, `FLAG_SECURE` est forcé) ; l'argument du publié tient
+> quand même. **Décision de Patrice**, pas un défaut à corriger de sa propre initiative.
+
 
 ### 🔴 `link_autocomplete_sheet.dart` — cochée le 2026-08-17, et son défaut était écrit d'avance
 
