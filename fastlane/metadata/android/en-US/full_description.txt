@@ -1,7 +1,7 @@
 Notes Tech: 100% local Markdown note-taking, encrypted at-rest.
 
 <b>Radical privacy</b>
-• INTERNET permission explicitly removed via manifest merger (tools:node="remove" on android.permission.INTERNET and ACCESS_NETWORK_STATE) — verifiable post-merge with `aapt dump permissions app.apk`
+• INTERNET permission explicitly removed via manifest merger (tools:node="remove" on android.permission.INTERNET and ACCESS_NETWORK_STATE) — verifiable post-merge with <code>aapt dump permissions app.apk</code>
 • No account, no telemetry, no tracker, no advertising
 • SQLCipher AES-256 database + Android Keystore-sealed key (hardware-backed)
 • Multi-step panic mode: wipes key + DB + dictation model in seconds
@@ -19,7 +19,7 @@ Notes Tech: 100% local Markdown note-taking, encrypted at-rest.
 
 <b>Editing</b>
 • Raw Markdown, 500ms debounced autosave
-• `[[Title]]` backlinks with autocomplete + "notes linking here" panel
+• <code>[[Title]]</code> backlinks with autocomplete + "notes linking here" panel
 • FTS5 + bm25 search, folder filter, configurable sort
 • ZIP Markdown export (YAML frontmatter, Obsidian/Logseq compatible)
 

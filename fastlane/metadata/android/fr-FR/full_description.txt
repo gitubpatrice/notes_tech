@@ -1,7 +1,7 @@
 Notes Tech : prise de notes Markdown 100 % locale et chiffrée at-rest.
 
 <b>Confidentialité radicale</b>
-• Permission INTERNET retirée explicitement via le manifest merger (tools:node="remove" sur android.permission.INTERNET et ACCESS_NETWORK_STATE) — vérifiable post-merge avec `aapt dump permissions app.apk`
+• Permission INTERNET retirée explicitement via le manifest merger (tools:node="remove" sur android.permission.INTERNET et ACCESS_NETWORK_STATE) — vérifiable post-merge avec <code>aapt dump permissions app.apk</code>
 • Aucun compte, aucune télémétrie, aucun tracker, aucune publicité
 • Base SQLCipher AES-256 + clé scellée Android Keystore (hardware-backed)
 • Mode panique multi-step : efface clé + DB + modèle de dictée en quelques secondes
@@ -19,7 +19,7 @@ Notes Tech : prise de notes Markdown 100 % locale et chiffrée at-rest.
 
 <b>Édition</b>
 • Markdown brut, auto-save 500ms debounce
-• Backlinks `[[Titre]]` avec autocomplétion + panel "notes qui mentionnent celle-ci"
+• Backlinks <code>[[Titre]]</code> avec autocomplétion + panel "notes qui mentionnent celle-ci"
 • Recherche FTS5 + bm25, filtrage par dossier, tri configurable
 • Export ZIP Markdown (frontmatter YAML compatible Obsidian/Logseq)
 
