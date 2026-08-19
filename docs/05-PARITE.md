@@ -158,7 +158,7 @@
 
 | Écran Flutter | Lignes | Kotlin | Vérifié | Notes |
 |---|---:|---|:---:|---|
-| `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ☐ | Signature Files Tech ; masque l'acquisition de la KEK |
+| `splash_screen.dart` | 259 | `ui/splash/SplashScreen.kt` | ✅ | **`EcranDePresentationTest` (5 cas, S9, 2026-08-19)** — 230 lignes qui n'avaient aucun test : **idempotence des trois portes** (touche, retour, échéance) avec le cas des trois franchies ensemble, échéance de **5 500 ms** mesurée à l'horloge de composition et transcrite du Dart, étiquette **et** indice de sortie sur un nœud fusionné. ⚠️ **Contrôle positif** : la garde `compareAndSet` retirée fait tomber les deux cas d'idempotence, et eux seuls. ⚠️ « L'échéance n'est pas raccourcie quand les animations sont réduites » mesuré **hors suite**, à la main — §113. Il ne « masque » pas la KEK au sens d'une garde : `ContenuPrincipal` attend `StartupState.Ready` |
 | `home_screen.dart` | 564 | `ui/home/HomeScreen.kt` + `HomeRoute.kt` | ✅ | `AccueilTest` (**13** cas, S9, 2026-08-17) : bannière `vault_lost_drafts` présente **et** absente, quatre états exclusifs du corps, tri, recherche, ouverture de note, sorties de la barre, et **aucun actionnable sans nom**. 🔴 A trouvé **deux** défauts — §71 et §73 |
 | `note_editor_screen.dart` | 1 123 | `ui/editor/NoteEditorScreen.kt` + `NoteEditorRoute` | ✅ | `EditeurTest` (**22** cas, S9, 2026-08-17) + `PlafondDuTitreTest` (**11** cas JVM) : les **trois** balayages d'accessibilité, les quatre issues de chargement, l'échec d'enregistrement et sa raison nommée, les deux sorties, le micro désactivé pendant une dictée, les six entrées de menu et l'inverse qu'elles remontent, le panneau de liens dans ses trois états. 🔴 A trouvé **deux** défauts — §80 et §81 |
 | `search_screen.dart` | 142 | `ui/search/SearchScreen.kt` + `SearchRoute` | ✅ | `RechercheTest` (**9** cas, S9) + `RechercheEtatTest` (**7** cas JVM), 2026-08-17 : recherche en cours, accueil, échec périmé, résultats précédents maintenus, note scellée muette, ouverture, effacement, et **aucun actionnable sans nom**. 🔴 A trouvé **un** défaut — §76 |
@@ -259,10 +259,10 @@ modifier du code correct.
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
 | `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ✅ |
 | `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ✅ |
-| `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ☐ |
+| `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ✅ |
 | `empty_state.dart` | 50 | `ui/common/EmptyState.kt` | ✅ |
 | `vault_warning_banner.dart` | 43 | `ui/vault/VaultSheets.kt` → `BanniereDAvertissement` | ✅ |
-| `sheet_handle.dart` | 27 | **sans objet** — voir ci-dessous | ☐ |
+| `sheet_handle.dart` | 27 | **sans objet** — voir ci-dessous | ✅ |
 
 > **Les quatre lignes de coffre sont cochées par `FeuillesDeCoffreTest`** (18 cas, S9, 2026-08-18).
 > Elles vivent dans **un seul** fichier Kotlin, `ui/vault/VaultSheets.kt`, et se mesurent ensemble :
@@ -396,6 +396,10 @@ la poignée mesurée, et l'assertion reste un `containsExactly`.
 la main le `Container` 36×4 dp que tous les sheets recopiaient. `ModalBottomSheet` de Material3 pose
 cette poignée **par défaut** (`BottomSheetDefaults.DragHandle`, vérifié dans l'artefact 1.4.0). Il
 n'y a rien à porter : la duplication que le composant corrigeait n'existe pas ici.
+
+✅ **Refermée le 2026-08-19.** La seule façon dont cette ligne pouvait mal tourner était qu'un appel
+désactive la poignée par mégarde. Relevé : les **sept** `ModalBottomSheet` du portage passent
+`onDismissRequest` et `sheetState`, et **aucun** ne passe `dragHandle`. Cf. `04-PIEGES.md` §114.
 
 🔴 **`blocking_progress_dialog.dart` — pas d'homologue, et là il faut regarder.** Le composant
 publié centralisait un dialogue **volontairement bloquant** (`PopScope(canPop: false)`) pour ses deux

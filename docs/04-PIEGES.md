@@ -3670,3 +3670,70 @@ voisines, deux portées différentes, et il fallait un cas pour chacune.
 
 ⚠️ Le fichier de production a été restauré à l'identique après chaque contrôle, et le gate est
 repassé vert.
+
+## §113 — ✅ 230 lignes d'écran de présentation, zéro test, et deux affirmations à vérifier
+
+Ligne `splash_screen.dart`, critère écrit : *« signature Files Tech ; masque l'acquisition de la
+KEK »*. `SplashScreen.kt` fait 230 lignes et n'avait **aucun test**.
+
+Deux propriétés y sont affirmées par des commentaires, et aucune n'était mesurée.
+
+### 1. L'idempotence des trois portes
+
+La touche, le retour et l'échéance ferment l'écran, depuis trois contextes différents. Le KDoc dit
+pourquoi la garde existe : *« sans elle, un retour pressé pendant la fermeture automatique produit
+deux navigations, et la seconde s'applique à l'écran d'accueil déjà affiché »*.
+
+⚠️ Un défaut de ce genre **ne lève pas**. Il fait disparaître un écran que quelqu'un vient
+d'ouvrir, et rien n'explique pourquoi.
+
+**Contrôle positif** : la garde `compareAndSet` retirée, les **deux** cas d'idempotence tombent, et
+eux seuls.
+
+### 2. Le chronomètre de la signature
+
+Les durées ne sont pas des réglages : elles sont partagées par les neuf applications Files Tech.
+L'échéance de **5 500 ms** est mesurée à l'horloge de composition pilotée à la main — rien à
+5 400 ms, fermeture à 5 500 — avec la valeur transcrite de `splash_screen.dart:85`, jamais relue
+depuis le portage, dont les constantes sont privées.
+
+### ⚠️⚠️ La mesure faite HORS suite, et pourquoi elle n'y est pas
+
+Le portage affirme un choix : *« l'échéance n'est PAS raccourcie quand les animations sont réduites
+— le réglage système dit « ne bouge pas », pas « va plus vite » »*, et ajoute qu'*« une divergence ici
+se verrait au chronomètre »*.
+
+Vérifier cela demande d'écrire dans les réglages **globaux de l'appareil**. Un cas qui le ferait
+rendrait le fichier dépendant d'un état hors du test — et le laisserait modifié si le cas échoue en
+cours de route. La mesure a donc été faite **une fois, à la main** :
+
+```
+adb shell settings put global animator_duration_scale 0
+→ l_echeance_de_fermeture_vaut_exactement_celle_du_Dart : OK (1 test)
+adb shell settings delete global animator_duration_scale   # l'état d'origine était « non défini »
+```
+
+L'échéance vaut 5 500 ms dans les deux cas. ⚠️ **Le réglage était non défini au départ** — un
+`settings put … null` y aurait écrit la chaîne « null » ; c'est `settings delete` qui rend l'état
+d'origine, et il faut le vérifier après coup plutôt que de le supposer.
+
+### Ce que la ligne ne prouve pas, et qui est écrit dans le fichier
+
+L'écran **ne masque pas** l'acquisition de la KEK au sens d'une garde : il s'affiche pendant qu'elle
+a lieu, et le contourner ne donne accès à rien — `ContenuPrincipal` attend `StartupState.Ready`
+avant d'afficher quoi que ce soit. Vérifié par lecture du câblage, pas par un cas.
+
+## §114 — ✅ Les deux lignes sans homologue, refermées
+
+**`sheet_handle.dart`.** Le composant Flutter extrayait le `Container` 36×4 dp que tous les sheets
+recopiaient ; `ModalBottomSheet` de Material3 pose cette poignée par défaut. Vérification faite le
+2026-08-19 : les **sept** appels du portage passent `onDismissRequest` et `sheetState`, et
+**aucun** ne passe `dragHandle`. La poignée par défaut ne peut donc pas être désactivée par mégarde
+en un point, ce qui est la seule façon dont cette ligne pouvait mal tourner.
+
+**`blocking_progress_dialog.dart`.** Pas d'homologue : le portage traite les deux appelants
+séparément, et la question « est-ce toujours bloquant ? » se posait donc deux fois. Les deux
+réponses sont mesurées — `PanicEcransTest` pour le recouvrement de panique, `FermetureDeFeuilleTest`
+(6 cas, dont le **balayage vers le bas**) pour la feuille de conversion. C'est ce remplissage qui
+avait trouvé le défaut du 2026-08-16 : la feuille refusait de se fermer **uniquement** dans
+`onDismissRequest`, et un balayage la faisait quitter l'écran avant que ce rappel n'arrive.

@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **332 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **337 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1277,3 +1277,41 @@ qui ne consomment pas le plafond, titre de 200 contre 201 caractères.
 fait tomber un cas ; `take` avant `mapNotNull` en fait tomber **deux**. Les cas « doublons » et
 « titres vides » ne sont donc **pas redondants** — deux fautes voisines, deux portées différentes, un
 cas pour chacune. Cf. `04-PIEGES.md` §112.
+
+## ✅ 2026-08-19 — l'écran de présentation, et les deux lignes sans homologue
+
+**8 → 5 cases restantes.**
+
+### `splash_screen.dart` — 230 lignes, zéro test, deux affirmations à vérifier
+
+**L'idempotence des trois portes.** Touche, retour, échéance, déclenchées depuis trois contextes
+différents. Le KDoc dit pourquoi la garde existe : *« un retour pressé pendant la fermeture
+automatique produit deux navigations, et la seconde s'applique à l'écran d'accueil déjà affiché »*.
+Un défaut de ce genre **ne lève pas** — il fait disparaître un écran que quelqu'un vient d'ouvrir.
+⚠️ **Contrôle positif** : la garde `compareAndSet` retirée fait tomber les deux cas d'idempotence, et
+eux seuls.
+
+**Le chronomètre de la signature.** L'échéance de **5 500 ms** est mesurée à l'horloge de composition
+pilotée à la main — rien à 5 400, fermeture à 5 500 — avec la valeur transcrite du Dart, jamais relue
+depuis le portage (ses constantes sont privées, et c'est bien).
+
+⚠️⚠️ **Une mesure faite hors suite, exprès.** Le portage affirme que l'échéance n'est pas raccourcie
+quand les animations sont réduites. Le vérifier demande d'écrire dans les réglages **globaux de
+l'appareil** ; un cas qui le ferait rendrait le fichier dépendant d'un état hors du test, et le
+laisserait modifié en cas d'échec. Fait une fois à la main : `animator_duration_scale 0` ⇒ échéance
+inchangée. ⚠️ Le réglage était **non défini** au départ, et un `settings put … null` y écrit la
+chaîne « null » : c'est `settings delete` qui rend l'état d'origine, et il faut le **vérifier après
+coup**. Cf. `04-PIEGES.md` §113.
+
+⚠️ L'écran **ne masque pas** la KEK au sens d'une garde : `ContenuPrincipal` attend
+`StartupState.Ready` avant d'afficher quoi que ce soit. Vérifié par lecture du câblage.
+
+### Les deux lignes sans homologue — §114
+
+`sheet_handle.dart` : la seule façon dont cette ligne pouvait mal tourner était qu'un appel désactive
+la poignée par mégarde. Les **sept** `ModalBottomSheet` du portage passent `onDismissRequest` et
+`sheetState`, **aucun** ne passe `dragHandle`.
+
+`blocking_progress_dialog.dart` : les deux appelants sont mesurés séparément — `PanicEcransTest` pour
+le recouvrement de panique, `FermetureDeFeuilleTest` (6 cas, dont le **balayage vers le bas**) pour
+la feuille de conversion. C'est ce remplissage qui avait trouvé le défaut du 08-16.
