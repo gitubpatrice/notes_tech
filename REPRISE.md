@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **343 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **348 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1340,3 +1340,27 @@ d'écran — alors que son propre commentaire dit que *« l'utilisateur doit voi
 l'appelant). Idiome maison appliqué — exception ancrée sur la poignée **mesurée**, `containsExactly`
 conservé. ✅ Effet de bord : la poignée est désormais **mesurée**, là où §114 ne l'établissait que par
 la lecture des sept appels.
+
+## ✅ 2026-08-19 — « À propos » et les mentions légales : le critère écrit était faux
+
+Deux cases cochées. **4 → 2 cases restantes**, et ce sont les deux de la phase 7.
+
+707 lignes de production à elles deux, **aucun test**.
+
+⚠️⚠️ **La ligne de parité se trompait sur le publié.** Elle disait *« version lue dynamiquement via
+`PackageInfo` »* ; l'application publiée affiche `AppConstants.appVersion`, une **constante
+statique** qu'il faut bumper avec `pubspec.yaml` — le piège de release déjà connu du portefeuille. Le
+portage lit `BuildConfig.VERSION_NAME`, qui **dérive** de Gradle et ne peut donc pas s'en écarter.
+
+> **Un critère de parité est une affirmation sur le publié, et il se vérifie comme les autres.**
+> Suivi littéralement, celui-ci aurait fait remplacer une garantie de compilation par une lecture à
+> l'exécution — ou pire, par une constante tenue à la main « pour être fidèle ».
+
+🔴 **Les mentions légales : un repli silencieux d'Android.** Une ressource `raw-fr` absente ne lève
+pas — Android retombe sur `raw`, et l'écran affiche un texte lisible **dans la mauvaise langue**, sur
+les deux seuls écrans qui engagent juridiquement. Le cas lit donc les quatre fichiers par des
+`Resources` de langue **explicite** et exige qu'ils **diffèrent** : *c'est ce qui distingue « les deux
+langues sont là » de « la résolution est retombée sur le défaut »*.
+
+⚠️ **Contrôle positif, deux défauts d'un coup** : version écrite en dur ⇒ un cas tombe ;
+`raw-fr/privacy.md` retiré ⇒ l'autre. Exactement les deux visés. Cf. `04-PIEGES.md` §116.

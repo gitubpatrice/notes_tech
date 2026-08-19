@@ -3787,3 +3787,52 @@ idiome : ancrer l'exception sur la poignée **mesurée**, celle qui porte `Dismi
 ✅ **Effet de bord utile** : ce cas **mesure** que la poignée est bien là. C'est ce que la ligne
 `sheet_handle.dart` (§114) affirmait sur la foi des sept appels sans `dragHandle` — la lecture
 statique disait « rien ne la désactive », la mesure dit « elle est là ».
+
+## §116 — ⚠️⚠️ La ligne de parité se trompait sur le publié, et la suivre aurait aggravé le portage
+
+Lignes `about_screen.dart` et `mentions_legales_screen.dart` : 707 lignes de code de production à
+elles deux, **aucun test**.
+
+### La version : le critère écrit était faux
+
+La ligne disait *« version lue dynamiquement via `PackageInfo` »*. L'application publiée affiche en
+réalité `AppConstants.appVersion` — une **constante statique** (`constants.dart:8`, `'2.0.4'`) qu'il
+faut bumper en même temps que `pubspec.yaml`. C'est le piège de release déjà connu du portefeuille,
+pas une lecture dynamique.
+
+Le portage, lui, affiche `BuildConfig.VERSION_NAME`, qui **dérive** du `versionName` Gradle : il ne
+peut pas s'en écarter.
+
+> ⚠️⚠️ **Un critère de parité est une affirmation sur le publié, et il se vérifie comme les autres.**
+> Suivi littéralement, celui-ci aurait fait remplacer une garantie de compilation par une lecture à
+> l'exécution — ou pire, par une constante tenue à la main « pour être fidèle ».
+
+⚠️ Le cas ne compare **pas** à `BuildConfig` : ce serait circulaire, puisque c'est la source de
+l'affichage. Il compare à ce que le **gestionnaire de paquets** rend, c'est-à-dire au `versionName`
+du manifeste de l'APK réellement installée.
+
+### Les mentions légales : un repli silencieux d'Android
+
+Une ressource `raw-fr` absente **ne lève pas**. Android retombe sur `raw`, et l'écran affiche un
+texte parfaitement lisible — dans la mauvaise langue. Sur les deux seuls écrans de l'application
+qui engagent juridiquement, un utilisateur anglophone lirait la politique de confidentialité en
+français sans que rien ne le signale.
+
+Le cas ne passe donc pas par l'écran : il lit les quatre fichiers par des `Resources` de langue
+**explicite** et exige qu'ils **diffèrent**.
+
+> ⚠️ Exiger la différence est ce qui distingue « les deux langues sont là » de « la résolution est
+> retombée sur le défaut ». Une simple vérification de non-vacuité passerait dans les deux cas.
+
+⚠️ Le titre de niveau 1 de chaque fichier sert d'ancre à l'écran, **sans son croisillon** : le même
+cas vérifie donc que le rendu Markdown minimal fait son travail. Un fichier affiché brut montrerait
+« # Politique de confidentialité ».
+
+### Contrôle positif, deux défauts simulés d'un coup
+
+| Défaut simulé | Ce qui tombe |
+|---|---|
+| version affichée écrite en dur (`v9.9.9`) | « la version affichée est celle du paquet installé » |
+| `raw-fr/privacy.md` retiré | « les quatre textes légaux existent et diffèrent par langue » |
+
+Deux, et exactement les deux visés. Fichier et ressource restaurés, suite entière verte.
