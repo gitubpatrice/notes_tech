@@ -3557,3 +3557,63 @@ faux, il détecte qu'on lit *quelque chose* qu'on ne devrait pas lire.
 > ⚠️⚠️ **Les deux sortes de contrôle ne se remplacent pas.** Le négatif seul laisserait passer un
 > portage qui se trompe de préfixe **des deux côtés** — il écrirait et relirait ses propres clés,
 > parfaitement cohérent avec lui-même, et aveugle à tout ce que l'utilisateur avait réglé.
+
+## §111 — ⚠️⚠️ Huit cas sur le compteur, zéro sur les deux seuls appels qui l'incrémentent
+
+Ligne `secure_window_service.dart`, critère écrit : *« `FLAG_SECURE` avec compteur de références »*.
+
+`SecureWindowControllerTest` couvre l'arithmétique — deux demandeurs imbriqués, la borne à zéro, le
+réglage éteint sous une demande, la demande permanente du mode panique. **Huit cas justes, et tous
+sur des appels que le test fait lui-même.**
+
+Or personne n'appelle `force()` ni `release()` à la main. Relevé exhaustif des appelants du
+programme :
+
+| Appelant | Ce qu'il appelle |
+|---|---|
+| `SecureWindowGuard`, un `DisposableEffect` | `force()` **et** `release()` |
+| `PanicService`, étape 1 | `forcePermanently()` |
+
+Le risque n'est donc pas dans le compteur : il est dans **l'appariement des deux gestes au cycle de
+vie d'une composition**. Un déséquilibre ne lève rien et n'affiche rien — il retire la protection
+d'un **autre** écran, l'éditeur d'une note de coffre resté ouvert derrière une feuille qui se
+ferme, et la capture redevient possible sans un mot.
+
+### `SecureWindowGuardTest`, 7 cas dans une vraie composition
+
+⚠️ Le réglage utilisateur est mis à **faux** pendant ces cas : sinon `activeNow()` vaut vrai en
+permanence et ne mesure plus rien du compteur. Restauré à la fin.
+
+Le cas qui compte le plus est celui du **jumeau superposé** : éditeur de note de coffre, puis
+feuille de code par-dessus, puis la feuille se ferme. Avec un booléen au lieu d'un compteur, le
+second `onDispose` retirerait la protection du premier.
+
+Le second est le passage `active` **vrai → faux**, seul endroit du programme à utiliser ce
+paramètre (`NoteEditorScreen`, `active = state.isVaultNote`). Le piège y est asymétrique : c'est le
+`onDispose` de l'effet **précédent** qui rend la demande, avec l'**ancienne** valeur d'`active`. S'il
+lisait la nouvelle, il ne rendrait rien et le compteur resterait haut pour toujours.
+
+Le dernier cas ne lit aucun entier : il pose et retire `FLAG_SECURE` sur la **vraie fenêtre de
+l'activité** et relit ses paramètres, avec l'état d'avant comme témoin. *Le compteur peut être
+parfait et le drapeau jamais posé.*
+
+### Deux contrôles positifs, chacun sur un cas et un seul
+
+| Défaut simulé dans le code de production | Ce qui tombe |
+|---|---|
+| `release()` remet le compteur à **0** — le défaut du booléen | « la sortie du second garde ne retire pas la protection du premier », **seul** |
+| le garde rend **même quand il n'a rien pris** (`onDispose` sans la garde `active`) | « un garde INACTIF ne rend pas une demande qu'il n'a jamais prise », **seul** |
+
+Un cas chacun, et pas un de plus : chaque cas mesure ce que son nom annonce. Les deux fichiers de
+production ont été restaurés à l'identique, et la suite entière est repassée verte.
+
+### ⚠️ Ce qui reste vrai, et qu'on ne corrige pas
+
+`forcePermanently()` **est** `force()` : la demande du mode panique n'est pas d'une autre nature, elle
+n'a simplement pas de contrepartie. Un `release()` en trop l'annulerait donc, et la borne à zéro n'y
+changerait rien — elle protège du négatif, pas du vol.
+
+⚠️ **Ce n'est pas un défaut atteignable aujourd'hui** : le relevé ci-dessus montre que `release()`
+n'a qu'un seul appelant, le `onDispose` du garde, qui a toujours forcé d'abord. Séparer la demande
+permanente en un booléen distinct serait un durcissement contre un défaut **futur**, pas la
+correction d'un défaut présent — donc pas une modification à faire ici. Le noter suffit.

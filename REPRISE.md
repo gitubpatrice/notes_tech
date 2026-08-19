@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **325 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **332 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1227,3 +1227,30 @@ s'appelle « Argon2id rend exactement les clés du Dart », qui passe ses param�
 bon choix : un vecteur doit être figé indépendamment des constantes qu'il sert à vérifier. Mais la
 protection tient donc en **deux maillons**, et *le test au nom le plus rassurant n'est pas celui qui
 protège la constante*. Cf. `04-PIEGES.md` §109.
+
+## ✅ 2026-08-19 — `FLAG_SECURE` : huit cas sur le compteur, zéro sur ce qui l'incrémente
+
+`secure_window_service.dart` cochée. **10 → 9 cases restantes.**
+
+`SecureWindowControllerTest` a huit cas justes sur l'arithmétique du compteur — et **tous sur des
+appels que le test fait lui-même**. Or personne n'appelle `force()` ni `release()` à la main : les
+deux seuls appelants du programme sont le `DisposableEffect` de `SecureWindowGuard` et l'étape 1 du
+mode panique.
+
+Le risque était donc **l'appariement des deux gestes au cycle de vie d'une composition**. Un
+déséquilibre ne lève rien : il retire la protection d'un **autre** écran — l'éditeur d'une note de
+coffre resté ouvert derrière une feuille qui se ferme — et la capture redevient possible sans un mot.
+
+`SecureWindowGuardTest`, **7 cas** dans une vraie composition, dont le jumeau superposé, la bascule
+d'`active` dans les deux sens (`NoteEditorScreen` est le seul à s'en servir), et **`FLAG_SECURE` lu
+sur la vraie fenêtre de l'activité** — *le compteur peut être parfait et le drapeau jamais posé*.
+
+⚠️⚠️ **Deux contrôles positifs, chacun sur un cas et un seul** : `release()` qui remet le compteur à
+zéro fait tomber le cas du jumeau superposé, et un garde qui rend même sans avoir pris fait tomber le
+contrôle négatif. Aucun débordement d'un contrôle sur l'autre. Cf. `04-PIEGES.md` §111.
+
+⚠️ **Noté, pas corrigé** : `forcePermanently()` **est** `force()`, donc un `release()` en trop
+annulerait la demande du mode panique, et la borne à zéro n'y changerait rien. Ce n'est pas
+atteignable aujourd'hui — `release()` n'a qu'un appelant, qui a toujours forcé d'abord. Séparer la
+demande permanente serait un durcissement contre un défaut **futur**, pas la correction d'un défaut
+présent.
