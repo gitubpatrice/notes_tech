@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **358 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **365 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1384,3 +1384,34 @@ cas échoue sur un compteur à zéro *comme si le rappel n'était pas câblé*. 
 `performScrollTo()`. Les deux autres : le catalogue compte **deux** modèles (donc deux boutons du
 même libellé), et dans un `AlertDialog` **titre et boutons sont frères**, pas parent et enfant —
 `hasAnyAncestor(isDialog())`. Cf. `04-PIEGES.md` §117.
+
+## ✅ 2026-08-19 — **le tableau de parité est complet**, et ce que ça ne dit pas
+
+`voice_service.dart` cochée. **0 case restante** : les 39 ouvertes le 08-16 le sont toutes.
+
+### La dernière : 601 lignes de capture, trois cas JVM
+
+`WhisperStt` et `SttModelStore` avaient 27 cas ; `VoiceCapture` n'était effleuré que par
+`BorneDeDureeTest`, sur la seule fonction pure du fichier. Ce que rien ne mesurait appartient au
+**mode panique** : `couperEtInterdire()` pose un **état** que rien n'efface, et doit répondre par un
+**échec** et non par `null` — *`null` dit « vous n'avez rien dit », l'exception dit « le système a été
+mis à l'arrêt »*.
+
+⚠️ Un `ContextWrapper` refuse `RECORD_AUDIO` : déterministe, sans ouvrir le micro du S9, et il
+mesure du même coup **l'ordre des deux gardes**. ⚠️ Contrôle positif : l'état d'interdiction retiré ⇒
+deux cas tombent.
+
+⚠️⚠️ **`withTimeoutOrNull(0)` n'exécute jamais son bloc.** Mon premier cas d'attente passait zéro et
+échouait — *pas un défaut du code*. Il mesure désormais la valeur **et le temps écoulé**, et la
+propriété de kotlinx a son propre cas : le jour où un appelant passera un **reliquat** de budget,
+une capture arrêtée sera annoncée « encore en cours ». Cf. `04-PIEGES.md` §118.
+
+### ⚠️⚠️ Ce que « tableau complet » ne veut PAS dire
+
+| | |
+|---|---|
+| Critère de sortie de la **phase 4** | inchangé : ouvrir un coffre réellement créé par la version Flutter, sur un vrai téléphone |
+| Bascule **3.0.0** | bloquée : le portage n'a **aucun `key.properties`** |
+| Clés Keystore | liées à l'**UID** ; la build de portage est suffixée `.next` |
+
+*Un tableau complet dit que chaque ligne a été regardée, pas que le produit est fini.* §119

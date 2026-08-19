@@ -3885,3 +3885,65 @@ le même nom accessible en même temps. Ce n'est pas faux, mais c'est à savoir.
 ⚠️ Et une quatrième, à la compilation : un nettoyage d'imports « inutiles » a retiré
 `androidx.compose.runtime.getValue`, qui sert au délégué `by` — **le nom n'apparaît nulle part dans
 le corps**. Un outil qui cherche l'identifiant ne peut pas le voir ; le compilateur, si.
+
+## §118 — 🔴 601 lignes de capture, et trois cas JVM sur la seule fonction pure du fichier
+
+Dernière ligne de `docs/05-PARITE.md` : `voice_service.dart`. `WhisperStt` et `SttModelStore`
+avaient 15 cas instrumentés et 12 JVM ; `VoiceCapture` — **601 lignes** — n'était effleuré que par
+`BorneDeDureeTest`, trois cas sur `finDeCapture`.
+
+### Ce qui appartient au mode panique, et que rien ne mesurait
+
+`couperEtInterdire()` pose un **état**, pas un drapeau de geste : rien ne l'efface. Le KDoc explique
+pourquoi — `arreter()` seul est remis à zéro par `enregistrer()`, **avant le verrou**, si bien
+qu'une capture qui a franchi cette ligne repartirait après l'étape de panique censée couper le
+micro.
+
+Personne ne vérifiait que l'interdiction tienne, ni qu'elle réponde par un **échec** plutôt que par
+`null`. La distinction est écrite dans le code : `null` dit « vous n'avez rien dit », l'exception dit
+« le système a été mis à l'arrêt ». Un appelant qui les confondrait afficherait « aucun son
+détecté » après une panique.
+
+**Contrôle positif** : `couperEtInterdire` réduit à `arreter()` ⇒ deux cas tombent.
+
+### ⚠️ Un contexte à permission refusée, plutôt que l'état réel de l'appareil
+
+Le contrôle négatif doit prouver qu'une instance **non interdite** dépasse la garde. Le faire avec la
+vraie permission ouvrirait le micro du S9 pour de bon. Un `ContextWrapper` qui refuse `RECORD_AUDIO`
+rend le cas déterministe et sans effet de bord — et il mesure du même coup **l'ordre des deux
+gardes** : l'interdiction est lue avant la permission, donc une application paniquée ne réclame pas
+un droit qu'elle refuserait d'utiliser.
+
+### ⚠️⚠️ `withTimeoutOrNull(0)` n'exécute JAMAIS son bloc
+
+Le premier jet du cas d'attente passait un délai de zéro, en croyant prouver que la souscription au
+`StateFlow` rend la valeur courante immédiatement. Il rendait `false`, et **ce n'était pas un défaut
+du code** : un délai nul fait rendre `null` à `withTimeoutOrNull` sans jamais entrer dans le bloc.
+La souscription n'a pas lieu, donc la valeur courante n'est jamais lue.
+
+Le cas mesure désormais **la valeur rendue et le temps écoulé** — la valeur seule ne distinguerait
+pas « rend vrai tout de suite » de « rend vrai au bout de cinq secondes ». Et la propriété de
+kotlinx a son propre cas, pour qu'elle reste connue :
+
+> Le jour où quelqu'un calculera un **reliquat** de budget et le passera ici, une capture pourtant
+> arrêtée sera annoncée « encore en cours », et la panique croira écrire sous un enregistrement qui
+> n'existe plus. Le défaut ne serait pas dans cette fonction ; il serait chez l'appelant, et il est
+> plus facile à voir écrit ici qu'à retrouver là-bas.
+
+⚠️ Aucun appelant du portage ne passe zéro aujourd'hui — `PanicService` passe une constante.
+
+## §119 — ✅ Le tableau de parité est complet, et ce n'est pas la même chose que « le portage est prêt »
+
+Les **39 cases** ouvertes le 2026-08-16 sont cochées. Chacune l'est sur une **mesure**, et depuis le
+2026-08-19 la plupart le sont aussi sur un **contrôle positif** — un défaut simulé dans le code de
+production, pour voir tomber le cas censé l'attraper.
+
+⚠️⚠️ **Ce que cela ne dit pas** :
+
+| | |
+|---|---|
+| Le critère de sortie de la **phase 4** | inchangé : ouvrir un coffre réellement créé par la version Flutter, sur un vrai téléphone. Les vecteurs figent un **format**, pas une installation. |
+| La bascule 3.0.0 | bloquée : le portage n'a **aucun `key.properties`**. |
+| Les clés Keystore | liées à l'**UID** ; la build de portage est suffixée `.next` et ne peut pas voir celles du publié. |
+
+*Un tableau complet dit que chaque ligne a été regardée, pas que le produit est fini.*
