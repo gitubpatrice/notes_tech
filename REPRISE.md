@@ -1,6 +1,6 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-18**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-19**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
 ## État en trois lignes
@@ -8,8 +8,8 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-18 : ktlint, detekt, lint (`--rerun-tasks`), **224 tests JVM**,
-  **297 tests instrumentés** (S9), 0 échec, **0 ignoré** — comptés par les codes de statut.
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **307 tests instrumentés** (S9),
+  0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
   sous un `BUILD SUCCESSFUL`. Le décompte fiable est la somme des `tests=` des XML de
@@ -24,9 +24,10 @@
   **pas** — la destruction venait d'un test, pas de l'outil. Et avec `am instrument` il n'y a pas de
   XML : le décompte des ignorés se lit par `grep -c 'INSTRUMENTATION_STATUS_CODE: -4'` (échec
   d'hypothèse) et `-3` (ignoré), **jamais** dans le « OK (N tests) ».
-- Application publiée `notes_tech` : `0307811` sur `fix/defauts-releves-pendant-le-portage`,
-  **aucune publication décidée**. Ses trois répertoires non suivis (`.audit_tmp/`,
-  `_audit_results/`, `prompts/`) ne doivent **jamais** entrer dans l'index — pas de `git add -A`.
+- Application publiée `notes_tech` : **`be6fe0d`** sur `main`, tag **`v2.0.4`**, versionCode **2052** —
+  la passerelle de migration est **publiée** depuis le 2026-08-18 (détail plus bas). Ses trois
+  répertoires non suivis (`.audit_tmp/`, `_audit_results/`, `prompts/`) ne doivent **jamais** entrer
+  dans l'index — pas de `git add -A`.
 
 ## ✅ Fait le 2026-08-16 : l'import du modèle
 
@@ -1056,3 +1057,97 @@ bout, ni bascule.
 ⚠️ **F-Droid ne s'y oppose pas** : la MR `!37885` est épinglée sur 2.0.3/51 et porte
 `AutoUpdateMode: Version` + `UpdateCheckMode: Tags` — une fois fusionnée, le bot suit les tags seul.
 Publier une 2.0.4 ne la dérange donc pas. ⚠️ Le sens du label `waiting-for-upstream` reste **inconnu**.
+
+## ✅ 2026-08-19 : la ligne du mode panique, cochée sur mesure — et six défauts
+
+Trois cases d'un coup dans `docs/05-PARITE.md` : `panic_service.dart`, `panic_complete_screen.dart`,
+`panic_confirm_dialog.dart`. **17 → 14 cases restantes.**
+
+### Ce qui a été trouvé, et le motif commun
+
+Six défauts, tous de la même famille : **le code avait été corrigé, la phrase que l'utilisateur lit
+ne l'avait jamais été.**
+
+| # | Défaut | §  |
+|---|---|---|
+| 1 | Le dialogue de **consentement** taisait la destruction du modèle de dictée | §101 |
+| 2 | Le bilan de fin la taisait aussi | §101 |
+| 3 | « du clair peut subsister » ne nommait qu'**une** des trois sources | §101 |
+| 4 | Ce même message affichait « **0 étape(s)** ont échoué » — il se contredisait dans sa propre phrase | §101 |
+| 5 | 🔴🔴 Le `when` rendait le bilan et l'avertissement **exclusifs** : une séquence réussie effaçait l'avertissement | §102 |
+| 6 | 🔴🔴 « Du clair » était défini **deux fois** dans le même fichier, et les deux divergeaient | §103 |
+| 7 | 🔴🔴 **Créé par le correctif du 5** : « Clé détruite » s'affichait sur l'écran qui annonce que la clé a SURVÉCU | §106 |
+| 8 | 🔴 « Toutes les données ont été effacées » coexistait avec « du lisible peut subsister » | §106 |
+| 9 | 🔴 `walkTopDown` ignore en silence un répertoire illisible ⇒ faux négatif de la mesure | §106 |
+
+Les défauts 1 et 2 venaient d'une justification datée — *« la dictée arrive en phase 7 »* — vraie à
+l'écriture, périmée le 2026-08-16, et restée lisible et plausible. ⚠️ Elle figurait même au registre
+des chaînes orphelines de `05-PARITE.md`, qui a donc **attesté qu'il n'y avait rien à voir**.
+
+Le défaut 5 est le plus instructif : `clairSurLeDisque` se replie sur `true` quand la **mesure**
+échoue, et l'affichage annulait ce repli. *Un repli de sûreté n'en est pas un si l'affichage
+l'écrase.*
+
+### Ce qui les a trouvés, et ce qui ne pouvait pas
+
+`PanicReportTest` compte quinze cas JVM, tous justes, et **ne rend aucun écran**. Il prouve les
+branches ; le produit, ici, est la **phrase**. D'où `PanicEcransTest` — **10 cas**, les deux écrans
+composés pour de vrai. Il a trouvé le défaut 5 **à son premier lancement sur le S9**.
+
+⚠️ Les défauts 3, 4 et 6 ont été relevés par des relectures externes, chacune par un chemin
+différent, et **aucune n'a vu ce que l'autre voyait**. Une seule n'aurait pas suffi.
+
+### Rejeu complet de la séquence sur le S9 — §104
+
+La vérification précédente datait du 2026-08-14 et **précédait trois des treize étapes**. Rejouée
+deux fois à travers l'interface réelle :
+
+- **Nominal** : treize étapes, zéro échec, base et modèle détruits, cache vide, préférences réduites
+  à leur liste blanche, quatre puces affichées. Après relance : « Aucune note ».
+- **Résidu forcé** (`cache/exports` rendu non supprimable) : `EXPORTS_WIPE` et `CACHE_PURGE`
+  échouent, et l'écran affiche la seule phrase juste — les trois sources nommées, aucun compteur
+  d'étapes, aucune puce rassurante.
+
+⚠️⚠️ **Une panique détruit le modèle de 57 Mo.** Il a été copié hors de l'appareil avant, restauré
+après, SHA-256 identique des deux côtés (`422f1ae4…8898`). *Une vérification destructrice doit
+emporter sa restauration avec elle, sinon elle n'est faisable qu'une fois.*
+
+### ⚠️⚠️ Deux sessions Claude ont travaillé en parallèle sur ce dépôt — §105
+
+Deux suites complètes se sont arrêtées à mi-parcours (209/306, puis 27/306) en rendant « Process
+crashed », **sans un seul test en échec**. Un second `claude.exe`, survivant d'une session
+précédente, exécutait la même suite sur le même téléphone et avait réinstallé l'APK en plein milieu.
+
+Avant toute campagne de mesure sur appareil :
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'am instrument' }
+```
+
+⚠️ Avant de tuer quoi que ce soit, **sauvegarder l'arbre de travail** : le travail de l'autre session
+était réel, non commité, et bon — le défaut 6 vient de lui.
+
+### Ce qui reste
+
+Par ordre de risque : `note_export_service.dart` (519 lignes, **défaut connu** — l'export `.md`
+d'une note de coffre rend un corps vide), puis `keystore_bridge.dart` (207).
+
+🔴 **Toujours le même point bloquant pour la bascule 3.0.0** : le portage n'a **aucun
+`key.properties`**. La clé (`notes_tech/android/notestech-release.jks`) est identifiée et vérifiée
+contre l'APK publié. C'est une décision de Patrice, pas un travail à faire.
+
+### ⚠️⚠️ La relecture du correctif en a trouvé trois de plus, dont un qu'il venait de créer
+
+Sortir l'avertissement du `when` (défaut 5) lui a fait perdre l'exclusivité qui le protégeait du cas
+« la clé a survécu » — et sa phrase commence par « Clé détruite ». Les huit cas instrumentés écrits
+le matin même ne l'ont pas vu ; une relecture externe oui.
+
+> **Un correctif est du code neuf.** Il ne bénéficie d'aucune des relectures qui ont validé ce qu'il
+> remplace. Relancer une revue **sur** les correctifs de revue n'est pas du zèle.
+
+⚠️ **Reste ouvert, faute de mesure** : l'avertissement de clair n'est pas une `liveRegion`, et le
+titre assertif dit « Effacement terminé » dans l'état où du lisible subsiste. Poser une seconde
+région assertive sans l'écouter sous TalkBack serait deviner. Cf. `04-PIEGES.md` §106.
+
+ℹ️ **Il n'y a pas de `gpt-5.5`** : `audit-ia.py --provider gpt --list` s'arrête à `gpt-5.2`, et la
+liste de l'API fait foi. Les tiers au-dessus disponibles sont `gpt-5-pro` et `gpt-5.1-codex-max`.

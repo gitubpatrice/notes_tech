@@ -322,7 +322,7 @@ class PanicService @Inject constructor(
         //    de plus est de la voix en plus sur le disque. Poser le drapeau est instantané, donc
         //    rien n'est retardé derrière.
         //
-        //    ⚠️ L'attente de l'arrêt effectif est à l'étape 6, juste avant l'effacement — le seul
+        //    ⚠️ L'attente de l'arrêt effectif est à l'étape 7, juste avant l'effacement — le seul
         //    endroit où elle change quelque chose.
         //    ⚠️⚠️ `couperEtInterdire`, pas `arreter` : la seconde est un drapeau de geste, que la
         //    demande d'enregistrement suivante remet à zéro. Une capture déjà lancée et en attente
@@ -334,12 +334,12 @@ class PanicService @Inject constructor(
         //    application au premier plan.
         issues += etape(PanicStep.CLIPBOARD_CLEAR) { clipboard.annulerEtEffacer() }
 
-        // 2. Les clés des coffres ouverts, effacées de la mémoire vive AVANT de toucher au
+        // 3. Les clés des coffres ouverts, effacées de la mémoire vive AVANT de toucher au
         //    Keystore. Sans ça, une panique déclenchée coffre ouvert laisse sa clé en RAM pendant
         //    toute la séquence.
         issues += etape(PanicStep.FOLDERS_LOCK_ALL) { vaults.lockAll() }
 
-        // 3. Les clés `vault_pin_*`. Elles ne dépendent pas de la base — donc exécutables même si
+        // 4. Les clés `vault_pin_*`. Elles ne dépendent pas de la base — donc exécutables même si
         //    elle est déjà illisible — et elles sont la seule barrière d'un coffre à code contre
         //    une attaque menée hors de l'appareil.
         issues += etape(PanicStep.PIN_KEYS_WIPE) {
@@ -347,17 +347,17 @@ class PanicService @Inject constructor(
             Timber.i("panique : %d clés de coffre à code effacées", effacees)
         }
 
-        // 4. 🔴 POINT DE NON-RETOUR. À partir d'ici, un arrêt brutal ne perd plus la garantie
+        // 5. 🔴 POINT DE NON-RETOUR. À partir d'ici, un arrêt brutal ne perd plus la garantie
         //    minimale : la base chiffrée est du bruit, même récupérée bit à bit.
         issues += etape(PanicStep.KEK_DESTROY) { kek.destroy() }
 
-        // 5. 🔴 **Les archives d'export, AUSSITÔT APRÈS la clé — et non en avant-dernier.**
+        // 6. 🔴 **Les archives d'export, AUSSITÔT APRÈS la clé — et non en avant-dernier.**
         //
-        //    Elles étaient à l'étape 8, derrière l'effacement de la base, celui des modèles hérités
+        //    Elles étaient en avant-dernier, derrière l'effacement de la base, celui des modèles hérités
         //    et les préférences. Or elles sont **en clair**, comme les enregistrements de dictée de
         //    l'étape suivante : tout ce
         //    qui les précédait désormais ne protège plus rien de lisible, puisque la clé est partie
-        //    à l'étape 4. Un processus tué entre 4 et 8 laissait donc une base réduite à du bruit
+        //    à l'étape 5. Un processus tué dans cette fenêtre laissait une base réduite à du bruit
         //    **et des notes parfaitement lisibles à côté** — coffres ouverts compris.
         //
         //    ⚠️⚠️ Le pire des trois était l'ordre relatif aux modèles hérités : leur suppression
@@ -377,7 +377,7 @@ class PanicService @Inject constructor(
         //    corrige ici, dans l'autre sens.
         issues += etape(PanicStep.EXPORTS_WIPE) { supprimerLeDossier(NoteExporter.repertoireDExport(context)) }
 
-        // 6. Les enregistrements de dictée : du clair, comme les archives, donc au même rang.
+        // 7. Les enregistrements de dictée : du clair, comme les archives, donc au même rang.
         //
         //    ⚠️⚠️ **L'attente est ici, et l'effacement a lieu de toute façon.** Le drapeau posé à
         //    l'étape 1 n'est lu par la boucle de capture qu'en sortant de `micro.read`, qui bloque
@@ -392,10 +392,10 @@ class PanicService @Inject constructor(
             if (!arretee) error("capture micro toujours en cours apres $ATTENTE_ARRET_CAPTURE_MS ms")
         }
 
-        // 7. Le fichier de base. Défense en profondeur : la clé est déjà partie.
+        // 8. Le fichier de base. Défense en profondeur : la clé est déjà partie.
         issues += etape(PanicStep.DB_WIPE) { effacerLaBase() }
 
-        // 8. Le modèle de transcription. Il ne contient rien de l'utilisateur — c'est un binaire
+        // 9. Le modèle de transcription. Il ne contient rien de l'utilisateur — c'est un binaire
         //    public — mais il pèse plusieurs dizaines de mégaoctets, d'où ce rang : là où la lenteur
         //    ne fait plus attendre quoi que ce soit de lisible.
         //
@@ -404,29 +404,22 @@ class PanicService @Inject constructor(
             supprimerLeDossier(SttModelStore.repertoireDesModeles(context))
         }
 
-        // 9. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
+        // 10. Les modèles hérités des versions qui embarquaient une IA. Après la garantie de
         //    sécurité, parce que la suppression peut prendre plusieurs secondes sur 530 Mo.
         issues += etape(PanicStep.LEGACY_MODELS_WIPE) { supprimerLeDossier(File(context.filesDir, MODELS_DIR)) }
 
-        // 10. Les préférences, par liste blanche.
+        // 11. Les préférences, par liste blanche.
         issues += etape(PanicStep.PREFS_CLEAR) {
             val effacees = prefs.clearAllExcept(PREFERENCES_CONSERVEES)
             Timber.i("panique : %d préférences effacées", effacees)
         }
 
-        // 11. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
+        // 12. Le reste du cache — aperçus, fichiers temporaires, résidus de bibliothèques.
         issues += etape(PanicStep.CACHE_PURGE) { viderLeCache() }
 
-        // ⚠️ **Regarder, pas déduire.** L'état du disque après la séquence entière, y compris ce que
-        // la purge du cache a pu emporter en plus. `true` si la mesure échoue : on n'annonce pas une
-        // protection qu'on n'a pas constatée.
-        val clairRestant = try {
-            NoteExporter.repertoireDExport(context).exists() ||
-                VoiceCapture.repertoireDeCapture(context).exists()
-        } catch (e: SecurityException) {
-            Timber.w(e, "panique : etat des repertoires de clair illisible")
-            true
-        }
+        // ⚠️ **Regarder, pas déduire.** L'état du disque après la séquence entière, y compris ce
+        // que la purge du cache a pu emporter en plus.
+        val clairRestant = clairSurLeDisque()
         val bilan = PanicReport(issues, clairSurLeDisque = clairRestant)
         Timber.w(
             "panique terminée — garantie minimale : %s, étapes en échec : %s",
@@ -566,7 +559,59 @@ class PanicService @Inject constructor(
         }
     }
 
-    /** Ce qui, dans le cache, peut porter le contenu d'une note. Le reste ne nous appartient pas. */
+    /**
+     * 🔴🔴 **Reste-t-il du clair sur le disque ? — mesuré par la MÊME définition que l'effacement.**
+     *
+     * ## Ce que cette fonction a corrigé, le 2026-08-19
+     *
+     * La mesure ne regardait que deux répertoires, `exports/` et `captures/`. Or
+     * [estUnArtefactSensible], vingt lignes plus bas, déclare que **toute** archive, tout document
+     * Markdown et tout enregistrement du cache portent du clair — et c'est sur cette base que
+     * [PanicStep.CACHE_PURGE] **échoue**. Deux définitions du même mot vivaient dans le même
+     * fichier, et elles divergeaient.
+     *
+     * Conséquence exacte : un `.md` resté à la racine du cache faisait échouer la purge sans
+     * qu'aucun des deux répertoires n'existe. [PanicReport.clairPeutSubsister] valait alors `false`,
+     * et l'écran de fin annonçait « des fichiers **illisibles** peuvent subsister » — devant une
+     * note parfaitement lisible, à quelqu'un en train de décider s'il peut se séparer de son
+     * appareil.
+     *
+     * ⚠️⚠️ Relevé par les **deux** relectures externes du 2026-08-19, chacune par un chemin
+     * différent : l'une en partant de ce qui fait échouer la purge, l'autre en comparant les deux
+     * inventaires. Aucune relecture du seul écran ne pouvait le voir. *La duplication n'était pas du
+     * code recopié : c'était une **notion** définie deux fois.*
+     *
+     * ## ⚠️ Récursive, là où l'effacement ne l'est pas
+     *
+     * `viderLeCache` n'examine que le premier niveau — un `note.md` rangé dans un sous-répertoire au
+     * nom anodin survit à une purge qui se déclare réussie. La mesure, elle, descend : c'est le
+     * dernier regard porté sur le disque, il n'a aucune raison d'être le plus myope des deux.
+     *
+     * @return `true` aussi quand la mesure elle-même échoue — le doute penche du côté qui n'annonce
+     *   pas une protection qu'on n'a pas constatée.
+     */
+    private fun clairSurLeDisque(): Boolean = try {
+        NoteExporter.repertoireDExport(context).exists() ||
+            VoiceCapture.repertoireDeCapture(context).exists() ||
+            context.cacheDir.walkTopDown()
+                // ⚠️⚠️ Par défaut, `walkTopDown` **ignore** un répertoire qu'il ne peut pas
+                // lister : la mesure rendrait `false` sur un cache partiellement illisible, et
+                // ce serait un faux négatif exactement là où le repli existe. Ne pas pouvoir
+                // regarder n'est pas une réponse. Relevé par une relecture externe (GPT-5.2).
+                .onFail { _, e -> throw e }
+                .any { it.isFile && estUnArtefactSensible(it.name) }
+    } catch (e: Exception) {
+        Timber.w(e, "panique : etat du clair sur le disque illisible")
+        true
+    }
+
+    /**
+     * Ce qui, dans le cache, peut porter le contenu d'une note. Le reste ne nous appartient pas.
+     *
+     * ⚠️⚠️ **Ce prédicat est la définition UNIQUE du clair**, depuis le 2026-08-19 : il sert
+     * l'effacement ([viderLeCache]) *et* la mesure ([clairSurLeDisque]). Lui en écrire une seconde
+     * ailleurs, c'est le défaut qu'on vient de corriger.
+     */
     private fun estUnArtefactSensible(nom: String): Boolean {
         val n = nom.lowercase()
         // ⚠️⚠️ `captures` manquait, et c'était un **jumeau asymétrique** : `exports` faisait échouer

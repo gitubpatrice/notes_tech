@@ -3101,3 +3101,234 @@ seul. Restaurations vérifiées au SHA-256.
 ⚠️ Le câblage, lui, était **déjà juste** : `onSessionOpened` est appelé depuis un point unique
 partagé par les deux chemins de déverrouillage, avec le raisonnement anti-jumeau écrit sur place
 (§25). Ce n'est pas ce qui manquait.
+
+## §101 — 🔴🔴 Mode panique : le code avait été corrigé quatre fois, la phrase que l'utilisateur lit jamais
+
+Le 2026-08-19, la ligne `panic_service.dart` de `docs/05-PARITE.md` a rendu **quatre** défauts, tous
+dans les deux écrans du mode panique, et tous du même genre : *l'écran ne disait pas ce que le
+service faisait.*
+
+| # | Ce que le code faisait | Ce que l'écran disait |
+|---|---|---|
+| 1 | `VOICE_MODEL_WIPE` efface `files/stt/` depuis le 2026-08-16 | Le dialogue de **consentement** n'en disait rien |
+| 2 | Idem | Le bilan de fin n'en disait rien non plus |
+| 3 | `clairPeutSubsister` couvre **trois** sources : export, dictée, presse-papiers | La phrase ne nommait que les archives d'export |
+| 4 | Ce résidu se **mesure** ; il vaut vrai avec **zéro** étape en échec | « **0 étape(s)** de nettoyage ont échoué », juste avant d'avertir qu'il reste du clair |
+
+Les deux premiers venaient d'une ligne masquée exprès, avec son motif écrit à côté : *« la dictée
+arrive en phase 7 »*. C'était vrai le jour où ça a été écrit. Ça a cessé de l'être le 2026-08-16, et
+le commentaire est resté. ⚠️ Il figurait même au registre des chaînes orphelines de `05-PARITE.md`
+(« 2 — puces du mode panique nommant le modèle vocal, **omises exprès et commentées** ») : le
+registre disait donc la vérité de la veille, et servait de preuve qu'il n'y avait rien à voir.
+
+> **Une justification datée ne se périme pas toute seule.** Elle reste lisible, plausible, et rend
+> le défaut invisible à qui relit le fichier — d'autant mieux qu'elle est bien écrite.
+
+Le troisième est un **inventaire incomplet**, et le KDoc du prédicat raconte lui-même qu'il s'est
+trompé **deux fois par omission**, corrigé les deux fois. La phrase affichée, jamais. Conséquence
+exacte : le cas « seul le presse-papiers a résisté » envoyait quelqu'un fouiller des fichiers qui
+n'existent pas, pour en conclure qu'il est tiré d'affaire — pendant qu'une note reste lisible par
+toute application au premier plan.
+
+Le quatrième se contredisait **dans sa propre phrase**, au seul moment où elle doit être crue.
+
+### ⚠️⚠️ Pourquoi une suite verte ne pouvait pas les voir
+
+`PanicReportTest` compte quinze cas, tous justes, et **ne rend aucun écran**. Il prouve les
+*branches* ; sur cet écran-ci, le produit est la *phrase* : quelqu'un décide, en la lisant, s'il peut
+se séparer de son appareil. Aucun `androidTest` ne composait `PanicOverlay` ni le dialogue de
+confirmation avant le 2026-08-19 — c'est exactement le périmètre où étaient les quatre.
+
+Correctif : `PanicEcransTest`, **9 cas**, qui rendent les deux écrans. Il a trouvé le cinquième
+défaut à son premier lancement (§102).
+
+## §102 — 🔴🔴 Un repli de sûreté que l'affichage écrasait — et c'est le test neuf qui l'a trouvé
+
+`PanicEcransTest.le_message_de_clair_n_annonce_AUCUN_compte_d_etapes` a échoué au **premier
+lancement sur le S9**. Ce n'était pas le cas qui avait tort.
+
+Le résumé des étapes et l'état du résidu étaient **deux branches d'un même `when`**, donc
+exclusives, et `report.isComplete` passait avant `report.clairPeutSubsister`. Une séquence
+entièrement réussie effaçait donc l'avertissement — celui-là même que les défauts 3 et 4 venaient de
+corriger.
+
+Et l'état « complet **et** du clair » n'a rien de théorique :
+
+```kotlin
+val clairRestant = try { … } catch (e: SecurityException) { true }   // PanicService
+```
+
+`clairSurLeDisque` se replie sur `true` quand la **mesure** échoue — *« on n'annonce pas une
+protection qu'on n'a pas constatée »*, dit son commentaire. Ce repli se produit **sans une seule
+étape en échec**. L'écran répondait alors par quatre puces rassurantes.
+
+> ⚠️⚠️ **Un repli de sûreté n'en est pas un si l'affichage l'écrase.** Le service prenait la
+> précaution, l'interface l'annulait, et rien entre les deux ne l'a signalé.
+
+⚠️ `PanicReportTest.clairRestantEstSignale` construit **exactement** cet état, affirme `isComplete`
+*et* `clairPeutSubsister`, et est vert depuis le premier jour. Son intitulé dit même « même sans
+étape ratée ». Le modèle était connu ; l'écran, jamais interrogé.
+
+### Le correctif, et pourquoi il n'est pas un réordonnancement
+
+Remonter la branche dans le `when` aurait fait disparaître les quatre puces — le bilan mentirait
+dans l'autre sens, en taisant treize effacements qui ont bien eu lieu. Les deux informations sont
+**distinctes** : ce que la séquence a accompli, et ce qu'elle a laissé de lisible. Le résumé reste
+donc dans le `when`, l'avertissement devient un **bloc indépendant**, et le `when` perd son `else` —
+quand du clair subsiste, `panic_incomplete` (« des fichiers **illisibles** ») ne doit pas précéder la
+phrase qui dit l'inverse.
+
+⚠️ Le cas `une_sequence_complete_qui_laisse_du_clair_dit_les_DEUX` exige les **deux** à la fois,
+précisément pour qu'un « correctif » par réordonnancement échoue lui aussi.
+
+## §103 — 🔴🔴 « Du clair », défini deux fois dans le même fichier, et les deux définitions divergeaient
+
+Relevé le 2026-08-19 par les **deux** relectures externes, chacune par un chemin différent : l'une en
+partant de ce qui fait échouer la purge, l'autre en comparant les deux inventaires.
+
+La mesure finale ne regardait que deux répertoires — `exports/` et `captures/`. Or
+`estUnArtefactSensible`, vingt lignes plus bas, déclare que **toute** archive, tout `.md` et tout
+`.wav` du cache portent du clair, et c'est sur cette base que `CACHE_PURGE` **échoue**.
+
+Conséquence exacte : un `.md` resté à la racine du cache faisait échouer la purge sans qu'aucun des
+deux répertoires n'existe. `clairPeutSubsister` valait alors `false`, et l'écran annonçait « des
+fichiers **illisibles** peuvent subsister » — devant une note parfaitement lisible.
+
+> *La duplication n'était pas du code recopié : c'était une **notion** définie deux fois.* Un
+> `code-duplication-hunter` ne la voit pas ; seule la question « qui d'autre, dans ce fichier, décide
+> de ce mot ? » la trouve.
+
+⚠️ La mesure est désormais **récursive** là où l'effacement ne l'est pas : `viderLeCache` n'examine
+que le premier niveau, donc un `note.md` rangé dans un sous-répertoire au nom anodin survit à une
+purge qui se déclare réussie. Le dernier regard porté sur le disque n'a aucune raison d'être le plus
+myope des deux.
+
+## §104 — ✅ Ce que la panique fait vraiment, mesuré deux fois sur le S9
+
+La vérification précédente datait du 2026-08-14 et **précédait trois des treize étapes**. Rejouée
+entièrement le 2026-08-19, à travers l'interface réelle (`Réglages → Mode panique → EFFACER → Tout
+effacer`), sur un état réel.
+
+**Passage 1 — nominal.** Treize étapes, **zéro échec**, `garantie minimale : true`.
+
+| Avant | Après |
+|---|---|
+| `app_flutter/notes_tech.db` 81 920 o (+ `-shm`, `-wal`) | **absents** |
+| `files/stt/whisper-base-q5_1.bin` 59 707 625 o | **répertoire supprimé** |
+| `cache/exports/note-secrete.md`, `cache/captures/dictee-….wav` | **partis** |
+| `cache/` — 4 répertoires de fixtures | **vide** |
+| `shared_prefs/notes_tech.kek.xml`, `FlutterSecureStorage.xml`, `FlutterSecureKeyStorage.xml` | **partis** |
+| `FlutterSharedPreferences.xml` 130 o | **65 o** — liste blanche respectée |
+
+L'écran de fin affiche les **quatre** puces, « Modèle de dictée vocale : désinstallé » comprise, et
+le dialogue de consentement affichait bien ses **trois** items. Défauts 1 et 2 mesurés corrigés
+ailleurs que dans un test.
+
+**Passage 2 — résidu de clair forcé.** `cache/exports/` rendu non supprimable (`chmod 500`) avec un
+`note.md` dedans. `EXPORTS_WIPE` **et** `CACHE_PURGE` échouent, comme prévu, et l'écran affiche
+exactement une phrase :
+
+> « Clé détruite : la base n'est plus déchiffrable. En revanche, du contenu LISIBLE peut subsister
+> sur cet appareil — archive d'export, enregistrement de dictée, ou note copiée dans le
+> presse-papiers. Ne vous en séparez pas sans vérifier. »
+
+Les quatre puces sont absentes, `panic_incomplete` aussi — le `when` sans `else` fait ce qu'on
+attend de lui. Le résidu est bien resté sur le disque : la phrase ne ment pas.
+
+⚠️ Position mesurée : `[72,798][1008,1230]` sur un écran de 2220 — **entièrement lisible sans
+défiler**. La question s'était posée parce qu'un nœud Compose « existe mais n'est pas affiché » se
+confond avec un nœud rogné en bas d'écran ; ici, ni l'un ni l'autre.
+
+⚠️ Après relance : « Aucune note ». Le pied de page — *« Notes Tech repartira sur une base
+vierge »* — est donc mesuré lui aussi, et pas seulement promis.
+
+⚠️⚠️ **Le modèle de 57 Mo est détruit par une panique, et c'est voulu.** Il a été copié hors de
+l'appareil avant le premier passage (`adb exec-out run-as … cat`) et restauré après, SHA-256 vérifié
+identique des deux côtés. *Une vérification qui détruit une donnée de l'utilisateur doit emporter sa
+restauration avec elle, sinon elle n'est faisable qu'une fois.*
+
+## §105 — ⚠️⚠️ Deux sessions Claude sur le même dépôt et le même téléphone : les mesures se détruisent en silence
+
+Le 2026-08-19, deux suites instrumentées complètes se sont arrêtées à mi-parcours — 209 tests sur
+306, puis 27 — en rendant `INSTRUMENTATION_RESULT: shortMsg=Process crashed.` **Aucun test n'avait
+échoué** : le processus était tué.
+
+La cause n'était pas dans le code. Un second processus `claude.exe`, survivant d'une session
+précédente, exécutait **la même suite sur le même appareil** et avait même réinstallé l'APK en plein
+milieu (`lastUpdateTime` à la seconde près du décrochage). Deux `am instrument` sur le même paquet
+s'entretuent, et deux Gradle écrivent le même `build/`.
+
+Ce qui rend le piège coûteux, c'est qu'aucun symptôme ne pointe vers la vraie cause :
+
+| Ce qu'on voit | Ce qu'on en conclut à tort |
+|---|---|
+| « Process crashed » à un test différent à chaque fois | Un test instable, ou une fuite mémoire |
+| Un fichier source modifié qu'on n'a pas écrit | Une erreur de sa propre part |
+| Un APK reconstruit sans qu'on l'ait demandé | Gradle qui invalide son cache |
+
+**Le diagnostic tient en une commande** — lister les processus et lire leur ligne de commande :
+
+```powershell
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'am instrument' }
+```
+
+⚠️ Contrôle à faire **avant** toute campagne de mesure sur appareil : un seul `claude.exe` doit avoir
+des processus enfants. Les autres sont des onglets au repos et ne gênent pas.
+
+⚠️⚠️ Avant de tuer quoi que ce soit, **sauvegarder l'arbre de travail** : le travail de l'autre
+session est réel et non commité. Ici, sa refonte de `clairSurLeDisque()` (§103) était bonne, et la
+perdre aurait coûté plus cher que les mesures détruites.
+
+## §106 — 🔴🔴 La relecture du correctif a trouvé un défaut que le correctif venait de CRÉER
+
+Le diff de §102 a été soumis à une relecture externe (GPT-5.2, 2026-08-19) avec une consigne
+précise : *énumérer les combinaisons atteignables de `(protege, isComplete, clairPeutSubsister,
+failedSteps)` et dire laquelle produit un écran muet, contradictoire ou faussement rassurant.* Elle
+a rendu trois constats réels sur cinq axes.
+
+### 1. 🔴🔴 « Clé détruite » sur un écran qui annonce que la clé a SURVÉCU
+
+Sortir l'avertissement du `when` lui a fait perdre l'exclusivité qui le protégeait du cas
+`!protege`. Or `panic_incomplete_plaintext` **commence par « Clé détruite »**. Avec
+`KEK_DESTROY` en échec et un résidu de clair — deux conditions parfaitement compatibles — l'écran
+affichait en même temps :
+
+> « Vos notes restent déchiffrables sur cet appareil. »
+> « **Clé détruite** : la base n'est plus déchiffrable. »
+
+Pas bruyant : **faux**, sur le seul écran où quelqu'un décide de se séparer d'un appareil sous
+contrainte. Correctif : `if (protege && report.clairPeutSubsister)`. Rien n'est perdu —
+`panic_key_survived` est strictement plus grave et dit déjà de ne pas s'en séparer.
+
+> ⚠️⚠️ **Le correctif est du code neuf.** Il ne bénéficie d'aucune des relectures qui ont validé
+> ce qu'il remplace, et il hérite d'un angle mort : on relit ce qu'on répare, pas ce qu'on casse
+> en réparant. Huit cas instrumentés écrits le matin même ne l'ont pas vu.
+
+### 2. 🔴 « Toutes les données ont été effacées », juste au-dessus de « du lisible peut subsister »
+
+`panic_complete_body` est une phrase **absolue**. La laisser coexister avec l'avertissement, en
+comptant sur la hiérarchie visuelle — le rouge, plus bas — pour départager, c'est parier que celle
+du haut ne sera pas la seule lue. Elle est désormais conditionnée à `!clairPeutSubsister`.
+
+⚠️ **Les quatre puces, elles, restent affichées** : ce sont des affirmations précises, chacune
+adossée à une étape qui a réussi. C'est l'énoncé général qui était faux, pas le détail.
+
+### 3. 🔴 `walkTopDown` ignore en silence ce qu'il ne peut pas lister
+
+La mesure récursive de §103 rendait `false` sur un cache partiellement illisible : par défaut,
+`FileTreeWalk` **passe** un répertoire dont le listage échoue, et l'échec n'est pas une
+`SecurityException`. Faux négatif exactement là où le repli existe. Corrigé par
+`.onFail { _, e -> throw e }` et un `catch (e: Exception)` — *ne pas pouvoir regarder n'est pas une
+réponse*.
+
+### Ce qui reste ouvert, et pourquoi il n'est pas refermé à la hâte
+
+⚠️ **L'avertissement de clair n'est pas une `liveRegion`.** Seul le titre l'est, en `Assertive`, et
+dans l'état « complet + clair » ce titre dit « Effacement terminé ». Un lecteur d'écran entend donc
+la phrase rassurante et pas l'avertissement. Poser une seconde région assertive sans la **mesurer**
+sous TalkBack reviendrait à deviner — deux régions assertives simultanées s'interrompent. À faire
+avec un appareil et le lecteur d'écran allumé, pas au jugé.
+
+⚠️ `assertDoesNotExist` sur `panic_incomplete` formaté avec `0` est contournable : réintroduire le
+compteur en **deux nœuds** le laisserait passer. Le garde-fou qui tient, lui, est l'assertion sur la
+**ressource** — elle ne contient aucun `%`, dans les deux langues, et ne dépend d'aucun rendu.

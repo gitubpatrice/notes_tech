@@ -167,7 +167,7 @@
 | `about_screen.dart` | 622 | `ui/about/AboutScreen.kt` | ☐ | Version lue dynamiquement via `PackageInfo` |
 | `mentions_legales_screen.dart` | 131 | `ui/about/LegalScreen.kt` | ☐ | Rend `PRIVACY.{fr,en}.md` / `TERMS.{fr,en}.md` |
 | `voice_setup_screen.dart` | 465 | `ui/voice/VoiceSetupScreen.kt` | ☐ | Phase 7 |
-| `panic_complete_screen.dart` | 143 | `ui/panic/PanicScreens.kt` → `PanicOverlay` | ☐ | Écran terminal du mode panique |
+| `panic_complete_screen.dart` | 143 | `ui/panic/PanicScreens.kt` → `PanicOverlay` | ✅ | `PanicEcransTest` (**10** cas, S9, 2026-08-19) + rejeu complet de la séquence sur appareil (§104). Les quatre puces, les trois issues, le message de clair dans **les deux langues**, la phrase absolue qui ne s'affiche que si elle est vraie, et **aucun actionnable sans nom**. 🔴 A trouvé **six** défauts — §101 (deux), §102, §106 (deux) ; et la ressource elle-même n'a plus de paramètre de formatage |
 
 ⚠️ `HomeScreen.kt` est **sans état** et `HomeRoute.kt` porte toute la colle. Le découpage n'a pas
 d'équivalent Flutter : `home_screen.dart` fait les deux. Vérifier l'écran, c'est vérifier les deux.
@@ -255,7 +255,7 @@ modifier du code correct.
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
 | `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ✅ |
-| `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ☐ |
+| `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ✅ | Couvert par `PanicEcransTest` et mesuré sur le S9 : les **trois** items sont affichés sur l'écran de consentement réel. 🔴 A trouvé **un** défaut — §101, le modèle de dictée était tu |
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
 | `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ✅ |
 | `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ✅ |
@@ -426,7 +426,7 @@ rôle ? » qui a mené au défaut, pas la question « est-ce que ça marche ? »
 |---|---:|---|:---:|---|
 | `folder_vault_service.dart` | 1 582 | `security/vault/FolderVaultService.kt` | ✅ | Ouvrir un coffre **créé par la version Flutter** — voir la note ci-dessous |
 | `note_export_service.dart` | 519 | `data/export/NoteExporter.kt` + `domain/export/` | ☐ | Export `.md` d'une note de coffre — le corps ne doit pas être vide |
-| `panic_service.dart` | 478 | `security/panic/PanicService.kt` | ☐ | Ordre des étapes ; un rapport ne doit jamais mentir sur un effacement |
+| `panic_service.dart` | 478 | `security/panic/PanicService.kt` | ✅ | `PanicReportTest` (**15** cas JVM) + `PanicEcransTest` (**10** cas, S9) + **rejeu complet de la séquence sur le S9, deux fois** — nominal et avec un résidu de clair forcé (§104). Ordre des treize étapes figé ; le rapport ne ment sur aucun effacement, mesuré fichier par fichier. 🔴 A trouvé **neuf** défauts — §101 (quatre), §102, §103, §106 (trois) |
 | `voice_service.dart` | 450 | `data/voice/WhisperStt.kt` + `VoiceCapture.kt` + `SttModelStore.kt` | ☐ | Phase 7 |
 | `backlinks_service.dart` | 401 | `data/repository/LinksRepository.kt` + `data/local/NoteLinkWriter.kt` + `domain/links/` | ☐ | Plafond de balayage 50 ko — ✅ **relevé le 08-16 : les deux plafonds concordent au chiffre près**, `WikiLinkParser.CONTENT_SCAN_LIMIT = 50_000` et `MAX_LINKS_PER_NOTE = 256` contre `noteContentBacklinksLimit = 50000` et `_maxLinksPerNote = 256`. Reste à vérifier le **comportement** sur une note qui dépasse |
 | `keystore_bridge.dart` | 207 | `security/vault/AndroidVaultKeystore.kt` + `security/kek/KeystoreSealedKekSource.kt` | ☐ | Repris depuis `KeystoreBridge.kt`, sans MethodChannel |
@@ -600,10 +600,15 @@ implémentation. Chaque groupe se relit ; le verdict brut ne s'applique pas.
 | Compte | Sort |
 |---|---|
 | **45** | dictée vocale — phase 7 |
-| **2** | puces du mode panique nommant le modèle vocal — phase 7, **omises exprès et commentées** |
+| ~~**2**~~ **0** | puces du mode panique nommant le modèle vocal — ⚠️⚠️ **ces deux-là n'étaient plus orphelines depuis le 2026-08-16**, date où `VOICE_MODEL_WIPE` a commencé à s'exécuter. Rétablies le 2026-08-19 : cf. `04-PIEGES.md` §101 |
 | **14** | délibérées : raisons typées, substitutions assumées, ou chaînes que le portage fait **mieux** sans |
 
 Aucune n'est supprimée : cf. `04-PIEGES.md` §48.
+
+⚠️⚠️ **Une ligne de ce registre s'est périmée sans que rien ne le signale.** « Omises exprès et
+commentées » était vrai à l'écriture ; l'étape qui les rendait nécessaires est arrivée trois jours
+plus tard, et le registre a continué d'attester qu'il n'y avait rien à voir. *Un inventaire de
+dérogations doit être relu quand la raison de la dérogation change, pas quand l'inventaire change.*
 
 ## Phase 8 — deuxième instrument : le relevé des GESTES
 

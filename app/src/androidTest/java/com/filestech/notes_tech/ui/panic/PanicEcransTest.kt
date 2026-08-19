@@ -61,6 +61,18 @@ import java.util.Locale
  * > *phrase*, et sur cet écran-ci c'est la phrase qui est le produit : quelqu'un décide, en la
  * > lisant, s'il peut se séparer de son appareil.
  *
+ * ## 🔴🔴 Et un cinquième, que ce fichier a trouvé à son PREMIER lancement
+ *
+ * 5. Le bilan des étapes et l'état du résidu étaient **deux branches d'un même `when`**, donc
+ *    exclusives. `isComplete` passant en premier, une séquence entièrement réussie effaçait
+ *    l'avertissement du défaut 3 — y compris quand `clairSurLeDisque` vaut vrai parce que la
+ *    **mesure** a échoué et que le service s'est replié sur « du clair subsiste » plutôt que
+ *    d'annoncer une protection qu'il n'a pas constatée.
+ *
+ * > ⚠️⚠️ **Un repli de sûreté n'en est pas un si l'affichage l'écrase.** Corriger le texte du
+ * > défaut 3 sans ce cinquième point aurait produit une phrase juste que personne n'aurait
+ * > jamais lue dans l'état qui l'exige le plus.
+ *
  * ⚠️ Ces cas ne couvrent pas l'exécution de la séquence — fichiers, Keystore, base. Elle se mesure
  * sur appareil ; cf. le KDoc de `PanicReportTest`.
  */
@@ -188,9 +200,15 @@ class PanicEcransTest {
      * le construit déjà. L'écran y affichait « 0 étape(s) de nettoyage ont échoué » avant d'avertir
      * qu'il reste du lisible.
      *
-     * ⚠️ Le cas compare au texte **brut** de la ressource. Si un `%1$d` y revenait, `getString` sans
-     * argument le rendrait littéralement et la comparaison échouerait — c'est ce qui rend ce cas
-     * durable plutôt que ponctuel.
+     * ⚠️⚠️ **Ce KDoc affirmait une durabilité qu'il n'avait pas.** Il disait : « si un `%1$d`
+     * revenait, `getString` sans argument le rendrait littéralement et la comparaison échouerait ».
+     * C'est faux dans le cas qui compte : si l'écran **et** le cas lisaient tous deux la ressource
+     * sans formatage, les deux verraient `%1$d` et le cas passerait. Il n'attrape donc que la
+     * réintroduction du compteur **avec** un formatage côté écran — c'est-à-dire l'ancien défaut, et
+     * pas sa variante. Relevé par une relecture externe (GPT-5.2, 2026-08-19).
+     *
+     * D'où l'assertion sur la **ressource elle-même**, ci-dessous : elle ne dépend d'aucun rendu.
+     * *Un commentaire de test qui promet une garantie la remplace, aux yeux du lecteur suivant.*
      */
     @Test
     fun le_message_de_clair_n_annonce_AUCUN_compte_d_etapes() {
@@ -201,6 +219,95 @@ class PanicEcransTest {
         poser(report = bilanMesure)
 
         regle.onNodeWithText(texte(R.string.panic_incomplete_plaintext)).assertIsDisplayed()
+
+        // 🔴 La garantie qui ne dépend d'aucun rendu : la ressource ne porte AUCUN paramètre de
+        // formatage, dans aucune des deux langues. C'est elle qui rend le cas durable.
+        for (langue in listOf(Locale.FRENCH, Locale.ENGLISH)) {
+            assertThat(ressources(langue).getString(R.string.panic_incomplete_plaintext))
+                .doesNotContain("%")
+        }
+    }
+
+    /**
+     * 🔴🔴 **Le défaut 5, et c'est lui qui rendait le défaut 4 inobservable.**
+     *
+     * Le bilan des étapes et l'état du résidu étaient **deux branches d'un même `when`**, donc
+     * exclusives, et `isComplete` passait en premier. Une séquence entièrement réussie effaçait
+     * donc l'avertissement — y compris dans le cas qui l'exige le plus : `clairSurLeDisque` vaut
+     * vrai *aussi* quand la **mesure** échoue, parce que le service se replie sur « du clair
+     * subsiste » plutôt que d'annoncer une protection qu'il n'a pas constatée. L'écran annulait ce
+     * repli, sans une seule étape en échec.
+     *
+     * > ⚠️⚠️ **Un repli de sûreté n'en est pas un si l'affichage l'écrase.**
+     *
+     * ⚠️ Ce cas exige les **deux** à la fois. N'exiger que l'avertissement laisserait passer un
+     * « correctif » consistant à remonter la branche dans le `when` : les quatre puces
+     * disparaîtraient, et le bilan mentirait dans l'autre sens — en taisant treize effacements qui
+     * ont bien eu lieu.
+     *
+     * ⚠️ Découvert par ce fichier au **premier lancement sur le S9**, et par rien d'autre :
+     * `PanicReportTest.clairRestantEstSignale` affirme `isComplete` **et** `clairPeutSubsister` sur
+     * cet état exact, et est vert depuis le premier jour. Il ne rend aucun écran.
+     */
+    @Test
+    fun une_sequence_complete_qui_laisse_du_clair_dit_les_DEUX() {
+        val bilanMesure = rapport(clairSurLeDisque = true)
+        assertThat(bilanMesure.isComplete).isTrue()
+        assertThat(bilanMesure.clairPeutSubsister).isTrue()
+
+        poser(report = bilanMesure)
+
+        // Ce que la séquence a accompli — les treize étapes ont réussi, et le dire reste juste.
+        for (puce in listOf(
+            R.string.panic_complete_bullet_1,
+            R.string.panic_complete_bullet_2,
+            R.string.panic_complete_bullet_3,
+            R.string.panic_complete_bullet_4,
+        )) {
+            regle.onNodeWithText(texte(puce)).assertIsDisplayed()
+        }
+
+        // Ce qu'elle a laissé de lisible — et c'est ce que l'écran taisait.
+        regle.onNodeWithText(texte(R.string.panic_incomplete_plaintext)).assertIsDisplayed()
+
+        // 🔴 Et la phrase ABSOLUE ne doit pas être là : « Toutes les données ont été effacées »
+        // contredit mot pour mot l'avertissement ci-dessus. Sans ce contrôle, l'écran reste
+        // contradictoire et le cas passe quand même. Relecture externe (GPT-5.2, 2026-08-19).
+        regle.onNodeWithText(texte(R.string.panic_complete_body)).assertDoesNotExist()
+
+        // ⚠️ Le compte d'étapes n'a rien à faire ici : il vaudrait zéro. Le texte à compteur ne doit
+        // pas coexister avec l'avertissement, sous peine de deux phrases contradictoires.
+        regle.onNodeWithText(regle.activity.getString(R.string.panic_incomplete, 0)).assertDoesNotExist()
+    }
+
+    /**
+     * 🔴🔴 **Le défaut que le correctif du défaut 5 a CRÉÉ.**
+     *
+     * Sortir l'avertissement du `when` lui a fait perdre l'exclusivité qui le protégeait du cas
+     * « la clé a survécu ». Or `panic_incomplete_plaintext` commence par « **Clé détruite** » :
+     * l'écran affichait donc, en même temps, « vos notes restent déchiffrables » et « clé
+     * détruite ». Pas bruyant — **faux**, sur le seul écran où quelqu'un décide de se séparer
+     * d'un appareil sous contrainte.
+     *
+     * ⚠️ Relevé par une relecture externe (GPT-5.2, 2026-08-19), pas par les huit cas déjà là.
+     * *Un correctif est du code neuf : il se relit comme tel, et il mérite son propre cas.*
+     */
+    @Test
+    fun une_cle_SURVIVANTE_n_annonce_jamais_une_cle_detruite() {
+        val bilan = rapport(PanicStep.KEK_DESTROY, clairSurLeDisque = true)
+        assertThat(bilan.minimalGuarantee).isFalse()
+        assertThat(bilan.clairPeutSubsister).isTrue()
+
+        poser(report = bilan)
+
+        // La seule phrase que cet état autorise.
+        regle.onNodeWithText(texte(R.string.panic_key_survived_title)).assertIsDisplayed()
+        regle.onNodeWithText(regle.activity.getString(R.string.panic_key_survived, 1))
+            .assertIsDisplayed()
+
+        // Celles qui la contrediraient.
+        regle.onNodeWithText(texte(R.string.panic_incomplete_plaintext)).assertDoesNotExist()
+        regle.onNodeWithText(texte(R.string.panic_complete_body)).assertDoesNotExist()
     }
 
     /**

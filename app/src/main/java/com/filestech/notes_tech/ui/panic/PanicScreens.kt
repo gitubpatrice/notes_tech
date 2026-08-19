@@ -253,8 +253,17 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                 )
 
                 report.isComplete -> {
-                    Text(stringResource(R.string.panic_complete_body))
-                    Spacer(Modifier.height(16.dp))
+                    // 🔴 **La phrase absolue ne s'affiche que si elle est vraie.** « Toutes les
+                    // données ont été effacées » et « du contenu LISIBLE peut subsister » ne
+                    // peuvent pas tenir ensemble, et compter sur la hiérarchie visuelle — le rouge,
+                    // plus bas — pour départager deux phrases contradictoires, c'est parier que
+                    // celle du haut ne sera pas la seule lue. Les quatre puces, elles, restent
+                    // justes : ce sont des affirmations précises, chacune vérifiée par une étape.
+                    // Relevé par une relecture externe (GPT-5.2, 2026-08-19).
+                    if (!report.clairPeutSubsister) {
+                        Text(stringResource(R.string.panic_complete_body))
+                        Spacer(Modifier.height(16.dp))
+                    }
                     // ⚠️ La troisième puce — « modèle de dictée vocale : désinstallé » — a été
                     // rétablie le 2026-08-19, avec l'item 2 du dialogue et pour la même raison :
                     // `PanicStep.VOICE_MODEL_WIPE` s'exécute depuis le 2026-08-16. Le bilan
@@ -265,41 +274,72 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                     Puce(stringResource(R.string.panic_complete_bullet_4))
                 }
 
-                // 🔴 **Le nettoyage qui a échoué n'a pas laissé la même chose selon l'étape.**
-                //
-                // `panic_incomplete` dit « des fichiers **illisibles** peuvent subsister », et c'est
-                // vrai de tout sauf du clair : une archive d'export, un enregistrement de dictée, ou
-                // une note restée dans le presse-papiers. Si c'est l'un de ceux-là qui a survécu, la
-                // phrase rassurante décrit exactement l'inverse de la situation — des notes
-                // lisibles, à quelqu'un qui vient de déclencher une destruction sous contrainte.
-                //
-                // Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15) ; l'autre relecture
-                // avait conclu « rien trouvé » sur cet axe, parce qu'elle a regardé la logique des
-                // branches et non le **texte** qu'elles affichent.
-                //
-                // ⚠️ La distinction n'est pas une quatrième issue globale : la garantie minimale
-                // reste acquise — la base est du bruit. C'est la **nature du résidu** qui change, et
-                // c'est elle que l'utilisateur doit connaître pour décider s'il peut se séparer de
-                // l'appareil.
-                report.clairPeutSubsister -> Text(
-                    // ⚠️⚠️ **Sans compteur d'étapes, et c'est le point.** Ce résidu-là se MESURE à
-                    // la fin de la séquence — il ne se déduit pas des étapes, et il vaut vrai avec
-                    // ZÉRO étape en échec ; `PanicReportTest.clairRestantEstSignale` construit
-                    // exactement cet état. La phrase affichait donc « 0 étape(s) de nettoyage ont
-                    // échoué » juste avant d'avertir qu'il reste du clair, se contredisant dans sa
-                    // propre phrase au seul moment où elle doit être crue.
-                    //
-                    // ⚠️ Le texte ne nomme plus les seules archives d'export : le prédicat couvre
-                    // les trois sources de clair. Nommer la mauvaise envoyait quelqu'un fouiller
-                    // des fichiers absents pendant qu'une note attendait dans le presse-papiers.
-                    text = stringResource(R.string.panic_incomplete_plaintext),
-                    color = MaterialTheme.colorScheme.error,
-                )
-
                 // La clé est tombée, donc l'essentiel est acquis ; seul un nettoyage a échoué. Pas
                 // de rouge ici : l'alarme est réservée aux cas au-dessus, sans quoi elle ne veut
                 // plus rien dire quand elle sert.
-                else -> Text(stringResource(R.string.panic_incomplete, report.failedSteps.size))
+                //
+                // ⚠️ **Ce `when` n'a pas d'`else`, et c'est délibéré.** Quand du clair subsiste,
+                // rien ne s'affiche ici : `panic_incomplete` annonce des fichiers **illisibles**,
+                // et le bloc suivant dit exactement l'inverse. Les faire se suivre donnerait deux
+                // phrases contradictoires à quelqu'un qui vient de déclencher une destruction sous
+                // contrainte.
+                !report.clairPeutSubsister ->
+                    Text(stringResource(R.string.panic_incomplete, report.failedSteps.size))
+            }
+
+            // ── Ce que la séquence a laissé de LISIBLE ─────────────────────────────────────────
+            //
+            // 🔴🔴 **Ceci était une branche du `when` ci-dessus, donc effacée par `isComplete`.**
+            //
+            // Le résumé des étapes et l'état du résidu sont deux informations distinctes : ce que
+            // les treize étapes ont accompli, et ce que la mesure finale a trouvé sur le disque.
+            // Le `when` les rendait exclusives, et c'est la rassurante qui gagnait.
+            //
+            // Le cas n'est pas théorique. `clairSurLeDisque` est **mesuré**, et cette mesure se
+            // replie sur `true` quand elle échoue — *« on n'annonce pas une protection qu'on n'a
+            // pas constatée »*, dit son propre commentaire dans `PanicService`. Ce repli se
+            // produit **sans une seule étape en échec** : l'écran répondait alors par quatre puces
+            // rassurantes et taisait la seule prudence que le service avait prise.
+            // ⚠️⚠️ *Un repli de sûreté n'en est pas un si l'affichage l'écrase.*
+            //
+            // ⚠️ `PanicReportTest.clairRestantEstSignale` construit exactement cet état, affirme
+            // `isComplete` **et** `clairPeutSubsister`, et est vert depuis le premier jour. Il ne
+            // pouvait rien dire de l'écran — personne ne le lui avait demandé. Le défaut n'a été
+            // vu que par un cas instrumenté sur appareil.
+            //
+            // ⚠️ La distinction n'est pas une quatrième issue globale : la garantie minimale reste
+            // acquise, la base est du bruit. C'est la **nature du résidu** qui change, et c'est
+            // elle qui décide si quelqu'un peut se séparer de son appareil.
+            // 🔴🔴 **`protege &&`, et ce n'est pas une précaution de style.** La phrase ci-dessous
+            // commence par « Clé détruite ». L'afficher quand la clé a **survécu** mettrait à
+            // l'écran, en même temps, « vos notes restent déchiffrables » et « clé détruite » —
+            // pas bruyant : faux, sur le seul écran où l'on décide de se séparer d'un appareil.
+            // Et rien n'est perdu : le message `panic_key_survived` est strictement plus grave,
+            // il dit déjà de ne pas s'en séparer.
+            //
+            // ⚠️ Ce défaut-ci, c'est **le correctif** qui l'a créé : sortir le bloc du `when` lui a
+            // fait perdre l'exclusivité qui le protégeait de ce cas. Relevé par une relecture
+            // externe (GPT-5.2, 2026-08-19). *Un correctif est du code neuf, à relire comme tel.*
+            if (protege && report.clairPeutSubsister) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    // ⚠️⚠️ **Sans compteur d'étapes, et c'est le point.** Ce résidu se MESURE ; il
+                    // ne se déduit pas des étapes et vaut vrai avec ZÉRO étape en échec. La phrase
+                    // affichait « 0 étape(s) de nettoyage ont échoué » juste avant d'avertir qu'il
+                    // reste du clair — elle se contredisait dans sa propre phrase, au seul moment
+                    // où elle doit être crue.
+                    //
+                    // ⚠️ Le texte ne nomme plus les seules archives d'export : le prédicat couvre
+                    // les trois sources de clair — export, dictée, presse-papiers. Nommer la
+                    // mauvaise envoyait quelqu'un fouiller des fichiers absents pendant qu'une
+                    // note lisible attendait dans le presse-papiers.
+                    //
+                    // Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15) ; l'autre
+                    // relecture avait conclu « rien trouvé » sur cet axe, parce qu'elle a regardé
+                    // la logique des branches et non le **texte** qu'elles affichent.
+                    text = stringResource(R.string.panic_incomplete_plaintext),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
 
             // ⚠️ Le pied de page promet un prochain lancement « sur une base vierge ». Il n'est
