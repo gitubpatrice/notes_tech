@@ -83,6 +83,14 @@ AJOUTS_EN = {
       partage plus.
     -->
     <string name="note_editor_copy_empty">Nothing to copy: this note is empty</string>
+    <!--
+      Ajout du portage. La feuille de deplacement reutilisait `note_card_locked` pour signaler
+      un dossier coffre : elle disait donc « Note verrouillee » a propos d un DOSSIER, sur
+      l ecran ou l on choisit ou envoyer une note. L application publiee, elle, ne signale le
+      coffre que par une icone — invisible a un lecteur d ecran. Cette chaine dit la bonne
+      chose et dit la CONSEQUENCE, qui est la raison d etre du signal.
+    -->
+    <string name="move_to_folder_vault">Vault folder: the note will be encrypted</string>
 """,
     "trash": """\
     <!--
@@ -252,6 +260,7 @@ AJOUTS_FR = {
 """,
     "note": """\
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
+    <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
 """,
     "trash": """\
     <plurals name="trash_emptied">

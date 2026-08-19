@@ -3737,3 +3737,53 @@ réponses sont mesurées — `PanicEcransTest` pour le recouvrement de panique, 
 (6 cas, dont le **balayage vers le bas**) pour la feuille de conversion. C'est ce remplissage qui
 avait trouvé le défaut du 2026-08-16 : la feuille refusait de se fermer **uniquement** dans
 `onDismissRequest`, et un balayage la faisait quitter l'écran avant que ce rappel n'arrive.
+
+## §115 — 🔴 Une chaîne juste, réemployée au mauvais endroit : le dossier se disait « note verrouillée »
+
+Ligne `move_to_folder_sheet.dart`. La feuille de déplacement signalait un dossier coffre en
+réutilisant `note_card_locked` — « 🔒 Note verrouillée ».
+
+La chaîne est **juste**, et bien nommée : elle décrit une **carte de note**, et `NoteCard` comme
+`NoteEditorScreen` s'en servent correctement. Posée sous le nom d'un **dossier**, sur l'écran où
+l'on choisit où envoyer une note, elle fait annoncer « Secrets. 🔒 Note verrouillée » pour une
+destination qui n'est pas une note.
+
+> ⚠️ **Une chaîne réemployée n'est pas une chaîne partagée.** Rien ne signale l'emprunt : la clé
+> existe, le texte s'affiche, la traduction est là. Seul le **sens** ne suit pas, et aucun outil ne
+> le vérifie — ni le compilateur, ni le contrôle de parité FR/EN, ni le relevé des orphelines.
+
+### Ce que le publié fait, et pourquoi le portage doit faire mieux
+
+L'application publiée ne signale le coffre que par une **icône**, et son propre commentaire dit
+pourquoi le signal existe : *« l'utilisateur doit voir où il envoie sa note : la destination n'était
+pas distinguable d'un dossier ordinaire »* — relevé chez elle par une relecture externe.
+
+Une icône est **invisible à un lecteur d'écran**. Le portage, lui, ajoute une ligne de texte : il
+tient donc la promesse mieux que le publié, à condition de dire la bonne chose. `move_to_folder_vault`
+dit désormais la **conséquence** — *« Dossier coffre : la note sera chiffrée »* — qui est la raison
+d'être du signal.
+
+⚠️ La chaîne est ajoutée par `outils/arb_vers_strings.py`, jamais dans le XML : c'est lui qui
+engendre les deux `strings.xml`.
+
+### Six cas, et un contrôle positif
+
+`FeuilleDeDeplacementTest` : le dossier courant n'est pas proposé (avec le voisin comme témoin), le
+coffre annonce le chiffrement **et** ne porte plus l'ancienne phrase, un dossier ordinaire ne porte
+**aucune** mention (le contrôle négatif), la liste vide le dit, et le choix rend l'**identifiant**
+— le cas touche le **second** de la liste, pour qu'un appelant qui rendrait `dossiers[position]` sur
+la liste non filtrée se trompe.
+
+**Contrôle positif** : `note_card_locked` remise en place, le cas du coffre tombe, et lui seul.
+
+### ⚠️⚠️ Le balayage a trouvé autre chose, et c'est material3
+
+`actionnablesSansNom()` a signalé un nœud de 32 × 48 dp centré : `BottomSheetDefaults.DragHandle`,
+que `ModalBottomSheet` pose par défaut et dont un des deux nœuds jumeaux porte `OnLongClick` **seul**
+— non nommable depuis l'appelant. Le dépôt connaissait déjà le cas (`AutocompletionTest`) et son
+idiome : ancrer l'exception sur la poignée **mesurée**, celle qui porte `Dismiss`, et garder un
+`containsExactly` pour que tout autre actionnable muet fasse tomber le cas.
+
+✅ **Effet de bord utile** : ce cas **mesure** que la poignée est bien là. C'est ce que la ligne
+`sheet_handle.dart` (§114) affirmait sur la foi des sept appels sans `dragHandle` — la lecture
+statique disait « rien ne la désactive », la mesure dit « elle est là ».

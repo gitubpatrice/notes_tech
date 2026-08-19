@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **337 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **343 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1315,3 +1315,28 @@ la poignée par mégarde. Les **sept** `ModalBottomSheet` du portage passent `on
 `blocking_progress_dialog.dart` : les deux appelants sont mesurés séparément — `PanicEcransTest` pour
 le recouvrement de panique, `FermetureDeFeuilleTest` (6 cas, dont le **balayage vers le bas**) pour
 la feuille de conversion. C'est ce remplissage qui avait trouvé le défaut du 08-16.
+
+## ✅ 2026-08-19 — la feuille de déplacement : une chaîne juste, au mauvais endroit
+
+`move_to_folder_sheet.dart` cochée. **5 → 4 cases restantes.**
+
+La feuille signalait un dossier coffre en réutilisant `note_card_locked` — « 🔒 Note verrouillée ». La
+chaîne est juste et bien nommée ; posée sous le nom d'un **dossier**, sur l'écran où l'on choisit où
+envoyer une note, elle faisait annoncer « Secrets. Note verrouillée » pour une destination qui n'est
+pas une note.
+
+> ⚠️ **Une chaîne réemployée n'est pas une chaîne partagée.** Rien ne signale l'emprunt : la clé
+> existe, le texte s'affiche, la traduction est là. Seul le **sens** ne suit pas, et aucun outil ne
+> le vérifie — ni le compilateur, ni le contrôle de parité FR/EN, ni le relevé des orphelines.
+
+L'application publiée, elle, ne signale le coffre que par une **icône** — invisible à un lecteur
+d'écran — alors que son propre commentaire dit que *« l'utilisateur doit voir où il envoie sa note »*.
+`move_to_folder_vault` dit désormais la **conséquence** : la note sera chiffrée.
+
+⚠️ Chaîne ajoutée par `outils/arb_vers_strings.py`, jamais dans le XML. **Contrôle positif** :
+`note_card_locked` remise en place, le cas du coffre tombe, et lui seul. Cf. `04-PIEGES.md` §115.
+
+⚠️⚠️ Le balayage a signalé la **poignée de material3** (`OnLongClick` seul, non nommable depuis
+l'appelant). Idiome maison appliqué — exception ancrée sur la poignée **mesurée**, `containsExactly`
+conservé. ✅ Effet de bord : la poignée est désormais **mesurée**, là où §114 ne l'établissait que par
+la lecture des sept appels.

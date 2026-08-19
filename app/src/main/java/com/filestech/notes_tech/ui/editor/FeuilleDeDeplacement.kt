@@ -90,8 +90,21 @@ fun FeuilleDeDeplacement(
                                 )
                             },
                             leadingContent = { Icon(iconeDe(dossier), contentDescription = null) },
+                            // 🔴 **`move_to_folder_vault`, et pas `note_card_locked`.**
+                            //
+                            // Cette ligne portait « 🔒 Note verrouillée » — la chaîne d'une carte
+                            // de note, posée sous le nom d'un **dossier**. Sur l'écran où l'on
+                            // choisit où envoyer une note, un lecteur d'écran annonçait donc
+                            // « Travail. Note verrouillée » pour une destination qui n'est pas une
+                            // note. Relevé le 2026-08-19 en portant la ligne de parité.
+                            //
+                            // ⚠️ La chaîne dit désormais la **conséquence** — la note sera
+                            // chiffrée — qui est la raison d'être du signal. L'application
+                            // publiée ne le donne que par une **icône**, invisible à un lecteur
+                            // d'écran ; son propre commentaire dit pourtant que l'utilisateur
+                            // « doit voir où il envoie sa note ».
                             supportingContent = if (dossier.isVault) {
-                                { Text(stringResource(R.string.note_card_locked)) }
+                                { Text(stringResource(R.string.move_to_folder_vault)) }
                             } else {
                                 null
                             },

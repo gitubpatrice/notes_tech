@@ -256,7 +256,7 @@ modifier du code correct.
 | `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ✅ |
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ✅ | Couvert par `PanicEcransTest` et mesuré sur le S9 : les **trois** items sont affichés sur l'écran de consentement réel. 🔴 A trouvé **un** défaut — §101, le modèle de dictée était tu |
-| `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ☐ |
+| `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ✅ | **`FeuilleDeDeplacementTest` (6 cas, S9, 2026-08-19)**. 🔴 A trouvé **un** défaut — §115 : le coffre était signalé par `note_card_locked`, donc un **dossier** se disait « Note verrouillée ». `move_to_folder_vault` dit la **conséquence**. ⚠️ Le balayage a aussi **mesuré** la poignée de material3, ce que §114 n'établissait que par lecture |
 | `passphrase_text_field.dart` | 105 | `ui/vault/VaultSheets.kt` → `ChampDePhraseSecrete` | ✅ |
 | `voice_record_button.dart` | 85 | `ui/voice/ControleurDeDictee.kt` + le bouton micro de `NoteEditorScreen.kt` | ✅ |
 | `blocking_progress_dialog.dart` | 51 | **aucun composant commun** — voir ci-dessous | ✅ |

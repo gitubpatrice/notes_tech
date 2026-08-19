@@ -153,6 +153,7 @@
     <string name="note_editor_menu_copy_markdown">Copier le Markdown</string>
     <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
+    <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>
