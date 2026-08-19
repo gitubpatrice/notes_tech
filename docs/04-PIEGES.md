@@ -3399,3 +3399,65 @@ n'est **pas** exercé. `DatabaseProvider.close()` remet l'instance à zéro et l
 premier accès : un cas écrit ainsi n'atteindrait jamais le `catch` et serait un test vacant de plus.
 Le forcer demanderait de sceller la base comme le fait le mode panique. C'est écrit dans le KDoc de
 la classe. *Le dire vaut mieux que de laisser croire que la ligne est couverte.*
+
+## §108 — ⚠️⚠️ Sept cas prouvaient que le Keystore se relit LUI-MÊME, aucun qu'il relit l'autre
+
+Ligne `keystore_bridge.dart` de `docs/05-PARITE.md`, critère écrit : *« repris depuis
+`KeystoreBridge.kt`, sans MethodChannel »*.
+
+`AndroidVaultKeystoreTest` compte sept cas, tous justes : il scelle, il descelle, deux scellés du
+même clair diffèrent, un scellé abîmé est signalé comme malformé, une clé absente ne conclut rien,
+supprimer est idempotent, la clé est retenue par le matériel sécurisé. **Aucun ne dit quoi que ce
+soit du seul risque qui compte à la bascule 3.0.0** : un coffre à code créé par la 2.0.x doit
+s'ouvrir sous la 3.0.0, sur le même téléphone.
+
+### Pourquoi ce trou-là est particulièrement méchant
+
+Une divergence de paramètre ne casse rien à l'exécution. Elle produit **une autre clé**.
+`createKey` la crée, le scellement marche, le descellement marche, tous les tests passent — et le
+coffre de l'utilisateur ne s'ouvre plus jamais. Il n'y a pas de message d'erreur pour ça.
+
+⚠️ L'alias est le plus silencieux des paramètres : s'il diverge, le portage ne **trouve** simplement
+pas la clé, en crée une neuve, et l'ancienne reste dans le Keystore à côté d'un coffre devenu
+inouvrable.
+
+### Le sens de lecture, qui est tout le sujet
+
+`PariteKeystoreAvecFlutterTest`, **6 cas**, ne recopie rien du portage : chaque valeur est
+transcrite de `KeystoreBridge.kt` — spécification aux lignes 216-238, `wrap` à 290-299, `unwrap` à
+301-307, alias documenté ligne 24 — puis **comparée** à ce que le portage produit.
+
+| Cas | Ce qu'il mesure |
+|---|---|
+| Un scellé produit **comme le pont publié** s'ouvre par le portage | le sens qui décide si un coffre existant survit |
+| Un scellé du portage s'ouvre **comme le pont publié l'ouvre** | une bascule n'est pas toujours définitive |
+| Un scellé fait sous une **autre clé** est refusé | le contrôle négatif |
+| L'alias vaut exactement `vault_pin_<folder_id>` | le paramètre muet |
+| Les deux clés ont la **même spécification** | lue par `KeyInfo`, donc **par le Keystore**, pas par une constante |
+| Le nonce fait 12 octets **des deux côtés** | il vient du Keystore, jamais du code |
+
+> ⚠️⚠️ **Un test qui lirait `VaultParams` des deux côtés serait circulaire** : il passerait après un
+> changement de paramètre, qui est exactement le défaut qu'on cherche. C'est pourquoi la comparaison
+> de spécification passe par `KeyInfo` — on demande au **matériel** ce qu'il a fabriqué.
+
+### Contrôle positif, et il a servi
+
+Six cas verts ne disent rien tant qu'on n'a pas vu l'instrument tomber. Deux paramètres du **côté
+publié** ont été faussés dans le test — `setKeySize(128)` et `GCMParameterSpec(96, …)` — puis la
+suite relancée sur le S9 :
+
+| Attendu | Mesuré |
+|---|---|
+| la comparaison de spécification tombe | ✅ |
+| le descellement « comme le pont publié » tombe | ✅ |
+| les quatre autres restent verts | ✅ |
+
+Exactement les deux visés, et eux seuls. Paramètres restaurés, suite entière verte.
+
+### ⚠️ Ce que ces cas ne prouvent pas, et qui reste vrai
+
+Qu'un coffre du téléphone de quelqu'un s'ouvre. La clé Keystore est liée à l'**UID**, et la build de
+portage porte un `applicationId` suffixé `.next` : elle ne PEUT pas voir les clés de l'application
+publiée (`docs/06-ISOLATION-PENDANT-LE-CHANTIER.md`). Ce qui est mesuré ici est la seule chose
+mesurable avant la bascule — que les deux codes, sur le même Keystore, produisent et consomment le
+même matériel.

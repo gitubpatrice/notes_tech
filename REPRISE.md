@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **313 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **319 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1168,3 +1168,26 @@ archives d'un même cas portent le **même nom de fichier**, et l'aide qui le re
 référence. *Un cas fait uniquement de `doesNotContain` ne distingue pas « c'est absent » de « je
 regarde ailleurs».* Correctif : `single`, pour qu'une ambiguïté fasse échouer au lieu d'être
 tranchée en silence. Cf. `04-PIEGES.md` §107.
+
+## ✅ 2026-08-19 (suite) — le Keystore : sept cas prouvaient qu'il se relit LUI-MÊME
+
+`keystore_bridge.dart` cochée. **13 → 12 cases restantes.**
+
+`AndroidVaultKeystoreTest` a sept cas justes, et aucun ne dit rien du seul risque qui compte à la
+bascule 3.0.0 : **un coffre à code créé par la 2.0.x doit s'ouvrir sous la 3.0.0.** Une divergence
+de paramètre ne casse rien — elle produit **une autre clé**, tout fonctionne, et le coffre de
+quelqu'un ne s'ouvre plus jamais. Il n'y a pas de message d'erreur pour ça.
+
+`PariteKeystoreAvecFlutterTest`, **6 cas**, ne recopie rien du portage : tout est transcrit de
+`KeystoreBridge.kt` puis **comparé**. Un scellé produit comme le pont publié s'ouvre par le portage,
+et réciproquement ; contrôle négatif compris. ⚠️ La comparaison des deux spécifications passe par
+**`KeyInfo`** — on demande au matériel ce qu'il a fabriqué — parce que lire `VaultParams` des deux
+côtés serait circulaire.
+
+⚠️⚠️ **Contrôle positif fait, et il a servi** : deux paramètres du côté publié faussés
+(`setKeySize(128)`, `GCMParameterSpec(96, …)`) font tomber **exactement les deux cas visés**, et eux
+seuls. Six cas verts ne disent rien tant qu'on n'a pas vu l'instrument tomber. Cf. `04-PIEGES.md`
+§108.
+
+⚠️ Ne prouve pas qu'un coffre d'un vrai téléphone s'ouvre : la clé est liée à l'**UID** et la build de
+portage est suffixée `.next`. C'est la seule chose mesurable avant la bascule.
