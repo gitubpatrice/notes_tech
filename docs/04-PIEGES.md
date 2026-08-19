@@ -3461,3 +3461,99 @@ portage porte un `applicationId` suffixé `.next` : elle ne PEUT pas voir les cl
 publiée (`docs/06-ISOLATION-PENDANT-LE-CHANTIER.md`). Ce qui est mesuré ici est la seule chose
 mesurable avant la bascule — que les deux codes, sur le même Keystore, produisent et consomment le
 même matériel.
+
+## §109 — ✅ La promesse « paramètres de coffre identiques » : elle tenait, et personne n'avait vérifié l'instrument
+
+Dernière case non cochée du tableau des **promesses publiques** de `docs/05-PARITE.md` :
+*« Coffres par dossier — Argon2id + AES-256-GCM, paramètres identiques »*.
+
+Elle était en réalité **déjà mesurée**, et bien : `PariteCoffreAvecFlutterTest` compte **9 cas** qui
+rejouent des vecteurs produits en **exécutant** le Dart de la 2.0.3, puis recoupés contre
+`argon2-cffi` — le C de référence de la RFC 9106 — et `cryptography` Python, c'est-à-dire OpenSSL.
+37 concordances, zéro divergence. Le recoupement écarte le scénario où un défaut du paquet Dart
+serait reproduit à l'identique côté Kotlin et passerait pour une réussite.
+
+Ce qui manquait n'était pas la mesure : c'était **la vérification de l'instrument**.
+
+### Le contrôle positif, et ce qu'il a appris
+
+`VaultParams.PASSPHRASE_ITERATIONS` passé de 3 à 4, suite JVM relancée :
+
+| Cas | Tombe ? |
+|---|---|
+| « les raccourcis passphrase et PIN portent bien les paramètres de leur mode » | ✅ |
+| « un coffre passphrase entier s'ouvre à partir de la seule passphrase » | ✅ |
+| **« Argon2id rend exactement les clés du Dart »** | ❌ **non** |
+
+⚠️⚠️ **Et c'est correct, mais il faut le savoir.** Le cas qui porte le nom le plus rassurant ne lit
+pas `VaultParams` : il passe les paramètres **en clair**, ce qui est le bon choix — un vecteur doit
+être figé indépendamment des constantes qu'il sert à vérifier. La protection tient donc en **deux
+maillons** :
+
+1. les vecteurs ↔ des paramètres explicites (`argon2idConcordeAvecLeDart`) ;
+2. ces paramètres ↔ `VaultParams` (`lesRaccourcisPortentLesBonsParametres`).
+
+> Retirer le second laisserait le premier vert pendant que l'application dériverait ses clés avec
+> d'autres paramètres. *Le test au nom le plus rassurant n'est pas celui qui protège la constante.*
+
+⚠️ La limite reste celle que le KDoc du fichier énonce déjà : ces cas figent un **format**, ils ne
+prouvent pas qu'un utilisateur réel rouvre son coffre. Le critère de sortie de la phase 4 —
+ouvrir un coffre réellement créé par la version Flutter — est inchangé.
+
+## §110 — ⚠️⚠️ Trois conventions de `shared_preferences`, et il suffit d'en manquer une pour tout perdre
+
+Ligne `settings_service.dart`, critère écrit : *« lire les clés `flutter.*` existantes »*.
+
+Le greffon n'écrit pas où l'on croit :
+
+| Convention | Valeur |
+|---|---|
+| Fichier | `FlutterSharedPreferences.xml`, jamais celui du paquet |
+| Préfixe | **`flutter.`** devant chaque clé |
+| Type d'un `int` Dart | **`Long`**, pas `Integer` |
+
+En manquer une suffit pour que l'application neuve ne trouve **rien**. Et elle ne s'en plaint pas :
+elle applique ses valeurs par défaut. Après mise à jour, quelqu'un retrouverait sa langue et son
+thème remis à zéro — et surtout **le délai de verrouillage automatique des coffres**, réglage de
+sécurité : mis à une minute, il repasserait à quinze sans un mot.
+
+### Le trou : deux classes traversées par tout le monde, testées par personne
+
+`AppSettings` et `LegacyPreferences` apparaissaient dans cinq fichiers de test — `ReglagesTest`,
+`FolderVaultServiceTest`, `PanicEcransTest`, `NoteExporteurTest`, `SecureWindowControllerTest` —
+**comme collaborateurs**. Aucun ne vérifiait ce qu'ils lisent : ils les traversent, et c'est tout.
+
+> Le même motif qu'au §107, sous une autre forme : *être utilisé partout n'est pas être vérifié*.
+
+### `ReglagesHeritesTest`, 6 cas, et un contrôle négatif qui porte le fichier
+
+Les préférences sont posées **à la main dans le fichier du greffon**, avec son préfixe et ses
+types ; c'est `AppSettings` qui relit. Puis le sens inverse : ce que le portage écrit doit rester
+lisible par une 2.0.x réinstallée — clé préfixée, entier en `Long`.
+
+⚠️ Le cas des **six clés de tri** n'existait nulle part. Le Dart écrit `updatedDesc`, `titleAsc`… à
+la main plutôt que par `mode.name`, parce que la release passe par `--obfuscate` ; le portage a le
+même `when` exhaustif, et **rien ne vérifiait que les douze chaînes concordent**. Une seule qui
+divergerait ne casserait rien : le tri retomberait sur le défaut, et l'utilisateur croirait l'avoir
+mal réglé. Le cas porte aussi son témoin — la table doit couvrir **tous** les modes, donc un mode
+ajouté sans clé décidée le fait tomber.
+
+### ⚠️⚠️ Le contrôle positif, et ce qu'il apprend sur les contrôles négatifs
+
+`FLUTTER_KEY_PREFIX` passé de `flutter.` à `flutter_`, suite relancée sur le S9 :
+
+| Cas | Tombe ? |
+|---|---|
+| les cinq réglages du greffon sont relus | ✅ |
+| les six clés de tri | ✅ |
+| le délai en `Int` comme en `Long` | ✅ |
+| ce que le portage écrit est au format du greffon | ✅ |
+| les clés rendues sont nues | ✅ |
+| **le contrôle négatif « sans préfixe, rien n'est vu »** | ❌ **non** |
+
+Cinq sur six, et le sixième **devait** rester vert : un contrôle négatif ne détecte pas un préfixe
+faux, il détecte qu'on lit *quelque chose* qu'on ne devrait pas lire.
+
+> ⚠️⚠️ **Les deux sortes de contrôle ne se remplacent pas.** Le négatif seul laisserait passer un
+> portage qui se trompe de préfixe **des deux côtés** — il écrirait et relirait ses propres clés,
+> parfaitement cohérent avec lui-même, et aveugle à tout ce que l'utilisateur avait réglé.

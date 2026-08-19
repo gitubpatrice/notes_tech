@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **319 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **325 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1191,3 +1191,39 @@ seuls. Six cas verts ne disent rien tant qu'on n'a pas vu l'instrument tomber. C
 
 ⚠️ Ne prouve pas qu'un coffre d'un vrai téléphone s'ouvre : la clé est liée à l'**UID** et la build de
 portage est suffixée `.next`. C'est la seule chose mesurable avant la bascule.
+
+## ✅ 2026-08-19 (fin) — deux cases de plus, et deux contrôles positifs
+
+**12 → 10 cases restantes.**
+
+### `settings_service.dart` — trois conventions, une seule à manquer pour tout perdre
+
+`shared_preferences` écrit dans **`FlutterSharedPreferences.xml`**, préfixe chaque clé de
+**`flutter.`**, et stocke un `int` Dart en **`Long`**. En manquer une, et l'application neuve ne
+trouve **rien** — sans se plaindre : elle applique ses défauts. L'utilisateur perdrait sa langue, son
+thème, et surtout **le délai de verrouillage des coffres**, qui est un réglage de sécurité.
+
+⚠️ `AppSettings` et `LegacyPreferences` apparaissaient dans **cinq** fichiers de test, **comme
+collaborateurs**. Aucun ne vérifiait ce qu'ils lisent. *Être utilisé partout n'est pas être vérifié.*
+
+⚠️ Les **six clés de tri** n'étaient vérifiées nulle part. Le Dart les écrit à la main plutôt que par
+`mode.name`, parce que la release passe par `--obfuscate` ; le portage a le même `when` exhaustif, et
+rien ne comparait les douze chaînes. Une seule qui divergerait ne casserait rien : le tri retomberait
+sur le défaut, et l'utilisateur croirait l'avoir mal réglé.
+
+⚠️⚠️ **Contrôle positif** : préfixe faussé ⇒ **5 cas sur 6 tombent**, et le sixième — le contrôle
+négatif — **devait** rester vert. Les deux sortes de contrôle ne se remplacent pas : le négatif seul
+laisserait passer un portage qui se trompe de préfixe **des deux côtés**, parfaitement cohérent avec
+lui-même et aveugle à tout ce que l'utilisateur avait réglé. Cf. `04-PIEGES.md` §110.
+
+### La promesse publique « paramètres de coffre identiques »
+
+Elle était **déjà mesurée** — 9 cas sur des vecteurs produits en **exécutant** le Dart de la 2.0.3,
+recoupés contre `argon2-cffi` (le C de référence de la RFC 9106) et OpenSSL : 37 concordances, zéro
+divergence. Ce qui manquait n'était pas la mesure, c'était la vérification de l'instrument.
+
+⚠️⚠️ `VaultParams.PASSPHRASE_ITERATIONS` faussé fait tomber **deux** cas — mais **pas** celui qui
+s'appelle « Argon2id rend exactement les clés du Dart », qui passe ses paramètres en clair. C'est le
+bon choix : un vecteur doit être figé indépendamment des constantes qu'il sert à vérifier. Mais la
+protection tient donc en **deux maillons**, et *le test au nom le plus rassurant n'est pas celui qui
+protège la constante*. Cf. `04-PIEGES.md` §109.
