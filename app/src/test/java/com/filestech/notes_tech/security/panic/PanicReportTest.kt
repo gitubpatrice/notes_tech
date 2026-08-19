@@ -14,13 +14,28 @@ import org.junit.jupiter.api.Test
  * dont une régression serait invisible — un ordre modifié compile, un rapport optimiste s'affiche.
  *
  * ⚠️ Ils ne couvrent **pas** l'exécution de la séquence, qui touche le presse-papiers, le Keystore,
- * le système de fichiers et la base. Cette partie-là a été vérifiée **sur le S9**, de bout en bout,
- * le 2026-08-14 : mot-clé faux refusé, base et annexes disparues, clé détruite et vérifiée,
- * préférences vidées hors liste blanche, écran de fin affiché, processus mort à la fermeture,
- * relance sur une base vierge. Le dire ici plutôt que de laisser croire à une couverture complète.
+ * le système de fichiers et la base. Cette partie-là se mesure sur appareil.
  *
- * L'application publiée a le jumeau de ce fichier — `test/panic_service_test.dart` — et il vérifie
- * exactement la même chose. Les deux doivent rester d'accord.
+ * ⚠️⚠️ **Ce paragraphe a lui-même vieilli, et il fallait le relire pour s'en apercevoir.** Il
+ * datait cette vérification du 2026-08-14 et l'énumérait avec assurance — mot-clé faux refusé, base
+ * et annexes disparues, clé détruite, préférences vidées hors liste blanche, écran de fin affiché,
+ * relance sur une base vierge. Tout cela a bien eu lieu ce jour-là. Mais **trois des treize étapes
+ * sont arrivées après** : le déplacement du clair juste derrière la clé le 2026-08-15, puis les
+ * trois étapes vocales le 2026-08-16. La séquence décrite n'existait donc plus, et la phrase
+ * continuait de rassurer sur elle. *Une date ne périme pas une mesure ; c'est l'objet mesuré qui
+ * change sous elle.*
+ *
+ * ⚠️ **Le jumeau publié ne vérifie PAS la même chose**, contrairement à ce qui était écrit ici.
+ * `test/panic_service_test.dart` compte huit cas contre quinze, et le `PanicReport` de
+ * l'application publiée n'a ni `minimalGuarantee` ni mesure du clair : elle traite tout échec
+ * d'étape comme une panique incomplète, cache de nettoyage compris. Les deux fichiers ne peuvent
+ * pas « rester d'accord » — l'un couvre un domaine que l'autre n'a pas. Ce qui doit rester vrai est
+ * plus étroit : **aucune étape déclarée d'un côté ne doit manquer de l'autre sans raison écrite**.
+ *
+ * ⚠️ Ce que ces cas ne peuvent pas voir non plus : **ce que les écrans affichent**. Quatre défauts y
+ * ont vécu sous cette suite verte jusqu'au 2026-08-19 ; ils sont mesurés depuis par
+ * `androidTest/.../ui/panic/PanicEcransTest.kt`. Un test qui prouve la branche ne dit rien de la
+ * phrase.
  */
 class PanicReportTest {
 

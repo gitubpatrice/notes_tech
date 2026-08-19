@@ -91,10 +91,23 @@ fun PanicConfirmDialog(onDismiss: () -> Unit, onConfirmed: () -> Unit) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(stringResource(R.string.panic_confirm_destroy_intro))
                 Spacer(Modifier.height(12.dp))
-                // ⚠️ `panic_confirm_item_2` — « le modèle de dictée vocale » — n'est PAS affiché.
-                // La dictée arrive en phase 7 ; annoncer la destruction de ce qui n'existe pas est
-                // le même mensonge qu'une étape déclarée et jamais exécutée. Cf. docs/05-PARITE.md.
+                // ⚠️⚠️ **Le deuxième item a été tu pendant trois jours, et c'est un écran de
+                // CONSENTEMENT.** Il annonce la destruction du modèle de dictée. Il était masqué au
+                // motif que « la dictée arrive en phase 7 » — annoncer la destruction de ce qui
+                // n'existe pas est le même mensonge qu'une étape déclarée et jamais exécutée.
+                //
+                // La phase 7 est livrée depuis le 2026-08-16 et `PanicStep.VOICE_MODEL_WIPE`
+                // s'exécute. Le motif a donc expiré ce jour-là, sans que rien ne le signale : la
+                // séquence effaçait le seul fichier que l'utilisateur ait mis plusieurs minutes à
+                // installer, et l'écran où il donne son accord n'en disait rien.
+                //
+                // *La règle vaut dans les deux sens* : ne pas annoncer ce qu'on ne fait pas, et
+                // annoncer tout ce qu'on fait. Le portage n'en avait retenu que la première moitié,
+                // et une garde écrite contre le mensonge par excès s'est retournée en mensonge par
+                // omission. C'est la forme la plus discrète du défaut, parce qu'elle se lit comme
+                // de la prudence.
                 Puce(stringResource(R.string.panic_confirm_item_1))
+                Puce(stringResource(R.string.panic_confirm_item_2))
                 Puce(stringResource(R.string.panic_confirm_item_3))
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -242,20 +255,23 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                 report.isComplete -> {
                     Text(stringResource(R.string.panic_complete_body))
                     Spacer(Modifier.height(16.dp))
-                    // ⚠️ `panic_complete_bullet_3` — « modèle de dictée vocale : désinstallé » —
-                    // n'est PAS affiché, pour la même raison que l'item 2 du dialogue.
+                    // ⚠️ La troisième puce — « modèle de dictée vocale : désinstallé » — a été
+                    // rétablie le 2026-08-19, avec l'item 2 du dialogue et pour la même raison :
+                    // `PanicStep.VOICE_MODEL_WIPE` s'exécute depuis le 2026-08-16. Le bilan
+                    // omettait un effacement qui avait bien eu lieu.
                     Puce(stringResource(R.string.panic_complete_bullet_1))
                     Puce(stringResource(R.string.panic_complete_bullet_2))
+                    Puce(stringResource(R.string.panic_complete_bullet_3))
                     Puce(stringResource(R.string.panic_complete_bullet_4))
                 }
 
                 // 🔴 **Le nettoyage qui a échoué n'a pas laissé la même chose selon l'étape.**
                 //
                 // `panic_incomplete` dit « des fichiers **illisibles** peuvent subsister », et c'est
-                // vrai de toutes les étapes sauf une : les archives d'export sont du **clair**. Si
-                // c'est celle-là qui a échoué, la phrase rassurante décrit exactement l'inverse de
-                // la situation — des notes lisibles, à quelqu'un qui vient de déclencher une
-                // destruction sous contrainte.
+                // vrai de tout sauf du clair : une archive d'export, un enregistrement de dictée, ou
+                // une note restée dans le presse-papiers. Si c'est l'un de ceux-là qui a survécu, la
+                // phrase rassurante décrit exactement l'inverse de la situation — des notes
+                // lisibles, à quelqu'un qui vient de déclencher une destruction sous contrainte.
                 //
                 // Relevé CONFIRMÉ par une relecture externe (Gemini, 2026-08-15) ; l'autre relecture
                 // avait conclu « rien trouvé » sur cet axe, parce qu'elle a regardé la logique des
@@ -266,7 +282,17 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                 // c'est elle que l'utilisateur doit connaître pour décider s'il peut se séparer de
                 // l'appareil.
                 report.clairPeutSubsister -> Text(
-                    text = stringResource(R.string.panic_incomplete_plaintext, report.failedSteps.size),
+                    // ⚠️⚠️ **Sans compteur d'étapes, et c'est le point.** Ce résidu-là se MESURE à
+                    // la fin de la séquence — il ne se déduit pas des étapes, et il vaut vrai avec
+                    // ZÉRO étape en échec ; `PanicReportTest.clairRestantEstSignale` construit
+                    // exactement cet état. La phrase affichait donc « 0 étape(s) de nettoyage ont
+                    // échoué » juste avant d'avertir qu'il reste du clair, se contredisant dans sa
+                    // propre phrase au seul moment où elle doit être crue.
+                    //
+                    // ⚠️ Le texte ne nomme plus les seules archives d'export : le prédicat couvre
+                    // les trois sources de clair. Nommer la mauvaise envoyait quelqu'un fouiller
+                    // des fichiers absents pendant qu'une note attendait dans le presse-papiers.
+                    text = stringResource(R.string.panic_incomplete_plaintext),
                     color = MaterialTheme.colorScheme.error,
                 )
 

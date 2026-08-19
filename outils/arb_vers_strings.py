@@ -116,8 +116,26 @@ AJOUTS_EN = {
 
     <!-- Ajout du portage, 2026-08-15. La phrase ci-dessus dit « unreadable », ce qui est vrai de
          toutes les etapes SAUF une : une archive d'export est du CLAIR. Quand c'est celle-la qui
-         echoue, rassurer serait decrire l'inverse de la situation. -->
-    <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However %1$d cleanup step(s) failed, and READABLE export files may remain on this device. Do not part with it before checking.</string>
+         echoue, rassurer serait decrire l'inverse de la situation.
+
+         ⚠️⚠️ REECRITE le 2026-08-19, pour DEUX raisons independantes.
+
+         1. Elle ne nommait que les archives d'export, alors que le predicat qui la declenche
+            — `PanicReport.clairPeutSubsister` — couvre TROIS sources : l'archive, l'enregistrement
+            de dictee, et le presse-papiers. Dans le cas « seul le presse-papiers a resiste », cette
+            phrase envoyait quelqu'un inspecter des fichiers qu'il ne trouverait pas, pour en
+            conclure qu'il est tire d'affaire — pendant qu'une note reste lisible par toute
+            application au premier plan. Le KDoc du predicat raconte lui-meme que son inventaire
+            s'est trompe DEUX fois par omission ; il a ete corrige les deux fois, et la phrase
+            affichee n'a jamais suivi. *Un inventaire corrige dans le code et pas dans le texte
+            n'est corrige nulle part, puisque c'est le texte qu'on lit.*
+
+         2. Le compteur `%1$d` est retire. Ce residu-la se MESURE a la fin de la sequence, il ne se
+            deduit pas des etapes : il vaut vrai avec ZERO etape en echec — c'est exactement l'etat
+            que construit `PanicReportTest.clairRestantEstSignale`. L'ecran annoncait donc
+            « 0 etape(s) de nettoyage ont echoue » juste avant d'avertir qu'il reste du clair. Une
+            phrase qui se contredit elle-meme ne sera pas crue, au moment ou elle doit l'etre. -->
+    <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However READABLE content may remain on this device — an export archive, a dictation recording, or a note copied to the clipboard. Do not part with it before checking.</string>
 """,
     "voice": """\
     <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Les trois chaines d'origine affirmaient que l'audio
@@ -255,7 +273,10 @@ AJOUTS_FR = {
     <string name="panic_key_survived_title">La clé n\\'a PAS été détruite</string>
     <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\\'appareil.</string>
     <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\\'appareil.</string>
-    <string name="panic_incomplete_plaintext">Clé détruite : la base n\\'est plus déchiffrable. En revanche, %1$d étape(s) de nettoyage ont échoué, et des fichiers d\\'export LISIBLES peuvent subsister sur cet appareil. Ne vous en séparez pas sans vérifier.</string>
+    <!-- ⚠️⚠️ REECRITE le 2026-08-19 — voir la version anglaise pour les deux raisons : elle ne
+         nommait qu'une source de clair sur trois, et son compteur d'etapes pouvait afficher zero
+         dans la phrase meme qui avertit. -->
+    <string name="panic_incomplete_plaintext">Clé détruite : la base n\\'est plus déchiffrable. En revanche, du contenu LISIBLE peut subsister sur cet appareil — archive d\\'export, enregistrement de dictée, ou note copiée dans le presse-papiers. Ne vous en séparez pas sans vérifier.</string>
 """,
     "voice": """\
     <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Voir le commentaire de la version anglaise : « jamais

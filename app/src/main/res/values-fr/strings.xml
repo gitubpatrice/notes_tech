@@ -295,7 +295,10 @@
     <string name="panic_key_survived_title">La clé n\'a PAS été détruite</string>
     <string name="panic_key_survived">Vos notes restent déchiffrables sur cet appareil. %1$d étape(s) ont échoué. Ne vous séparez pas de l\'appareil.</string>
     <string name="panic_incomplete">Clé détruite : vos notes ne sont plus déchiffrables. En revanche, %1$d étape(s) de nettoyage ont échoué — des fichiers illisibles peuvent subsister sur l\'appareil.</string>
-    <string name="panic_incomplete_plaintext">Clé détruite : la base n\'est plus déchiffrable. En revanche, %1$d étape(s) de nettoyage ont échoué, et des fichiers d\'export LISIBLES peuvent subsister sur cet appareil. Ne vous en séparez pas sans vérifier.</string>
+    <!-- ⚠️⚠️ REECRITE le 2026-08-19 — voir la version anglaise pour les deux raisons : elle ne
+         nommait qu'une source de clair sur trois, et son compteur d'etapes pouvait afficher zero
+         dans la phrase meme qui avertit. -->
+    <string name="panic_incomplete_plaintext">Clé détruite : la base n\'est plus déchiffrable. En revanche, du contenu LISIBLE peut subsister sur cet appareil — archive d\'export, enregistrement de dictée, ou note copiée dans le presse-papiers. Ne vous en séparez pas sans vérifier.</string>
 
     <!-- ── Dictée vocale ───────────────────────────────────────────────── -->
     <string name="voice_mic_initializing">Initialisation du micro…</string>
