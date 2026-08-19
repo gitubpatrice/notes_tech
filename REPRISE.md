@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **332 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **332 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1254,3 +1254,26 @@ annulerait la demande du mode panique, et la borne à zéro n'y changerait rien.
 atteignable aujourd'hui — `release()` n'a qu'un appelant, qui a toujours forcé d'abord. Séparer la
 demande permanente serait un durcissement contre un défaut **futur**, pas la correction d'un défaut
 présent.
+
+## ✅ 2026-08-19 — les rétroliens : deux plafonds égaux, deux chemins pour les appliquer
+
+`backlinks_service.dart` cochée. **9 → 8 cases restantes.**
+
+Le relevé du 08-16 avait établi que les constantes concordent au chiffre près, et la ligne notait ce
+qui restait : *« vérifier le comportement sur une note qui dépasse »*. C'était la bonne question.
+
+Les deux codes appliquent la même règle par des mécanismes **différents** — le Dart teste son `break`
+**avant** de traiter une correspondance, le portage enchaîne `mapNotNull` → `distinctBy` → `take`. La
+règle commune est *« le plafond compte les liens retenus, pas les paires de crochets rencontrées »*,
+et elle n'est écrite nulle part dans le portage autrement que par **l'ordre de trois appels**.
+Intervertir deux d'entre eux ne casse rien de visible.
+
+`WikiLinkParserBornesTest`, **6 cas** aux entrées engendrées (un vecteur de 50 000 caractères sur une
+ligne de TSV serait illisible — c'est pour ça que ces bornes n'étaient pas couvertes) : lien collé à
+la borne, lien à cheval avec son témoin, 257 liens ⇒ les **256 premiers**, doublons et titres vides
+qui ne consomment pas le plafond, titre de 200 contre 201 caractères.
+
+⚠️⚠️ **Deux contrôles positifs, et le second est le plus instructif** : `take` avant `distinctBy`
+fait tomber un cas ; `take` avant `mapNotNull` en fait tomber **deux**. Les cas « doublons » et
+« titres vides » ne sont donc **pas redondants** — deux fautes voisines, deux portées différentes, un
+cas pour chacune. Cf. `04-PIEGES.md` §112.

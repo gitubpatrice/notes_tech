@@ -3617,3 +3617,56 @@ changerait rien — elle protège du négatif, pas du vol.
 n'a qu'un seul appelant, le `onDispose` du garde, qui a toujours forcé d'abord. Séparer la demande
 permanente en un booléen distinct serait un durcissement contre un défaut **futur**, pas la
 correction d'un défaut présent — donc pas une modification à faire ici. Le noter suffit.
+
+## §112 — ⚠️⚠️ Deux plafonds égaux au chiffre près, et deux chemins différents pour les appliquer
+
+Ligne `backlinks_service.dart`. Le relevé du 2026-08-16 avait établi que les constantes concordent
+— `CONTENT_SCAN_LIMIT = 50_000` contre `noteContentBacklinksLimit = 50000`, `MAX_LINKS_PER_NOTE =
+256` contre `_maxLinksPerNote = 256` — et la ligne notait honnêtement ce qui restait : *« vérifier
+le comportement sur une note qui dépasse »*.
+
+### Pourquoi deux constantes égales ne suffisaient pas
+
+Les deux codes appliquent la même règle par des mécanismes **différents** :
+
+| | Comment le plafond est appliqué |
+|---|---|
+| Dart | boucle sur les correspondances, `break` testé **avant** de traiter chacune ; un doublon ou un titre vide passe par `continue` sans faire avancer le compteur |
+| Portage | `mapNotNull` puis `distinctBy` puis **`take`** |
+
+La règle est la même : *le plafond compte les liens **retenus**, pas les paires de crochets
+rencontrées.* Mais elle n'est écrite nulle part dans le portage autrement que par **l'ordre de trois
+appels**. Intervertir deux d'entre eux ne casse rien de visible et ne fait pas broncher un
+compilateur.
+
+> C'est exactement la situation où un raisonnement juste et un comportement faux se ressemblent.
+
+### Les six bornes, mesurées
+
+`WikiLinkParserBornesTest` (JVM). ⚠️ Les entrées sont **engendrées** plutôt que lues dans
+`extract.tsv` : un vecteur de 50 000 caractères sur une ligne de TSV serait illisible. C'est la
+raison pour laquelle ces bornes n'avaient jamais été couvertes.
+
+1. Un lien qui **finit exactement** au dernier caractère analysé est retenu, à la bonne position.
+2. Un lien **à cheval** sur la frontière disparaît entièrement — ni titre amputé, ni entrée vide.
+   ⚠️ Témoin : le même lien décalé d'un caractère est retenu, sans quoi un releveur qui ne rendrait
+   jamais rien passerait aussi.
+3. 257 liens distincts ⇒ les **256 premiers**, pas les derniers.
+4. 🔴 Cent répétitions d'un même titre **ne consomment pas** le plafond.
+5. Trois cents titres vides non plus.
+6. Un titre de **201** caractères n'est pas un lien, un de **200** en est un — le KDoc affirmait
+   « vérifié », c'est désormais mesuré.
+
+### Deux contrôles positifs
+
+| Ordre faussé dans le code de production | Ce qui tombe |
+|---|---|
+| `take` **avant** `distinctBy` | le cas 4, **seul** |
+| `take` **avant** `mapNotNull` | les cas 4 **et** 5 |
+
+Le second est le plus instructif : il montre que les cas 4 et 5 **ne sont pas redondants**. Le
+premier ordre laisse passer les titres vides, le second les arrête tous les deux — deux fautes
+voisines, deux portées différentes, et il fallait un cas pour chacune.
+
+⚠️ Le fichier de production a été restauré à l'identique après chaque contrôle, et le gate est
+repassé vert.
