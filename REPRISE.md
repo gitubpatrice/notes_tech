@@ -29,6 +29,59 @@
   répertoires non suivis (`.audit_tmp/`, `_audit_results/`, `prompts/`) ne doivent **jamais** entrer
   dans l'index — pas de `git add -A`.
 
+## 🎯 RESTE À FAIRE — au 2026-08-19 au soir
+
+> Le tableau de parité est complet ; **rien de ce qui suit n'est de la parité**. Ce sont les points
+> qui restaient ouverts derrière elle, chacun avec sa raison de l'être.
+
+### 1. 🔴 Bloquant, et c'est une décision de Patrice — pas un travail à faire
+
+Le portage n'a **aucun `key.properties`**. La 3.0.0 doit être signée avec
+`notes_tech/android/notestech-release.jks`, dont l'empreinte est **vérifiée contre l'APK publié**
+(`ddb385de…42e9`). Sans cette clé, la 3.0.0 ne s'installera par-dessus Notes Tech **pour personne**.
+
+⚠️ Ce n'est pas un détail de publication : c'est la condition de la migration, et tout le reste de
+cette liste en dépend.
+
+### 2. Les trois lignes de bascule — elles ne se cochent pas depuis un poste
+
+`docs/05-PARITE.md`, section « Reste donc trois lignes ». Toutes les trois attendent le seul geste
+qui ne se simule pas : **installer par-dessus une vraie installation, avec de vraies données**.
+
+Il faut le S9, une installation **2.0.3 réelle**, et `-Pnotestech.replaceInstalledApp=true`
+(`06-ISOLATION-PENDANT-LE-CHANTIER.md` §2).
+
+C'est aussi le **critère de sortie de la phase 4** : ouvrir un coffre réellement créé par la version
+Flutter. Les vecteurs de parité figent un **format**, pas une installation.
+
+### 3. Trois points écrits et volontairement non corrigés
+
+| Point | Pourquoi il reste ouvert | § |
+|---|---|---|
+| L'avertissement de clair du mode panique n'est pas une `liveRegion`, et le titre assertif dit « Effacement terminé » | demande **TalkBack sur appareil** : deux régions assertives s'interrompent, et poser la seconde sans l'écouter serait deviner | §106 |
+| `forcePermanently()` **est** `force()` : un `release()` en trop annulerait la demande du mode panique | **pas atteignable** — `release()` n'a qu'un appelant, qui a toujours forcé d'abord. Durcissement contre un défaut futur, pas correction d'un défaut présent | §111 |
+| Le repli de `dossierEstUnCoffre` (« une base indisponible ne doit pas faire échouer un export ») n'est pas exercé | `DatabaseProvider.close()` rouvre au premier accès : un cas écrit ainsi n'atteindrait jamais le `catch` et serait un **test vacant** de plus. Le forcer demanderait de sceller la base comme le fait la panique | §107 |
+
+### 4. Deux écarts assumés, déjà écrits — à re-décider ou à laisser
+
+`REPRISE.md` §430 : le `tryEmit` de la corbeille perd un message si la rotation tombe pendant
+l'action (le KDoc du ViewModel choisit déjà ce compromis), et `TrashViewModel.state` n'a pas de
+`catch` là où `SearchUiState` a gagné un `failed`.
+
+### 5. Côté application publiée
+
+`notes_tech` : la MR F-Droid **`!37885`** est épinglée sur 2.0.3/51 et attend son tour. La 2.0.4
+publiée le 08-18 **ne la dérange pas** — `AutoUpdateMode: Version` + `UpdateCheckMode: Tags` feront
+suivre les tags une fois la MR fusionnée. ⚠️ Ne pas la toucher sans raison.
+
+### ⚠️ Ce qu'il ne faut PAS relancer
+
+- Le tableau de parité : il est complet, et chaque case l'est **sur une mesure**. Le rouvrir pour
+  « revérifier » referait le travail sans rien mesurer de neuf.
+- L'autoremplissage du champ de phrase secrète (§88) : **conservé**, décision prise, mesure à
+  l'appui (`PasteText` sans `CopyText`).
+- L'œil qui révèle le code à quatre chiffres : **écart assumé** avec le publié, décision de Patrice.
+
 ## ✅ Fait le 2026-08-16 : l'import du modèle
 
 Livré en un commit, `4fcd647`. Les quatre contraintes relevées la veille ont été tenues : le modèle
