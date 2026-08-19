@@ -3836,3 +3836,52 @@ cas vérifie donc que le rendu Markdown minimal fait son travail. Un fichier aff
 | `raw-fr/privacy.md` retiré | « les quatre textes légaux existent et diffèrent par langue » |
 
 Deux, et exactement les deux visés. Fichier et ressource restaurés, suite entière verte.
+
+## §117 — 🔴 Six états de l'écran d'installation ne s'atteignaient qu'avec un fichier de 57 Mo
+
+Ligne `voice_setup_screen.dart` : 462 lignes de production, **aucun test**.
+
+La vérification au démarrage, la progression d'un import, les **quatre** causes d'échec et le
+dialogue de retrait ne s'obtenaient que par le magasin réel. Les atteindre par `VoiceSetupRoute`
+demanderait de fabriquer un fichier de 57 Mo — pour en voir **un seul**.
+
+D'où le découpage sans état, `EcranDInstallationVocale`, le même que pour les feuilles de coffre
+(§86) et pour la même raison : *un état qu'aucun test ne peut atteindre est un état que personne n'a
+jamais regardé.* ⚠️ `aRetirer` est **hissé** dans la signature : il vit en `rememberSaveable` dans la
+Route parce que le dialogue doit survivre à une rotation, et le passer en paramètre garde cette
+propriété chez celui qui la porte tout en rendant l'état atteignable.
+
+### Ce que le compilateur ne vérifiait pas
+
+Le `when` du dialogue d'erreur est exhaustif sur l'énumération : ajouter une cause sans texte casse
+la compilation. Ce qu'il ne dit pas, c'est que les quatre textes soient **branchés dans le bon
+ordre**. Une paire intervertie enverrait quelqu'un libérer de la place alors que son fichier est
+corrompu.
+
+Le cas parcourt les quatre causes et exige, pour chacune, la présence de son texte **et l'absence
+des trois autres**. **Contrôle positif** : `EMPREINTE` et `PLACE_INSUFFISANTE` interverties ⇒ deux
+cas tombent, dont celui qui vérifie que le message d'empreinte dit que **le fichier a été
+supprimé** — la seule des quatre causes où l'application a *agi*.
+
+### ⚠️⚠️ Trois erreurs de MESURE, et ce qu'elles apprennent
+
+Les trois premiers lancements ont échoué, et **aucun** ne signalait un défaut du code.
+
+| Ce que j'avais supposé | Ce que l'appareil a dit |
+|---|---|
+| un seul bouton « Sélectionner le fichier » | le catalogue compte **deux** modèles ⇒ deux nœuds du même libellé |
+| le bloc de progression est visible | il est **sous la ligne de flottaison** sur le S9 |
+| le bouton du dialogue descend de son titre | dans un `AlertDialog`, titre et boutons sont **frères** |
+
+⚠️ Le deuxième est le plus traître : `performClick` sur un nœud hors fenêtre **ne lève pas**. Il
+touche des coordonnées qui ne sont plus à l'écran, le compteur reste à zéro, et le cas échoue comme
+si le rappel n'était pas câblé. *Un échec de mesure ressemble à s'y méprendre à un défaut du code.*
+Le correctif est `performScrollTo()` — le piège déjà consigné pour les balayages d'accessibilité.
+
+⚠️ Le troisième se répare par `hasAnyAncestor(isDialog())` et non par un ascendant textuel. Il
+existe parce que le bouton de confirmation **reprend le libellé de la carte** : deux nœuds portent
+le même nom accessible en même temps. Ce n'est pas faux, mais c'est à savoir.
+
+⚠️ Et une quatrième, à la compilation : un nettoyage d'imports « inutiles » a retiré
+`androidx.compose.runtime.getValue`, qui sert au délégué `by` — **le nom n'apparaît nulle part dans
+le corps**. Un outil qui cherche l'identifiant ne peut pas le voir ; le compilateur, si.

@@ -151,6 +151,65 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
         }
     }
 
+    EcranDInstallationVocale(
+        etat = etat,
+        snackbars = snackbars,
+        aRetirer = aRetirer,
+        onBack = onBack,
+        onCopierLeLien = {
+            copierDansLePressePapiers(contexte, SttModelCatalogue.SOURCE_PUBLIQUE)
+            viewModel.lienCopie()
+        },
+        onImporter = { modele ->
+            modeleVise = modele.id
+            // ⚠️ `*/*` et non un type MIME précis : un `.bin` n'a pas de type déclaré, et
+            // plusieurs fournisseurs le servent en `application/octet-stream` quand ils ne le
+            // servent pas comme inconnu. Filtrer ici rendrait le fichier **invisible** dans le
+            // sélecteur, sans aucun message.
+            selecteur.launch(arrayOf("*/*"))
+        },
+        onDemanderLeRetrait = { aRetirer = it.id },
+        onConfirmerLeRetrait = {
+            viewModel.desinstaller(it)
+            aRetirer = null
+        },
+        onAnnulerLeRetrait = { aRetirer = null },
+        onAnnulerLImport = viewModel::annulerImport,
+        onFermerLErreur = viewModel::oublierLErreur,
+    )
+}
+
+/**
+ * L'écran d'installation, **sans état**.
+ *
+ * ## ⚠️⚠️ Pourquoi ce découpage existe
+ *
+ * Six états de cet écran ne s'atteignaient **que** par le magasin réel : la vérification au
+ * démarrage, la progression d'un import, les quatre causes d'échec — dont l'empreinte SHA-256 qui
+ * ne concorde pas — et le dialogue de retrait. Un test qui passe par [VoiceSetupRoute] devrait
+ * fabriquer un fichier de 57 Mo pour en voir un seul.
+ *
+ * C'est le même découpage que les feuilles de coffre, et pour la même raison : *un état qu'aucun
+ * test ne peut atteindre est un état que personne n'a jamais regardé.*
+ *
+ * ⚠️ `aRetirer` est **hissé** ici : il vit en `rememberSaveable` dans la Route, parce que le
+ * dialogue de retrait doit survivre à une rotation. Le passer en paramètre garde cette propriété
+ * chez celui qui la porte, et rend l'état atteignable depuis un test.
+ */
+@Composable
+internal fun EcranDInstallationVocale(
+    etat: VoiceSetupState,
+    snackbars: SnackbarHostState,
+    aRetirer: String?,
+    onBack: () -> Unit,
+    onCopierLeLien: () -> Unit,
+    onImporter: (SttModel) -> Unit,
+    onDemanderLeRetrait: (SttModel) -> Unit,
+    onConfirmerLeRetrait: (SttModel) -> Unit,
+    onAnnulerLeRetrait: () -> Unit,
+    onAnnulerLImport: () -> Unit,
+    onFermerLErreur: () -> Unit,
+) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbars) },
         topBar = {
@@ -184,10 +243,7 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
 
             ModeDEmploi(
                 source = SttModelCatalogue.SOURCE_PUBLIQUE,
-                onCopierLeLien = {
-                    copierDansLePressePapiers(contexte, SttModelCatalogue.SOURCE_PUBLIQUE)
-                    viewModel.lienCopie()
-                },
+                onCopierLeLien = onCopierLeLien,
             )
 
             if (etat.verificationEnCours) VerificationEnCours()
@@ -205,19 +261,12 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
                     // tourne, plutôt que d'accepter un geste que le magasin ferait attendre en
                     // silence. Un bouton qui ne répond pas se réappuie.
                     actionsPossibles = !etat.importEnCours && !etat.verificationEnCours,
-                    onImporter = {
-                        modeleVise = modele.id
-                        // ⚠️ `*/*` et non un type MIME précis : un `.bin` n'a pas de type déclaré,
-                        // et plusieurs fournisseurs le servent en `application/octet-stream`
-                        // quand ils ne le servent pas comme inconnu. Filtrer ici rendrait le
-                        // fichier **invisible** dans le sélecteur, sans aucun message.
-                        selecteur.launch(arrayOf("*/*"))
-                    },
-                    onRetirer = { aRetirer = modele.id },
+                    onImporter = { onImporter(modele) },
+                    onRetirer = { onDemanderLeRetrait(modele) },
                 )
             }
 
-            etat.progression?.let { ProgressionDImport(it, viewModel::annulerImport) }
+            etat.progression?.let { ProgressionDImport(it, onAnnulerLImport) }
 
             Spacer(Modifier.height(8.dp))
             PiedDePageDeSecurite()
@@ -225,16 +274,13 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     }
 
     etat.erreur?.let { cause ->
-        DialogueDErreur(cause = cause, onFermer = viewModel::oublierLErreur)
+        DialogueDErreur(cause = cause, onFermer = onFermerLErreur)
     }
 
     aRetirer?.let(SttModelCatalogue::parIdentifiant)?.let { modele ->
         DialogueDeRetrait(
-            onConfirmer = {
-                viewModel.desinstaller(modele)
-                aRetirer = null
-            },
-            onAnnuler = { aRetirer = null },
+            onConfirmer = { onConfirmerLeRetrait(modele) },
+            onAnnuler = onAnnulerLeRetrait,
         )
     }
 }

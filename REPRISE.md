@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **348 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **230 tests JVM**, **358 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1364,3 +1364,23 @@ langues sont là » de « la résolution est retombée sur le défaut »*.
 
 ⚠️ **Contrôle positif, deux défauts d'un coup** : version écrite en dur ⇒ un cas tombe ;
 `raw-fr/privacy.md` retiré ⇒ l'autre. Exactement les deux visés. Cf. `04-PIEGES.md` §116.
+
+## ✅ 2026-08-19 — l'écran d'installation du modèle : six états inatteignables
+
+`voice_setup_screen.dart` cochée. **2 → 1 case restante** : `voice_service.dart`.
+
+462 lignes, **aucun test**. La vérification au démarrage, la progression, les **quatre** causes
+d'échec et le dialogue de retrait ne s'obtenaient que par le magasin réel — les atteindre par la
+Route demanderait un fichier de 57 Mo **par état**. D'où le découpage sans état, comme pour les
+feuilles de coffre.
+
+Le `when` du dialogue est exhaustif, donc une cause sans texte casse la compilation ; ce que le
+compilateur ne dit pas, c'est que les quatre textes soient **dans le bon ordre**. ⚠️ **Contrôle
+positif** : `EMPREINTE` et `PLACE_INSUFFISANTE` interverties ⇒ deux cas tombent.
+
+⚠️⚠️ **Trois erreurs de mesure, aucune n'était un défaut du code** — et la plus traître :
+`performClick` sur un nœud **hors fenêtre ne lève pas**, il touche des coordonnées absentes, et le
+cas échoue sur un compteur à zéro *comme si le rappel n'était pas câblé*. Correctif :
+`performScrollTo()`. Les deux autres : le catalogue compte **deux** modèles (donc deux boutons du
+même libellé), et dans un `AlertDialog` **titre et boutons sont frères**, pas parent et enfant —
+`hasAnyAncestor(isDialog())`. Cf. `04-PIEGES.md` §117.
