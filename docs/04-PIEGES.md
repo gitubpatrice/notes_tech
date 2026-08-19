@@ -3332,3 +3332,70 @@ avec un appareil et le lecteur d'écran allumé, pas au jugé.
 ⚠️ `assertDoesNotExist` sur `panic_incomplete` formaté avec `0` est contournable : réintroduire le
 compteur en **deux nœuds** le laisserait passer. Le garde-fou qui tient, lui, est l'assertion sur la
 **ressource** — elle ne contient aucun `%`, dans les deux langues, et ne dépend d'aucun rendu.
+
+## §107 — ⚠️⚠️ 22 cas d'export, tous justes, et pas un seul sur la couche qui écrit
+
+Ligne `note_export_service.dart` de `docs/05-PARITE.md`, critère écrit : *« export `.md` d'une note
+de coffre — le corps ne doit pas être vide »*. C'est un **vrai défaut de l'application publiée**,
+corrigé chez elle sous le nom C1 (`note_editor_screen.dart:583`) : une note de coffre a `content`
+vide en base, et exporter la ligne brute produisait un `.md` au frontmatter impeccable et au corps
+vide. Perte de données silencieuse, puisque l'export « réussissait ».
+
+### Le partage qui laissait ce défaut hors de portée
+
+| Couche | Lignes | Ce qu'elle fait | Tests |
+|---|---|---|---|
+| `NoteMarkdown` + `NoteArchive` | ~23 Ko | Fonctions **pures** : nom de fichier, frontmatter, entrée d'archive | **30** cas JVM |
+| `NoteExporter` | 400 | **Déchiffre**, décide de l'origine coffre, écrit le fichier, le retire quand ça rate | **0** |
+
+Et le partage n'est pas fortuit : rendre un Markdown correct à partir d'une note vide **est** le
+comportement attendu de `NoteMarkdown`. Aucun de ses 22 cas ne pouvait voir le corps vide, parce que
+le défaut ne vit pas là — il vit là où quelqu'un décide s'il faut déchiffrer **avant** d'appeler.
+
+> C'est le motif de §100 et de §101, une fois de plus : *la couche testée n'était pas celle qui
+> pouvait avoir tort.*
+
+### Ce que la mesure a rendu
+
+`NoteExporteurTest`, **6 cas instrumentés** contre du vrai SQLCipher et un vrai `FileProvider` : le
+clair d'une note de coffre ressort bien dans le fichier, le suffixe ` [unlocked]` et la mention YAML
+y sont, une note **en clair dans un dossier coffre** les porte aussi, un coffre refermé fait échouer
+l'export **sans laisser un octet** sur le disque, et l'archive omet une note scellée en la comptant
+— vérifié sur les **octets du ZIP**, pas sur le compte.
+
+**Le portage n'a pas le défaut du publié.** C'est un résultat, pas une absence de résultat : il
+n'était établi par rien avant ces six cas.
+
+### 🔴🔴 En revanche, deux de ces cas étaient faux — et l'un passait au VERT
+
+L'horloge est injectée, donc **figée** dans les tests. Or le nom d'une archive est
+`notes-tech-export-<millis>.zip` : deux exports d'un même cas portent le **même nom de fichier**,
+dans deux sous-répertoires différents — `preparerRepertoire` sépare les répertoires, pas les noms.
+
+L'aide qui retrouvait le fichier faisait `walkTopDown().first { it.name == nom }`. Elle rendait donc
+l'archive de **référence** — celle prise avant de créer quoi que ce soit. Conséquence selon la forme
+des assertions :
+
+| Cas | Assertions | Ce qui s'est passé |
+|---|---|---|
+| « une note scellée est omise » | `doesNotContain` × 2 | **VERT** sur le mauvais fichier — l'archive de référence ne contenait évidemment pas la note |
+| « un coffre ouvert entre en clair » | `contains` | rouge, et c'est lui qui a révélé les deux |
+
+> ⚠️⚠️ **Un cas dont toutes les assertions sont des absences ne distingue pas « c'est absent » de
+> « je regarde ailleurs ».** Il faut au moins une assertion de présence sur le même objet, sinon le
+> cas est vert quel que soit l'objet qu'on lui donne — y compris un fichier vide.
+
+Correctif en deux temps : `single` au lieu de `first`, pour qu'une **ambiguïté fasse échouer le cas
+au lieu d'être tranchée en silence** ; et purge de la racine juste après la mesure de référence.
+
+⚠️ Deux comptes écrits en dur étaient faux eux aussi, mais bruyamment : la base d'essai est semée de
+deux notes, dont une scellée. Les cas mesurent désormais un **écart** contre une référence prise sur
+place — un compte figé redeviendrait faux le jour où la semence change.
+
+### Ce qui reste hors de portée, et pourquoi on ne l'a pas simulé
+
+Le repli de `dossierEstUnCoffre` — *« une base indisponible ne doit pas faire échouer un export »* —
+n'est **pas** exercé. `DatabaseProvider.close()` remet l'instance à zéro et la base se rouvre au
+premier accès : un cas écrit ainsi n'atteindrait jamais le `catch` et serait un test vacant de plus.
+Le forcer demanderait de sceller la base comme le fait le mode panique. C'est écrit dans le KDoc de
+la classe. *Le dire vaut mieux que de laisser croire que la ligne est couverte.*

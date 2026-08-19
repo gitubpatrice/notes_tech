@@ -8,7 +8,7 @@
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
   faux au commit suivant. `git rev-list --count HEAD` le dit sans dériver.
-- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **307 tests instrumentés** (S9),
+- Gate **vert** au 2026-08-19 : ktlint, detekt, **224 tests JVM**, **313 tests instrumentés** (S9),
   0 échec, **0 ignoré**, 0 échec d'hypothèse — comptés par les codes de statut.
 - ⚠️⚠️ **Le compte JVM se vérifie AUSSI**, depuis le 2026-08-17 : le dépôt tourne en **JUnit 5**
   (`app/build.gradle.kts:219`), et une classe de test écrite en JUnit 4 est ignorée **sans un mot**,
@@ -1151,3 +1151,20 @@ région assertive sans l'écouter sous TalkBack serait deviner. Cf. `04-PIEGES.m
 
 ℹ️ **Il n'y a pas de `gpt-5.5`** : `audit-ia.py --provider gpt --list` s'arrête à `gpt-5.2`, et la
 liste de l'API fait foi. Les tiers au-dessus disponibles sont `gpt-5-pro` et `gpt-5.1-codex-max`.
+
+## ✅ 2026-08-19 (suite) — l'export : la couche qui ÉCRIT n'avait aucun test
+
+`note_export_service.dart` cochée. **14 → 13 cases restantes.**
+
+Le critère de cette ligne nomme un **vrai défaut de l'application publiée** : une note de coffre a
+`content` vide en base, et exporter la ligne brute produisait un `.md` au corps vide.
+**Le portage ne l'a pas** — et rien ne l'établissait avant aujourd'hui : `NoteMarkdown` et
+`NoteArchive` avaient 30 cas JVM, `NoteExporter` — les 400 lignes qui déchiffrent et écrivent — en
+avait **zéro**. Six cas instrumentés (`NoteExporteurTest`) le mesurent maintenant.
+
+🔴🔴 **Deux de ces six cas étaient faux, et l'un passait au VERT.** L'horloge est figée : deux
+archives d'un même cas portent le **même nom de fichier**, et l'aide qui le retrouvait faisait
+`first`. Le cas dont toutes les assertions sont des **absences** était donc vert sur l'archive de
+référence. *Un cas fait uniquement de `doesNotContain` ne distingue pas « c'est absent » de « je
+regarde ailleurs».* Correctif : `single`, pour qu'une ambiguïté fasse échouer au lieu d'être
+tranchée en silence. Cf. `04-PIEGES.md` §107.
