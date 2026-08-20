@@ -77,5 +77,11 @@ private val FailureReason.messageRes: Int
     get() = when (this) {
         FailureReason.MISSING_KEY -> R.string.startup_failure_missing_key
         FailureReason.KEY_UNAVAILABLE -> R.string.startup_failure_key_unavailable
-        FailureReason.UNKNOWN -> R.string.startup_failure_key_unavailable
+        // 🔴 Avant : cette branche renvoyait `startup_failure_key_unavailable`, le message de
+        // KEY_UNAVAILABLE. Le `when` etait donc exhaustif -- et affichait quand meme le mauvais
+        // conseil, ce que le commentaire ci-dessus promettait d'empecher. Mesure du 2026-08-20 :
+        // apres une bascule 2.0.3 -> 3.0.0, l'ecran conseillait de relancer puis de redemarrer
+        // l'appareil, pour un echec qui n'avait rien de transitoire et ne cedait ni a l'un ni a
+        // l'autre.
+        FailureReason.UNKNOWN -> R.string.startup_failure_unknown
     }

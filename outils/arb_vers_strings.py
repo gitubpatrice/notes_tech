@@ -226,6 +226,7 @@ AJOUTS_EN = {
     <string name="startup_failure_notes_are_safe">Your notes are still on this device and have not been modified.</string>
     <string name="startup_failure_missing_key">The encryption key for this database was not found. Install Notes Tech 2.0.4 first, open it once, then update again.</string>
     <string name="startup_failure_key_unavailable">The device keystore is temporarily unavailable. Restart the app; if the problem persists, restart the device.</string>
+    <string name="startup_failure_unknown">The key was found but could not be used. Try again; if the problem persists, report it — your notes are not modified.</string>
     <string name="startup_failure_retry">Try again</string>
 """,
 }
@@ -331,6 +332,7 @@ AJOUTS_FR = {
     <string name="startup_failure_title">Vos notes n\\'ont pas pu être déverrouillées</string>
     <string name="startup_failure_notes_are_safe">Vos notes sont toujours sur cet appareil et n\\'ont pas été modifiées.</string>
     <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Installez d\\'abord Notes Tech 2.0.4, ouvrez-la une fois, puis remettez à jour.</string>
+    <string name="startup_failure_unknown">La clé existe mais reste inutilisable. Réessayez ; si le problème persiste, signalez-le — vos notes ne sont pas modifiées.</string>
     <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\\'appareil est momentanément indisponible. Relancez l\\'application ; si le problème persiste, redémarrez l\\'appareil.</string>
     <string name="startup_failure_retry">Réessayer</string>
 """,

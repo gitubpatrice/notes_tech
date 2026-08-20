@@ -116,12 +116,25 @@ object FlutterSecureStorageFixture {
             FlutterSecureStorageKekSource.VALUE_KEY,
             Base64.encodeToString(envelope, Base64.DEFAULT),
         )
-        // 3. Les marqueurs d'algorithme. `StorageCipherFactory.java:120-121`
-        keyAlgorithmMarker?.let { editor.putString(FlutterSecureStorageKekSource.ALGORITHM_KEY_MARKER, it) }
-        storageAlgorithmMarker?.let {
-            editor.putString(FlutterSecureStorageKekSource.ALGORITHM_STORAGE_MARKER, it)
-        }
         editor.commit()
+
+        // 3. Les marqueurs d'algorithme — dans le fichier de CONFIGURATION, pas ici.
+        //
+        // 🔴🔴 Ce bloc ecrivait dans `DATA_PREFS`, avec la valeur. Les douze cas passaient donc
+        // sur une convention que la bibliotheque n'emploie pas, et le code de production, qui
+        // lisait au meme endroit, concordait avec eux. Deux erreurs symetriques s'annulaient.
+        // Sur un vrai appareil (S9, 2026-08-20) les marqueurs sont dans
+        // `FlutterSecureStorageConfiguration:FlutterSecureStorage.xml`, et la bascule 2.0.3 vers
+        // 3.0.0 echouait a tous les coups.
+        val config = context.getSharedPreferences(
+            FlutterSecureStorageKekSource.CONFIG_PREFS,
+            Context.MODE_PRIVATE,
+        ).edit()
+        keyAlgorithmMarker?.let { config.putString(FlutterSecureStorageKekSource.ALGORITHM_KEY_MARKER, it) }
+        storageAlgorithmMarker?.let {
+            config.putString(FlutterSecureStorageKekSource.ALGORITHM_STORAGE_MARKER, it)
+        }
+        config.commit()
     }
 
     /** Remplace la valeur chiffrée par des octets arbitraires, en gardant tout le reste intact. */
@@ -161,6 +174,10 @@ object FlutterSecureStorageFixture {
         context.getSharedPreferences(FlutterSecureStorageKekSource.DATA_PREFS, Context.MODE_PRIVATE)
             .edit().clear().commit()
         context.getSharedPreferences(FlutterSecureStorageKekSource.KEY_STORAGE_PREFS, Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        // ⚠️ Le fichier de configuration compte comme les deux autres : un marqueur laisse par un
+        // cas precedent ferait passer le suivant pour de mauvaises raisons.
+        context.getSharedPreferences(FlutterSecureStorageKekSource.CONFIG_PREFS, Context.MODE_PRIVATE)
             .edit().clear().commit()
         runCatching {
             KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }

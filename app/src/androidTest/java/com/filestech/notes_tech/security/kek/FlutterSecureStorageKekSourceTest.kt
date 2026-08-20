@@ -215,6 +215,8 @@ class FlutterSecureStorageKekSourceTest {
             .getSharedPreferences(FlutterSecureStorageKekSource.DATA_PREFS, Context.MODE_PRIVATE).all
         val avantCle = context
             .getSharedPreferences(FlutterSecureStorageKekSource.KEY_STORAGE_PREFS, Context.MODE_PRIVATE).all
+        val avantConfig = context
+            .getSharedPreferences(FlutterSecureStorageKekSource.CONFIG_PREFS, Context.MODE_PRIVATE).all
 
         source.load()
         source.load()
@@ -225,6 +227,45 @@ class FlutterSecureStorageKekSourceTest {
         assertThat(
             context.getSharedPreferences(FlutterSecureStorageKekSource.KEY_STORAGE_PREFS, Context.MODE_PRIVATE).all,
         ).isEqualTo(avantCle)
+        assertThat(
+            context.getSharedPreferences(FlutterSecureStorageKekSource.CONFIG_PREFS, Context.MODE_PRIVATE).all,
+        ).isEqualTo(avantConfig)
+    }
+
+    /**
+     * 🔴🔴 **Les marqueurs sont dans le fichier de CONFIGURATION, et nulle part ailleurs.**
+     *
+     * Ce cas est la non-regression du defaut du 2026-08-20 : le code de production lisait les
+     * marqueurs dans `DATA_PREFS`, et le fixture les y ecrivait. Les deux erreurs se compensaient,
+     * les douze cas etaient verts, et la bascule 2.0.3 vers 3.0.0 echouait sur tout appareil reel.
+     *
+     * On pose donc un stockage complet, puis on DEPLACE les marqueurs vers le fichier de donnees :
+     * exactement la convention que le code supposait. La lecture doit echouer.
+     *
+     * ⚠️ Sans ce cas, revenir a l'ancienne lecture repasserait le gate au vert.
+     */
+    @Test
+    fun des_marqueurs_places_dans_le_fichier_de_donnees_ne_valent_PAS_configuration() {
+        FlutterSecureStorageFixture.seed(context, aliasBase, SecretBytes.toHex(kek))
+        // Les retirer de la configuration...
+        context.getSharedPreferences(FlutterSecureStorageKekSource.CONFIG_PREFS, Context.MODE_PRIVATE)
+            .edit().clear().commit()
+        // ...et les poser la ou le code fautif les cherchait.
+        context.getSharedPreferences(FlutterSecureStorageKekSource.DATA_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(
+                FlutterSecureStorageKekSource.ALGORITHM_KEY_MARKER,
+                FlutterSecureStorageKekSource.EXPECTED_KEY_ALGORITHM,
+            )
+            .putString(
+                FlutterSecureStorageKekSource.ALGORITHM_STORAGE_MARKER,
+                FlutterSecureStorageKekSource.EXPECTED_STORAGE_ALGORITHM,
+            )
+            .commit()
+
+        // ⚠️ Le TYPE compte : `null` dirait « cette source ne detient rien », et la couche
+        // suivante genererait une cle neuve par-dessus une base existante.
+        assertThrows(KekFailure.SourceUnavailable::class.java) { source.load() }
     }
 
     /**

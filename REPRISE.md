@@ -29,30 +29,40 @@
   répertoires non suivis (`.audit_tmp/`, `_audit_results/`, `prompts/`) ne doivent **jamais** entrer
   dans l'index — pas de `git add -A`.
 
-## 🎯 RESTE À FAIRE — au 2026-08-19 au soir
+## 🎯 RESTE À FAIRE — au 2026-08-20 au soir
 
-> Le tableau de parité est complet ; **rien de ce qui suit n'est de la parité**. Ce sont les points
-> qui restaient ouverts derrière elle, chacun avec sa raison de l'être.
+> ✅ **La bascule a eu lieu.** Les trois dernières lignes de `05-PARITE.md` sont cochées **sur
+> mesure**, pas sur raisonnement. Ce qui suit est ce qui reste derrière.
 
-### 1. 🔴 Bloquant, et c'est une décision de Patrice — pas un travail à faire
+### 0. ✅ Ce qui n'est plus à faire — fait le 2026-08-20
 
-Le portage n'a **aucun `key.properties`**. La 3.0.0 doit être signée avec
-`notes_tech/android/notestech-release.jks`, dont l'empreinte est **vérifiée contre l'APK publié**
-(`ddb385de…42e9`). Sans cette clé, la 3.0.0 ne s'installera par-dessus Notes Tech **pour personne**.
+| Fait | Preuve |
+|---|---|
+| 3.0.0 **signée** avec le keystore de production | certificat `ddb385de…42e9`, vérifié contre l'APK 2.0.4 **réellement installé**, pas seulement contre le `.jks` |
+| Bascule **2.0.4 → 3.0.0** sur le S9 | note en clair et coffre PIN relus, clair affiché |
+| Bascule **2.0.3 → 3.0.0 directe** (couche ②) | après le correctif de `04-PIEGES.md` §120 — elle échouait à 100 % avant |
+| Coffre PIN créé en Flutter, ouvert en Kotlin | **deux fois**, depuis 2.0.4 et depuis 2.0.3 |
+| `versionCode` par ABI | 1053 / 2053 / 3053 / 4053 — cf. §121 |
 
-⚠️ Ce n'est pas un détail de publication : c'est la condition de la migration, et tout le reste de
-cette liste en dépend.
+⚠️ **Le `keystore.properties` n'a PAS été créé.** Le hook `pretooluse-protect` refuse d'écrire un
+fichier de mots de passe, et il a raison : la signature s'est faite par `apksigner`, avec le secret
+lu à la volée depuis `notes_tech/android/key.properties` et passé par variable d'environnement.
+**Aucun secret nouveau n'est sur le disque.** À décider : garder cette voie, ou créer le fichier —
+auquel cas il faudra d'abord l'ajouter au `.gitignore`, qui ne couvre que `*.jks` et `*.keystore`.
 
-### 2. Les trois lignes de bascule — elles ne se cochent pas depuis un poste
+### 1. 🔴 Le correctif de `notes_tech` n'est pas publié
 
-`docs/05-PARITE.md`, section « Reste donc trois lignes ». Toutes les trois attendent le seul geste
-qui ne se simule pas : **installer par-dessus une vraie installation, avec de vraies données**.
+`04-PIEGES.md` §123 : `lib/ui/screens/note_editor_screen.dart` est corrigé et **mesuré** (0 exception
+contre 2/2 avant), mais le commit vit dans le dépôt `notes_tech` sans release. Le défaut étant
+invisible en AOT release, rien ne presse — mais il partira avec la prochaine version, pas tout seul.
 
-Il faut le S9, une installation **2.0.3 réelle**, et `-Pnotestech.replaceInstalledApp=true`
-(`06-ISOLATION-PENDANT-LE-CHANTIER.md` §2).
+### 2. Ce que la bascule N'A PAS couvert
 
-C'est aussi le **critère de sortie de la phase 4** : ouvrir un coffre réellement créé par la version
-Flutter. Les vecteurs de parité figent un **format**, pas une installation.
+- Une base **volumineuse** : mes deux jeux d'essai comptaient une note en clair et une note de coffre.
+  Rien n'a été mesuré sur une base de plusieurs centaines de notes, ni sur la durée de migration.
+- Les ABI **armeabi-v7a** et **x86_64** : seul l'arm64 a été posé sur un appareil.
+- Un coffre à **passphrase** créé en Flutter : seul le PIN a été exercé de bout en bout. La ligne
+  correspondante était déjà ✅ par `FolderVaultServiceTest`, mais pas par une bascule réelle.
 
 ### 3. Trois points écrits et volontairement non corrigés
 

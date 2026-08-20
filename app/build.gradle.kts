@@ -1,3 +1,4 @@
+import com.android.build.api.variant.FilterConfiguration
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -233,6 +234,40 @@ android {
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
             isUniversalApk = true
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// versionCode par ABI - la 3.0.0 doit pouvoir REMPLACER les installations Flutter
+//
+// La 2.0.4 publiee est decoupee par ABI avec l'offset x1000 du plugin Flutter :
+// armeabi-v7a 1052, arm64-v8a 2052, x86_64 3052. Un APK a `versionCode = 53` est
+// donc un DOWNGRADE pour toute installation reelle, et Android le refuse -- mesure
+// le 2026-08-20 sur un S24 FE porteur de la 2052, ou l'installation echouait par
+// INSTALL_FAILED_VERSION_DOWNGRADE.
+//
+// Le meme offset est donc repris ici. L'universel prend le rang 4 : il n'a pas de
+// filtre d'ABI, et sans rang propre il resterait a 53, c'est-a-dire non installable
+// par-dessus quoi que ce soit. Le rang 4 le place au-dessus de tous les splits, ce
+// qui est le comportement attendu d'un APK qui les remplace tous.
+//
+// ATTENTION `version.properties` reste la source unique : l'offset s'applique a la
+// SORTIE, il ne redefinit pas `versionCode`. Et `BuildConfig.VERSION_CODE` gardera
+// la valeur de base -- verifie le 2026-08-20 : ni le code ni les tests ne le lisent.
+// -----------------------------------------------------------------------------
+val rangsDAbi = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+
+androidComponents {
+    onVariants { variante ->
+        variante.outputs.forEach { sortie ->
+            val abi = sortie.filters
+                .find { it.filterType == FilterConfiguration.FilterType.ABI }
+                ?.identifier
+            // `getValue` et non `get` : une ABI ajoutee sans rang doit faire ECHOUER
+            // la configuration, pas produire un APK silencieusement non installable.
+            val rang = if (abi == null) 4 else rangsDAbi.getValue(abi)
+            sortie.versionCode.set(rang * 1000 + appVersionCode)
         }
     }
 }

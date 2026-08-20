@@ -72,7 +72,7 @@ class FlutterSecureStorageKekSource(
 
         val encodedValue = readStoredValue(snapshot) ?: return null
 
-        requireExpectedAlgorithms(snapshot)
+        requireExpectedAlgorithms()
 
         return decryptHexEncodedKek(encodedValue, unwrapStorageKey())
     }
@@ -125,9 +125,28 @@ class FlutterSecureStorageKekSource(
      * Essayer de déchiffrer à l'aveugle donnerait des octets arbitraires qui passeraient peut-être
      * le contrôle de longueur, et ouvriraient une base avec une clé fausse.
      */
-    private fun requireExpectedAlgorithms(snapshot: Map<String, *>) {
-        val keyAlgorithm = snapshot[ALGORITHM_KEY_MARKER] as? String
-        val storageAlgorithm = snapshot[ALGORITHM_STORAGE_MARKER] as? String
+    private fun requireExpectedAlgorithms() {
+        // 🔴🔴 Ces deux marqueurs ne sont PAS dans le fichier de donnees.
+        //
+        // `StorageCipherFactory` les ecrit dans un fichier de CONFIGURATION distinct, nomme
+        // `FlutterSecureStorageConfiguration:` + le nom du fichier de donnees. Les chercher dans
+        // `snapshot` -- ce que faisait ce code -- les rendait TOUJOURS nuls, donc toujours
+        // differents des attendus, donc `SourceUnavailable` a chaque fois.
+        //
+        // Consequence mesuree le 2026-08-20 sur le S9 : une bascule 2.0.3 -> 3.0.0 echouait
+        // systematiquement, alors que la valeur, la cle enveloppee et les deux algorithmes etaient
+        // tous corrects sur l'appareil. La couche ② n'a jamais pu fonctionner.
+        //
+        // ⚠️ Les 12 cas JVM ne l'ont pas vu : ils ecrivaient les marqueurs dans le meme fichier
+        // que la valeur. Ils rejouaient une convention supposee, pas celle de la bibliotheque.
+        val config = runCatching {
+            context.getSharedPreferences(CONFIG_PREFS, Context.MODE_PRIVATE).all
+        }.getOrElse { cause ->
+            // Meme regle que pour les donnees : une lecture qui echoue ne prouve pas une absence.
+            throw KekFailure.SourceUnavailable(name, cause)
+        }
+        val keyAlgorithm = config[ALGORITHM_KEY_MARKER] as? String
+        val storageAlgorithm = config[ALGORITHM_STORAGE_MARKER] as? String
         if (keyAlgorithm != EXPECTED_KEY_ALGORITHM || storageAlgorithm != EXPECTED_STORAGE_ALGORITHM) {
             throw KekFailure.SourceUnavailable(
                 name,
@@ -335,6 +354,13 @@ class FlutterSecureStorageKekSource(
 
         /** `FlutterSecureStorageConfig.java:184` — sans espace de noms, pas de suffixe. */
         const val KEY_STORAGE_PREFS = "FlutterSecureKeyStorage"
+
+        /**
+         * `StorageCipherFactory.java:13-15` — les marqueurs d'algorithme vivent ici, et non
+         * dans [DATA_PREFS]. Nom verifie sur appareil le 2026-08-20 :
+         * `FlutterSecureStorageConfiguration:FlutterSecureStorage.xml`.
+         */
+        const val CONFIG_PREFS = "FlutterSecureStorageConfiguration:$DATA_PREFS"
 
         /** `FlutterSecureStorageConfig.java:16` + `FlutterSecureStorage.java:51` (`prefixe + "_" + cle`). */
         const val VALUE_KEY =

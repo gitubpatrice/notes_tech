@@ -3947,3 +3947,96 @@ production, pour voir tomber le cas censé l'attraper.
 | Les clés Keystore | liées à l'**UID** ; la build de portage est suffixée `.next` et ne peut pas voir celles du publié. |
 
 *Un tableau complet dit que chaque ligne a été regardée, pas que le produit est fini.*
+
+---
+
+## §120 — 🔴🔴 La couche ② n'avait jamais pu fonctionner : les marqueurs d'algorithme sont dans un AUTRE fichier
+
+**Mesuré le 2026-08-20 sur le S9, en installant la 3.0.0 par-dessus une vraie 2.0.3.** L'écran
+d'échec s'affichait à chaque lancement : « Vos notes n'ont pas pu être déverrouillées ».
+
+`FlutterSecureStorageKekSource.requireExpectedAlgorithms` lisait `FlutterSecureSAlgorithmKey` et
+`FlutterSecureSAlgorithmStorage` dans le **snapshot des données**, c'est-à-dire dans les préférences
+`FlutterSecureStorage`. La bibliothèque ne les y écrit pas : elle les met dans un fichier de
+**configuration** distinct, `FlutterSecureStorageConfiguration:FlutterSecureStorage`.
+
+Les deux marqueurs valaient donc **toujours `null`**, donc toujours différents des attendus, donc
+`SourceUnavailable` **à tous les coups**. La couche ② — la reprise directe depuis une 2.0.3, sans la
+passerelle de la 2.0.4 — n'a jamais pu aboutir sur un seul appareil.
+
+### ⚠️⚠️ Pourquoi douze cas instrumentés ne l'ont pas vu
+
+Parce que le fixture écrivait les marqueurs **au même endroit que le code fautif les cherchait**.
+Deux erreurs symétriques s'annulent : le test posait une convention inventée, le code la lisait, et
+l'accord des deux passait pour une preuve. Aucun des douze cas ne pouvait distinguer la convention
+de la bibliothèque de celle du test.
+
+*Un test qui construit lui-même l'entrée d'un format externe ne vérifie pas ce format : il vérifie
+que le code est d'accord avec le test. La seule référence est ce qu'écrit la vraie bibliothèque, sur
+un vrai appareil.*
+
+Le contrôle de non-régression `des_marqueurs_places_dans_le_fichier_de_donnees_ne_valent_PAS_configuration`
+pose un stockage complet puis **déplace** les marqueurs vers le fichier de données — exactement la
+convention supposée. Contrôle positif fait : avec `CONFIG_PREFS = DATA_PREFS`, **1 cas sur 13**
+tombe, et c'est celui-là.
+
+---
+
+## §121 — 🔴 Le portage à `versionCode 53` ne pouvait remplacer AUCUNE installation réelle
+
+La 2.0.4 publiée est découpée par ABI avec l'offset ×1000 du plugin Flutter : **1052 / 2052 / 3052**.
+Le portage produisait **53** sur ses trois APK, sans offset. `53 < 2052` : Android refuse par
+`INSTALL_FAILED_VERSION_DOWNGRADE`.
+
+Mesuré sur le S24 FE, porteur de la 2052. Ce n'était pas une particularité de cet appareil : aucune
+installation issue de la release n'aurait accepté la mise à jour.
+
+Corrigé par un `androidComponents.onVariants` qui applique le même offset — 1053 / 2053 / 3053 — et
+donne le rang **4** à l'universel, qui n'a pas de filtre d'ABI et serait resté à 53.
+
+⚠️ `version.properties` reste la source unique : l'offset s'applique à la **sortie**.
+⚠️ `BuildConfig.VERSION_CODE` garde la valeur de base ; vérifié le 2026-08-20, ni le code ni les
+tests ne le lisent.
+
+---
+
+## §122 — ⚠️ Un `when` exhaustif qui affiche quand même le mauvais conseil
+
+`StartupFailureScreen` portait ce commentaire :
+
+> *Délibéré : ajouter une cause d'échec sans écrire son message devient une erreur de compilation, au
+> lieu de produire silencieusement un écran qui affiche le mauvais conseil.*
+
+Et la ligne suivante faisait exactement cela : `FailureReason.UNKNOWN -> R.string.startup_failure_key_unavailable`.
+
+Le `when` compilait, l'exhaustivité était réelle, et l'écran conseillait à l'utilisateur de relancer
+puis de redémarrer son téléphone pour un échec qui n'avait rien de transitoire — mesuré le
+2026-08-20 : ni le réessai, ni la relance, ni la réinstallation n'y changeaient rien.
+
+*Un garde-fou structurel n'oblige qu'à écrire une branche ; il ne dit rien de ce qu'on y met. Ici il
+protégeait d'un oubli, pas d'un mauvais choix — et le commentaire affirmait l'inverse.*
+
+`UNKNOWN` a désormais son propre message. C'est aussi ce qui a permis d'**écarter** `MalformedKey` du
+diagnostic de §120 : le message est resté celui de `KEY_UNAVAILABLE`, donc la cause était bien
+`SourceUnavailable`.
+
+---
+
+## §123 — 🟠 Côté `notes_tech` : `AppLocalizations.of(context)` avant le premier `await`, depuis `initState`
+
+`_NoteEditorScreenState.initState()` appelait `_load()`, dont la **première instruction** est
+`AppLocalizations.of(context)` — donc un `dependOnInheritedWidgetOfExactType`. Le corps d'une
+fonction `async` s'exécute **synchroniquement jusqu'à son premier `await`** : la lecture tombait
+avant la fin de l'initialisation de l'élément.
+
+Résultat mesuré sur le S9, 2/2 : l'éditeur restait bloqué sur son indicateur de chargement, avec
+`Unhandled Exception: dependOnInheritedWidgetOfExactType<_LocalizationsScope>() ... was called
+before _NoteEditorScreenState.initState() completed`.
+
+⚠️ **Invisible en release** : les `assert` de Flutter sont désactivés en AOT. L'APK publié n'est pas
+affecté — ce qui ne rendait pas le défaut moins réel, seulement plus difficile à voir.
+
+Corrigé en déplaçant `_load()` vers `didChangeDependencies`, avec un drapeau : cette méthode est
+rappelée à **chaque** changement de dépendance (locale, thème, `MediaQuery`), et `_load()` réécrit
+les contrôleurs de texte — sans le drapeau, changer de langue en cours d'édition écraserait la
+saisie. Contrôle positif fait : 0 exception après correctif, éditeur affiché.
