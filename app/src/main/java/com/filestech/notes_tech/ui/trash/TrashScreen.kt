@@ -22,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,6 +46,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
+import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.home.NoteCard
 import com.filestech.notes_tech.ui.theme.Formes
 import kotlinx.coroutines.launch
@@ -72,7 +72,7 @@ fun TrashRoute(onBack: () -> Unit) {
         onRestore = viewModel::restore,
         onDeletePermanently = viewModel::deletePermanently,
         onEmptyTrash = viewModel::emptyTrash,
-        snackbarHost = { SnackbarHost(messages) },
+        snackbarHost = { HoteDeMessages(messages) },
     )
 }
 

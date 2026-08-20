@@ -1,15 +1,19 @@
 package com.filestech.notes_tech.ui.home
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -44,6 +48,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -100,14 +106,42 @@ fun HomeScreen(
                     }
                 },
                 title = {
-                    Text(
-                        // Le titre porte le nom du dossier quand un filtre est actif — c'est le
-                        // seul endroit où l'utilisateur voit ce qu'il regarde.
-                        text = state.currentFolder?.name ?: stringResource(R.string.app_title),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.semantics { heading() },
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Signature Files Tech : le damier n'accompagne QUE le nom de
+                        // l'application. Quand un filtre est actif, le titre devient le nom du
+                        // dossier ; y laisser le logo reviendrait à dire que ce dossier EST
+                        // l'application. Même règle que la version Flutter publiée.
+                        //
+                        // ⚠️ `contentDescription = null` : l'image est **décorative**. Le texte
+                        // juste à côté porte déjà le nom, et un lecteur d'écran qui annoncerait
+                        // « logo Notes Tech, Notes Tech » le dirait deux fois.
+                        if (state.currentFolder == null) {
+                            Image(
+                                painter = painterResource(R.drawable.logo_damier),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    // 22 dp et non 26 : la valeur de la version Flutter paraissait
+                                    // trop grande une fois rendue par Compose, jugee sur appareil
+                                    // le 2026-08-20. Ecart assume, et deliberement mesure a l'oeil :
+                                    // aucun test ne dit si un logo est trop gros.
+                                    .size(22.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                            )
+                            Spacer(Modifier.width(10.dp))
+                        }
+                        Text(
+                            // Le titre porte le nom du dossier quand un filtre est actif — c'est
+                            // le seul endroit où l'utilisateur voit ce qu'il regarde.
+                            text = state.currentFolder?.name ?: stringResource(R.string.app_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            // ⚠️ `fill = false` : le texte prend la place qu'il lui faut sans
+                            // pousser le logo hors de la barre sur un nom de dossier long.
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .semantics { heading() },
+                        )
+                    }
                 },
                 actions = {
                     IconButton(onClick = { triOuvert = true }) {

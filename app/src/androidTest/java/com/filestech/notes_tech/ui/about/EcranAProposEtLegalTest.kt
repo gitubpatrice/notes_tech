@@ -4,10 +4,13 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.filestech.notes_tech.R
@@ -135,6 +138,42 @@ class EcranAProposEtLegalTest {
         regle.waitForIdle()
 
         regle.onNodeWithText(titreTerms).assertIsDisplayed()
+    }
+
+    /**
+     * 🔴 **La licence MIT s'affichait avec ses chevrons.**
+     *
+     * `terms.md` reproduit la licence MIT de `whisper.cpp` — elle l'exige — sous forme de citation
+     * Markdown : **20 lignes commençant par `>`**, dans chacune des deux langues. Le rendu ne
+     * connaissait pas les citations, elles tombaient dans la branche par défaut, et l'utilisateur
+     * lisait `> MIT License`, `> Copyright (c) 2023-2024 The ggml authors`.
+     *
+     * ⚠⚠ Le KDoc du rendu affirmait pourtant qu'aucune citation n'existait dans ces fichiers, et
+     * précisait « vérifié en les lisant, pas supposé ». *Une affirmation de vérification se vérifie
+     * comme les autres.*
+     *
+     * Le cas est écrit **à partir du fichier**, pas d'une constante : il relit la première ligne
+     * citée et exige qu'elle soit à l'écran **sans** son chevron. Si quelqu'un remplace la licence
+     * embarquée, le cas suit sans qu'on y touche.
+     */
+    @Test
+    fun les_citations_de_la_licence_s_affichent_sans_leur_chevron() {
+        val brut = lire(regle.activity.resources, R.raw.terms)
+        val citees = brut.lines().map { it.trim() }.filter { it.startsWith(">") }
+        // Contrôle de l'instrument : sans citation dans le fichier, ce cas ne prouverait rien.
+        assertThat(citees).isNotEmpty()
+        val premiere = citees.first { it.removePrefix(">").trim().isNotEmpty() }
+        val attendu = premiere.removePrefix(">").trim()
+
+        regle.setContent { NotesTechTheme { LegalRoute(onBack = {}) } }
+        regle.waitForIdle()
+        regle.onNodeWithText(texte(R.string.legal_tab_terms)).performClick()
+        regle.waitForIdle()
+
+        regle.onNodeWithText(attendu).performScrollTo().assertIsDisplayed()
+        // ⚠️ Et la forme brute ne doit PAS être à l'écran — sinon le cas passerait aussi bien sur le
+        // rendu fautif, qui affichait les deux fois la même ligne, chevron en plus.
+        regle.onAllNodesWithText(premiere).assertCountEquals(0)
     }
 
     /** ⚠️ Le balayage, onglets compris. */

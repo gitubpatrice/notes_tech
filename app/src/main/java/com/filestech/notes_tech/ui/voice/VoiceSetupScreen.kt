@@ -28,7 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -52,6 +51,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.voice.SttModel
 import com.filestech.notes_tech.domain.voice.SttModelCatalogue
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.HoteDeMessages
 
 /**
  * L'installation du modèle de dictée.
@@ -211,7 +211,7 @@ internal fun EcranDInstallationVocale(
     onFermerLErreur: () -> Unit,
 ) {
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbars) },
+        snackbarHost = { HoteDeMessages(snackbars) },
         topBar = {
             TopAppBar(
                 navigationIcon = {

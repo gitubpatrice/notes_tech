@@ -68,6 +68,43 @@ object SemanticColors {
         if (scheme.surface.luminance() < DARK_SURFACE_THRESHOLD) GREEN_300 else GREEN_800
 
     /** Material amber 200 — claire, pour un fond sombre. Mesurée à 12,9:1 sur la surface sombre. */
+    /**
+     * Le bleu du damier Files Tech.
+     *
+     * ⚠️ Déclaré AVANT [messageBackground] qui le lit : dans un `object`, les propriétés
+     * s'initialisent dans l'ordre du fichier. Les autres teintes d'ici y échappent parce qu'elles
+     * ne sont lues que depuis des fonctions.
+     */
+    private val BLEU_DAMIER = Color(0xFF0B60C5)
+
+    /**
+     * Le fond des messages de validation — **le bleu du damier Files Tech**.
+     *
+     * 🔴 **Écart ASSUMÉ avec la version publiée**, demandé le 2026-08-20 après essai sur
+     * appareil. La 2.0.4 laisse Material poser `inverseSurface`, ce qui donne un bandeau **noir à
+     * texte blanc** : correct, mais anonyme. Le damier, lui, est déjà la signature de
+     * l'application — il est dans l'icône, dans le démarrage, et depuis ce jour à gauche du titre.
+     *
+     * ⚠️ **Cette teinte ne dépend PAS du thème**, contrairement à [favoriteIcon] et
+     * [validationIcon]. Ce n'est pas un oubli : ces deux-là se posent sur une surface **inconnue**
+     * (Material You la dérive du fond d'écran), alors qu'ici la couleur EST le fond. Le seul
+     * contraste à tenir est celui du texte posé dessus, et il ne varie pas.
+     *
+     * Valeur relevée sur `background-apps-damier_500px.png` : le damier ne compte que deux teintes,
+     * `#CA331F` et `#0B60C5`. Le bleu est retenu — le rouge dit l'erreur partout ailleurs dans
+     * l'application, l'employer pour une confirmation serait un contresens.
+     */
+    val messageBackground: Color = BLEU_DAMIER
+
+    /**
+     * Le texte des messages de validation.
+     *
+     * Blanc sur [messageBackground] : **6,1:1**, au-dessus du seuil AA de 4,5:1 pour du texte.
+     * Vérifié par `SemanticColorsTest`, pas supposé — un fond de marque n'est pas un fond choisi
+     * pour sa lisibilité, et rien ne garantit d'avance qu'il en porte.
+     */
+    val messageForeground: Color = Color.White
+
     private val AMBER_200 = Color(0xFFFFCC80)
 
     /**

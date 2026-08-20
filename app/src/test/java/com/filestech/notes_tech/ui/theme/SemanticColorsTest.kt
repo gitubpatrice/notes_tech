@@ -61,6 +61,23 @@ class SemanticColorsTest {
     }
 
     /**
+     * 🔴 **Le fond de marque des messages porte-t-il du texte lisible ?**
+     *
+     * Le bleu du damier a été choisi parce qu'il **identifie** l'application, pas parce qu'il
+     * contraste : rien ne garantit d'avance qu'une couleur de marque soit lisible. Le seuil est
+     * donc celui du **texte** (4,5:1), pas celui des éléments non textuels — un `Snackbar` ne
+     * contient rien d'autre que des mots.
+     *
+     * ⚠️ Le fond ne dépend pas du thème, donc une seule mesure suffit ici. C'est l'exception :
+     * les autres couleurs de ce fichier se posent sur une surface inconnue et se mesurent deux fois.
+     */
+    @Test
+    fun `le texte des messages contraste sur le bleu du damier`() {
+        val ratio = contraste(SemanticColors.messageForeground, SemanticColors.messageBackground)
+        assertThat(ratio).isGreaterThan(SEUIL_TEXTE)
+    }
+
+    /**
      * 🔴 **Le cas témoin.** Sans lui, les trois tests ci-dessus passeraient tout aussi bien si
      * [contraste] rendait une constante. Deux teintes proches doivent échouer au seuil.
      */
@@ -97,5 +114,8 @@ class SemanticColorsTest {
     private companion object {
         /** WCAG 2.1, critère 1.4.11 — éléments non textuels. Du texte demanderait 4,5:1. */
         const val SEUIL_NON_TEXTUEL = 3.0f
+
+        /** WCAG 2.1, critère 1.4.3 — texte de taille courante. */
+        const val SEUIL_TEXTE = 4.5f
     }
 }

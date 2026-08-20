@@ -35,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -71,6 +70,7 @@ import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CarteFilesTech
+import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.MIME_ZIP
 import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.libelleDeTri
@@ -156,7 +156,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
         onPanic = panique::trigger,
         onOpenAbout = onOpenAbout,
         onOpenVoiceSetup = onOpenVoiceSetup,
-        snackbarHost = { SnackbarHost(snackbars) },
+        snackbarHost = { HoteDeMessages(snackbars) },
         ligneDExport = { LigneDExport(snackbars) },
     )
 

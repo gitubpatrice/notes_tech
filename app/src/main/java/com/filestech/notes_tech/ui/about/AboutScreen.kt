@@ -40,7 +40,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -68,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import com.filestech.notes_tech.BuildConfig
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.common.CarteFilesTech
+import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.ouvrirUnLien
 import com.filestech.notes_tech.ui.theme.Formes
@@ -110,7 +110,7 @@ fun AboutRoute(onBack: () -> Unit, onOpenLegal: () -> Unit) {
     val ouvrir: (String) -> Unit = { url -> ouvrirUnLien(contexte, url, signalerLaCopie) }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(messages) },
+        snackbarHost = { HoteDeMessages(messages) },
         topBar = {
             TopAppBar(
                 navigationIcon = {

@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
+import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
 import com.filestech.notes_tech.ui.folders.ConfirmRemoveVaultProtectionDialog
 import com.filestech.notes_tech.ui.folders.FolderAction
@@ -200,8 +200,8 @@ fun HomeRoute(
             )
         }
 
-        SnackbarHost(
-            hostState = snackbars,
+        HoteDeMessages(
+            etat = snackbars,
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
         )
     }

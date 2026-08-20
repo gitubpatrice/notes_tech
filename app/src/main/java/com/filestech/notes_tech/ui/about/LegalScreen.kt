@@ -97,14 +97,25 @@ fun LegalRoute(onBack: () -> Unit) {
  *
  * ## Un rendu volontairement minimal, et ce qu'il couvre
  *
- * Titres `#` à `###`, listes à puces, gras `**…**`, paragraphes, lignes horizontales. C'est tout ce
- * que ces quatre fichiers emploient — vérifié en les lisant, pas supposé. Embarquer une
- * bibliothèque de rendu Markdown pour quatre pages statiques coûterait plus qu'elle ne rapporte, et
- * ajouterait une dépendance à une application qui en compte peu.
+ * Titres `#` à `###`, listes à puces, **citations**, gras `**…**`, paragraphes, lignes horizontales.
+ * Embarquer une bibliothèque de rendu Markdown pour quatre pages statiques coûterait plus qu'elle
+ * ne rapporte, et ajouterait une dépendance à une application qui en compte peu.
  *
- * ⚠️ Ce qui n'est **pas** géré est aussi ce qui n'apparaît pas dans ces fichiers : tableaux, liens,
- * images, code. Si un texte juridique en gagne un, il s'affichera tel quel, en clair — dégradé mais
- * lisible, jamais perdu.
+ * ## 🔴 Ce commentaire a menti, et il faut savoir pourquoi
+ *
+ * Il affirmait : « tableaux, liens, images, code — ce qui n'est pas géré est aussi ce qui n'apparaît
+ * pas dans ces fichiers, **vérifié en les lisant, pas supposé** ». C'était faux : `terms.md` contient
+ * **20 lignes de citation** dans ses deux langues — la licence MIT de `whisper.cpp`, que cette
+ * licence **exige** de reproduire — et un lien vers le dépôt. Elles tombaient dans la branche par
+ * défaut et s'affichaient **chevron compris** : `> MIT License`, `> Copyright (c)…`.
+ *
+ * *Une affirmation de vérification est une affirmation comme une autre : elle se vérifie. Un
+ * `grep -c '^>'` sur les quatre fichiers y suffisait, et personne ne l'avait fait.* Repéré en
+ * lisant l'écran sur un téléphone, le 2026-08-20.
+ *
+ * ⚠️ Restent non gérés, et cette fois **comptés** : tableaux (0 occurrence), images (0), blocs de
+ * code (0). Le lien unique des CGU s'affiche en clair, ce qui convient — une URL lisible reste une
+ * URL recopiable, et l'application n'a pas la permission Internet pour l'ouvrir de toute façon.
  */
 @Composable
 private fun TexteLegal(@RawRes fichier: Int) {
@@ -133,6 +144,22 @@ private fun TexteLegal(@RawRes fichier: Int) {
                 // entre deux paragraphes juridiques alourdit sans rien séparer que le blanc ne
                 // sépare déjà.
                 nette.all { it == '-' } && nette.length >= 3 -> Column(Modifier.padding(top = 12.dp)) {}
+
+                // Citation : la licence MIT reproduite dans les conditions d'utilisation.
+                // ⚠️ Testé avant les puces : une ligne `> - quelque chose` est d'abord une citation.
+                nette.startsWith(">") -> {
+                    val cite = nette.removePrefix(">").trim()
+                    if (cite.isEmpty()) {
+                        // `>` seul sépare deux paragraphes de la citation : c'est un blanc, pas un vide.
+                        Column(Modifier.padding(top = 6.dp)) {}
+                    } else {
+                        Text(
+                            text = enrichir(cite),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(start = 12.dp, top = 2.dp),
+                        )
+                    }
+                }
 
                 nette.startsWith("- ") || nette.startsWith("* ") -> Text(
                     text = enrichir("•  " + nette.drop(2)),
