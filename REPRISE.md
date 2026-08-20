@@ -72,21 +72,44 @@ Ce qui a été vérifié dans les textes légaux, et qui est **exact** : aucune 
 manifeste **fusionné** (seule `RECORD_AUDIO`), `whisper.cpp` bien en **1.8.3**, dépôt `notes_tech`
 valide, et **aucune mention de Flutter** — le changement de langage ne les périme pas.
 
-### 2. 🔴 Le correctif de `notes_tech` n'est pas publié
+### 2. ✅ Relecture externe du lot de sécurité — faite le 2026-08-20 (`04-PIEGES.md` §126, §127)
+
+Deux relecteurs (`gpt-5.5-pro`, `gemini-3.1-pro`) sur `FlutterSecureStorageKekSource`,
+`KekRepository`, les écrans de démarrage, le fixture, le test de non-régression et le schéma de
+`versionCode`. **Quatre défauts réels, dont deux dans mes correctifs du matin même** — tous corrigés,
+chacun avec son contrôle positif.
+
+🔴 Le plus grave, **vu par un seul des deux** : `destroy()` enveloppait ses quatre gestes dans un
+`try` unique, si bien qu'un premier échec laissait la valeur scellée, la clé AES et l'alias RSA
+**ensemble sur l'appareil**, après un mode panique.
+
+⚠️ **Un constat était juste et inapplicable** : détruire la clé AES après usage. Mesuré sur le S9 —
+`SecretKeySpec.destroy()` lève `DestroyFailedException` sans rien effacer. L'appliquer aurait produit
+du code qui donne l'impression d'une protection sans en offrir. Documenté, pas écrit.
+
+Les deux points de conception qui restaient ouverts sont **tranchés** (§127) : une clé malformée
+n'arrête plus le parcours des sources, et l'APK universel n'est plus produit.
+
+💡 **Deux relecteurs, pas un** — les sévérités ne se recoupent pas, seul le croisement des listes
+est fiable. 🔴🔴 Et le coût est réel : cf. `reference_audit_ia_api` en mémoire, **demander avant**,
+le **diff** et non les fichiers, **un** relecteur d'abord, effort **`medium`**.
+
+### 3. 🔴 Le correctif de `notes_tech` n'est pas publié
 
 `04-PIEGES.md` §123 : `lib/ui/screens/note_editor_screen.dart` est corrigé et **mesuré** (0 exception
 contre 2/2 avant), mais le commit vit dans le dépôt `notes_tech` sans release. Le défaut étant
 invisible en AOT release, rien ne presse — mais il partira avec la prochaine version, pas tout seul.
 
-### 3. Ce que la bascule N'A PAS couvert
+### 4. Ce que la bascule N'A PAS couvert
 
 - Une base **volumineuse** : mes deux jeux d'essai comptaient une note en clair et une note de coffre.
   Rien n'a été mesuré sur une base de plusieurs centaines de notes, ni sur la durée de migration.
-- Les ABI **armeabi-v7a** et **x86_64** : seul l'arm64 a été posé sur un appareil.
+- Les ABI **armeabi-v7a** et **x86_64** : seul l'arm64 a été posé sur un appareil. ✅ L'APK
+  **universel**, lui, n'est plus produit du tout (§127) — il piégeait qui l'installait.
 - ~~Un coffre à **passphrase** créé en Flutter~~ — ✅ **fait le 2026-08-20** : créé dans la 2.0.4,
   ouvert par la 3.0.0 après bascule. Argon2id concorde sur ses paramètres réels.
 
-### 4. Trois points écrits et volontairement non corrigés
+### 5. Trois points écrits et volontairement non corrigés
 
 | Point | Pourquoi il reste ouvert | § |
 |---|---|---|
@@ -94,13 +117,13 @@ invisible en AOT release, rien ne presse — mais il partira avec la prochaine v
 | `forcePermanently()` **est** `force()` : un `release()` en trop annulerait la demande du mode panique | **pas atteignable** — `release()` n'a qu'un appelant, qui a toujours forcé d'abord. Durcissement contre un défaut futur, pas correction d'un défaut présent | §111 |
 | Le repli de `dossierEstUnCoffre` (« une base indisponible ne doit pas faire échouer un export ») n'est pas exercé | `DatabaseProvider.close()` rouvre au premier accès : un cas écrit ainsi n'atteindrait jamais le `catch` et serait un **test vacant** de plus. Le forcer demanderait de sceller la base comme le fait la panique | §107 |
 
-### 5. Deux écarts assumés, déjà écrits — à re-décider ou à laisser
+### 6. Deux écarts assumés, déjà écrits — à re-décider ou à laisser
 
 `REPRISE.md` §430 : le `tryEmit` de la corbeille perd un message si la rotation tombe pendant
 l'action (le KDoc du ViewModel choisit déjà ce compromis), et `TrashViewModel.state` n'a pas de
 `catch` là où `SearchUiState` a gagné un `failed`.
 
-### 6. Côté application publiée
+### 7. Côté application publiée
 
 `notes_tech` : la MR F-Droid **`!37885`** est épinglée sur 2.0.3/51 et attend son tour. La 2.0.4
 publiée le 08-18 **ne la dérange pas** — `AutoUpdateMode: Version` + `UpdateCheckMode: Tags` feront
