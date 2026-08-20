@@ -101,13 +101,19 @@ android {
             arg("room.generateKotlin", "true")
         }
 
-        // ⚠️ Les mêmes trois architectures que le découpage par ABI plus bas. Deux listes qui
-        // divergeraient produiraient un APK annonçant une architecture dont il ne porte pas la
-        // bibliothèque native — et un plantage au premier chargement, sur ces appareils-là
-        // seulement.
-        ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
-        }
+        // ATTENTION `ndk.abiFilters` a ete RETIRE, et son absence est voulue.
+        //
+        // Il repetait la liste du decoupage par ABI plus bas. AGP tolerait la redondance tant que
+        // l'APK universel etait produit -- il avait besoin de savoir quoi y mettre. Des que
+        // `isUniversalApk` est passe a false, la configuration a ete REFUSEE :
+        //
+        //     Conflicting configuration : 'armeabi-v7a,arm64-v8a,x86_64' in ndk abiFilters
+        //     cannot be present when splits abi filters are set
+        //
+        // C'est `splits.abi.include(...)` qui fait autorite desormais, et il est seul : deux listes
+        // qui divergeraient produiraient un APK annoncant une architecture dont il ne porte pas la
+        // bibliotheque native, et un plantage au premier chargement sur ces appareils-la seulement.
+        // Une seule liste ne peut pas diverger d'elle-meme.
 
         externalNativeBuild {
             cmake {
@@ -233,7 +239,16 @@ android {
             isEnable = true
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
-            isUniversalApk = true
+            // ATTENTION L'universel N'EST PLUS PRODUIT, et ce n'est pas une economie de taille.
+            //
+            // Il portait le rang 4, donc versionCode 4053, au-dessus de tous les splits. Consequence
+            // relevee par deux relectures externes le 2026-08-20 : qui l'installe une fois ne peut
+            // plus recevoir un split -- 2054 par-dessus 4053 est un downgrade, qu'Android refuse. La
+            // seule sortie serait une desinstallation, qui detruit l'alias Keystore avec la base.
+            //
+            // La release publiee ne contient de toute facon que les TROIS splits ; l'universel etait
+            // produit pour rien, et ne pouvait que pieger celui qui s'en servirait.
+            isUniversalApk = false
         }
     }
 }
@@ -278,7 +293,16 @@ androidComponents {
                 ?.identifier
             // `getValue` et non `get` : une ABI ajoutee sans rang doit faire ECHOUER
             // la configuration, pas produire un APK silencieusement non installable.
-            val rang = if (abi == null) 4 else rangsDAbi.getValue(abi)
+            //
+            // ATTENTION Une sortie SANS filtre d'ABI est un APK universel, et il n'y en a plus --
+            // `isUniversalApk` est a false. Si celui qui lit ceci vient de le remettre a true, il
+            // doit choisir un rang en connaissance de cause : au-DESSUS des splits, l'universel les
+            // eclipse et enferme ses utilisateurs ; en-DESSOUS, il ne peut s'installer sur aucune
+            // installation existante. Echouer ici est le seul comportement qui l'oblige a trancher.
+            val rang = rangsDAbi[abi] ?: error(
+                "sortie sans ABI connue (abi=$abi) : l'universel n'est plus produit. " +
+                    "Le reactiver impose de lui choisir un rang -- voir le commentaire ci-dessus.",
+            )
             sortie.versionCode.set(rang * 1000 + appVersionCode)
         }
     }

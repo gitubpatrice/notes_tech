@@ -112,13 +112,25 @@ class KekRepository(
      * comme une absence, et l'absence conduit à générer.
      */
     private fun scanSources(): ByteArray? {
-        var firstFailure: KekFailure.SourceUnavailable? = null
+        // 🔴 Le type est `KekFailure`, pas `SourceUnavailable` : une clé **malformée** est un
+        // échec à conserver au même titre qu'une source muette. Voir [loadOrNull].
+        var firstFailure: KekFailure? = null
         for (source in sources) {
             val kek = loadOrNull(source) { failure ->
                 if (firstFailure == null) firstFailure = failure
             }
             if (kek != null) {
-                val cle = validated(kek, source.name)
+                // ⚠⚠ `validated` lève `MalformedKey` sur une taille inattendue, et cet appel est
+                // **hors** de `loadOrNull` : sans ce `try`, une source rendant une clé de mauvaise
+                // taille interromprait le parcours aussi sûrement qu'une source qui lève. Les deux
+                // chemins mènent au même état et doivent être traités pareil.
+                val cle = try {
+                    validated(kek, source.name)
+                } catch (e: KekFailure.MalformedKey) {
+                    Timber.w(e, "source « %s » : cle malformee — on poursuit avec les suivantes", source.name)
+                    if (firstFailure == null) firstFailure = e
+                    continue
+                }
                 // 🔴 On ne recopie **que** si aucune source n'a échoué avant celle-ci.
                 //
                 // Le scénario que cette condition ferme, relevé par une relecture externe
@@ -155,18 +167,36 @@ class KekRepository(
      * Lit une source. Rend `null` aussi bien quand la source ne détient rien que quand elle n'a pas
      * pu être lue — mais dans le second cas, [onFailure] reçoit l'échec, qui ne doit pas se perdre.
      *
-     * Une [KekFailure.MalformedKey] n'est pas rattrapée : une clé présente mais illisible est un
-     * état qu'aucune autre source ne peut réparer, et le taire ferait passer pour une absence ce
-     * qui est une corruption.
+     * 🔴🔴 **Une [KekFailure.MalformedKey] est rattrapée elle aussi — c'était l'inverse avant.**
+     *
+     * Le raisonnement précédent tenait en une phrase : « une clé présente mais illisible est un état
+     * qu'aucune autre source ne peut réparer ». C'est faux dès qu'il y a plus d'une source. Le cas
+     * concret, relevé par **deux** relectures externes le 2026-08-20 : la copie primaire se corrompt,
+     * l'original hérité de Flutter est intact à côté, et l'utilisateur reste **enfermé hors de ses
+     * notes** parce que le parcours s'est arrêté à la première source.
+     *
+     * ⚠⚠ **Ce qui rend le changement sûr, ce sont deux garde-fous qui existaient déjà** :
+     *
+     * - l'échec est **conservé** et **relancé** si aucune source ne rend de clé. Une corruption ne
+     *   peut donc jamais se lire comme une absence — et c'est l'absence, elle seule, qui autorise
+     *   une génération ;
+     * - `promoteToPrimary` est sauté dès qu'un échec a eu lieu. Une clé venue d'une source
+     *   secondaire n'écrase donc pas le scellé primaire, qui contenait peut-être une **autre** clé.
+     *
+     * *Sans ces deux-là, élargir ce rattrapage serait dangereux. Avec eux, s'arrêter à la première
+     * source ne protège de rien et coûte l'accès aux notes.*
      */
-    private inline fun loadOrNull(source: KekSource, onFailure: (KekFailure.SourceUnavailable) -> Unit): ByteArray? =
-        try {
-            source.load()
-        } catch (e: KekFailure.SourceUnavailable) {
-            Timber.w(e, "source « %s » indisponible — on poursuit avec les suivantes", source.name)
-            onFailure(e)
-            null
-        }
+    private inline fun loadOrNull(source: KekSource, onFailure: (KekFailure) -> Unit): ByteArray? = try {
+        source.load()
+    } catch (e: KekFailure.SourceUnavailable) {
+        Timber.w(e, "source « %s » indisponible — on poursuit avec les suivantes", source.name)
+        onFailure(e)
+        null
+    } catch (e: KekFailure.MalformedKey) {
+        Timber.w(e, "source « %s » : cle illisible — on poursuit avec les suivantes", source.name)
+        onFailure(e)
+        null
+    }
 
     /**
      * Recopie dans la source primaire une clé obtenue ailleurs, pour que le prochain démarrage

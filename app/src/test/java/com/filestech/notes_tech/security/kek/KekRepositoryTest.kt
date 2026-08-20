@@ -143,6 +143,75 @@ class KekRepositoryTest {
         assertThrows<KekFailure.MalformedKey> { repository.acquire() }
     }
 
+    /**
+     * 🔴🔴 **Une clé MALFORMÉE ne doit pas non plus barrer la route à la source suivante.**
+     *
+     * Jumeau du cas « une source cassee n'empeche pas d'atteindre la suivante », pour l'autre façon
+     * d'échouer. Le parcours s'arrêtait à la première clé illisible, au motif qu'« aucune autre
+     * source ne peut réparer ça » — vrai avec une seule source, faux dès qu'il y en a deux.
+     *
+     * Le cas concret, relevé par deux relectures externes le 2026-08-20 : la copie primaire se
+     * corrompt, l'original hérité de Flutter est intact juste à côté, et l'utilisateur reste enfermé
+     * hors de ses notes.
+     */
+    @Test
+    fun `une cle malformee n'empeche pas d'atteindre la suivante`() {
+        val tronquee = FakeSource("tronquee", ByteArray(16))
+        val porteuse = FakeSource("porteuse", kek)
+        val primaire = FakeWritableSource("primaire", null)
+        val repository =
+            KekRepository(listOf(tronquee, porteuse), primaire, databaseExists = { true })
+
+        assertThat(repository.acquire()).isEqualTo(kek)
+
+        // ⚠⚠ Et la primaire n'est PAS réécrite : une clé venue d'une source secondaire, alors qu'une
+        // autre a échoué, pourrait être une AUTRE clé que celle que le scellé primaire contenait.
+        assertThat(primaire.ecritures).isEqualTo(0)
+    }
+
+    /**
+     * 🔴 **L'AUTRE chemin : une source qui LÈVE `MalformedKey`, au lieu d'en rendre une tronquée.**
+     *
+     * ⚠⚠ Le cas précédent ne couvre pas celui-ci, et je l'ai cru un instant. Une doublure qui rend
+     * 16 octets échoue dans `validated()`, **après** `loadOrNull` ; une source qui lève échoue
+     * **dans** `loadOrNull`. Deux gardes distinctes, dans deux fonctions différentes.
+     *
+     * *Le contrôle positif l'a dit : neutraliser le rattrapage de `loadOrNull` ne faisait tomber
+     * aucun test, parce qu'aucun ne passait par là.*
+     */
+    @Test
+    fun `une source qui LEVE une cle malformee n'empeche pas d'atteindre la suivante`() {
+        val illisible = SourceQuiLeve("illisible", KekFailure.MalformedKey("illisible", null))
+        val porteuse = FakeSource("porteuse", kek)
+        val primaire = FakeWritableSource("primaire", null)
+        val repository =
+            KekRepository(listOf(illisible, porteuse), primaire, databaseExists = { true })
+
+        assertThat(repository.acquire()).isEqualTo(kek)
+        assertThat(primaire.ecritures).isEqualTo(0)
+    }
+
+    /**
+     * 🔴🔴 **Le jumeau de sûreté : une corruption ne devient JAMAIS une absence.**
+     *
+     * C'est ce cas qui rend le précédent acceptable. Si la seule clé présente est illisible et
+     * qu'aucune autre source n'en détient, l'échec conservé doit être **relancé** — sinon
+     * `scanSources` rendrait `null`, ce que la couche supérieure lit comme « aucune clé nulle part »,
+     * et une base existante se verrait coiffer d'une clé neuve. *Les notes seraient perdues, pas
+     * inaccessibles.*
+     */
+    @Test
+    fun `une cle malformee seule LEVE, et ne fait generer personne`() {
+        val tronquee = FakeSource("tronquee", ByteArray(16))
+        val vide = FakeSource("vide", null)
+        val primaire = FakeWritableSource("primaire", null)
+        val repository =
+            KekRepository(listOf(tronquee, vide), primaire, databaseExists = { true })
+
+        assertThrows<KekFailure.MalformedKey> { repository.acquire() }
+        assertThat(primaire.ecritures).isEqualTo(0)
+    }
+
     // ── Destruction : le point de non-retour du mode panique ─────────────────
 
     /**
@@ -349,6 +418,12 @@ class KekRepositoryTest {
 
         // La clé est bien rendue — l'utilisateur ouvre ses notes — mais rien n'a été écrasé.
         assertThat(primaire.stockee).isNull()
+    }
+
+    /** Une source dont `load()` lève l'échec qu'on lui donne. */
+    private class SourceQuiLeve(override val name: String, private val echec: KekFailure) : KekSource {
+        override fun load(): ByteArray? = throw echec
+        override fun destroy() = Unit
     }
 
     private class SourceSimple(override val name: String, private val cle: ByteArray?) : KekSource {

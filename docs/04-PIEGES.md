@@ -4203,3 +4203,69 @@ rang **0**.
 *Deux relecteurs, pas un.* Le plus grave — `destroy()` qui s'arrête au premier échec — n'a été vu que
 par **un seul** des deux. Et celui qui l'a manqué classait CRITIQUE deux points que l'autre classait
 MAJEUR ou MINEUR : **les sévérités ne se recoupent pas**, seul le croisement des listes est fiable.
+
+---
+
+## §127 — ✅ Les deux points de conception de §126, tranchés
+
+**2026-08-20, décision de Patrice.** Les deux constats que les relecteurs classaient CRITIQUE sans
+que je les applique — parce que c'étaient des choix, pas des défauts.
+
+### 1. Une clé malformée n'arrête plus le parcours des sources
+
+Le raisonnement précédent tenait en une phrase : « une clé présente mais illisible est un état
+qu'aucune autre source ne peut réparer ». **Vrai avec une source, faux dès qu'il y en a deux.** Le
+cas concret : la copie primaire se corrompt, l'original hérité de Flutter est intact juste à côté, et
+l'utilisateur reste enfermé hors de ses notes.
+
+⚠️⚠️ **Ce qui rend l'élargissement sûr, ce sont deux garde-fous déjà présents** — sans eux, ce
+changement serait dangereux :
+
+| Garde-fou | Ce qu'il empêche |
+|---|---|
+| l'échec est **conservé** et **relancé** si aucune source ne rend de clé | qu'une corruption se lise comme une absence — et c'est l'absence, elle seule, qui autorise une génération |
+| `promoteToPrimary` est sauté dès qu'un échec a eu lieu | qu'une clé venue d'ailleurs écrase le scellé primaire, qui contenait peut-être une **autre** clé |
+
+### 🔴 Deux chemins, deux gardes — et j'ai failli n'en voir qu'un
+
+`MalformedKey` peut surgir de **deux endroits distincts** :
+
+- `source.load()` la **lève** → rattrapée dans `loadOrNull` ;
+- `validated()` la lève sur une **taille inattendue** → et cet appel est **hors** de `loadOrNull`.
+
+*Mon premier contrôle positif l'a révélé* : neutraliser le rattrapage de `loadOrNull` ne faisait
+tomber **aucun** test. Ma doublure rendait 16 octets sans lever, donc elle n'exerçait que le second
+chemin. Un test existait, une garde n'était pas couverte, et le contrôle positif seul l'a dit.
+
+Chaque chemin a désormais son cas **et** son contrôle positif : 1 test sur 20 tombe à chaque fois, et
+c'est le bon.
+
+### 2. L'APK universel n'est plus produit
+
+Il portait le rang 4, donc `versionCode 4053`, au-dessus de tous les splits. Qui l'installait une
+fois ne pouvait plus recevoir de split — `2054` par-dessus `4053` est un downgrade. La seule sortie
+aurait été une désinstallation, qui **détruit l'alias Keystore avec la base**.
+
+La release ne publie de toute façon que les **trois splits** : l'universel était produit pour rien,
+et ne pouvait que piéger qui s'en serait servi. `isUniversalApk = false`.
+
+⚠️ Et la garde ne se contente pas de le désactiver : une sortie **sans filtre d'ABI** fait désormais
+**échouer la configuration**, avec le message qui explique le dilemme. Le réactiver oblige à choisir
+un rang en connaissance de cause — au-dessus des splits il les éclipse, en dessous il ne s'installe
+nulle part.
+
+### ⚠️ L'effet de bord que la désactivation a révélé
+
+`ndk.abiFilters` répétait la liste de `splits.abi`. AGP **tolérait** la redondance tant que
+l'universel existait — il avait besoin de savoir quoi y mettre. Sans universel, la configuration a
+été **refusée** :
+
+```
+Conflicting configuration : 'armeabi-v7a,arm64-v8a,x86_64' in ndk abiFilters
+cannot be present when splits abi filters are set
+```
+
+`abiFilters` retiré : `splits.abi.include(...)` fait autorité, seul. *Deux listes qui divergeraient
+produiraient un APK annonçant une architecture dont il ne porte pas la bibliothèque native ; une
+seule liste ne peut pas diverger d'elle-même.* Vérifié après coup : chaque APK contient **exactement
+une** ABI.
