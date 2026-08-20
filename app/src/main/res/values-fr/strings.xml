@@ -128,7 +128,6 @@
     <string name="note_editor_tooltip_more">Plus d\'actions</string>
     <string name="note_editor_tooltip_dictate">Dictée vocale</string>
     <string name="note_editor_tooltip_done">Terminé</string>
-    <string name="note_editor_menu_move">Déplacer dans un dossier</string>
     <string name="note_editor_menu_export">Exporter en Markdown</string>
     <string name="note_editor_menu_trash">Mettre à la corbeille</string>
     <string name="note_editor_backlinks">Notes qui mentionnent celle-ci</string>
@@ -154,6 +153,8 @@
     <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
     <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
+    <string name="note_editor_menu_move">Déplacer vers un autre dossier</string>
+    <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>
@@ -417,7 +418,6 @@
     <string name="app_title">Notes Tech</string>
     <string name="passphrase_show_tooltip">Afficher la passphrase</string>
     <string name="passphrase_hide_tooltip">Masquer la passphrase</string>
-    <string name="move_to_folder_title">Déplacer dans un dossier</string>
     <string name="move_to_folder_empty">Aucun autre dossier disponible.</string>
     <string name="ai_chat_model_loaded">Modèle prêt</string>
     <string name="error_vault_locked">Coffre verrouillé.</string>

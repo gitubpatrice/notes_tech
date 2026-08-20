@@ -91,6 +91,8 @@ AJOUTS_EN = {
       chose et dit la CONSEQUENCE, qui est la raison d etre du signal.
     -->
     <string name="move_to_folder_vault">Vault folder: the note will be encrypted</string>
+    <string name="note_editor_menu_move">Move to another folder</string>
+    <string name="move_to_folder_title">Move to another folder</string>
 """,
     "trash": """\
     <!--
@@ -262,6 +264,8 @@ AJOUTS_FR = {
     "note": """\
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
     <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
+    <string name="note_editor_menu_move">Déplacer vers un autre dossier</string>
+    <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
 """,
     "trash": """\
     <plurals name="trash_emptied">
@@ -388,6 +392,20 @@ REMPLACEES = {
     # par un intitule qui DECRIT, dans le vocabulaire que la politique de confidentialite emploie
     # deja (« Donnees traitees »).
     "voiceSetupSecurityFooterLabel",
+    # `noteEditorMenuMove` et `moveToFolderTitle` disaient « Déplacer dans un dossier ». Depuis une
+    # note qui est DEJA dans un dossier -- un coffre, typiquement -- le libelle semble parler
+    # d'autre chose que de la situation. Releve par Patrice en essayant l'application le
+    # 2026-08-20 : « ce serait pas mieux : deplacer HORS du dossier ? »
+    #
+    # ⚠️ « Hors du dossier » aurait ete plus etroit que l'action. La feuille propose TOUTES les
+    # destinations sauf le dossier courant, y compris un AUTRE coffre -- ou la note reste
+    # chiffree. Un libelle de sortie aurait masque ce cas.
+    #
+    # « Vers un AUTRE dossier » dit exactement ce que le code fait : `FeuilleDeDeplacement` retire
+    # le dossier courant de la liste. Et le geste dangereux -- sortir une note du chiffrement --
+    # est deja garde par une confirmation dediee, pas par le libelle du menu.
+    "noteEditorMenuMove",
+    "moveToFolderTitle",
 }
 
 # Regroupement par prefixe de cle. L'ordre est celui de la navigation, pas l'alphabetique : un

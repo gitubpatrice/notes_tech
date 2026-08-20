@@ -140,7 +140,6 @@
     <string name="note_editor_tooltip_more">More actions</string>
     <string name="note_editor_tooltip_dictate">Voice dictation</string>
     <string name="note_editor_tooltip_done">Done</string>
-    <string name="note_editor_menu_move">Move to folder</string>
     <string name="note_editor_menu_export">Export to Markdown</string>
     <string name="note_editor_menu_trash">Move to trash</string>
     <string name="note_editor_backlinks">Notes linking here</string>
@@ -178,6 +177,8 @@
       chose et dit la CONSEQUENCE, qui est la raison d etre du signal.
     -->
     <string name="move_to_folder_vault">Vault folder: the note will be encrypted</string>
+    <string name="note_editor_menu_move">Move to another folder</string>
+    <string name="move_to_folder_title">Move to another folder</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insert link</string>
@@ -501,7 +502,6 @@
     <string name="app_title">Notes Tech</string>
     <string name="passphrase_show_tooltip">Show passphrase</string>
     <string name="passphrase_hide_tooltip">Hide passphrase</string>
-    <string name="move_to_folder_title">Move to folder</string>
     <string name="move_to_folder_empty">No other folder available.</string>
     <string name="ai_chat_model_loaded">Model ready</string>
     <string name="error_vault_locked">Vault locked.</string>
