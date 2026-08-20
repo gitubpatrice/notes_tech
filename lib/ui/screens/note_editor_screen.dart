@@ -86,6 +86,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   final _secureWindow = SecureWindowService();
   bool _secureForced = false;
 
+  /// Garde-fou de `didChangeDependencies` : `_load()` ne doit partir qu'UNE fois.
+  bool _loadStarted = false;
+
   void _ensureSecureForced() {
     if (_secureForced) return;
     _secureForced = true;
@@ -107,7 +110,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // `FolderVaultService` est un `ChangeNotifier` : on ecoute directement le
     // verrouillage plutot que d'attendre une ecriture qui ne viendra pas.
     _vault.addListener(_onVaultChanged);
-    _load();
+    // ⚠️ `_load()` n'est PAS lancé ici — voir `didChangeDependencies` ci-dessous.
     // Si la note est supprimée/mise à la corbeille depuis un autre écran,
     // on désactive l'édition pour éviter de "ressusciter" la note via
     // un save final dans dispose.
@@ -124,6 +127,39 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         setState(() => _stale = true);
       }
     });
+  }
+
+  /// 🔴 `_load()` part d'ici, et NON de `initState()`.
+  ///
+  /// Sa première instruction est `AppLocalizations.of(context)`, donc un
+  /// `dependOnInheritedWidgetOfExactType`. Le corps d'une fonction `async`
+  /// s'exécute SYNCHRONIQUEMENT jusqu'à son premier `await` : appelée depuis
+  /// `initState()`, cette lecture tombait avant la fin de l'initialisation de
+  /// l'élément, et Flutter levait
+  /// « dependOnInheritedWidgetOfExactType&lt;_LocalizationsScope&gt;() ... was
+  /// called before _NoteEditorScreenState.initState() completed ».
+  /// L'éditeur restait alors bloqué sur son indicateur de chargement.
+  ///
+  /// ⚠️ En AOT release les `assert` de Flutter sont désactivés, si bien que le
+  /// défaut ne se voyait qu'en debug — mesuré sur un S9 sous Android 10, 2/2.
+  /// Il était donc invisible sur les APK publiés, ce qui ne le rendait pas
+  /// moins réel : la lecture avait bien lieu hors du cycle prévu.
+  ///
+  /// `didChangeDependencies` s'exécute juste après `initState`, avant le
+  /// premier build : la lecture d'`InheritedWidget` y est permise et aucun
+  /// délai n'est perceptible.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ⚠️⚠️ Le drapeau n'est pas une précaution de style. `didChangeDependencies`
+    // est rappelé à CHAQUE changement de dépendance — changement de locale, de
+    // thème, de `MediaQuery`. Or `_load()` réécrit `_titleCtrl` et
+    // `_contentCtrl` : sans ce garde-fou, faire pivoter le téléphone ou changer
+    // la langue en cours d'édition écraserait la saisie en cours par le contenu
+    // relu en base.
+    if (_loadStarted) return;
+    _loadStarted = true;
+    _load();
   }
 
   /// Referme l'ecran des que le coffre de la note se verrouille, quelle
