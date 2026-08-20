@@ -50,13 +50,35 @@ lu à la volée depuis `notes_tech/android/key.properties` et passé par variabl
 **Aucun secret nouveau n'est sur le disque.** À décider : garder cette voie, ou créer le fichier —
 auquel cas il faudra d'abord l'ajouter au `.gitignore`, qui ne couvre que `*.jks` et `*.keystore`.
 
-### 1. 🔴 Le correctif de `notes_tech` n'est pas publié
+### 1. ✅ Phase 0 EN COURS — le rodage a commencé le 2026-08-20
+
+Patrice a essayé la 3.0.0 sur le S9. **Rien n'a cassé** : création de notes, de dossiers,
+verrouillage d'un dossier, note dans un coffre, déplacement vers un coffre, copier-coller dans une
+note verrouillée, corbeille — tout répond.
+
+Trois retours, tous traités le jour même (commit `7c9fb59`) :
+
+| Retour | Réponse |
+|---|---|
+| le damier à gauche du titre, comme les autres apps | fait, **22 dp** après un premier essai à 26 jugé trop grand |
+| les messages de validation sur fond noir | fond **bleu du damier `#0B60C5`**, texte blanc, contraste **6,1:1** mesuré |
+| « il faudra modifier les textes légaux » | ⚠️ **non** — vérification faite, ils sont exacts (cf. ci-dessous) |
+
+⚠️ **Le troisième retour était une supposition, pas un constat**, et la vérification a trouvé autre
+chose : `04-PIEGES.md` §125, la licence MIT s'affichait **avec ses chevrons**. *Le doute portait au
+bon endroit, pas sur le bon objet.*
+
+Ce qui a été vérifié dans les textes légaux, et qui est **exact** : aucune permission Internet dans le
+manifeste **fusionné** (seule `RECORD_AUDIO`), `whisper.cpp` bien en **1.8.3**, dépôt `notes_tech`
+valide, et **aucune mention de Flutter** — le changement de langage ne les périme pas.
+
+### 2. 🔴 Le correctif de `notes_tech` n'est pas publié
 
 `04-PIEGES.md` §123 : `lib/ui/screens/note_editor_screen.dart` est corrigé et **mesuré** (0 exception
 contre 2/2 avant), mais le commit vit dans le dépôt `notes_tech` sans release. Le défaut étant
 invisible en AOT release, rien ne presse — mais il partira avec la prochaine version, pas tout seul.
 
-### 2. Ce que la bascule N'A PAS couvert
+### 3. Ce que la bascule N'A PAS couvert
 
 - Une base **volumineuse** : mes deux jeux d'essai comptaient une note en clair et une note de coffre.
   Rien n'a été mesuré sur une base de plusieurs centaines de notes, ni sur la durée de migration.
@@ -64,7 +86,7 @@ invisible en AOT release, rien ne presse — mais il partira avec la prochaine v
 - ~~Un coffre à **passphrase** créé en Flutter~~ — ✅ **fait le 2026-08-20** : créé dans la 2.0.4,
   ouvert par la 3.0.0 après bascule. Argon2id concorde sur ses paramètres réels.
 
-### 3. Trois points écrits et volontairement non corrigés
+### 4. Trois points écrits et volontairement non corrigés
 
 | Point | Pourquoi il reste ouvert | § |
 |---|---|---|
@@ -72,13 +94,13 @@ invisible en AOT release, rien ne presse — mais il partira avec la prochaine v
 | `forcePermanently()` **est** `force()` : un `release()` en trop annulerait la demande du mode panique | **pas atteignable** — `release()` n'a qu'un appelant, qui a toujours forcé d'abord. Durcissement contre un défaut futur, pas correction d'un défaut présent | §111 |
 | Le repli de `dossierEstUnCoffre` (« une base indisponible ne doit pas faire échouer un export ») n'est pas exercé | `DatabaseProvider.close()` rouvre au premier accès : un cas écrit ainsi n'atteindrait jamais le `catch` et serait un **test vacant** de plus. Le forcer demanderait de sceller la base comme le fait la panique | §107 |
 
-### 4. Deux écarts assumés, déjà écrits — à re-décider ou à laisser
+### 5. Deux écarts assumés, déjà écrits — à re-décider ou à laisser
 
 `REPRISE.md` §430 : le `tryEmit` de la corbeille perd un message si la rotation tombe pendant
 l'action (le KDoc du ViewModel choisit déjà ce compromis), et `TrashViewModel.state` n'a pas de
 `catch` là où `SearchUiState` a gagné un `failed`.
 
-### 5. Côté application publiée
+### 6. Côté application publiée
 
 `notes_tech` : la MR F-Droid **`!37885`** est épinglée sur 2.0.3/51 et attend son tour. La 2.0.4
 publiée le 08-18 **ne la dérange pas** — `AutoUpdateMode: Version` + `UpdateCheckMode: Tags` feront

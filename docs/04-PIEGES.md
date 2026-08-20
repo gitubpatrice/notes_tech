@@ -4080,3 +4080,53 @@ adb shell dumpsys input_method | grep -oE 'mInputShown=[a-z]+'
 
 *Un champ `password="true"` n'expose pas son `text` dans l'arbre. Sans le bouton « Afficher », on
 pilote à l'aveugle — et deux saisies successives se **cumulent** au lieu de se remplacer.*
+
+---
+
+## §125 — 🔴 « Vérifié en les lisant, pas supposé » — et c'était supposé
+
+Le rendu Markdown de `LegalScreen` portait ce commentaire :
+
+> *Titres `#` à `###`, listes à puces, gras, paragraphes, lignes horizontales. C'est tout ce que ces
+> quatre fichiers emploient — **vérifié en les lisant, pas supposé**.*
+>
+> *⚠️ Ce qui n'est pas géré est aussi ce qui n'apparaît pas dans ces fichiers : tableaux, **liens**,
+> images, code.*
+
+Mesure du 2026-08-20, une commande :
+
+```
+$ grep -c '^>' res/raw{,-fr}/terms.md     →  20  20
+$ grep -c 'http' res/raw{,-fr}/terms.md   →   1   1
+```
+
+`terms.md` reproduit la **licence MIT de `whisper.cpp`** — cette licence l'exige — sous forme de
+citation Markdown. Vingt lignes par langue, tombant toutes dans la branche par défaut. L'utilisateur
+lisait donc, dans les conditions d'utilisation de l'application :
+
+```
+> MIT License
+> Copyright (c) 2023-2024 The ggml authors
+```
+
+### Ce que ce défaut apprend, et qui dépasse le rendu Markdown
+
+*Une affirmation de vérification est une affirmation comme une autre : elle se vérifie.* Le
+commentaire ne disait pas « je crois que » — il disait « vérifié en les lisant », ce qui a suffi à
+ce que personne ne le recontrôle, moi le premier en écrivant les cas de `EcranAProposEtLegalTest`.
+
+⚠️ Et il n'était pas faux par négligence : au moment où il a été écrit, il était **probablement
+vrai**. Les blocs de licence sont arrivés ensuite, avec l'embarquement de `whisper.cpp`. *Un
+commentaire qui décrit l'état d'un AUTRE fichier se périme sans que rien ne le signale — c'est
+exactement le motif du §115, et il s'est reproduit.*
+
+### Pourquoi les tests existants ne l'ont pas vu
+
+`les_deux_onglets_rendent_leur_texte_sans_le_croisillon` vérifiait qu'un titre `# …` perd son
+croisillon. Il visait **le premier titre**, en haut du fichier. Les citations sont ligne 42 et
+au-delà, hors écran sans défilement. Le cas était juste, et regardait ailleurs.
+
+Le nouveau cas relit **le fichier** pour en extraire la première ligne citée, exige qu'elle
+s'affiche sans son chevron, **et** que la forme brute soit absente — sans cette seconde assertion, il
+passerait aussi sur le rendu fautif, qui affichait bien le texte, chevron en plus. Contrôle positif :
+branche de citation neutralisée, **1 cas sur 6** tombe.
