@@ -176,7 +176,30 @@ class FlutterSecureStorageKekSource(
      * bibliothèque, qui n'y range rien d'autre que ses secrets.
      */
     override fun destroy() {
-        try {
+        // 🔴🔴 **Chaque geste est tenté, même si le précédent a échoué.**
+        //
+        // La version précédente enveloppait les quatre gestes dans un `try` unique : si la
+        // suppression du premier fichier levait, ni les deux autres, **ni l'alias RSA du
+        // Keystore** n'étaient tentés. La valeur scellée, la clé AES enveloppée et la clé qui la
+        // déballe restaient alors **ensemble sur l'appareil** — c'est-à-dire que la KEK restait
+        // récupérable, après un mode panique.
+        //
+        // Une destruction d'urgence est un **meilleur effort** : on tente tout, puis on dit si
+        // quelque chose a manqué. S'arrêter au premier obstacle est le seul comportement qui ne
+        // convienne pas. Relevé par une relecture externe le 2026-08-20.
+        //
+        // ⚠️ L'échec n'est pas avalé pour autant : le premier est conservé et relancé à la fin,
+        // pour que l'appelant sache que la panique est incomplète.
+        var premierEchec: Exception? = null
+        fun tenter(geste: () -> Unit) {
+            try {
+                geste()
+            } catch (e: Exception) {
+                if (premierEchec == null) premierEchec = e
+            }
+        }
+
+        run {
             // Les données d'abord, la clé qui les ouvre ensuite — même raison que pour la couche ① :
             // une interruption entre les deux doit laisser un état cohérent, jamais un scellé
             // orphelin qui ressemble à un secret protégé.
@@ -184,15 +207,27 @@ class FlutterSecureStorageKekSource(
             // **crée** le fichier s'il n'existe pas : sur un appareil qui n'a jamais vu la version
             // Flutter, la panique faisait apparaître deux fichiers nommés « SecureStorage » —
             // vides, mais créés par le geste censé tout effacer. Mesuré sur le S9 le 2026-08-14.
-            for (fichier in listOf(DATA_PREFS, KEY_STORAGE_PREFS)) {
-                supprimerLeFichierDePreferences(context, fichier)
+            // 🔴 **CONFIG_PREFS en fait partie**, et il manquait.
+            //
+            // Il ne porte pas de clé — seulement les noms d'algorithmes employés — mais le contrat
+            // de cette méthode est d'effacer **tout** le stockage de la bibliothèque, et le mode
+            // panique n'a pas vocation à laisser une trace disant quel format était en place.
+            //
+            // ⚠⚠ Le contrôle d'après-panique ne pouvait pas le voir : l'absence de `DATA_PREFS`
+            // suffit à faire rendre `null` à `load()`, donc la vérification passait. Et le fixture
+            // des tests, lui, nettoyait bien les trois fichiers — *le test était plus propre que la
+            // production, ce qui rendait l'oubli invisible des deux côtés.* Relevé par une relecture
+            // externe le 2026-08-20.
+            for (fichier in listOf(DATA_PREFS, KEY_STORAGE_PREFS, CONFIG_PREFS)) {
+                tenter { supprimerLeFichierDePreferences(context, fichier) }
             }
-            val alias = "$keyAliasBase$KEY_ALIAS_SUFFIX"
-            val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            if (keyStore.containsAlias(alias)) keyStore.deleteEntry(alias)
-        } catch (e: Exception) {
-            throw KekFailure.SourceUnavailable(name, e)
+            tenter {
+                val alias = "$keyAliasBase$KEY_ALIAS_SUFFIX"
+                val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
+                if (keyStore.containsAlias(alias)) keyStore.deleteEntry(alias)
+            }
         }
+        premierEchec?.let { throw KekFailure.SourceUnavailable(name, it) }
     }
 
     /**
@@ -238,7 +273,20 @@ class FlutterSecureStorageKekSource(
             // La taille est **annoncée** par la bibliothèque (16 octets) ; la vérifier la rend
             // constatée. Une divergence signalerait un format qu'on ne sait pas lire, pas une clé
             // à essayer quand même.
-            val size = secretKey.encoded?.size
+            //
+            // 🔴🔴 **La copie rendue par `.encoded` est EFFACÉE**, et c'est tout l'objet de ces
+            // quatre lignes. Le commentaire juste au-dessus explique qu'il ne faut pas matérialiser
+            // la clé — et la version précédente écrivait `secretKey.encoded?.size` quatre lignes plus
+            // bas, laissant 16 octets de clé AES en clair sur le tas jusqu'au passage du
+            // ramasse-miettes, sans aucune référence pour les effacer. Relevé par une relecture
+            // externe le 2026-08-20 — la même relecture qui avait fait écrire le commentaire.
+            //
+            // ⚠️ `getEncoded()` rend une **copie défensive** à chaque appel : effacer la nôtre ne
+            // touche pas la clé du fournisseur, qui reste utilisable. C'est bien une copie de trop
+            // qu'on supprime, pas la clé elle-même.
+            val brut = secretKey.encoded
+            val size = brut?.size
+            brut?.fill(0)
             check(size == null || size == AES_KEY_SIZE) { "cle AES de taille inattendue : $size" }
             secretKey
         } catch (cause: Exception) {

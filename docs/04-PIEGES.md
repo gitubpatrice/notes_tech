@@ -4130,3 +4130,76 @@ Le nouveau cas relit **le fichier** pour en extraire la première ligne citée, 
 s'affiche sans son chevron, **et** que la forme brute soit absente — sans cette seconde assertion, il
 passerait aussi sur le rendu fautif, qui affichait bien le texte, chevron en plus. Contrôle positif :
 branche de citation neutralisée, **1 cas sur 6** tombe.
+
+---
+
+## §126 — 🔴 Relecture externe du correctif §120 : quatre défauts réels, dont deux dans mes propres correctifs
+
+**2026-08-20.** Deux relecteurs indépendants — `gpt-5.5-pro` et `gemini-3.1-pro` — sur le lot de
+sécurité : `FlutterSecureStorageKekSource`, `KekRepository`, `StartupViewModel`,
+`StartupFailureScreen`, le fixture, le test de non-régression, et le schéma de `versionCode`.
+
+### Ce sur quoi les deux sont tombés d'accord, séparément
+
+| Défaut | GPT | Gemini |
+|---|---|---|
+| `secretKey.encoded?.size` matérialise 16 octets de clé AES **jamais effacés** | CRITIQUE | MAJEUR |
+| `destroy()` oublie `CONFIG_PREFS` | MINEUR | MAJEUR |
+
+Les deux sont réels et corrigés. ⚠️⚠️ Le premier est le plus instructif : **le commentaire qui
+interdit `.encoded` est à quatre lignes au-dessus de l'appel**, et il porte la mention « Relevé par
+une relecture externe (GPT-5.5, 2026-08-13) ». *Une relecture avait donc déjà signalé le motif ; on
+a écrit le commentaire, puis réintroduit l'appel juste en dessous pour un contrôle de taille.*
+
+Le second l'est presque autant : le fixture des tests, **corrigé le matin même**, nettoie bien les
+trois fichiers. La production n'en nettoyait que deux. *Le test était plus propre que le code, ce qui
+rendait l'oubli invisible des deux côtés.*
+
+### 🔴 Ce que GPT a vu seul, et qui était le plus grave
+
+`destroy()` enveloppait ses quatre gestes dans **un seul `try`**. Si la suppression du premier
+fichier levait, ni les deux autres, **ni l'alias RSA du Keystore** n'étaient tentés : la valeur
+scellée, la clé AES enveloppée et la clé qui la déballe restaient **ensemble sur l'appareil**, après
+un mode panique.
+
+*Une destruction d'urgence est un meilleur effort : on tente tout, puis on dit si quelque chose a
+manqué. S'arrêter au premier obstacle est le seul comportement qui ne convienne pas.* Chaque geste
+est désormais tenté séparément, le premier échec conservé et relancé à la fin.
+
+### ⚠️ Le schéma de `versionCode` n'avait pas de garde
+
+Rien ne vérifiait que la base reste sous 1000. À 1000, les plages par ABI se chevauchent et deux
+architectures porteraient le même code. La base vaut 53 ; le mur est loin, **et c'est bien pour ça
+qu'il fallait l'écrire maintenant**. `require(appVersionCode in 1..999)`, contrôle positif fait : à
+1000 le build échoue avec le message qui dit de changer de schéma, pas de forcer la garde.
+
+### 🔴 Le test de non-régression prouvait la mauvaise chose
+
+Mon cas `des_marqueurs_places_dans_le_fichier_de_donnees_ne_valent_PAS_configuration` exigeait
+`SourceUnavailable` — et rien d'autre. Il serait passé sur un Keystore muet, une clé enveloppée
+absente ou un tag GCM invalide. *Il prouvait que la lecture échoue, pas qu'elle échoue faute de
+marqueurs au bon endroit.* Resserré sur la cause : le message doit contenir « algorithmes ».
+
+⚠️ **Écrit le matin même, en croyant fermer précisément cet angle mort.** Un test de non-régression
+qui n'isole pas la cause qu'il vise est un test qui rassure plus qu'il ne garde.
+
+### Deux constats écartés, et pourquoi
+
+**Une source primaire malformée bloque la secondaire** (Gemini : CRITIQUE, GPT : MAJEUR). Le
+mécanisme est réel : `loadOrNull` ne rattrape que `SourceUnavailable`, donc une `MalformedKey`
+interrompt le parcours. Mais c'est **documenté et assumé** (`KekRepository`) : une clé présente mais
+illisible signale une corruption, pas une absence, et le même fichier explique pourquoi une clé bien
+formée venue d'ailleurs ne prouve pas qu'elle ouvre la base. Rien n'est écrit, aucune donnée perdue.
+**Point de conception, pas défaut** — à trancher avec Patrice.
+
+**L'universel au rang 4 crée un cul-de-sac** (Gemini : CRITIQUE, GPT : MAJEUR). Réel : qui installe
+l'universel `4053` ne pourra plus recevoir un split `2054`. ⚠️ Mais **la release ne publie que trois
+splits, aucun universel** — le piège est *latent*. Le raisonnement Play Store de Gemini ne s'applique
+pas non plus : l'application n'y est pas. À trancher : ne plus produire l'universel, ou lui donner le
+rang **0**.
+
+### Ce que cette relecture confirme sur la méthode
+
+*Deux relecteurs, pas un.* Le plus grave — `destroy()` qui s'arrête au premier échec — n'a été vu que
+par **un seul** des deux. Et celui qui l'a manqué classait CRITIQUE deux points que l'autre classait
+MAJEUR ou MINEUR : **les sévérités ne se recoupent pas**, seul le croisement des listes est fiable.

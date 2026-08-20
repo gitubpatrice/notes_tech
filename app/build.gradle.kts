@@ -258,6 +258,18 @@ android {
 // -----------------------------------------------------------------------------
 val rangsDAbi = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
 
+// ATTENTION Le schema x1000 suppose que le versionCode de base tient sous 1000, et RIEN ne le
+// verifiait. A 1000, les plages par ABI se chevauchent : le rang 1 donnerait 2000, soit exactement
+// ce que le rang 2 produit pour un versionCode de base 0 -- deux ABI differentes porteraient le
+// meme code, et l'ordre des mises a jour deviendrait faux sans que rien ne le signale.
+//
+// La base vaut 53 aujourd'hui ; le mur est loin, et c'est bien pour cela qu'il faut l'ecrire
+// maintenant. Releve par une relecture externe le 2026-08-20.
+require(appVersionCode in 1..999) {
+    "versionCode = $appVersionCode : le schema d'offset par ABI (x1000) exige une base sous 1000. " +
+        "Au-dela, les plages se chevauchent -- il faut changer de schema, pas forcer cette garde."
+}
+
 androidComponents {
     onVariants { variante ->
         variante.outputs.forEach { sortie ->

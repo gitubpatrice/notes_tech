@@ -233,6 +233,37 @@ class FlutterSecureStorageKekSourceTest {
     }
 
     /**
+     * 🔴 **`destroy()` efface les TROIS fichiers, pas deux.**
+     *
+     * Le mode panique appelle cette méthode. Elle bouclait sur `DATA_PREFS` et `KEY_STORAGE_PREFS`
+     * en oubliant `CONFIG_PREFS` — qui ne porte pas de clé, mais dit quels algorithmes étaient en
+     * place. Le contrat est d'effacer **tout** le stockage de la bibliothèque.
+     *
+     * ⚠⚠ **Aucun contrôle existant ne pouvait le voir.** La vérification d'après-panique demande
+     * seulement que `load()` rende `null`, ce que l'absence de `DATA_PREFS` suffit à obtenir. Et le
+     * fixture nettoyait bien les trois — *le test était plus propre que la production*. Relevé par une
+     * relecture externe le 2026-08-20.
+     *
+     * On énumère donc les fichiers **par leur nom**, un par un : un test qui se contenterait de
+     * `load() == null` reproduirait exactement l'angle mort qu'il est censé fermer.
+     */
+    @Test
+    fun destroy_efface_aussi_le_fichier_de_configuration() {
+        FlutterSecureStorageFixture.seed(context, aliasBase, SecretBytes.toHex(kek))
+        // Contrôle de l'instrument : les trois fichiers doivent Être peuplés avant, sinon le cas
+        // passerait sur un stockage déjà vide.
+        for (fichier in TROIS_FICHIERS) {
+            assertThat(context.getSharedPreferences(fichier, Context.MODE_PRIVATE).all).isNotEmpty()
+        }
+
+        source.destroy()
+
+        for (fichier in TROIS_FICHIERS) {
+            assertThat(context.getSharedPreferences(fichier, Context.MODE_PRIVATE).all).isEmpty()
+        }
+    }
+
+    /**
      * 🔴🔴 **Les marqueurs sont dans le fichier de CONFIGURATION, et nulle part ailleurs.**
      *
      * Ce cas est la non-regression du defaut du 2026-08-20 : le code de production lisait les
@@ -265,7 +296,13 @@ class FlutterSecureStorageKekSourceTest {
 
         // ⚠️ Le TYPE compte : `null` dirait « cette source ne detient rien », et la couche
         // suivante genererait une cle neuve par-dessus une base existante.
-        assertThrows(KekFailure.SourceUnavailable::class.java) { source.load() }
+        val echec = assertThrows(KekFailure.SourceUnavailable::class.java) { source.load() }
+
+        // ⚠⚠ **Et la CAUSE compte autant que le type.** Sans ce contrôle, le cas passerait aussi
+        // sur un Keystore muet, une clé AES enveloppée absente ou un tag GCM invalide — il
+        // prouverait que la lecture échoue, pas qu'elle échoue **faute de marqueurs au bon
+        // endroit**. Relevé par une relecture externe le 2026-08-20, sur ce test même.
+        assertThat(echec.cause).hasMessageThat().contains("algorithmes")
     }
 
     /**
@@ -280,5 +317,14 @@ class FlutterSecureStorageKekSourceTest {
             .isEqualTo("com.filestech.notes_tech")
         assertThat(FlutterSecureStorageKekSource.KEY_ALIAS_SUFFIX)
             .isEqualTo(".FlutterSecureStoragePluginKeyOAEP")
+    }
+
+    private companion object {
+        /** Les trois fichiers de préférences que `flutter_secure_storage` écrit. */
+        val TROIS_FICHIERS = listOf(
+            FlutterSecureStorageKekSource.DATA_PREFS,
+            FlutterSecureStorageKekSource.KEY_STORAGE_PREFS,
+            FlutterSecureStorageKekSource.CONFIG_PREFS,
+        )
     }
 }
