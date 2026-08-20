@@ -61,8 +61,8 @@ invisible en AOT release, rien ne presse — mais il partira avec la prochaine v
 - Une base **volumineuse** : mes deux jeux d'essai comptaient une note en clair et une note de coffre.
   Rien n'a été mesuré sur une base de plusieurs centaines de notes, ni sur la durée de migration.
 - Les ABI **armeabi-v7a** et **x86_64** : seul l'arm64 a été posé sur un appareil.
-- Un coffre à **passphrase** créé en Flutter : seul le PIN a été exercé de bout en bout. La ligne
-  correspondante était déjà ✅ par `FolderVaultServiceTest`, mais pas par une bascule réelle.
+- ~~Un coffre à **passphrase** créé en Flutter~~ — ✅ **fait le 2026-08-20** : créé dans la 2.0.4,
+  ouvert par la 3.0.0 après bascule. Argon2id concorde sur ses paramètres réels.
 
 ### 3. Trois points écrits et volontairement non corrigés
 

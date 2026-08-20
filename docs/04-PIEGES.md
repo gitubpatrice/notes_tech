@@ -4040,3 +4040,43 @@ Corrigé en déplaçant `_load()` vers `didChangeDependencies`, avec un drapeau 
 rappelée à **chaque** changement de dépendance (locale, thème, `MediaQuery`), et `_load()` réécrit
 les contrôleurs de texte — sans le drapeau, changer de langue en cours d'édition écraserait la
 saisie. Contrôle positif fait : 0 exception après correctif, éditeur affiché.
+
+---
+
+## §124 — ⚠️ Piloter un champ de saisie : trois gestes qui se ressemblent et ne font pas la même chose
+
+Relevé en exerçant le coffre à passphrase, le 2026-08-20. Trois erreurs successives, toutes dues à
+l'outillage et non au code — mais chacune coûte un aller-retour, et la première produit un **faux
+diagnostic**.
+
+**1. `uiautomator dump` ne capture pas la fenêtre du clavier.** Les `bounds` rendus sont ceux de la
+fenêtre de l'application, qui continue derrière. Un tap calculé depuis ce dump peut donc atterrir
+**sur une touche**. C'est arrivé : le tap visant « Créer le coffre » a tapé un **`8`**, la passphrase
+est devenue `bascule-passphrase-20268`, et l'écran a répondu « les deux passphrases ne correspondent
+pas » — un message parfaitement exact, sur une faute que je venais de commettre.
+
+⚠️ Le même bouton se lisait à **y=1395** clavier ouvert et **y=1932** clavier fermé : la feuille se
+recentre. La position lue n'est donc pas fausse, elle est simplement **recouverte**.
+
+**2. `KEYCODE_ESCAPE` (111) ferme le `ModalBottomSheet`, pas seulement le clavier.** La feuille
+disparaît, la saisie est perdue, et le dump suivant montre l'écran d'accueil de l'application — ce
+qui ressemble à un plantage silencieux.
+
+**3. `KEYCODE_BACK` (4) fait les deux, selon l'état.** Clavier **ouvert**, il ne ferme que le
+clavier. Clavier **fermé**, il ferme la feuille. Les enchaîner — `111` puis `4` — revient donc à
+fermer la feuille en croyant s'assurer que le clavier est bien parti.
+
+### La séquence qui marche
+
+```
+tap <champ> ; input text <valeur> ; keyevent 4 ; dump ; tap <bouton relu dans CE dump>
+```
+
+Et entre chaque geste, un contrôle qui ne coûte rien :
+
+```
+adb shell dumpsys input_method | grep -oE 'mInputShown=[a-z]+'
+```
+
+*Un champ `password="true"` n'expose pas son `text` dans l'arbre. Sans le bouton « Afficher », on
+pilote à l'aveugle — et deux saisies successives se **cumulent** au lieu de se remplacer.*
