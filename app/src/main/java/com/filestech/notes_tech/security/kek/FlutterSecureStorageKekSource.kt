@@ -313,6 +313,30 @@ class FlutterSecureStorageKekSource(
      * (`StorageCipherImplementationGCM.java:66-96`), puis décode les 64 caractères hexadécimaux que
      * Notes Tech y a écrits (`vault_service.dart:104`).
      */
+    /**
+     * ⚠⚠ **La clé AES n'est PAS détruite à la sortie, et ce n'est pas un oubli.**
+     *
+     * Trois relectures externes l'ont signalé le 2026-08-20 : le clair est bien effacé
+     * (`clearText.wipe()`), la clé qui l'a produit ne l'est pas. Le constat est **juste sur le
+     * principe**. Il est **inapplicable ici**, et c'est mesuré, pas supposé :
+     *
+     * ```
+     * MESURE destroy() : levee=DestroyFailedException isDestroyed=false
+     * ```
+     *
+     * (S9, Android 10 — `DestructionDeCleAesTest`.) `SecretKey` hérite de `Destroyable`, dont
+     * l'implémentation **par défaut lève** au lieu d'effacer. Appeler `aesKey.destroy()` ajouterait
+     * un `try`/`catch` qui n'effacerait rien — *du code qui donne l'impression d'une protection sans
+     * en offrir aucune, ce qui est pire que son absence, parce qu'on cesse d'y penser.*
+     *
+     * 🔴 L'atteindre par réflexion, sur le champ privé de `SecretKeySpec`, a été écarté : cela
+     * dépendrait d'un détail d'implémentation, et les restrictions d'accès non-SDK d'Android le
+     * casseraient sans prévenir.
+     *
+     * Ce qui est fait à la place : la **copie** rendue par `.encoded` est effacée (voir
+     * `unwrapStorageKey`), et la clé elle-même n'est ni conservée dans un champ, ni rendue à un
+     * appelant — sa portée s'arrête à cette fonction.
+     */
     private fun decryptHexEncodedKek(encodedValue: String, aesKey: SecretKey): ByteArray {
         val clearText = decryptEnvelope(encodedValue, aesKey)
         return try {
