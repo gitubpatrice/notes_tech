@@ -53,4 +53,4 @@ Conditions soumises au **droit français**. Tribunaux français compétents en c
 
 ---
 
-Notes Tech fait partie de la suite **Files Tech**, éditée par une micro-entreprise française.
+Notes Tech fait partie de la suite **Files Tech**, éditée par **Patrice Haltaya**.

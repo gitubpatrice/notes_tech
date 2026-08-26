@@ -53,4 +53,4 @@ Terms governed by **French law**. French courts have jurisdiction in case of dis
 
 ---
 
-Notes Tech is part of the **Files Tech** suite, published by a French sole proprietorship.
+Notes Tech is part of the **Files Tech** suite, published by **Patrice Haltaya**.

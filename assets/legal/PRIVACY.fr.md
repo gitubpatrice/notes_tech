@@ -66,4 +66,4 @@ Pour toute question : **contact@files-tech.com**
 
 ---
 
-Notes Tech est édité par une **micro-entreprise française** (SIRET disponible sur demande). Code source publié sous licence **Apache 2.0**.
+Notes Tech est édité par **Patrice Haltaya**. Code source publié sous licence **Apache 2.0**.

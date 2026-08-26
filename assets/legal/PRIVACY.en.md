@@ -66,4 +66,4 @@ For any question: **contact@files-tech.com**
 
 ---
 
-Notes Tech is published by a **French sole proprietorship** (SIRET available on request). Source code published under **Apache 2.0** license.
+Notes Tech is published by **Patrice Haltaya**. Source code published under **Apache 2.0** license.
