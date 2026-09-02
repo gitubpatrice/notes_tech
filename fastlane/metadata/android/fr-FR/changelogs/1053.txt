@@ -1,0 +1,9 @@
+L'editeur de note lisait ses traductions avant la fin de
+l'initialisation de l'ecran. Flutter retire ses assertions des builds de
+release : les APK publies n'ont jamais montre le defaut, seuls les builds
+de debogage restaient bloques sur l'indicateur de chargement. La lecture
+a lieu desormais la ou elle est permise.
+
+Aucun autre comportement ne change. Le texte de licence et la description
+de la boutique voyagent aussi avec ce tag, seul moyen qu'ils atteignent
+F-Droid.
