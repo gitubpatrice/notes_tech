@@ -9,6 +9,7 @@ analyzer:
   exclude:
     - tool/**
     - build/**
+    - android/**
   language:
     strict-casts: true
     strict-inference: true

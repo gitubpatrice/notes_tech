@@ -1,0 +1,8 @@
+Nothing changes in the app itself. This version exists to make the build
+reproducible from the outside: the Flutter version is now pinned in the
+workflows, in pubspec.yaml and in the F-Droid recipe, and the lockfile is
+enforced instead of merely present.
+
+Until now the releases were built on whatever Flutter stable happened to be,
+while the committed lockfile came from a different one, so the file that is
+supposed to describe what ships did not.

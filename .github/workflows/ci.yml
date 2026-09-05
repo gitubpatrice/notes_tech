@@ -50,7 +50,13 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Version FIGEE, pas `channel: stable`. Avec le canal, chaque sortie de
+          # Flutter changeait silencieusement ce qui construisait les APK publies :
+          # la v2.0.5 est sortie en 3.47.2 alors que pubspec.lock etait genere en
+          # 3.44.9, donc le lock commite ne decrivait pas ce qui etait livre.
+          # Doit rester identique a `environment: flutter:` du pubspec et a
+          # l'epinglage de la recette F-Droid.
+          flutter-version: 3.47.2
           cache: true
 
       - name: Flutter version
@@ -58,7 +64,7 @@ jobs:
 
       - name: Pub get
         working-directory: notes_tech
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Analyze
         working-directory: notes_tech
@@ -133,12 +139,18 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # Version FIGEE, pas `channel: stable`. Avec le canal, chaque sortie de
+          # Flutter changeait silencieusement ce qui construisait les APK publies :
+          # la v2.0.5 est sortie en 3.47.2 alors que pubspec.lock etait genere en
+          # 3.44.9, donc le lock commite ne decrivait pas ce qui etait livre.
+          # Doit rester identique a `environment: flutter:` du pubspec et a
+          # l'epinglage de la recette F-Droid.
+          flutter-version: 3.47.2
           cache: true
 
       - name: Pub get
         working-directory: notes_tech
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       # KVM : sans accélération matérielle l'émulateur démarre en plusieurs
       # dizaines de minutes et finit en timeout.

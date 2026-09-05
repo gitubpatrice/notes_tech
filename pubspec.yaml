@@ -1,10 +1,16 @@
 name: notes_tech
 description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, dictée vocale on-device et backlinks. 100 % local, zéro permission Internet."
 publish_to: 'none'
-version: 2.0.5+53
+version: 2.0.6+54
 
 environment:
   sdk: ^3.11.5
+  # Version EXACTE, et volontairement pas une plage : la recette F-Droid la lit
+  # telle quelle pour aller checkouter ce tag du srclib Flutter. Elle doit rester
+  # alignee avec `flutter-version:` des workflows et avec le pubspec.lock commite.
+  # Les trois desalignes, le lock ne decrit plus ce qui est livre : jusqu'a la
+  # v2.0.5 la CI construisait en 3.47.2 pendant que le lock etait genere en 3.44.9.
+  flutter: 3.47.2
 
 dependencies:
   flutter:
