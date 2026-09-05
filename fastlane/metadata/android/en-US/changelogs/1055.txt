@@ -1,0 +1,6 @@
+Nothing changes in the app. This version moves the pub cache inside the
+repository during the release build, so that the absolute paths baked into the
+native libraries match what a rebuild from source produces.
+
+Without it the published binaries could not be verified against a build made by
+anyone else, which is the point of publishing the sources at all.

@@ -15,6 +15,19 @@ jobs:
     permissions:
       contents: write  # nécessaire pour créer la release
 
+    env:
+      # Cache pub DANS le depot, et pas le ~/.pub-cache par defaut. Sans cela la
+      # reproductibilite F-Droid est impossible : whisper_ggml_plus compile ses
+      # sources C depuis le cache, et le chemin absolu finit grave dans
+      # libwhisper.so. Mesure sur la v2.0.6 publiee :
+      #   libwhisper.so -> /home/runner/.pub-cache/hosted/pub.dev/whisper_ggml_plus-1.5.2/...
+      # Le buildserver F-Droid impose de son cote PUB_CACHE dans le repertoire de
+      # build, pour que son scanner voie les paquets Dart. Les deux chemins doivent
+      # donc coincider, et c'est ce chemin-ci qui fait foi.
+      # github.workspace = /home/runner/work/notes_tech/notes_tech ; le checkout
+      # pose l'app dans notes_tech/, d'ou le chemin complet ci-dessous.
+      PUB_CACHE: ${{ github.workspace }}/notes_tech/.pub-cache
+
     steps:
       - name: Checkout app
         uses: actions/checkout@v6
