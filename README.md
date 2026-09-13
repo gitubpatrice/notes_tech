@@ -2,6 +2,8 @@
 
 > Vos notes restent dans votre poche. Chiffrées, et hors ligne.
 
+🇬🇧 [English version](README.en.md)
+
 **v2.0.0 — Août 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
 
 Application Android Flutter de prise de notes Markdown chiffrées,
