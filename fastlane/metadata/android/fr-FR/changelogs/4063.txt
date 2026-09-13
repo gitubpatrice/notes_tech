@@ -1,0 +1,7 @@
+Rien ne change dans l'application. Chaque telechargement porte desormais un
+code de version construit comme version x 10 + architecture, le schema demande
+par F-Droid, au lieu de architecture x 1000 + version, celui de Flutter.
+
+Les nouveaux codes sont plus petits : le code de version saute donc de 55 a
+406, faute de quoi les installations de la release GitHub 2.0.7 refuseraient
+cette mise a jour.

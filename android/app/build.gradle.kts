@@ -5,6 +5,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import com.android.build.gradle.internal.api.ApkVariantOutputImpl
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -78,11 +79,11 @@ android {
     // appliqué à Pass Tech v2.4.3 et Read Files Tech v2.13.1.
     //
     // Pas d'APK universel — et la vraie raison n'est pas l'économie d'upload :
-    // `--split-per-abi` applique l'offset de versionCode +1000×index de
-    // Flutter, un universel garderait le versionCode brut du pubspec. Publier
-    // les deux familles rend l'universel non installable par-dessus un split
-    // (downgrade refusé par Android). Le workflow `release.yml` ne publie donc
-    // que les 3 splits ; ne pas y réintroduire d'universel.
+    // chaque split porte un versionCode dérivé (cf. le bloc sous `android {}`),
+    // un universel garderait le versionCode brut du pubspec. Publier les deux
+    // familles rend l'universel non installable par-dessus un split (downgrade
+    // refusé par Android). Le workflow `release.yml` ne publie donc que les 3
+    // splits ; ne pas y réintroduire d'universel.
 
     // ⚠️ Le bloc `packaging.jniLibs.excludes` qui retirait 93 Mo de
     // bibliothèques MediaPipe a été SUPPRIMÉ avec `flutter_gemma` : ces
@@ -131,6 +132,24 @@ android {
             //     C'est precisement ce qui a coute la 1.27.7 a SMS Tech, puis cette 2.0.5 ici.
             // Retire : F-Droid epingle deja le commit dans sa recette, la provenance ne se perd pas.
             vcsInfo { include = false }
+        }
+    }
+}
+
+// versionCode des splits = versionCode * 10 + ABI, schéma demandé par F-Droid (linsui,
+// fdroiddata!37885, 2026-09-13). Il remplace celui de `--split-per-abi`, ABI * 1000 +
+// versionCode, dont les codes de deux versions s'entrelacent une fois triés
+// (1055, 1056, 2055, 2056…) : `fdroid rewritemeta` trie les Builds, et `checkupdates`
+// apparie alors les trois derniers au mauvais ABI.
+// ⚠️ Codes plus petits que ceux de Flutter : le versionCode du pubspec a dû sauter pour que
+// les installations des releases GitHub restent à jour (4055 en 2.0.7, donc >= 406).
+val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
+android.applicationVariants.configureEach {
+    val variant = this
+    variant.outputs.forEach { output ->
+        val abiVersionCode = abiCodes[output.filters.find { it.filterType == "ABI" }?.identifier]
+        if (abiVersionCode != null) {
+            (output as ApkVariantOutputImpl).versionCodeOverride = variant.versionCode * 10 + abiVersionCode
         }
     }
 }
