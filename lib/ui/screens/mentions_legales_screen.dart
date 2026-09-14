@@ -2,17 +2,17 @@
 /// `assets/legal/PRIVACY.{fr,en}.md` et `assets/legal/TERMS.{fr,en}.md`,
 /// sélection automatique selon la locale active.
 ///
-/// v1.0 : utilise `flutter_markdown` + `rootBundle.loadString` pour charger
+/// v1.0 : utilise `flutter_markdown_plus` + `rootBundle.loadString` pour charger
 /// la version localisée de la politique de confidentialité et des conditions
 /// d'utilisation. Le rendu Markdown est `selectable: true` pour copy/paste.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../widgets/note_markdown_preview.dart' show launchExternalMarkdownLink;
 
 class MentionsLegalesScreen extends StatelessWidget {
   const MentionsLegalesScreen({super.key});
@@ -20,13 +20,15 @@ class MentionsLegalesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final isEn = Localizations.localeOf(context).languageCode == 'en';
-    final privacyAsset = isEn
-        ? 'assets/legal/PRIVACY.en.md'
-        : 'assets/legal/PRIVACY.fr.md';
-    final termsAsset = isEn
-        ? 'assets/legal/TERMS.en.md'
-        : 'assets/legal/TERMS.fr.md';
+    // French for a French UI only: any other locale falls back to English,
+    // like the rest of the interface does.
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final privacyAsset = isFr
+        ? 'assets/legal/PRIVACY.fr.md'
+        : 'assets/legal/PRIVACY.en.md';
+    final termsAsset = isFr
+        ? 'assets/legal/TERMS.fr.md'
+        : 'assets/legal/TERMS.en.md';
 
     return DefaultTabController(
       length: 2,
@@ -79,24 +81,6 @@ class _MarkdownAssetView extends StatelessWidget {
     return raw;
   }
 
-  Future<void> _onTapLink(BuildContext context, String? href) async {
-    if (href == null || href.isEmpty) return;
-    final uri = Uri.tryParse(href);
-    if (uri == null) return;
-    // Sécurité : on n'ouvre QUE http(s) et mailto via l'app système.
-    if (uri.scheme != 'http' &&
-        uri.scheme != 'https' &&
-        uri.scheme != 'mailto') {
-      return;
-    }
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      // Best-effort : si aucun navigateur/client mail, l'utilisateur peut
-      // lire le lien dans le markdown rendu (selectable: true).
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
@@ -113,7 +97,7 @@ class _MarkdownAssetView extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                AppLocalizations.of(context).commonErrorWith('${snap.error}'),
+                AppLocalizations.of(context).errorUnexpected,
                 textAlign: TextAlign.center,
               ),
             ),
@@ -123,7 +107,7 @@ class _MarkdownAssetView extends StatelessWidget {
           data: snap.data!,
           selectable: true,
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-          onTapLink: (text, href, title) => _onTapLink(context, href),
+          onTapLink: (text, href, title) => launchExternalMarkdownLink(href),
         );
       },
     );

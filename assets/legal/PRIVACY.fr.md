@@ -28,12 +28,12 @@ Notes Tech ne collecte, ne transmet et ne stocke aucune donnée sur des serveurs
 Notes Tech ne demande **AUCUNE permission `INTERNET`**. L'application est techniquement incapable de communiquer avec un serveur distant. Cette absence est vérifiable dans l'`AndroidManifest.xml` du dépôt source (`tools:node="remove"` sur INTERNET et ACCESS_NETWORK_STATE).
 
 Les permissions actives sont strictement utilitaires :
-- `READ_EXTERNAL_STORAGE` / Storage Access Framework (sélectionner les modèles `.task` et `.bin`).
-- `RECORD_AUDIO` (dictée Whisper, audio jamais persisté).
+- `RECORD_AUDIO` est la seule permission demandée. Le choix du modèle de dictée `.bin` passe par le sélecteur de fichiers d'Android (Storage Access Framework), qui ne demande aucune permission de stockage.
+  Elle ne sert qu'à la dictée Whisper ; l'audio n'est jamais persisté.
 
 ### Mode panique
 
-Le menu **Réglages → Mode panique** efface en bloc et de manière atomique :
+Le menu **Réglages → Mode panique** efface en bloc :
 - la base SQLite chiffrée (toutes les notes),
 - la KEK SQLCipher (irrécupérable),
 - les clés Keystore associées aux coffres PIN,
@@ -41,7 +41,7 @@ Le menu **Réglages → Mode panique** efface en bloc et de manière atomique :
 - le modèle Whisper installé dans le sandbox,
 - les préférences (sauf `db_encrypted_v1` et `secure_window_enabled` conservées pour cohérence du redémarrage).
 
-Le wipe est atomique et reprenable : si un crash survient au milieu, le redémarrage suivant termine les étapes restantes (`vault_wipe_pending_*`).
+L'effacement est best-effort : une étape qui échoue n'interrompt pas les suivantes, et l'écran final signale toute étape qui n'a pas pu aboutir.
 
 ### Vos droits
 

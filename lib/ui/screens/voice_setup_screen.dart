@@ -7,7 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../services/voice/voice_service.dart';
+import '../../utils/error_localize.dart';
 import '../../utils/snackbar_ext.dart';
+import '../../utils/voice_localize.dart';
 
 /// Écran d'onboarding de la transcription vocale.
 ///
@@ -78,16 +80,15 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      _showSnack(t.voiceSetupInstallOk(_selectedModel.displayName));
-    } on SttModelChecksumMismatch catch (e) {
+      _showSnack(t.voiceSetupInstallOk(_selectedModel.localizedName(t)));
+    } on SttModelChecksumMismatch {
       if (!mounted) return;
-      await _showError(t.voiceSetupChecksumMismatchBody(e.message));
-    } on SttException catch (e) {
+      await _showError(t.voiceSetupChecksumMismatch);
+    } catch (_) {
+      // Not the exception message: the package writes it in French whatever
+      // the language. The reason shown comes from the app's translations.
       if (!mounted) return;
-      await _showError(t.voiceSetupInstallFail(e.message));
-    } catch (e) {
-      if (!mounted) return;
-      await _showError(t.voiceSetupInstallFail('$e'));
+      await _showError(t.voiceSetupInstallFail(t.voiceSetupImportFailedReason));
     } finally {
       if (mounted) {
         setState(() {
@@ -142,7 +143,7 @@ class _VoiceSetupScreenState extends State<VoiceSetupScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      await _showError(t.voiceSetupBrowserOpenError(e.toString()));
+      await _showError(t.voiceSetupBrowserOpenError(describeError(e, t)));
     }
   }
 
@@ -339,6 +340,7 @@ class _ModelChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(left: 42, top: 8),
       child: RadioGroup<String>(
@@ -352,8 +354,8 @@ class _ModelChoice extends StatelessWidget {
           children: SttModelCatalog.all.map((m) {
             return RadioListTile<String>(
               value: m.id,
-              title: Text(m.displayName),
-              subtitle: Text(m.notes),
+              title: Text(m.localizedName(t)),
+              subtitle: Text(m.localizedNotes(t)),
               dense: true,
               contentPadding: EdgeInsets.zero,
             );

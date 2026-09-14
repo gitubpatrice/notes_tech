@@ -36,11 +36,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonError => 'Error';
 
   @override
-  String commonErrorWith(String message) {
-    return 'Error: $message';
-  }
-
-  @override
   String get commonLoading => 'Loading…';
 
   @override
@@ -999,11 +994,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get voiceSetupImportErrorTitle => 'Import failed';
 
   @override
-  String voiceSetupChecksumMismatchBody(String message) {
-    return 'SHA-256 fingerprint mismatch. File may have been corrupted during download. Details: $message';
-  }
-
-  @override
   String get voiceSetupBrowserOpenFailed => 'No browser available';
 
   @override
@@ -1086,4 +1076,69 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get splashSemanticsLabel => 'Notes Tech splash screen';
+
+  @override
+  String get noteEditorModeEdit => 'Edit';
+
+  @override
+  String get noteEditorModePreview => 'Preview';
+
+  @override
+  String get noteEditorPreviewEmpty => 'Nothing to preview yet.';
+
+  @override
+  String get errorUnexpected => 'Something went wrong. Please try again.';
+
+  @override
+  String get errorClipboardSecureUnavailable =>
+      'Copy refused: the secure clipboard is unavailable.';
+
+  @override
+  String get noteExportShareSubject => 'Notes Tech note';
+
+  @override
+  String get noteExportShareText => 'Note exported from Notes Tech';
+
+  @override
+  String commonSizeMb(int size) {
+    return '$size MB';
+  }
+
+  @override
+  String get voiceModelBaseName => 'Whisper Base (multilingual, 57 MB)';
+
+  @override
+  String get voiceModelBaseNotes =>
+      'Recommended. Good quality, about 3 s to transcribe 5 s of audio on a mid-range phone.';
+
+  @override
+  String get voiceModelTinyName => 'Whisper Tiny (multilingual, 32 MB)';
+
+  @override
+  String get voiceModelTinyNotes =>
+      'Light and fast, but less accurate. For low-end phones or quick notes.';
+
+  @override
+  String get voicePermissionDeniedBody =>
+      'Dictation needs the microphone. Allow access when Android asks.';
+
+  @override
+  String get voicePermissionDeniedPermanentBody =>
+      'Microphone access was denied permanently. Allow it in the app settings.';
+
+  @override
+  String get voiceSetupImportFailedReason =>
+      'the file could not be imported. Check that it is the right .bin file and that it is still on the phone.';
+
+  @override
+  String get voiceSetupChecksumMismatch =>
+      'SHA-256 fingerprint mismatch. The file may have been corrupted during download, and it was deleted.';
+
+  @override
+  String get errorVaultPinHardwareUnavailable =>
+      'PIN vaults need hardware-backed key storage, which this device does not provide. Use a passphrase vault instead.';
+
+  @override
+  String get errorVaultPinNeedsScreenLock =>
+      'PIN vaults need a screen lock on this phone. Set a PIN, pattern or password in Android settings, or use a passphrase vault.';
 }

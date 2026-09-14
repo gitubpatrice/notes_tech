@@ -892,7 +892,7 @@ class AppDatabase {
         (id, name, parent_id, color, icon, created_at, updated_at)
       VALUES (?, ?, NULL, NULL, ?, ?, ?);
     ''',
-      ['inbox', 'Boîte de réception', 'inbox', now, now],
+      ['inbox', AppConstants.inboxDefaultName, 'inbox', now, now],
     );
   }
 

@@ -152,12 +152,6 @@ abstract class AppLocalizations {
   /// **'Error'**
   String get commonError;
 
-  /// No description provided for @commonErrorWith.
-  ///
-  /// In en, this message translates to:
-  /// **'Error: {message}'**
-  String commonErrorWith(String message);
-
   /// No description provided for @commonLoading.
   ///
   /// In en, this message translates to:
@@ -1820,12 +1814,6 @@ abstract class AppLocalizations {
   /// **'Import failed'**
   String get voiceSetupImportErrorTitle;
 
-  /// No description provided for @voiceSetupChecksumMismatchBody.
-  ///
-  /// In en, this message translates to:
-  /// **'SHA-256 fingerprint mismatch. File may have been corrupted during download. Details: {message}'**
-  String voiceSetupChecksumMismatchBody(String message);
-
   /// No description provided for @voiceSetupBrowserOpenFailed.
   ///
   /// In en, this message translates to:
@@ -1975,6 +1963,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notes Tech splash screen'**
   String get splashSemanticsLabel;
+
+  /// Segment of the note editor's Edit / Preview switch that shows the raw Markdown text field.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get noteEditorModeEdit;
+
+  /// Segment of the note editor's Edit / Preview switch that renders the Markdown (headings, lists, links).
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get noteEditorModePreview;
+
+  /// Shown in the Markdown preview when the note has no content.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to preview yet.'**
+  String get noteEditorPreviewEmpty;
+
+  /// Shown when an error has no user-facing message of its own. Replaces the raw exception text, which is developer text.
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong. Please try again.'**
+  String get errorUnexpected;
+
+  /// Copying a vault note was refused because the clipboard cannot be protected.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy refused: the secure clipboard is unavailable.'**
+  String get errorClipboardSecureUnavailable;
+
+  /// Subject of the system share sheet when exporting a single note (e.g. email subject).
+  ///
+  /// In en, this message translates to:
+  /// **'Notes Tech note'**
+  String get noteExportShareSubject;
+
+  /// Accompanying text of the system share sheet when exporting a single note.
+  ///
+  /// In en, this message translates to:
+  /// **'Note exported from Notes Tech'**
+  String get noteExportShareText;
+
+  /// A file size in megabytes.
+  ///
+  /// In en, this message translates to:
+  /// **'{size} MB'**
+  String commonSizeMb(int size);
+
+  /// Name of the recommended Whisper speech recognition model.
+  ///
+  /// In en, this message translates to:
+  /// **'Whisper Base (multilingual, 57 MB)'**
+  String get voiceModelBaseName;
+
+  /// Description of the recommended Whisper model in the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended. Good quality, about 3 s to transcribe 5 s of audio on a mid-range phone.'**
+  String get voiceModelBaseNotes;
+
+  /// Name of the light Whisper speech recognition model.
+  ///
+  /// In en, this message translates to:
+  /// **'Whisper Tiny (multilingual, 32 MB)'**
+  String get voiceModelTinyName;
+
+  /// Description of the light Whisper model in the model picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Light and fast, but less accurate. For low-end phones or quick notes.'**
+  String get voiceModelTinyNotes;
+
+  /// Explanation under the 'Microphone permission denied' header, when the user can still be asked again.
+  ///
+  /// In en, this message translates to:
+  /// **'Dictation needs the microphone. Allow access when Android asks.'**
+  String get voicePermissionDeniedBody;
+
+  /// Explanation under the 'Microphone permission denied' header, when Android will no longer ask.
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone access was denied permanently. Allow it in the app settings.'**
+  String get voicePermissionDeniedPermanentBody;
+
+  /// Reason inserted into voiceSetupInstallFail ('Install failed: {message}') when importing the model file fails.
+  ///
+  /// In en, this message translates to:
+  /// **'the file could not be imported. Check that it is the right .bin file and that it is still on the phone.'**
+  String get voiceSetupImportFailedReason;
+
+  /// The imported model file does not match its expected fingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'SHA-256 fingerprint mismatch. The file may have been corrupted during download, and it was deleted.'**
+  String get voiceSetupChecksumMismatch;
+
+  /// Creating a PIN vault was refused: the device keystore is software-only, so the PIN could be brute-forced off the device.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN vaults need hardware-backed key storage, which this device does not provide. Use a passphrase vault instead.'**
+  String get errorVaultPinHardwareUnavailable;
+
+  /// Creating a PIN vault failed because the device has no secure lock screen, which the Keystore key requires.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN vaults need a screen lock on this phone. Set a PIN, pattern or password in Android settings, or use a passphrase vault.'**
+  String get errorVaultPinNeedsScreenLock;
 }
 
 class _AppLocalizationsDelegate

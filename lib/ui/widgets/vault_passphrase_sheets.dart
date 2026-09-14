@@ -28,6 +28,8 @@ import '../../data/models/folder.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/secure_window_service.dart';
 import '../../services/security/folder_vault_service.dart';
+import '../../utils/error_localize.dart';
+import '../../utils/folder_localize.dart';
 import 'passphrase_text_field.dart';
 import 'sheet_handle.dart';
 import 'vault_warning_banner.dart';
@@ -272,12 +274,11 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
       if (!mounted) return;
       setState(() {
         _busy = false;
-        // ⚠️ PAS DE `e.toString()` SUR UN ÉCRAN DE DÉVERROUILLAGE. Une
-        // exception de couche basse peut porter un alias Keystore, un chemin
-        // de fichier, un détail de format — voire la valeur fautive. Le type
-        // suffit à diagnostiquer sans rien exposer. Relevé par une relecture
-        // externe (GPT-5.5).
-        _error = t.commonErrorWith(e.runtimeType.toString());
+        // ⚠️ NO EXCEPTION TEXT ON AN UNLOCK SCREEN. A low-level exception can
+        // carry a Keystore alias, a file path, a format detail, even the
+        // offending value. `describeError` shows a localized message only.
+        // Raised by an external review (GPT-5.5).
+        _error = describeError(e, t);
       });
       // Le champ est vidé sur CE chemin aussi : jusqu'ici seule l'erreur de
       // passphrase incorrecte le faisait, et une erreur technique laissait la
@@ -312,7 +313,7 @@ class _UnlockVaultSheetState extends State<_UnlockVaultSheet>
             ),
             const SizedBox(height: 8),
             Text(
-              t.vaultPassUnlockBody(widget.folder.name),
+              t.vaultPassUnlockBody(widget.folder.displayName(t)),
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),

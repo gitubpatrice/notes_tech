@@ -36,11 +36,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commonError => 'Erreur';
 
   @override
-  String commonErrorWith(String message) {
-    return 'Erreur : $message';
-  }
-
-  @override
   String get commonLoading => 'Chargement…';
 
   @override
@@ -864,7 +859,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String exportShareSubject(int count) {
-    return 'Notes Tech — export $count notes';
+    return 'Notes Tech — export de $count notes';
   }
 
   @override
@@ -1006,11 +1001,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get voiceSetupImportErrorTitle => 'Import impossible';
 
   @override
-  String voiceSetupChecksumMismatchBody(String message) {
-    return 'Empreinte SHA-256 différente. Le fichier a peut-être été corrompu pendant le téléchargement. Détails : $message';
-  }
-
-  @override
   String get voiceSetupBrowserOpenFailed => 'Aucun navigateur disponible';
 
   @override
@@ -1095,4 +1085,69 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get splashSemanticsLabel => 'Splash de présentation Notes Tech';
+
+  @override
+  String get noteEditorModeEdit => 'Éditer';
+
+  @override
+  String get noteEditorModePreview => 'Aperçu';
+
+  @override
+  String get noteEditorPreviewEmpty => 'Rien à afficher pour l\'instant.';
+
+  @override
+  String get errorUnexpected => 'Une erreur est survenue. Veuillez réessayer.';
+
+  @override
+  String get errorClipboardSecureUnavailable =>
+      'Copie refusée : le presse-papiers sécurisé est indisponible.';
+
+  @override
+  String get noteExportShareSubject => 'Note Notes Tech';
+
+  @override
+  String get noteExportShareText => 'Note exportée depuis Notes Tech';
+
+  @override
+  String commonSizeMb(int size) {
+    return '$size Mo';
+  }
+
+  @override
+  String get voiceModelBaseName => 'Whisper Base (multilingue, 57 Mo)';
+
+  @override
+  String get voiceModelBaseNotes =>
+      'Recommandé. Bonne qualité, environ 3 s pour transcrire 5 s d\'audio sur un téléphone milieu de gamme.';
+
+  @override
+  String get voiceModelTinyName => 'Whisper Tiny (multilingue, 32 Mo)';
+
+  @override
+  String get voiceModelTinyNotes =>
+      'Léger et rapide, mais moins précis. Pour les téléphones d\'entrée de gamme ou les prises rapides.';
+
+  @override
+  String get voicePermissionDeniedBody =>
+      'La dictée a besoin du micro. Autorisez l\'accès quand Android le demande.';
+
+  @override
+  String get voicePermissionDeniedPermanentBody =>
+      'L\'accès au micro a été refusé définitivement. Autorisez-le dans les paramètres de l\'application.';
+
+  @override
+  String get voiceSetupImportFailedReason =>
+      'le fichier n\'a pas pu être importé. Vérifiez qu\'il s\'agit du bon fichier .bin et qu\'il est toujours sur le téléphone.';
+
+  @override
+  String get voiceSetupChecksumMismatch =>
+      'L\'empreinte SHA-256 ne correspond pas. Le fichier a pu être corrompu pendant le téléchargement, et il a été supprimé.';
+
+  @override
+  String get errorVaultPinHardwareUnavailable =>
+      'Les coffres PIN exigent un stockage de clés matériel, absent de cet appareil. Utilisez plutôt un coffre à passphrase.';
+
+  @override
+  String get errorVaultPinNeedsScreenLock =>
+      'Les coffres PIN exigent un verrouillage d\'écran sur ce téléphone. Définissez un code, un schéma ou un mot de passe dans les réglages Android, ou utilisez un coffre à passphrase.';
 }

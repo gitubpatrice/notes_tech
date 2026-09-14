@@ -7,18 +7,20 @@ This product includes software developed by Files Tech
 Licensed under the Apache License, Version 2.0 (the "License");
 see LICENSE for details.
 
-Notes Tech est une application Android de prise de notes 100 % locale
-avec IA on-device, dictée vocale Whisper et chiffrement AES-256-GCM.
+Notes Tech is a fully local Android note-taking app: Markdown notes in a
+SQLCipher database, per-folder vaults encrypted with AES-256-GCM, and
+on-device Whisper voice dictation.
 
-Composants tiers — voir THIRD_PARTY_NOTICES.md pour la liste exhaustive
-des dépendances Dart/Flutter et leurs licences respectives.
+Third-party components: see THIRD_PARTY_NOTICES.md for the full list of
+Dart/Flutter dependencies and their licenses.
 
-Modèles d'intelligence artificielle (NON bundlés, importés par
-l'utilisateur depuis les sources officielles) :
-- Gemma 3 1B int4 — Google Kaggle, licence Gemma
-- Whisper Base / Tiny — OpenAI / port ggml par Georgi Gerganov, MIT
-- MiniLM-L6-v2 — Microsoft, licence MIT (bundlé, ~22 Mo)
+Speech recognition models (NOT bundled, imported by the user from the
+official source):
+- Whisper Base / Tiny — OpenAI, ggml port by Georgi Gerganov, MIT
 
-Module sibling Files Tech utilisé :
-- files_tech_voice (Apache 2.0) — wrapper Whisper.cpp on-device
+Bundled as a declared asset of the whisper_ggml_plus package:
+- Silero VAD model — Silero Team, MIT
+
+Files Tech sibling module:
+- files_tech_voice (Apache 2.0) — on-device Whisper.cpp wrapper
   https://github.com/gitubpatrice/files_tech_voice

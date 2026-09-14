@@ -45,7 +45,11 @@ class BacklinksService {
 
   /// Regex source : `[[ ... ]]` non gourmand, refuse `[` et `]` à l'intérieur.
   /// Pas de capture sur plusieurs lignes (titre = une seule ligne).
-  static final RegExp _linkRegex = RegExp(r'\[\[([^\[\]\n]{1,200})\]\]');
+  ///
+  /// Public so the Markdown preview matches exactly what gets indexed: a link
+  /// the panel lists is a link the preview renders, and nothing else.
+  static const String linkPatternSource = r'\[\[([^\[\]\n]{1,200})\]\]';
+  static final RegExp _linkRegex = RegExp(linkPatternSource);
 
   /// Regex auxiliaire pour la normalisation des espaces.
   static final RegExp _wsRegex = RegExp(r'\s+');
@@ -353,6 +357,21 @@ class BacklinksService {
   /// Liens sortants d'une note (résolus + fantômes).
   Future<List<NoteLink>> outgoingLinks(String noteId) =>
       _links.outgoing(noteId);
+
+  /// Id of the note a `[[title]]` link points to, or null when the link is
+  /// dangling.
+  ///
+  /// Same resolution as indexing (normalized title, locked notes excluded, so
+  /// a tap never reveals a note behind a locked vault). The title cache is
+  /// dropped first: it lives 5 s, and a note created a moment ago must resolve
+  /// rather than be offered for creation a second time.
+  Future<String?> resolveTitle(String title) async {
+    final norm = normalizeTitle(title);
+    if (norm.isEmpty) return null;
+    _invalidateTitleIndex();
+    final byTitleNorm = await _buildTitleIndex();
+    return byTitleNorm[norm];
+  }
 
   /// Notes qui mentionnent celle-ci (par id ou par titre normalisé).
   Future<List<Note>> backlinks(Note target) => _links.backlinkSources(

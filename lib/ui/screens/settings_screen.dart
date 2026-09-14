@@ -22,7 +22,9 @@ import '../../services/security/folder_vault_service.dart';
 import '../../services/security/panic_service.dart';
 import '../../services/settings_service.dart';
 import '../../services/voice/voice_service.dart';
+import '../../utils/error_localize.dart';
 import '../../utils/snackbar_ext.dart';
+import '../../utils/voice_localize.dart';
 import '../widgets/blocking_progress_dialog.dart';
 import '../widgets/panic_confirm_dialog.dart';
 import 'about_screen.dart';
@@ -401,7 +403,7 @@ class _VoiceSection extends StatelessWidget {
                 leading: const Icon(Icons.mic_outlined),
                 title: Text(t.aiChatModelLoaded),
                 subtitle: Text(
-                  '${model.displayName}\n${_formatSize(model.sizeBytes)}',
+                  '${model.localizedName(t)}\n${_formatSize(model.sizeBytes, t)}',
                 ),
                 isThreeLine: true,
               ),
@@ -425,9 +427,13 @@ class _VoiceSection extends StatelessWidget {
                   t.voiceSetupRemove,
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-                subtitle: Text(_formatSize(model.sizeBytes)),
-                onTap: () =>
-                    _confirmUninstall(context, voice, model.displayName, t),
+                subtitle: Text(_formatSize(model.sizeBytes, t)),
+                onTap: () => _confirmUninstall(
+                  context,
+                  voice,
+                  model.localizedName(t),
+                  t,
+                ),
               ),
             ),
           ],
@@ -481,10 +487,8 @@ class _VoiceSection extends StatelessWidget {
     if (context.mounted) context.showFloatingSnack(t.voiceSetupRemove);
   }
 
-  static String _formatSize(int bytes) {
-    final mb = (bytes / (1024 * 1024)).round();
-    return '$mb Mo';
-  }
+  static String _formatSize(int bytes, AppLocalizations t) =>
+      t.commonSizeMb((bytes / (1024 * 1024)).round());
 }
 
 /// Section "Exporter mes données" : portabilité Markdown.
@@ -611,7 +615,7 @@ class _ExportSectionState extends State<_ExportSection> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showErrorSnack(t.settingsExportError(e.toString()), cs);
+      messenger.showErrorSnack(t.settingsExportError(describeError(e, t)), cs);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

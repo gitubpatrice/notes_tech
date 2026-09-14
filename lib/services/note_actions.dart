@@ -132,6 +132,7 @@ class NoteActions {
         await _viderSiCEstCeTexte(text);
         throw const NotesTechException(
           'Copie refusée : le presse-papiers sécurisé est indisponible.',
+          code: NotesErrorCode.clipboardSecureUnavailable,
         );
       }
       await Clipboard.setData(ClipboardData(text: text));

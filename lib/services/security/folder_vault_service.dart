@@ -270,13 +270,16 @@ class FolderVaultService extends ChangeNotifier {
     _validatePassphrase(passphrase);
 
     final salt = _randomBytes(AppConstants.vaultSaltBytes);
-    final folderKek = _randomBytes(32);
     final iv = _randomBytes(12);
 
     final kekFromPass = await _deriveKekArgon2id(
       passphrase: passphrase,
       salt: salt,
     );
+    // Generated after the derivation, so a failing derivation leaves no key
+    // behind; wiped in `finally` unless handed over to the session.
+    final folderKek = _randomBytes(32);
+    var transferredToSession = false;
     try {
       final wrapped = await _aesGcmEncrypt(
         key: kekFromPass,
@@ -303,11 +306,13 @@ class FolderVaultService extends ChangeNotifier {
         folderKek: folderKek,
         openedAt: DateTime.now(),
       );
+      transferredToSession = true; // ownership handed over, do not wipe
       _scheduleAutoLockSweep();
       notifyListeners();
       return updated;
     } finally {
       _wipe(kekFromPass);
+      if (!transferredToSession) _wipe(folderKek);
     }
   }
 
@@ -342,10 +347,13 @@ class FolderVaultService extends ChangeNotifier {
     _validatePin(pin);
 
     final salt = _randomBytes(AppConstants.vaultSaltBytes);
-    final folderKek = _randomBytes(32);
     final iv = _randomBytes(12);
 
     final pinKek = await _deriveKekArgon2idLight(pin: pin, salt: salt);
+    // Generated after the derivation, so a failing derivation leaves no key
+    // behind; wiped in `finally` unless handed over to the session.
+    final folderKek = _randomBytes(32);
+    var transferredToSession = false;
     try {
       // Couche 2 : wrap interne AES-GCM avec la KEK dérivée du PIN.
       final innerWrapped = await _aesGcmEncrypt(
@@ -360,7 +368,21 @@ class FolderVaultService extends ChangeNotifier {
       // pour partir propre).
       final alias = _keystoreAlias(folder.id);
       await _keystore.deleteKey(alias);
-      await _keystore.createKey(alias);
+      try {
+        await _keystore.createKey(alias);
+      } on KeystoreSoftwareOnlyException {
+        // No secure hardware: a PIN sealed in a software keystore can be
+        // brute-forced off the device. The native side already deleted the
+        // key; the user is told to use a passphrase vault instead.
+        throw const VaultValidationException.coded(
+          NotesErrorCode.vaultPinHardwareUnavailable,
+        );
+      } on KeystoreDeviceNotSecureException {
+        // The key needs a secure lock screen; a passphrase vault does not.
+        throw const VaultValidationException.coded(
+          NotesErrorCode.vaultPinNeedsScreenLock,
+        );
+      }
       final sealed = await _keystore.wrap(alias, innerWrapped);
 
       final verifier = await _verifierFor(folderKek);
@@ -381,11 +403,13 @@ class FolderVaultService extends ChangeNotifier {
         folderKek: folderKek,
         openedAt: DateTime.now(),
       );
+      transferredToSession = true; // ownership handed over, do not wipe
       _scheduleAutoLockSweep();
       notifyListeners();
       return updated;
     } finally {
       _wipe(pinKek);
+      if (!transferredToSession) _wipe(folderKek);
     }
   }
 

@@ -107,7 +107,7 @@ jobs:
   # Galaxy S9 arm64. Chercher donc du côté du runner — KVM, version de
   # l'action, checkout des dépendances `path:` — avant de suspecter les tests.
   integration:
-    name: Tests sur émulateur (coffre)
+    name: Emulator tests (vault)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
@@ -154,7 +154,7 @@ jobs:
 
       # KVM : sans accélération matérielle l'émulateur démarre en plusieurs
       # dizaines de minutes et finit en timeout.
-      - name: Activer KVM
+      - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -164,7 +164,7 @@ jobs:
       # API 30 = même niveau que le gate instrumenté de SMS Tech, et au-dessus
       # du minSdk 23 de l'app. `google_apis` et non `default` : le Keystore
       # matériel simulé y est plus proche d'un appareil réel.
-      - name: Tests d'intégration sur émulateur API 30
+      - name: Integration tests on API 30 emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30

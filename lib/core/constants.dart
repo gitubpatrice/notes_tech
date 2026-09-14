@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = 'Notes Tech';
-  static const String appVersion = '2.0.8';
+  static const String appVersion = '2.0.9';
   // NB : la clé Kotlin équivalente côté `MainActivity.kt` est
   // `flutter.secure_window_enabled` (préfixe `flutter.` ajouté
   // automatiquement par `shared_preferences` au moment de la persistance).
@@ -35,6 +35,27 @@ class AppConstants {
   /// (dossier supprimé) y sont automatiquement réassignées.
   /// Source unique de vérité pour éviter les littéraux 'inbox' dispersés.
   static const String inboxFolderId = 'inbox';
+
+  /// Name the inbox row is seeded with. Never shown as such: the UI displays
+  /// the localized name while the inbox keeps a default name.
+  static const String inboxDefaultName = 'Inbox';
+
+  /// Names the inbox has carried by default: the English seed, and the French
+  /// one written by every install before 2.0.9 whatever the device language.
+  static const Set<String> _inboxDefaultNames = {
+    inboxDefaultName,
+    'Boîte de réception',
+  };
+
+  /// Whether [name] is a default name of the inbox, as opposed to a name the
+  /// user chose by renaming it.
+  ///
+  /// Known limit, accepted: renaming the inbox to exactly one of these names
+  /// (typing "Inbox" with the app in French, for instance) makes it a default
+  /// name again, shown in the app language. Telling the two apart would need
+  /// a stored "renamed" flag and a migration, for a case this rare.
+  static bool isDefaultInboxName(String folderId, String name) =>
+      folderId == inboxFolderId && _inboxDefaultNames.contains(name);
 
   /// Sentinel utilisé par les widgets de filtrage pour signaler "aucun
   /// filtre dossier" (= toutes les notes). Distinct d'un id de dossier

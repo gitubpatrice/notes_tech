@@ -28,12 +28,12 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 Notes Tech requests **NO `INTERNET` permission**. The app is technically unable to communicate with a remote server. This absence can be verified in the source repo `AndroidManifest.xml` (`tools:node="remove"` on INTERNET and ACCESS_NETWORK_STATE).
 
 Active permissions are strictly utilitarian:
-- `READ_EXTERNAL_STORAGE` / Storage Access Framework (select `.task` and `.bin` model files).
-- `RECORD_AUDIO` (Whisper dictation, audio never persisted).
+- `RECORD_AUDIO` is the only permission the app asks for. Choosing the `.bin` dictation model goes through the Android file picker (Storage Access Framework), which needs no storage permission.
+  It is used for Whisper dictation only; audio is never persisted.
 
 ### Panic mode
 
-The **Settings → Panic mode** menu wipes in bulk and atomically:
+The **Settings → Panic mode** menu wipes in bulk:
 - the encrypted SQLite database (all notes),
 - the SQLCipher KEK (unrecoverable),
 - the Keystore keys associated with PIN vaults,
@@ -41,7 +41,7 @@ The **Settings → Panic mode** menu wipes in bulk and atomically:
 - the Whisper model installed in the sandbox,
 - the preferences (except `db_encrypted_v1` and `secure_window_enabled` kept for restart consistency).
 
-The wipe is atomic and resumable: if a crash occurs mid-wipe, the next start completes the remaining steps (`vault_wipe_pending_*`).
+The wipe is best-effort: a step that fails does not stop the following ones, and the final screen reports any step that could not complete.
 
 ### Your rights
 

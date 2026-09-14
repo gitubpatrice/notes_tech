@@ -18,6 +18,8 @@ import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../services/settings_service.dart';
 import '../../utils/debouncer.dart';
+import '../../utils/error_localize.dart';
+import '../../utils/folder_localize.dart';
 import '../../utils/snackbar_ext.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/folders_drawer.dart';
@@ -198,6 +200,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Folder badge text from the name cache. The cache keeps stored names, so
+  /// a language change needs no reload: the default inbox is localized here.
+  String? _folderLabel(String folderId, AppLocalizations t) {
+    final name = _folderNamesById[folderId];
+    return name == null ? null : folderDisplayName(folderId, name, t);
+  }
+
   Future<void> _openNew() async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
@@ -248,7 +257,10 @@ class _HomeScreenState extends State<HomeScreen> {
           /* best-effort : la reprotection au déverrouillage rattrapera */
         }
         if (!mounted) return;
-        messenger.showErrorSnack(t.homeVaultCreateError(e.toString()), cs);
+        messenger.showErrorSnack(
+          t.homeVaultCreateError(describeError(e, t)),
+          cs,
+        );
         return;
       }
     }
@@ -337,7 +349,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
               Flexible(
                 child: Text(
-                  _currentFolderName ?? AppConstants.appName,
+                  _currentFolderName == null
+                      ? AppConstants.appName
+                      : folderDisplayName(
+                          _currentFolderId ?? '',
+                          _currentFolderName!,
+                          t,
+                        ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -547,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           note: n,
                           onTap: () => _open(n),
                           folderName: showFolderBadge
-                              ? _folderNamesById[n.folderId]
+                              ? _folderLabel(n.folderId, t)
                               : null,
                         ),
                       );

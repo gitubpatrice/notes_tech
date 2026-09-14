@@ -13,6 +13,7 @@ import '../../core/constants.dart';
 import '../../data/models/folder.dart';
 import '../../data/repositories/folders_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/folder_localize.dart';
 
 /// Présente la liste des dossiers et retourne l'id sélectionné.
 /// Inclut systématiquement « Boîte de réception » même si elle n'apparaît
@@ -96,7 +97,7 @@ class _MoveSheet extends StatelessWidget {
                     children: [
                       _FolderTile(
                         icon: Icons.inbox_outlined,
-                        name: inbox.name,
+                        name: inbox.displayName(t),
                         selected: currentFolderId == inbox.id,
                         onTap: () => Navigator.of(context).pop(inbox.id),
                       ),
@@ -114,7 +115,7 @@ class _MoveSheet extends StatelessWidget {
                           icon: f.isVault
                               ? Icons.lock_outline
                               : Icons.folder_outlined,
-                          name: f.name,
+                          name: f.displayName(t),
                           selected: currentFolderId == f.id,
                           onTap: () => Navigator.of(context).pop(f.id),
                         ),

@@ -1,205 +1,242 @@
 # Notes Tech
 
-> Vos notes restent dans votre poche. Chiffrées, et hors ligne.
+> Your notes stay in your pocket. Encrypted, and offline.
 
-🇬🇧 [English version](README.en.md)
+🇫🇷 [Version française](README.fr.md)
 
-**v2.0.0 — Août 2026** · [Politique de confidentialité](PRIVACY.md) · [CGU](TERMS.md) · [Sécurité](SECURITY.md)
+**v2.0.9 — September 2026** · [Privacy policy](assets/legal/PRIVACY.en.md) · [Terms of use](assets/legal/TERMS.en.md) · [Security](SECURITY.md)
 
-Application Android Flutter de prise de notes Markdown chiffrées,
-**100 % locale, zéro permission Internet**. Interface bilingue **FR / EN**.
-Coffres par dossier (passphrase Argon2id ou PIN Keystore-bound), recherche
-plein-texte FTS5, dictée vocale Whisper on-device, backlinks `[[note]]`,
-mode panique multi-step.
+Encrypted Markdown note-taking app for Android, built with Flutter.
+**100% local, no Internet permission.** Bilingual interface, **English /
+French**. Per-folder vaults (Argon2id passphrase or Keystore-bound PIN),
+FTS5 full-text search, on-device Whisper voice dictation, `[[note]]`
+backlinks, Markdown preview, multi-step panic mode.
 
-## Quoi de neuf en v2.0.0
+## What's new in v2.0.9
 
-**L'IA embarquée est retirée.** La recherche sémantique (MiniLM) et le
-Q&A « Demander à mes notes » (Gemma 3 1B) disparaissent. L'APK arm64
-passe de ~127 Mo à **26,9 Mo**. La recherche reste plein-texte FTS5 +
-bm25 : rapide et exacte, mais elle ne devine pas les synonymes.
+- **Note preview**: an Edit / Preview switch shows headings, lists,
+  emphasis and links rendered. A `[[Title]]` link opens the note it points
+  to.
+- The default folder was created in French ("Boîte de réception") on
+  every install. It now follows the app language, and a folder you renamed
+  keeps its name.
+- Voice model names, microphone and import errors, share texts and the
+  export README are translated.
+- A PIN vault that cannot be created now says why (no screen lock, or no
+  hardware-backed key storage), and messages shown from the folder list
+  are no longer hidden behind it.
 
-Bump majeur et non mineur pour trois raisons :
+## What changed in v2.0.0
 
-- l'app perd ses deux fonctions phares, ce qu'un `1.2.0` ne signalerait
-  pas à l'utilisateur ;
-- l'APK est divisé par près de cinq, visible dès l'installation ;
-- **la migration est à sens unique** : la base passe en schéma v9 et la
-  v1.1.6 publiée n'a pas de `onDowngrade`, donc réinstaller une 1.x ne
-  peut plus ouvrir la base.
+**On-device AI is gone.** Semantic search (MiniLM) and the "Ask my notes"
+Q&A (Gemma 3 1B) are removed. The arm64 APK drops from ~127 MB to
+**26.9 MB**. Search remains FTS5 full-text + bm25: fast and exact, but it
+does not guess synonyms.
 
-Cette version inaugure aussi les **APK splits par ABI sans universel**.
-Les deux familles ont des `versionCode` incompatibles — l'offset
-`+1000 × index` de Flutter place tout universel sous n'importe quel
-split de même version, et Android refusait alors l'installation en
-downgrade. Transition à sens unique : ne pas réintroduire d'universel.
+A major bump rather than a minor one, for three reasons:
 
-Corrections notables du même cycle :
+- the app loses its two flagship features, which a `1.2.0` would not
+  signal to users;
+- the APK is almost five times smaller, which shows at install time;
+- **the migration is one-way**: the database moves to schema v9 and the
+  published v1.1.6 has no `onDowngrade`, so reinstalling a 1.x can no
+  longer open the database.
 
-- supprimer un dossier détruisait la clé Keystore **avant** la base, ce
-  qui rendait un coffre définitivement illisible si la base échouait ;
-- le mode panique annonçait « effacement terminé » même en cas d'échec ;
-- **les migrations de schéma n'avaient jamais tourné** — les tests
-  créaient des bases neuves, donc `onUpgrade` n'était jamais appelé ;
-- le titre d'une note de coffre pouvait partir en clair.
+This version also introduces **per-ABI split APKs with no universal APK**.
+The two families have incompatible `versionCode`s — Flutter's
+`+1000 × index` offset puts any universal APK below every split of the
+same version, and Android then refused the install as a downgrade. This
+is a one-way transition: do not bring back a universal APK.
+Since v2.0.8, splits carry `versionCode × 10 + ABI` (block in
+`android/app/build.gradle.kts`) instead of Flutter's offset; the rule
+still holds.
 
-Pour penseurs, thérapeutes, étudiants, chercheurs, écrivains et
-journalistes qui veulent prendre des notes sensibles ou denses sans
-qu'elles ne quittent jamais leur téléphone.
+Notable fixes from the same cycle:
 
-**Différenciateur unique vs Notesnook / Obsidian / Bear / Logseq :
-aucune permission Internet — l'application est techniquement incapable
-d'envoyer quoi que ce soit, et c'est vérifiable dans son manifeste.**
+- deleting a folder destroyed the Keystore key **before** the database,
+  which left a vault permanently unreadable if the database step failed;
+- panic mode reported "wipe complete" even when it had failed;
+- **schema migrations had never run** — tests created fresh databases,
+  so `onUpgrade` was never called;
+- the title of a vault note could be stored in plain text.
+
+For thinkers, therapists, students, researchers, writers and journalists
+who want to take sensitive or dense notes without them ever leaving their
+phone.
+
+**What sets it apart from Notesnook / Obsidian / Bear / Logseq: no
+Internet permission — the app is technically unable to send anything,
+and you can check that in its manifest.**
 
 ---
 
-## Promesse de confidentialité
+## Privacy promise
 
-- **Aucune permission `INTERNET`** dans le manifeste — vérifiable à
-  l'œil nu (`AndroidManifest.xml`). Les 7 permissions transitives
+- **No `INTERNET` permission** in the manifest — you can check it by eye
+  (`AndroidManifest.xml`). The 7 transitive permissions
   (INTERNET, ACCESS_NETWORK_STATE, WAKE_LOCK, RECEIVE_BOOT_COMPLETED,
   FOREGROUND_SERVICE, FOREGROUND_SERVICE_DATA_SYNC, POST_NOTIFICATIONS)
-  sont neutralisées via `tools:node="remove"`.
-- **Seule permission runtime** : `RECORD_AUDIO` si vous activez la dictée.
-- Aucun compte, aucune inscription, aucun tracker, aucune publicité,
-  aucune télémétrie.
-- Open source Apache 2.0, code intégral vérifiable.
-- `allowBackup=false` + `dataExtractionRules` complet (pas
-  d'exfiltration via Smart Switch ou Android Backup).
-- Modèle Whisper importé via SAF — jamais bundlé,
-  jamais téléchargés en réseau par l'app.
+  are stripped with `tools:node="remove"`.
+- **Only runtime permission**: `RECORD_AUDIO`, if you turn on dictation.
+- No account, no sign-up, no tracker, no ads, no telemetry.
+- Open source under Apache 2.0, the whole code can be inspected.
+- `allowBackup=false` + full `dataExtractionRules` (no exfiltration
+  through Smart Switch or Android Backup).
+- The Whisper model is imported through SAF — never bundled, never
+  downloaded over the network by the app.
 
 ---
 
-## Fonctionnalités
+## Features
 
-### Édition Markdown
-- Création / édition / auto-save debounced
-- Épingler / favoris / archives / corbeille (rétention 30 j)
-- Mode clair / sombre / système (palette GitHub)
-- Tri configurable (modifié, créé, titre)
+### Markdown editing
+- Create / edit / debounced autosave
+- **Edit / Preview switch**: the preview renders Markdown (headings,
+  lists, emphasis, links). A `[[Title]]` link opens the note it points to;
+  an `http`, `https` or `mailto` link opens in the system app, any other
+  scheme is ignored. Images are never loaded: only their alt text is
+  shown.
+- Pin / favorites / archive / trash (30-day retention)
+- Light / dark / system theme (GitHub palette)
+- Configurable sort order (modified, created, title)
 
-### Coffres par dossier
-- **Mode passphrase** — Argon2id (m=64 Mo, t=3) + AES-256-GCM, KEK
-  enveloppée par la clé maître Keystore (hardware-backed).
-- **Mode PIN** — 4 à 6 chiffres, dérivation Argon2id allégée (m=32 Mo,
-  t=2) + clé Keystore-bound dédiée par coffre, **auto-wipe à 5
-  tentatives échouées** (atomique, repris au boot si crash en cours).
-- AAD partout : `folder_id` lié au wrap KEK, `note_id` lié au contenu
-  chiffré — anti rejeu / anti substitution.
-- HMAC verifier en temps constant pour détecter passphrase incorrecte
-  sans déchiffrer toutes les notes.
-- Auto-lock configurable (15 min par défaut, ou au pause).
+### Per-folder vaults
+- **Passphrase mode** — Argon2id (m=64 MB, t=3) + AES-256-GCM. The vault
+  key (32 random bytes) is wrapped by the key derived from the passphrase,
+  and stored in the SQLCipher database, which is itself encrypted with the
+  master key sealed by the Keystore (hardware-backed).
+- **PIN mode** — 4 to 6 digits, lighter Argon2id derivation (m=32 MB,
+  t=2) + a dedicated Keystore-bound key per vault, **auto-wipe after 5
+  failed attempts** (atomic, resumed at boot if a crash interrupted it).
+- AAD everywhere: `folder_id` bound to the KEK wrap, `note_id` bound to
+  the encrypted content — prevents replay and substitution.
+- Constant-time HMAC verifier to detect a wrong passphrase without
+  decrypting every note.
+- **Auto-lock**: all vaults lock as soon as the app goes to the
+  background, and after a configurable delay (5, 15, 30 or 60 min, or
+  never; 15 min by default).
 
-### Recherche
-- **FTS5** instantané (tokenizer `unicode61`, diacritiques normalisés).
+### Search
+- Instant **FTS5** (`unicode61` tokenizer, diacritics normalized).
 
-### Dictée vocale Whisper
-- **Whisper on-device** via le module sibling `files_tech_voice`.
-- Modèles Whisper Base q5_1 (57 Mo) ou Tiny q5_1 (32 Mo), importés via
-  SAF (téléchargement par le navigateur système, pas par l'app).
-- Vérification SHA-256 systématique avant chargement, cache TTL 30 j.
-- Audio jamais persisté (tmp + delete dans tous les chemins).
+### Whisper voice dictation
+- **On-device Whisper** through the `files_tech_voice` package (git
+  dependency pinned to a commit).
+- Whisper Base q5_1 (57 MB) or Tiny q5_1 (32 MB) models, imported through
+  SAF (downloaded by the system browser, not by the app).
+- Strict SHA-256 check before loading; at startup, a 24-hour verification
+  cache avoids recomputing the hash every time.
+- Audio is never stored (temp file + delete on every code path).
 
 ### Backlinks
-- Liens `[[Titre]]`, auto-complétion, panneau Mentions / liens sortants.
-- **Réindexation différée 2 s** : seule la note modifiée est retraitée
-  (O(1) par save, batching transparent).
-- Liens fantômes auto-résolus à la création / au renommage de la cible.
+- `[[Title]]` links, autocomplete, Mentions / outgoing links panel.
+- **Targeted indexing**: on each save, only the modified note is
+  reprocessed; batch writes are grouped (500 ms). The full reconciliation
+  pass at startup is delayed by 2 s.
+- Dangling links resolve automatically when the target is created or
+  renamed.
 
-### Export Markdown
-- Export d'une note : `.md` avec frontmatter YAML compatible Obsidian,
-  Logseq, Bear, Foam, Dendron.
-- Export ZIP global : arborescence par dossier + README d'export.
-- Encodage en isolate (`compute()`), nom de fichier durci anti-path-
-  traversal et anti-Unicode-bidi.
+### Markdown export
+- Single-note export: `.md` with YAML front matter compatible with
+  Obsidian, Logseq, Bear, Foam and Dendron.
+- Full ZIP export: one folder per notes folder + an export README.
+- Encoding runs in an isolate (`compute()`); file names are hardened
+  against path traversal and Unicode bidi characters.
 
-### Mode panique
-- Réglages → Mode panique → Tout effacer maintenant.
-- Confirmation par mot tapé (`EFFACER`).
-- Séquence **ordonnée et best-effort** (un step qui throw n'interrompt
-  pas les suivants) :
-  1. `FLAG_SECURE` forcé ON
-  2. Capture micro coupée
-  3. **`foldersLockAll`** — verrouille tous les coffres ouverts
-  4. **`pinKeysWipe`** — supprime toutes les clés Keystore PIN
-     (`deleteKeysWithPrefix` côté Kotlin)
-  5. **`kekDestroy`** — détruit la clé maître Keystore (DB
-     instantanément illisible)
-  6. Pause des background workers
-  7. **`dbWipe`** — écrase header SQLCipher 16 Mo + delete + sidecars
-  8. Effacement Whisper, préférences, tmp
+### Panic mode
+- Settings → Panic mode.
+- Confirmation by typing a word (`WIPE`), which enables the
+  "Wipe everything" button.
+- **Ordered, best-effort** sequence (a step that throws does not stop the
+  following ones):
+  1. `FLAG_SECURE` forced ON
+  2. Microphone capture stopped
+  3. Clipboard cleared
+  4. **`foldersLockAll`** — locks every open vault
+  5. **`pinKeysWipe`** — deletes all PIN Keystore keys
+     (`deleteKeysWithPrefix` on the Kotlin side)
+  6. **`kekDestroy`** — destroys the Keystore master key (database
+     instantly unreadable)
+  7. Background workers paused
+  8. **`dbWipe`** — overwrites the SQLCipher header (16 MB) + deletes the
+     file and its sidecars
+  9. Whisper wipe (models, verification cache, orphan WAV files)
+  10. Model files left over from versions ≤ 1.1.6
+  11. Preferences (except the two keys needed to restart), exports, temp
+      files
 
 ### FLAG_SECURE
-- Activé par défaut : pas de capture d'écran ni d'aperçu dans les apps
-  récentes.
+- On by default: no screenshots and no preview in the recent-apps screen.
 
 ---
 
-## Sécurité
+## Security
 
-- **DB SQLCipher** chiffrée AES-256-GCM, clé maître scellée par
-  AndroidKeystore (hardware-backed sur S24).
-- **KEK Keystore-bound CSPRNG 32 octets**, dérivation Argon2id côté
-  passphrase, scellage Keystore direct côté PIN.
-- **AAD partout** : `folder_id` pour le wrap KEK, `note_id` pour le
-  contenu — empêche la réutilisation d'un blob chiffré dans un autre
-  contexte.
-- **HMAC verifier en temps constant** pour détecter une mauvaise
-  passphrase / un mauvais PIN sans test exhaustif des notes.
-- **Mode PIN avec auto-wipe** : 5 tentatives, flag prefs atomique,
-  reprise au boot si interruption.
-- **Mode panique ordonné** : `foldersLockAll → pinKeysWipe → kekDestroy
-  → dbWipe`, garantit que la KEK disparaît avant la base.
-- **Wipe DB header 16 Mo** (la KEK destroy précédente garantit déjà le
-  secret ; l'écrasement complet n'apporte rien sur eMMC moderne avec
-  wear-leveling — décision de design, voir `SECURITY.md`).
-- **`setUserAuthenticationRequired(false)`** sur la clé Keystore PIN :
-  le PIN applicatif est l'unique facteur, le doubler avec biométrie
-  l'exposerait à la contrainte (clé biométrique survit au reboot).
-- **FLAG_SECURE** par défaut.
-- `allowBackup=false`, `dataExtractionRules` durci.
+- **SQLCipher database** encrypted with AES-256 (SQLCipher 4), master key
+  sealed by AndroidKeystore (hardware-backed on the S24).
+- **32-byte CSPRNG keys**: the database key is sealed by the Keystore;
+  each vault key is wrapped by a key derived with Argon2id from the
+  passphrase or, in PIN mode, by a lighter Argon2id key and then sealed by
+  a dedicated Keystore key.
+- **AAD everywhere**: `folder_id` for the KEK wrap, `note_id` for the
+  content — an encrypted blob cannot be reused in another context.
+- **Constant-time HMAC verifier** to detect a wrong passphrase or PIN
+  without trying every note.
+- **PIN mode with auto-wipe**: 5 attempts, atomic preference flag,
+  resumed at boot if interrupted.
+- **Ordered panic mode**: `foldersLockAll → pinKeysWipe → kekDestroy
+  → dbWipe`, which guarantees the KEK is gone before the database.
+- **16 MB database header wipe** (destroying the KEK beforehand already
+  guarantees secrecy; a full overwrite achieves nothing on modern eMMC
+  with wear-leveling — a design decision, see `SECURITY.md`).
+- **`setUserAuthenticationRequired(false)`** on the PIN Keystore key:
+  the app PIN is the only factor; adding biometrics on top would expose
+  the user to coercion (a biometric key survives a reboot).
+- **FLAG_SECURE** by default.
+- `allowBackup=false`, hardened `dataExtractionRules`.
 
-Voir [`SECURITY.md`](SECURITY.md) pour le modèle de menace complet et
-la procédure de signalement de faille.
+See [`SECURITY.md`](SECURITY.md) for the full threat
+model and how to report a vulnerability.
 
 ---
 
-## Permissions Android
+## Android permissions
 
-| Permission | État | Usage |
+| Permission | Status | Use |
 |---|---|---|
-| `INTERNET` | **REMOVED** (`tools:node="remove"`) | aucun |
-| `ACCESS_NETWORK_STATE` | REMOVED | aucun |
-| `WAKE_LOCK` | REMOVED | aucun |
-| `RECEIVE_BOOT_COMPLETED` | REMOVED | aucun |
-| `FOREGROUND_SERVICE` | REMOVED | aucun |
-| `FOREGROUND_SERVICE_DATA_SYNC` | REMOVED | aucun |
-| `POST_NOTIFICATIONS` | REMOVED | aucun |
-| `RECORD_AUDIO` | runtime, opt-in | uniquement si dictée Whisper activée |
+| `INTERNET` | **REMOVED** (`tools:node="remove"`) | none |
+| `ACCESS_NETWORK_STATE` | REMOVED | none |
+| `WAKE_LOCK` | REMOVED | none |
+| `RECEIVE_BOOT_COMPLETED` | REMOVED | none |
+| `FOREGROUND_SERVICE` | REMOVED | none |
+| `FOREGROUND_SERVICE_DATA_SYNC` | REMOVED | none |
+| `POST_NOTIFICATIONS` | REMOVED | none |
+| `RECORD_AUDIO` | runtime, opt-in | only if Whisper dictation is turned on |
+| `com.filestech.notes_tech.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` | added to the merged manifest by AndroidX, `signature` level | internal to the app, never requested from the user |
 
-À auditer sur chaque release via `aapt dump permissions`.
+To be audited on every release with `aapt dump permissions`.
 
 ---
 
 ## Installation
 
-Deux options :
+Two options:
 
-1. **APK publiée** : récupérer le split correspondant à votre appareil
-   sur [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases)
-   — `arm64-v8a` couvre la quasi-totalité des téléphones depuis 2016 —
-   vérifier le SHA-256 publié dans les notes de release, side-loader.
-   Ces APK sont construites et signées par GitHub Actions
-   (`.github/workflows/release.yml`), déclenchées au push d'un tag `v*`.
-2. **Build local** (recommandé pour audit) — voir section suivante.
+1. **Published APK**: download the split matching your device from
+   [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases)
+   — `arm64-v8a` fits almost every phone since 2016, and there is no
+   universal APK —
+   check the SHA-256 published in the release notes, then sideload.
+   These APKs are built and signed by GitHub Actions
+   (`.github/workflows/release.yml`), triggered by pushing a `v*` tag.
+2. **Local build** (recommended for auditing) — see the next section.
 
-Pas de Play Store : distribution side-load uniquement (cohérent avec la
-promesse de confidentialité — aucun compte requis pour installer).
+No Play Store: sideload distribution only (consistent with the privacy
+promise — no account needed to install).
 
 ---
 
-## Build local
+## Local build
 
 ```bash
 flutter pub get
@@ -209,27 +246,28 @@ flutter build apk --release --split-per-abi --obfuscate \
   --split-debug-info=build/symbols
 ```
 
-Pour une release **strictement signée** (pas de fallback debug), créer
-`android/key.properties` :
+For a **strictly signed** release (no debug fallback), create
+`android/key.properties`:
 
 ```
-storeFile=/chemin/absolu/vers/votre.jks
+storeFile=/absolute/path/to/your.jks
 storePassword=...
 keyAlias=...
 keyPassword=...
 ```
 
-APK release arm64 : **~27 Mo** (SQLCipher + Whisper.cpp — le modèle de
-dictée est téléchargé séparément, non bundlé). L'IA embarquée a été retirée
-en v2.0.0 : elle pesait 100 Mo pour une fonctionnalité que presque personne
-ne pouvait atteindre sans permission Internet.
+arm64 release APK: **~27 MB** (SQLCipher + Whisper.cpp — the dictation
+model is downloaded separately, not bundled). On-device AI was removed in
+v2.0.0: it weighed 100 MB for a feature almost nobody could reach without
+the Internet permission.
 
-Pré-requis :
-- Flutter 3.x (Dart `^3.11.5`)
-- Android SDK + NDK installés via Android Studio
-- Module sibling `files_tech_voice` à `../files_tech_voice` (clone
-  [le repo](https://github.com/gitubpatrice/files_tech_voice) à côté
-  de `notes_tech/`)
+Requirements:
+- Flutter 3.47.2 (exact version, pinned in `pubspec.yaml`; Dart
+  `^3.11.5`)
+- Android SDK + NDK installed through Android Studio
+- No neighbouring repository to clone: `files_tech_voice` and
+  `files_tech_core` are git dependencies pinned to a commit, fetched by
+  `flutter pub get`
 
 ---
 
@@ -237,57 +275,64 @@ Pré-requis :
 
 ```
 lib/
-├── main.dart                          # bootstrap parallèle + DI Provider
+├── main.dart                          # parallel bootstrap + Provider DI
 ├── app.dart                           # MaterialApp
-├── core/                              # constants, exceptions, theme
+├── core/                              # constants, exceptions, theme, a11y
 ├── data/
 │   ├── models/                        # Note, Folder, NoteLink,
 │   │                                    NoteChangeEvent
 │   ├── db/                            # SQLite (FTS5 + sqlcipher), DAOs
-│   └── repositories/                  # façades + streams typés
+│   └── repositories/                  # facades + typed streams
+├── l10n/                              # FR / EN ARB files + generated classes
 ├── services/
-│   ├── security/                      # VaultService (KEK Keystore +
-│   │                                    passphrase/PIN), PanicService
+│   ├── security/                      # VaultService (Keystore KEK),
+│   │                                    FolderVaultService (passphrase/PIN),
+│   │                                    KeystoreBridge, PanicService
+│   ├── export/                        # NoteExportService (.md, ZIP)
 │   ├── secure_window_service.dart     # FLAG_SECURE via MethodChannel
-│   ├── voice/                         # VoiceService (Whisper, sibling)
-│   ├── backlinks_service.dart         # parsing [[]], reindex différé
-│   ├── note_actions.dart              # actions UI réutilisables
+│   ├── voice/                         # VoiceService (Whisper, files_tech_voice)
+│   ├── backlinks_service.dart         # [[]] parsing, targeted indexing
+│   ├── note_actions.dart              # reusable UI actions
 │   └── settings_service.dart
 ├── ui/
 │   ├── screens/                       # home, editor, search, settings,
-│   │                                    about, vault_unlock
-│   └── widgets/                       # NoteCard, BacklinksPanel, ...
-└── utils/                             # debouncer, text_utils, error_localize
+│   │                                    trash, voice_setup, about, ...
+│   └── widgets/                       # NoteCard, BacklinksPanel,
+│                                        NoteMarkdownPreview, ...
+└── utils/                             # debouncer, text_utils, error_localize, ...
 ```
 
 ## Stack
 
-- Flutter 3.x / Dart `^3.11.5`
-- `sqflite_sqlcipher` (SQLite chiffré AES-256 + FTS5)
-- `flutter_secure_storage` (KEK scellée AndroidKeystore)
-- `cryptography` (Argon2id RFC 9106 + AES-GCM, Dart pur)
-- `crypto` (SHA-256 streaming pour vérification modèles)
-- `files_tech_voice` (sibling, Whisper STT)
-- `provider`, `shared_preferences`, `archive`, `share_plus`,
-  `url_launcher`
-- **Aucune dépendance réseau**
+- Flutter 3.47.2 / Dart `^3.11.5`
+- `sqflite_sqlcipher` (AES-256 encrypted SQLite + FTS5)
+- `flutter_secure_storage` (KEK sealed by AndroidKeystore)
+- `cryptography` (Argon2id RFC 9106 + AES-GCM, pure Dart)
+- `crypto` (streaming SHA-256 for model verification)
+- `files_tech_voice` (git dependency, Whisper STT)
+- `files_tech_core` (git dependency, shared crypto helpers)
+- `flutter_markdown_plus` + `markdown` (note preview, legal pages)
+- `provider`, `shared_preferences`, `file_picker`, `archive`,
+  `share_plus`, `url_launcher`
+- **No network dependency**
 
-## Cible
+## Targets
 
-- Samsung Galaxy S24 / S24 FE (validés)
-- Samsung S9, POCO C75 (validés en mode dégradé)
-- minSdk 23 (Android 6+)
+- Samsung Galaxy S24 / S24 FE (validated)
+- Samsung Galaxy S9 (Android 10), POCO C75
+- minSdk 24 (Android 7.0+)
 
 ---
 
-## Licence
+## License
 
-[Apache License 2.0](LICENSE) — voir aussi [`NOTICE`](NOTICE) et
+[Apache License 2.0](LICENSE) — see also [`NOTICE`](NOTICE) and
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-## Suite Files Tech
+## Files Tech suite
 
-Notes Tech fait partie de la suite Files Tech (toutes 100 % locales) :
+Notes Tech is part of the [Files Tech](https://files-tech.com/en/) suite
+of privacy-focused Android apps:
 - [PDF Tech](https://github.com/gitubpatrice/PDF-TECH)
 - [Read Files Tech](https://github.com/gitubpatrice/READ-FILES-TECH)
 - [AI Tech](https://github.com/gitubpatrice/ai_tech)

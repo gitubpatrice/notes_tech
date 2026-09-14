@@ -18,7 +18,7 @@ Notes Tech: 100% local Markdown note-taking, encrypted at-rest.
 • Audio never persisted — wiped after transcription
 
 <b>Editing</b>
-• Raw Markdown, 500ms debounced autosave
+• Markdown with an Edit / Preview switch (headings, lists, links), 500ms debounced autosave
 • <code>[[Title]]</code> backlinks with autocomplete + "notes linking here" panel
 • FTS5 + bm25 search, folder filter, configurable sort
 • ZIP Markdown export (YAML frontmatter, Obsidian/Logseq compatible)

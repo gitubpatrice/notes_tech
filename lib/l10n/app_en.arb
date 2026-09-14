@@ -9,14 +9,6 @@
   "commonRename": "Rename",
   "commonShare": "Share",
   "commonError": "Error",
-  "commonErrorWith": "Error: {message}",
-  "@commonErrorWith": {
-    "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
   "commonLoading": "Loading…",
   "commonValidate": "Confirm",
   "homeAllNotes": "All notes",
@@ -541,14 +533,6 @@
   "voiceSetupLinkCopied": "Link copied to clipboard",
   "voiceSetupPathUnavailable": "File path unavailable",
   "voiceSetupImportErrorTitle": "Import failed",
-  "voiceSetupChecksumMismatchBody": "SHA-256 fingerprint mismatch. File may have been corrupted during download. Details: {message}",
-  "@voiceSetupChecksumMismatchBody": {
-    "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
   "voiceSetupBrowserOpenFailed": "No browser available",
   "voiceSetupBrowserOpenError": "Cannot open browser: {message}",
   "@voiceSetupBrowserOpenError": {
@@ -599,5 +583,82 @@
   "splashSemanticsLabel": "Notes Tech splash screen",
   "@splashSemanticsLabel": {
     "description": "TalkBack announcement for the full splash screen."
+  },
+  "noteEditorModeEdit": "Edit",
+  "@noteEditorModeEdit": {
+    "description": "Segment of the note editor's Edit / Preview switch that shows the raw Markdown text field."
+  },
+  "noteEditorModePreview": "Preview",
+  "@noteEditorModePreview": {
+    "description": "Segment of the note editor's Edit / Preview switch that renders the Markdown (headings, lists, links)."
+  },
+  "noteEditorPreviewEmpty": "Nothing to preview yet.",
+  "@noteEditorPreviewEmpty": {
+    "description": "Shown in the Markdown preview when the note has no content."
+  },
+  "errorUnexpected": "Something went wrong. Please try again.",
+  "@errorUnexpected": {
+    "description": "Shown when an error has no user-facing message of its own. Replaces the raw exception text, which is developer text."
+  },
+  "errorClipboardSecureUnavailable": "Copy refused: the secure clipboard is unavailable.",
+  "@errorClipboardSecureUnavailable": {
+    "description": "Copying a vault note was refused because the clipboard cannot be protected."
+  },
+  "noteExportShareSubject": "Notes Tech note",
+  "@noteExportShareSubject": {
+    "description": "Subject of the system share sheet when exporting a single note (e.g. email subject)."
+  },
+  "noteExportShareText": "Note exported from Notes Tech",
+  "@noteExportShareText": {
+    "description": "Accompanying text of the system share sheet when exporting a single note."
+  },
+  "commonSizeMb": "{size} MB",
+  "@commonSizeMb": {
+    "description": "A file size in megabytes.",
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceModelBaseName": "Whisper Base (multilingual, 57 MB)",
+  "@voiceModelBaseName": {
+    "description": "Name of the recommended Whisper speech recognition model."
+  },
+  "voiceModelBaseNotes": "Recommended. Good quality, about 3 s to transcribe 5 s of audio on a mid-range phone.",
+  "@voiceModelBaseNotes": {
+    "description": "Description of the recommended Whisper model in the model picker."
+  },
+  "voiceModelTinyName": "Whisper Tiny (multilingual, 32 MB)",
+  "@voiceModelTinyName": {
+    "description": "Name of the light Whisper speech recognition model."
+  },
+  "voiceModelTinyNotes": "Light and fast, but less accurate. For low-end phones or quick notes.",
+  "@voiceModelTinyNotes": {
+    "description": "Description of the light Whisper model in the model picker."
+  },
+  "voicePermissionDeniedBody": "Dictation needs the microphone. Allow access when Android asks.",
+  "@voicePermissionDeniedBody": {
+    "description": "Explanation under the 'Microphone permission denied' header, when the user can still be asked again."
+  },
+  "voicePermissionDeniedPermanentBody": "Microphone access was denied permanently. Allow it in the app settings.",
+  "@voicePermissionDeniedPermanentBody": {
+    "description": "Explanation under the 'Microphone permission denied' header, when Android will no longer ask."
+  },
+  "voiceSetupImportFailedReason": "the file could not be imported. Check that it is the right .bin file and that it is still on the phone.",
+  "@voiceSetupImportFailedReason": {
+    "description": "Reason inserted into voiceSetupInstallFail ('Install failed: {message}') when importing the model file fails."
+  },
+  "voiceSetupChecksumMismatch": "SHA-256 fingerprint mismatch. The file may have been corrupted during download, and it was deleted.",
+  "@voiceSetupChecksumMismatch": {
+    "description": "The imported model file does not match its expected fingerprint."
+  },
+  "errorVaultPinHardwareUnavailable": "PIN vaults need hardware-backed key storage, which this device does not provide. Use a passphrase vault instead.",
+  "@errorVaultPinHardwareUnavailable": {
+    "description": "Creating a PIN vault was refused: the device keystore is software-only, so the PIN could be brute-forced off the device."
+  },
+  "errorVaultPinNeedsScreenLock": "PIN vaults need a screen lock on this phone. Set a PIN, pattern or password in Android settings, or use a passphrase vault.",
+  "@errorVaultPinNeedsScreenLock": {
+    "description": "Creating a PIN vault failed because the device has no secure lock screen, which the Keystore key requires."
   }
 }

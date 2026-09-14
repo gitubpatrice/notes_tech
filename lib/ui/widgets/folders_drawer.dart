@@ -25,6 +25,8 @@ import '../../data/repositories/folders_repository.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/security/folder_vault_service.dart';
+import '../../utils/error_localize.dart';
+import '../../utils/folder_localize.dart';
 import '../../utils/snackbar_ext.dart';
 import '../screens/trash_screen.dart';
 import 'blocking_progress_dialog.dart';
@@ -99,15 +101,22 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     if (mounted) Navigator.of(context).pop(); // ferme le drawer
   }
 
+  /// Result messages are shown by the home screen's Scaffold, underneath this
+  /// drawer: close it first, or the user cannot read them. Called once every
+  /// await is done and `mounted` checked, so the flow is not cut short.
+  void _closeDrawer() => Scaffold.maybeOf(context)?.closeDrawer();
+
   Future<void> _renameFolder(Folder folder) async {
     final t = AppLocalizations.of(context);
     final name = await showFolderNameDialog(
       context: context,
       title: t.folderRenameTitle,
       hint: t.folderRenameField,
-      initial: folder.name,
+      initial: folder.displayName(t),
     );
-    if (name == null || name == folder.name) return;
+    // Compared with what the dialog showed: confirming the prefilled default
+    // inbox name must not store it.
+    if (name == null || name == folder.displayName(t)) return;
     await _repo.rename(folder, name);
   }
 
@@ -121,7 +130,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     final vault = context.read<FolderVaultService>();
     final outcome = await confirmDeleteFolder(
       context: context,
-      folderName: folder.name,
+      folderName: folder.displayName(t),
       isVault: folder.isVault,
     );
     if (outcome == null || !mounted) return;
@@ -156,6 +165,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
             }
             if (!mounted) return;
             // Contraste WCAG AA via le helper canonique.
+            _closeDrawer();
             messenger.showErrorSnack(
               t.folderDeleteDecryptFailed(res.failed),
               cs,
@@ -178,8 +188,9 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
             /* la reprotection au prochain deverrouillage rattrapera */
           }
           if (!mounted) return;
+          _closeDrawer();
           messenger.showErrorSnack(
-            t.folderDeleteCancelledError(e.toString()),
+            t.folderDeleteCancelledError(describeError(e, t)),
             cs,
           );
           return;
@@ -209,8 +220,9 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           }
         }
         if (!mounted) return;
+        _closeDrawer();
         messenger.showErrorSnack(
-          t.folderDeleteCancelledError(e.toString()),
+          t.folderDeleteCancelledError(describeError(e, t)),
           cs,
         );
         return;
@@ -318,7 +330,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                       ),
                       _DrawerTile(
                         icon: Icons.inbox_outlined,
-                        title: inbox.name,
+                        title: inbox.displayName(t),
                         selected: widget.currentFolderId == kInboxFolderId,
                         onTap: () => _select(kInboxFolderId),
                         onLongPress: () => _renameFolder(inbox),
@@ -350,7 +362,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
                             iconTint: f.isVault
                                 ? Theme.of(context).colorScheme.error
                                 : null,
-                            title: f.name,
+                            title: f.displayName(t),
                             selected: widget.currentFolderId == f.id,
                             onTap: () => _select(f.id),
                             onLongPress: () => _showFolderMenu(f),
@@ -547,7 +559,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       builder: (ctx) => AlertDialog(
         icon: Icon(Icons.lock_open, color: cs.error, size: 28),
         title: Text(t.folderRemoveVaultTitle),
-        content: Text(t.folderRemoveVaultBody(folder.name)),
+        content: Text(t.folderRemoveVaultBody(folder.displayName(t))),
         actions: [
           TextButton(
             autofocus: true,
@@ -590,6 +602,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
         }
         if (!mounted) return;
         // Le dire, sinon l'utilisateur croit l'opération faite.
+        _closeDrawer();
         messenger.showErrorSnack(
           t.folderDeleteDecryptFailed(res.failed),
           cs,
@@ -598,6 +611,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
         return;
       }
       unawaited(HapticFeedback.lightImpact());
+      _closeDrawer();
       messenger.showSuccessSnack(t.folderRemoveVaultDone(res.decrypted), cs);
     } catch (e) {
       // Le service peut LEVER au milieu de sa boucle de déchiffrement : les
@@ -610,7 +624,8 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
         /* la reprotection au prochain déverrouillage rattrapera */
       }
       if (!mounted) return;
-      messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
+      _closeDrawer();
+      messenger.showErrorSnack(describeError(e, t), cs);
     }
   }
 
@@ -631,7 +646,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     // passphrase pour secret pro, PIN pour notes perso.
     final mode = await showVaultModeChooserSheet(
       context: context,
-      folderName: folder.name,
+      folderName: folder.displayName(t),
     );
     if (mode == null || !mounted) return;
 
@@ -639,12 +654,12 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     if (mode == VaultMode.passphrase) {
       secret = await showCreateVaultSheet(
         context: context,
-        folderName: folder.name,
+        folderName: folder.displayName(t),
       );
     } else {
       secret = await showCreatePinSheet(
         context: context,
-        folderName: folder.name,
+        folderName: folder.displayName(t),
       );
     }
     if (secret == null || !mounted) return;
@@ -693,6 +708,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
       // Affichage HONNÊTE du résultat : si failed > 0, on alerte
       // l'utilisateur en rouge plutôt que de masquer l'incohérence.
       if (result.failed > 0) {
+        _closeDrawer();
         messenger.showErrorSnack(
           t.vaultConvertPartialFail(
             result.failed,
@@ -702,6 +718,7 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
           duration: const Duration(seconds: 8),
         );
       } else {
+        _closeDrawer();
         messenger.showSuccessSnack(
           result.encrypted == 0
               ? t.vaultConvertSuccess
@@ -712,7 +729,11 @@ class _FoldersDrawerState extends State<FoldersDrawer> {
     } catch (e) {
       if (!mounted) return;
       navigator.pop(); // ferme le dialog progress
-      messenger.showErrorSnack(t.vaultConvertImpossible(e.toString()), cs);
+      _closeDrawer();
+      messenger.showErrorSnack(
+        t.vaultConvertImpossible(describeError(e, t)),
+        cs,
+      );
     }
   }
 }

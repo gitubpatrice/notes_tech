@@ -1,0 +1,3 @@
+Notes have a Preview: switch between Edit and Preview to see headings, lists, emphasis and links rendered. A [[Title]] link opens the note it points to.
+
+On an English phone, everything is in English. The default folder, created as "Boîte de réception" on every install, now shows as "Inbox"; a renamed folder keeps its name. Voice models, errors and the export README are translated. A failed PIN vault now says why, and messages no longer hide behind the folder list.

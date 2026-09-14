@@ -211,7 +211,7 @@ void main() {
       final entries = zipEntries([note('a', 'Note', 'f1')], {'f1': folder});
       expect(entries.single.startsWith('CON/'), isFalse);
       expect(
-        entries.single.startsWith('sans-dossier/'),
+        entries.single.startsWith('untitled-folder/'),
         isTrue,
         reason:
             '`safeFileName` filtrait déjà les noms réservés Windows, '

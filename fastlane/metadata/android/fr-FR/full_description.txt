@@ -18,7 +18,7 @@ Notes Tech : prise de notes Markdown 100 % locale et chiffrée at-rest.
 • Audio jamais persisté — effacé après transcription
 
 <b>Édition</b>
-• Markdown brut, auto-save 500ms debounce
+• Markdown avec bascule Éditer / Aperçu (titres, listes, liens), auto-save 500ms debounce
 • Backlinks <code>[[Titre]]</code> avec autocomplétion + panel "notes qui mentionnent celle-ci"
 • Recherche FTS5 + bm25, filtrage par dossier, tri configurable
 • Export ZIP Markdown (frontmatter YAML compatible Obsidian/Logseq)

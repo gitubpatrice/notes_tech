@@ -1,6 +1,7 @@
 /// Écran d'édition d'une note.
 ///
-/// - Édition titre + contenu Markdown brut (preview différée à v0.2).
+/// - Title + raw Markdown content, with an Edit / Preview switch that renders
+///   it (see `NoteMarkdownPreview`).
 /// - Auto-save debounced ; flush garanti sur sortie.
 /// - Toggle pin / favori / corbeille sans round-trip DB.
 library;
@@ -31,10 +32,12 @@ import '../../services/secure_window_service.dart';
 import '../../services/security/folder_vault_service.dart';
 import '../../utils/debouncer.dart';
 import '../../utils/error_localize.dart';
+import '../../utils/folder_localize.dart';
 import '../../utils/snackbar_ext.dart';
 import '../widgets/backlinks_panel.dart';
 import '../widgets/link_autocomplete_sheet.dart';
 import '../widgets/move_to_folder_sheet.dart';
+import '../widgets/note_markdown_preview.dart';
 import '../widgets/vault_pin_sheets.dart';
 import '../widgets/voice_record_button.dart';
 
@@ -66,6 +69,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       false; // note supprimée / mise en corbeille → édition désactivée
   String? _error;
   Future<void>? _pendingSave;
+
+  /// Whether the content area shows the rendered Markdown instead of the text
+  /// field. Screen-local: every note opens in edit mode.
+  bool _preview = false;
 
   /// `true` si la note vient d'un dossier coffre. `_note` ci-dessus est
   /// l'éphémère déchiffrée (content rempli, encryptedContent null) — on
@@ -472,8 +479,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     } on ValidationException catch (e) {
       if (!mounted) return;
       _savingNotifier.value = false;
-      final code = e.code;
-      _showError(code != null ? code.localize(t) : t.commonErrorWith('$e'));
+      _showError(describeError(e, t));
     } catch (_) {
       if (!mounted) return;
       _savingNotifier.value = false;
@@ -590,12 +596,21 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     // Les contrôleurs sont la seule source exacte de ce que l'utilisateur
     // voit. On les lit directement : au caractère près, sans attendre ni
     // déclencher d'écriture en base.
-    await NoteActions.instance.copyMarkdown(
-      n.copyWith(title: _titleCtrl.text, content: _contentCtrl.text),
-      // `_wasLocked` dit que la note vient d'un coffre : le presse-papiers
-      // refusera le repli non sécurisé plutôt que de dégrader la protection.
-      fromVault: _wasLocked,
-    );
+    try {
+      await NoteActions.instance.copyMarkdown(
+        n.copyWith(title: _titleCtrl.text, content: _contentCtrl.text),
+        // `_wasLocked` dit que la note vient d'un coffre : le presse-papiers
+        // refusera le repli non sécurisé plutôt que de dégrader la protection.
+        fromVault: _wasLocked,
+      );
+    } catch (e) {
+      // The menu calls this without awaiting it: an uncaught refusal went to
+      // the zone handler, and the user saw neither an error nor the "copied"
+      // snack. Any error, not only the refusal: nothing else would report it.
+      if (!mounted) return;
+      context.showErrorSnack(describeError(e, t));
+      return;
+    }
     if (!mounted) return;
     context.showFloatingSnack(t.noteEditorCopiedToClipboard);
   }
@@ -647,8 +662,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       final bytes = exporter.exportNoteAsBytes(
         exported,
         folder: folder,
+        inboxFallbackName: t.homeFolderInbox,
         vaultMention: fromVault
-            ? t.exportNoteFromVault(folder?.name ?? fresh.folderId)
+            ? t.exportNoteFromVault(folder?.displayName(t) ?? fresh.folderId)
             : null,
       );
       final fileName = exporter.safeFileName(
@@ -665,8 +681,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         // existe à partir de v11). Quand on bump le package, basculer.
         await Share.shareXFiles(
           [XFile(file.path)],
-          subject: 'Note Notes Tech',
-          text: 'Note exportée depuis Notes Tech',
+          subject: t.noteExportShareSubject,
+          text: t.noteExportShareText,
         );
       } finally {
         // ⚠️ SUPPRESSION DIFFÉRÉE, PAS IMMÉDIATE.
@@ -694,7 +710,10 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      messenger.showErrorSnack(t.noteEditorExportFailed(e.toString()), cs);
+      messenger.showErrorSnack(
+        t.noteEditorExportFailed(describeError(e, t)),
+        cs,
+      );
     }
   }
 
@@ -810,7 +829,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       messenger.showSuccessSnack(t.noteEditorMoved, cs);
     } catch (e) {
       if (!mounted) return;
-      messenger.showErrorSnack(t.noteEditorMoveFailed(e.toString()), cs);
+      messenger.showErrorSnack(t.noteEditorMoveFailed(describeError(e, t)), cs);
     }
   }
 
@@ -892,7 +911,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         /* best-effort */
       }
       if (!mounted) return null;
-      messenger.showErrorSnack(t.homeVaultCreateError(e.toString()), cs);
+      messenger.showErrorSnack(t.homeVaultCreateError(describeError(e, t)), cs);
       return null;
     }
   }
@@ -916,6 +935,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _insertAtCursor(String text) {
+    // Link and dictation insert into the text field: show it, otherwise the
+    // text lands in a field the user cannot see.
+    if (_preview) setState(() => _preview = false);
     final ctrl = _contentCtrl;
     final sel = ctrl.selection;
     final value = ctrl.text;
@@ -950,6 +972,28 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => NoteEditorScreen(noteId: created.id),
+      ),
+    );
+  }
+
+  /// `[[Title]]` tapped in the Markdown preview. Resolves the title the way
+  /// the links panel does, then takes the panel's own paths: open the target,
+  /// or offer the dangling link for creation.
+  Future<void> _openNoteLinkFromPreview(String title) async {
+    final note = _note;
+    if (note == null) return;
+    final targetId = await context.read<BacklinksService>().resolveTitle(title);
+    if (!mounted) return;
+    if (targetId != null) {
+      await _openLinkedNote(targetId);
+      return;
+    }
+    await _createFromDangling(
+      NoteLink(
+        sourceId: note.id,
+        targetTitle: title,
+        targetTitleNorm: BacklinksService.normalizeTitle(title),
+        position: 0,
       ),
     );
   }
@@ -1120,30 +1164,69 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ],
               ),
               Divider(color: theme.dividerColor, height: 1),
-              Expanded(
-                child: TextField(
-                  controller: _contentCtrl,
-                  onChanged: (_) => _scheduleSave(),
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  // U3 v1.1.0 — capitalisation auto sur contenu (Markdown
-                  // est principalement de la prose).
-                  textCapitalization: TextCapitalization.sentences,
-                  maxLines: null,
-                  expands: true,
-                  textAlignVertical: TextAlignVertical.top,
-                  keyboardType: TextInputType.multiline,
-                  style: theme.textTheme.bodyLarge,
-                  decoration: InputDecoration(
-                    labelText: t.noteEditorContent,
-                    hintText: t.noteEditorContentHint,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    filled: false,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: SegmentedButton<bool>(
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(
+                        value: false,
+                        icon: const Icon(Icons.edit_outlined),
+                        label: Text(t.noteEditorModeEdit),
+                      ),
+                      ButtonSegment(
+                        value: true,
+                        icon: const Icon(Icons.visibility_outlined),
+                        label: Text(t.noteEditorModePreview),
+                      ),
+                    ],
+                    selected: {_preview},
+                    onSelectionChanged: (selection) {
+                      // Closes the keyboard: it would cover the preview, and
+                      // the cursor is not needed to read.
+                      FocusManager.instance.primaryFocus?.unfocus();
+                      setState(() => _preview = selection.first);
+                    },
                   ),
                 ),
+              ),
+              Expanded(
+                child: _preview
+                    ? NoteMarkdownPreview(
+                        data: _contentCtrl.text,
+                        emptyText: t.noteEditorPreviewEmpty,
+                        onOpenNoteLink: _openNoteLinkFromPreview,
+                      )
+                    : TextField(
+                        controller: _contentCtrl,
+                        onChanged: (_) => _scheduleSave(),
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        // U3 v1.1.0 — capitalisation auto sur contenu (Markdown
+                        // est principalement de la prose).
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: null,
+                        expands: true,
+                        textAlignVertical: TextAlignVertical.top,
+                        keyboardType: TextInputType.multiline,
+                        style: theme.textTheme.bodyLarge,
+                        decoration: InputDecoration(
+                          labelText: t.noteEditorContent,
+                          hintText: t.noteEditorContentHint,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
               ),
               BacklinksPanel(
                 note: note,

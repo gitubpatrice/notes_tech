@@ -4,9 +4,8 @@
 /// Pattern d'usage côté UI :
 ///
 /// ```dart
-/// } on NotesTechException catch (e) {
-///   final code = e.code;
-///   _showError(code != null ? code.localize(t) : t.commonErrorWith('$e'));
+/// } catch (e) {
+///   _showError(describeError(e, t));
 /// }
 /// ```
 library;
@@ -49,6 +48,10 @@ extension NotesErrorLocalize on NotesErrorCode {
         return t.errorVaultEncryptedContentInvalid;
       case NotesErrorCode.vaultWrapInvalid:
         return t.errorVaultWrapInvalid;
+      case NotesErrorCode.vaultPinHardwareUnavailable:
+        return t.errorVaultPinHardwareUnavailable;
+      case NotesErrorCode.vaultPinNeedsScreenLock:
+        return t.errorVaultPinNeedsScreenLock;
       case NotesErrorCode.voiceNoModelInstalled:
         return t.errorVoiceNoModelInstalled;
       case NotesErrorCode.voiceStartCaptureFailed:
@@ -57,6 +60,22 @@ extension NotesErrorLocalize on NotesErrorCode {
         return t.errorVoiceTranscribeFailed;
       case NotesErrorCode.voiceMicCaptureError:
         return t.errorVoiceMicCaptureError;
+      case NotesErrorCode.clipboardSecureUnavailable:
+        return t.errorClipboardSecureUnavailable;
     }
   }
+}
+
+/// User-facing text for any error caught by the UI.
+///
+/// An error carrying a [NotesErrorCode] is shown in the active language. Any
+/// other error gets a generic message: exception text is developer text,
+/// written in French for this app's own exceptions, and it can hold paths or
+/// identifiers.
+String describeError(Object error, AppLocalizations t) {
+  if (error is NotesTechException) {
+    final code = error.code;
+    if (code != null) return code.localize(t);
+  }
+  return t.errorUnexpected;
 }

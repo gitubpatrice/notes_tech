@@ -1,7 +1,7 @@
 name: notes_tech
-description: "Notes Tech — notes Markdown chiffrées avec coffres par dossier, dictée vocale on-device et backlinks. 100 % local, zéro permission Internet."
+description: "Notes Tech — encrypted Markdown notes with per-folder vaults, on-device voice dictation and backlinks. 100% local, no Internet permission."
 publish_to: 'none'
-version: 2.0.8+406
+version: 2.0.9+407
 
 environment:
   sdk: ^3.11.5
@@ -17,8 +17,6 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  cupertino_icons: ^1.0.8
-
   # State / DI
   provider: ^6.1.2
 
@@ -98,9 +96,13 @@ dependencies:
   share_plus: ^10.0.0
   archive: ^4.0.0
 
-  # v1.0 — Markdown rendu pour les pages légales (PRIVACY.{fr,en}.md,
-  # TERMS.{fr,en}.md). Identique aux autres apps Files Tech.
-  flutter_markdown: ^0.7.4
+  # Markdown rendering: the note preview and the legal pages
+  # (PRIVACY.{fr,en}.md, TERMS.{fr,en}.md). flutter_markdown was discontinued
+  # upstream; flutter_markdown_plus is its designated successor (BSD-3-Clause).
+  # `markdown` is declared directly because the preview defines its own inline
+  # syntax for `[[Title]]` links.
+  flutter_markdown_plus: ^1.0.12
+  markdown: ^7.3.1
 
 dev_dependencies:
   flutter_test:

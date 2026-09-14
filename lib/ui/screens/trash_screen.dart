@@ -12,6 +12,7 @@ import '../../core/constants.dart';
 import '../../data/models/note.dart';
 import '../../data/repositories/notes_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../../utils/error_localize.dart';
 import '../../utils/snackbar_ext.dart';
 import '../widgets/empty_state.dart';
 
@@ -48,7 +49,7 @@ class _TrashScreenState extends State<TrashScreen> {
       await _reload();
       messenger.showSuccessSnack(t.trashRestored, cs);
     } catch (e) {
-      messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
+      messenger.showErrorSnack(describeError(e, t), cs);
     }
   }
 
@@ -67,7 +68,7 @@ class _TrashScreenState extends State<TrashScreen> {
       await _reload();
       messenger.showSuccessSnack(t.trashDeletedForever, cs);
     } catch (e) {
-      messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
+      messenger.showErrorSnack(describeError(e, t), cs);
     }
   }
 
@@ -89,7 +90,7 @@ class _TrashScreenState extends State<TrashScreen> {
       }
       messenger.showSuccessSnack(t.trashDeletedForever, cs);
     } catch (e) {
-      messenger.showErrorSnack(t.commonErrorWith('$e'), cs);
+      messenger.showErrorSnack(describeError(e, t), cs);
     } finally {
       // RECHARGER MEME EN CAS D'ECHEC. Le rechargement etait a l'interieur du
       // `try` : un echec a mi-parcours laissait l'ecran afficher des notes

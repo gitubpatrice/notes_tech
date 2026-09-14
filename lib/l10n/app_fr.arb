@@ -9,14 +9,6 @@
   "commonRename": "Renommer",
   "commonShare": "Partager",
   "commonError": "Erreur",
-  "commonErrorWith": "Erreur : {message}",
-  "@commonErrorWith": {
-    "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
   "commonLoading": "Chargement…",
   "commonValidate": "Valider",
   "homeAllNotes": "Toutes les notes",
@@ -472,7 +464,7 @@
   "voiceTranscribing": "Transcription…",
   "voiceTranscribed": "Texte inséré.",
   "voicePermissionDenied": "Permission micro refusée.",
-  "exportShareSubject": "Notes Tech — export {count} notes",
+  "exportShareSubject": "Notes Tech — export de {count} notes",
   "@exportShareSubject": {
     "placeholders": {
       "count": {
@@ -541,14 +533,6 @@
   "voiceSetupLinkCopied": "Lien copié dans le presse-papiers",
   "voiceSetupPathUnavailable": "Chemin du fichier non disponible",
   "voiceSetupImportErrorTitle": "Import impossible",
-  "voiceSetupChecksumMismatchBody": "Empreinte SHA-256 différente. Le fichier a peut-être été corrompu pendant le téléchargement. Détails : {message}",
-  "@voiceSetupChecksumMismatchBody": {
-    "placeholders": {
-      "message": {
-        "type": "String"
-      }
-    }
-  },
   "voiceSetupBrowserOpenFailed": "Aucun navigateur disponible",
   "voiceSetupBrowserOpenError": "Impossible d'ouvrir le navigateur : {message}",
   "@voiceSetupBrowserOpenError": {
@@ -599,5 +583,82 @@
   "splashSemanticsLabel": "Splash de présentation Notes Tech",
   "@splashSemanticsLabel": {
     "description": "Annonce TalkBack pour l'ecran splash complet."
+  },
+  "noteEditorModeEdit": "Éditer",
+  "@noteEditorModeEdit": {
+    "description": "Segment of the note editor's Edit / Preview switch that shows the raw Markdown text field."
+  },
+  "noteEditorModePreview": "Aperçu",
+  "@noteEditorModePreview": {
+    "description": "Segment of the note editor's Edit / Preview switch that renders the Markdown (headings, lists, links)."
+  },
+  "noteEditorPreviewEmpty": "Rien à afficher pour l'instant.",
+  "@noteEditorPreviewEmpty": {
+    "description": "Shown in the Markdown preview when the note has no content."
+  },
+  "errorUnexpected": "Une erreur est survenue. Veuillez réessayer.",
+  "@errorUnexpected": {
+    "description": "Shown when an error has no user-facing message of its own. Replaces the raw exception text, which is developer text."
+  },
+  "errorClipboardSecureUnavailable": "Copie refusée : le presse-papiers sécurisé est indisponible.",
+  "@errorClipboardSecureUnavailable": {
+    "description": "Copying a vault note was refused because the clipboard cannot be protected."
+  },
+  "noteExportShareSubject": "Note Notes Tech",
+  "@noteExportShareSubject": {
+    "description": "Subject of the system share sheet when exporting a single note (e.g. email subject)."
+  },
+  "noteExportShareText": "Note exportée depuis Notes Tech",
+  "@noteExportShareText": {
+    "description": "Accompanying text of the system share sheet when exporting a single note."
+  },
+  "commonSizeMb": "{size} Mo",
+  "@commonSizeMb": {
+    "description": "A file size in megabytes.",
+    "placeholders": {
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "voiceModelBaseName": "Whisper Base (multilingue, 57 Mo)",
+  "@voiceModelBaseName": {
+    "description": "Name of the recommended Whisper speech recognition model."
+  },
+  "voiceModelBaseNotes": "Recommandé. Bonne qualité, environ 3 s pour transcrire 5 s d'audio sur un téléphone milieu de gamme.",
+  "@voiceModelBaseNotes": {
+    "description": "Description of the recommended Whisper model in the model picker."
+  },
+  "voiceModelTinyName": "Whisper Tiny (multilingue, 32 Mo)",
+  "@voiceModelTinyName": {
+    "description": "Name of the light Whisper speech recognition model."
+  },
+  "voiceModelTinyNotes": "Léger et rapide, mais moins précis. Pour les téléphones d'entrée de gamme ou les prises rapides.",
+  "@voiceModelTinyNotes": {
+    "description": "Description of the light Whisper model in the model picker."
+  },
+  "voicePermissionDeniedBody": "La dictée a besoin du micro. Autorisez l'accès quand Android le demande.",
+  "@voicePermissionDeniedBody": {
+    "description": "Explanation under the 'Microphone permission denied' header, when the user can still be asked again."
+  },
+  "voicePermissionDeniedPermanentBody": "L'accès au micro a été refusé définitivement. Autorisez-le dans les paramètres de l'application.",
+  "@voicePermissionDeniedPermanentBody": {
+    "description": "Explanation under the 'Microphone permission denied' header, when Android will no longer ask."
+  },
+  "voiceSetupImportFailedReason": "le fichier n'a pas pu être importé. Vérifiez qu'il s'agit du bon fichier .bin et qu'il est toujours sur le téléphone.",
+  "@voiceSetupImportFailedReason": {
+    "description": "Reason inserted into voiceSetupInstallFail ('Install failed: {message}') when importing the model file fails."
+  },
+  "voiceSetupChecksumMismatch": "L'empreinte SHA-256 ne correspond pas. Le fichier a pu être corrompu pendant le téléchargement, et il a été supprimé.",
+  "@voiceSetupChecksumMismatch": {
+    "description": "The imported model file does not match its expected fingerprint."
+  },
+  "errorVaultPinHardwareUnavailable": "Les coffres PIN exigent un stockage de clés matériel, absent de cet appareil. Utilisez plutôt un coffre à passphrase.",
+  "@errorVaultPinHardwareUnavailable": {
+    "description": "Creating a PIN vault was refused: the device keystore is software-only, so the PIN could be brute-forced off the device."
+  },
+  "errorVaultPinNeedsScreenLock": "Les coffres PIN exigent un verrouillage d'écran sur ce téléphone. Définissez un code, un schéma ou un mot de passe dans les réglages Android, ou utilisez un coffre à passphrase.",
+  "@errorVaultPinNeedsScreenLock": {
+    "description": "Creating a PIN vault failed because the device has no secure lock screen, which the Keystore key requires."
   }
 }

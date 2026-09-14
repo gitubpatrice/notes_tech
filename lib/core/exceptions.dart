@@ -45,11 +45,16 @@ enum NotesErrorCode {
   vaultLocked,
   vaultEncryptedContentInvalid,
   vaultWrapInvalid,
+  vaultPinHardwareUnavailable,
+  vaultPinNeedsScreenLock,
   // Voice (Whisper)
   voiceNoModelInstalled,
   voiceStartCaptureFailed,
   voiceTranscribeFailed,
   voiceMicCaptureError,
+
+  // Clipboard
+  clipboardSecureUnavailable,
 }
 
 // Pas `sealed` : la hiérarchie est ouverte aux modules services

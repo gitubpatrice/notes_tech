@@ -31,6 +31,8 @@ import '../../data/models/folder.dart';
 import '../../l10n/app_localizations.dart';
 import '../../services/secure_window_service.dart';
 import '../../services/security/folder_vault_service.dart';
+import '../../utils/error_localize.dart';
+import '../../utils/folder_localize.dart';
 import 'sheet_handle.dart';
 import 'vault_passphrase_sheets.dart';
 import 'vault_warning_banner.dart';
@@ -461,10 +463,10 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
       if (!mounted) return;
       _busyN.value = false;
       _entryN.value = '';
-      // Pas d'exception brute sur un écran de déverrouillage : elle peut
-      // porter un alias Keystore, un chemin, un détail de format. Le type
-      // suffit à diagnostiquer sans rien exposer.
-      _errorN.value = t.commonErrorWith(e.runtimeType.toString());
+      // No exception text on an unlock screen: it can carry a Keystore
+      // alias, a path, a format detail. `describeError` shows a localized
+      // message only.
+      _errorN.value = describeError(e, t);
     }
   }
 
@@ -494,7 +496,7 @@ class _UnlockPinSheetState extends State<_UnlockPinSheet>
             ),
             const SizedBox(height: 4),
             Text(
-              t.vaultPinUnlockBody(widget.folder.name),
+              t.vaultPinUnlockBody(widget.folder.displayName(t)),
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),

@@ -232,13 +232,4 @@ enum NoteSortMode {
     NoteSortMode.titleAsc => 'pinned DESC, title COLLATE NOCASE ASC',
     NoteSortMode.titleDesc => 'pinned DESC, title COLLATE NOCASE DESC',
   };
-
-  String get label => switch (this) {
-    NoteSortMode.updatedDesc => 'Modifiée — récent',
-    NoteSortMode.updatedAsc => 'Modifiée — ancien',
-    NoteSortMode.createdDesc => 'Créée — récent',
-    NoteSortMode.createdAsc => 'Créée — ancien',
-    NoteSortMode.titleAsc => 'Titre A→Z',
-    NoteSortMode.titleDesc => 'Titre Z→A',
-  };
 }

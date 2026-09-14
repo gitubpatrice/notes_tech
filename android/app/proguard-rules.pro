@@ -65,9 +65,6 @@
 -keep class com.filestech.files_tech_voice.** { *; }
 -dontwarn com.filestech.files_tech_voice.**
 
-# flutter_markdown (rendu PRIVACY/TERMS .md sur mentions_legales)
--keep class io.flutter.plugins.flutter_markdown.** { *; }
-
 # package:cryptography est Dart pur — pas de règle ProGuard nécessaire.
 
 # Apache Tika / XML — référence présente via dépendance transitive

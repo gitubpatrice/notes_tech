@@ -1,5 +1,6 @@
 package com.filestech.notes_tech
 
+import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
 import android.util.Base64
@@ -213,6 +214,10 @@ class KeystoreBridge(private val ctx: Context) : MethodCallHandler {
         return true
     }
 
+    /** Whether the device has a secure lock screen (PIN, pattern or password). */
+    private fun isDeviceSecure(): Boolean =
+        (ctx.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager).isDeviceSecure
+
     private fun createKey(alias: String): Boolean {
         if (ks.containsAlias(alias)) return false
         val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE_PROVIDER)
@@ -248,8 +253,21 @@ class KeystoreBridge(private val ctx: Context) : MethodCallHandler {
             gen.init(build(strongBox = true))
             gen.generateKey()
         } catch (_: Exception) {
-            gen.init(build(strongBox = false))
-            gen.generateKey()
+            try {
+                gen.init(build(strongBox = false))
+                gen.generateKey()
+            } catch (e: Exception) {
+                // Without a secure lock screen, recent Android versions cannot
+                // create a key bound to an unlocked device (keystore2 has no
+                // user key for it) and fail with an opaque error. Say so, so the
+                // app can tell the user what to do. Anything else is rethrown
+                // unchanged, and nothing changes where the key can be created.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && !isDeviceSecure()) {
+                    // Original failure kept as the cause, for diagnosis.
+                    throw IllegalStateException("DEVICE_NOT_SECURE", e)
+                }
+                throw e
+            }
         }
 
         // Sécurité : valider que la clé créée est bien hardware-backed

@@ -163,6 +163,10 @@ class KeystoreBridge {
         msg.contains('KEYSTORE_SOFTWARE_ONLY')) {
       return const KeystoreSoftwareOnlyException();
     }
+    // Key generation failed on a device without a secure lock screen.
+    if (code == 'IllegalStateException' && msg.contains('DEVICE_NOT_SECURE')) {
+      return const KeystoreDeviceNotSecureException();
+    }
     // Liste blanche d'exceptions transitoires connues — toute autre
     // KeystoreException reste générique (= comportement antérieur).
     const transient = {
@@ -228,4 +232,14 @@ class KeystoreSoftwareOnlyException extends KeystoreException {
     : super('Device has no hardware-backed Keystore (TEE/StrongBox).');
   @override
   String toString() => 'KeystoreSoftwareOnlyException: $message';
+}
+
+/// Key generation failed and the device has no secure lock screen, which a
+/// key bound to an unlocked device requires. A passphrase vault, which does
+/// not depend on the Keystore, still works.
+class KeystoreDeviceNotSecureException extends KeystoreException {
+  const KeystoreDeviceNotSecureException()
+    : super('Device has no secure lock screen.');
+  @override
+  String toString() => 'KeystoreDeviceNotSecureException: $message';
 }

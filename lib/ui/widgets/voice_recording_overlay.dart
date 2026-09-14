@@ -76,8 +76,13 @@ class _VoiceRecordingOverlayState extends State<VoiceRecordingOverlay> {
       await voice.startRecording();
     } on SttPermissionDenied catch (e) {
       if (!mounted) return;
+      final t = AppLocalizations.of(context);
       setState(() {
-        _permissionError = e.message;
+        // Not `e.message`: the package writes it in French whatever the
+        // language.
+        _permissionError = e.permanently
+            ? t.voicePermissionDeniedPermanentBody
+            : t.voicePermissionDeniedBody;
         _permissionPermanent = e.permanently;
       });
     } catch (_) {

@@ -1,326 +1,321 @@
 # Security policy — Notes Tech
 
-> **⚠️ État au 2026-08-07 — retrait de l'IA embarquée (v2.0.0).** Notes Tech
-> n'embarque plus ni moteur d'inférence Gemma, ni recherche sémantique
-> (MiniLM / ONNX). Les entrées d'historique ci-dessous qui les mentionnent
-> décrivent des correctifs **réellement appliqués à l'époque** : elles sont
-> conservées telles quelles, réécrire un journal de sécurité serait pire que
-> de le laisser dater. Seules les affirmations d'état courant ont été mises
-> à jour.
+*Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Version current : v2.0.0 — Août 2026.**
+> **⚠️ Status as of 2026-08-07 — removal of on-device AI (v2.0.0).** Notes Tech
+> no longer ships a Gemma inference engine or semantic search
+> (MiniLM / ONNX). The history entries below that mention them describe
+> fixes that **were actually applied at the time**: they are kept as they
+> are, because rewriting a security log would be worse than letting it
+> show its age. Only current-state statements have been updated.
 
-## v2.0.0 — Retrait de l'IA + durcissement coffre/panique (2026-08-07)
+**Current version: v2.0.9 — September 2026.**
 
-Retrait de la recherche sémantique (MiniLM/ONNX) et du Q&A Gemma. Surface
-d'attaque réduite d'autant : plus d'isolate d'inférence, plus de prompt
-injecté, plus de cache d'embeddings en clair à protéger. APK arm64
-~127 Mo → 26,9 Mo.
+## v2.0.0 — AI removal + vault/panic hardening (2026-08-07)
 
-### Failles corrigées
+Removal of semantic search (MiniLM/ONNX) and of Gemma Q&A. The attack
+surface shrinks accordingly: no more inference isolate, no more injected
+prompt, no more plaintext embeddings cache to protect. arm64 APK
+~127 MB → 26.9 MB.
 
-- **Perte de données irréversible à la suppression d'un dossier coffre.**
-  `folders_drawer.dart` détruisait la clé Keystore PIN **avant** la ligne
-  en base. Si la suppression DB échouait ensuite, le dossier et ses notes
-  chiffrées restaient présents alors que la clé nécessaire au
-  déverrouillage avait disparu — coffre définitivement illisible. L'ordre
-  est inversé : base d'abord, clé ensuite, sous `try/catch`.
-- **Le mode panique mentait sur son résultat.** Trois étapes
+### Vulnerabilities fixed
+
+- **Irreversible data loss when deleting a vault folder.**
+  `folders_drawer.dart` destroyed the PIN Keystore key **before** the
+  database row. If the database deletion then failed, the folder and its
+  encrypted notes remained while the key needed to unlock them was gone —
+  vault permanently unreadable. The order is reversed: database first,
+  key second, inside `try/catch`.
+- **Panic mode misreported its result.** Three steps
   (`_prefsClearWithWhitelist`, `_wipeExportsCache`, `_purgeTempDirectory`)
-  avalaient leurs échecs unitaires et l'écran final affichait « effacement
-  terminé » alors que des artefacts survivaient. Elles comptent désormais
-  leurs échecs et lèvent ; `_wipeExportsCache` purge en outre le répertoire
-  de cache en plus du temporaire. Le filtre `_estArtefactSensible` évite
-  l'écueil inverse — un fichier temporaire étranger à l'app ne doit pas
-  faire déclarer la panique incomplète.
-- **Titre d'une note de coffre écrit en clair.** Le scellement était porté
-  par l'appelant et non par la couche de persistance : tout chemin
-  d'écriture qui l'oubliait laissait le titre lisible dans la colonne.
-  `NotesRepository` refuse maintenant toute écriture en clair dans un
-  dossier coffre (`VaultPlaintextWriteException`) et scelle lui-même.
-- **Presse-papiers non purgé après copies successives.** La minuterie
-  d'effacement d'une copie pouvait remettre l'état à zéro alors qu'une
-  copie plus récente était en cours, laissant son contenu indéfiniment
-  dans le presse-papiers. Un jeton par copie ferme la course.
-- **Les migrations de schéma n'avaient jamais été exercées.** Les tests
-  créaient des bases neuves : `onCreate` posait le schéma courant et
-  `onUpgrade` n'était jamais appelé. `integration_test/db_migration_test.dart`
-  construit désormais de vraies bases héritées (v1, v5, v7) et vérifie la
-  migration réelle jusqu'en v9, dont la purge FTS d'une note verrouillée.
+  swallowed their individual failures, and the final screen displayed
+  "wipe complete" while artifacts survived. They now count their failures
+  and throw; `_wipeExportsCache` also purges the cache directory in
+  addition to the temporary one. The `_estArtefactSensible` filter avoids
+  the opposite pitfall — a temporary file unrelated to the app must not
+  cause the panic to be declared incomplete.
+- **Vault note title written in plaintext.** Sealing was the caller's job
+  rather than the persistence layer's: any write path that forgot it left
+  the title readable in the column. `NotesRepository` now refuses any
+  plaintext write into a vault folder (`VaultPlaintextWriteException`)
+  and does the sealing itself.
+- **Clipboard not cleared after successive copies.** The clearing timer of
+  one copy could reset the state while a more recent copy was pending,
+  leaving that copy's content in the clipboard indefinitely. A per-copy
+  token closes the race.
+- **Schema migrations had never been exercised.** Tests created fresh
+  databases: `onCreate` laid down the current schema and `onUpgrade` was
+  never called. `integration_test/db_migration_test.dart` now builds real
+  legacy databases (v1, v5, v7) and checks the actual migration up to v9,
+  including the FTS purge of a locked note.
 
-### Vérification
+### Verification
 
-CI GitHub Actions verte de bout en bout pour la première fois : analyse,
-65 tests unitaires, build, et les 5 suites d'intégration sur émulateur
-API 30. Scan OSV des dépendances : aucune CVE.
+GitHub Actions CI green end to end for the first time: analysis,
+65 unit tests, build, and the 5 integration suites on an API 30
+emulator. OSV dependency scan: no CVE.
 
-## v1.1.6 — Logo & réorganisation barre du haut (2026-07-09)
+## v1.1.6 — Logo & top bar reorganisation (2026-07-09)
 
-Changement UI sans impact sécurité : logo damier dans l'AppBar, actions
-secondaires (Réglages / À propos) regroupées dans un overflow `⋮`, et bouton
-« Vérifier les mises à jour » dans À propos. Ce bouton **délègue au navigateur
-système** l'ouverture de la page GitHub releases (même pattern que le
-téléchargement des modèles voix) — **aucune permission INTERNET ajoutée** : la
-promesse zéro-réseau reste vérifiable dans le manifeste (`tools:node="remove"`).
+UI change with no security impact: checkerboard logo in the AppBar,
+secondary actions (Settings / About) grouped in a `⋮` overflow menu, and a
+"Check for updates" button in About. This button **delegates** the opening
+of the GitHub releases page **to the system browser** (same pattern as the
+voice model download) — **no INTERNET permission added**: the zero-network
+promise remains verifiable in the manifest (`tools:node="remove"`).
 
-## v1.1.5 — Audit expert post-v1.1.4 (2026-07-07)
+## v1.1.5 — Expert audit after v1.1.4 (2026-07-07)
 
-Audit 4-agents (sécu / perf-qualité / câblage / cohérence-i18n) sur ~24,8k LOC.
-Aucune faille CRITICAL/HIGH. Corrections sécu/robustesse + features anti-perte
-de données. `flutter analyze` 0 issue, 84 tests verts.
+4-agent audit (security / performance-quality / wiring / coherence-i18n)
+over ~24.8k LOC. No CRITICAL/HIGH vulnerability. Security/robustness fixes
++ features against data loss. `flutter analyze` 0 issues, 84 tests passing.
 
-### Sécurité / robustesse
+### Security / robustness
 
-- **Purge des sidecars WAL/SHM/journal EN CLAIR** lors de la migration DB
-  héritée plain → chiffré (`database.dart._migratePlainToEncrypted`). Le mode
-  `journal_mode = WAL` laissait `notes_tech.db-wal`/`-shm` contenant des pages
-  de notes en clair, survivant à la migration (fuite sur device rooté /
-  extraction physique). Désormais purgés après `sqlcipher_export` + checkpoint,
-  symétriquement au wipe du `.plain.bak`.
-- **Résilience du cache d'embeddings** (`embeddings_dao.listByModel`) : une
-  ligne empoisonnée (blob de taille incohérente) ne condamne plus tout le
-  chargement du cache sémantique — décodage tolérant par ligne.
-- **Gardes `mounted`** ajoutées (`ai_chat` après l'isolate MiniLM, `search`
-  post-frame) : plus de `setState` après `dispose`.
-- **Signalement anti-perte vault** : les notes de coffre dont la dernière
-  modification a été perdue (coffre verrouillé pendant la sauvegarde) sont
-  désormais signalées par un banner à l'ouverture — la pref `vault_lost_drafts`
-  (F11 v1.1.0) était écrite mais jamais relue.
-- **Vidage du presse-papiers en mode panique** : nouveau step
-  `PanicStep.clipboardClear` (tôt dans la séquence, après `voiceCancel`) qui
-  appelle `NoteActions.cancelAndClear()`. Une note copiée
-  (`copyMarkdown`) restait en clair dans le presse-papiers jusqu'à
-  l'auto-clear 60 s ; en panique on n'attend plus ce délai.
+- **Purge of PLAINTEXT WAL/SHM/journal sidecars** during the legacy
+  plain → encrypted DB migration (`database.dart._migratePlainToEncrypted`).
+  The `journal_mode = WAL` mode left `notes_tech.db-wal`/`-shm` containing
+  plaintext note pages, which survived the migration (leak on a rooted
+  device / physical extraction). They are now purged after
+  `sqlcipher_export` + checkpoint, symmetrically with the wipe of
+  `.plain.bak`.
+- **Embeddings cache resilience** (`embeddings_dao.listByModel`): a
+  poisoned row (blob of inconsistent size) no longer dooms the whole
+  semantic cache load — tolerant per-row decoding.
+- **`mounted` guards** added (`ai_chat` after the MiniLM isolate, `search`
+  post-frame): no more `setState` after `dispose`.
+- **Vault data-loss reporting**: vault notes whose last change was lost
+  (vault locked during the save) are now flagged by a banner on opening —
+  the `vault_lost_drafts` pref (F11 v1.1.0) was written but never read
+  back.
+- **Clipboard cleared in panic mode**: new step `PanicStep.clipboardClear`
+  (early in the sequence, after `voiceCancel`) that calls
+  `NoteActions.cancelAndClear()`. A copied note (`copyMarkdown`) stayed in
+  plaintext in the clipboard until the 60 s auto-clear; in panic mode that
+  delay is no longer waited for.
 
 ### Maintenance
 
-- Purge de **99 clés l10n orphelines** (jamais référencées) des ARB FR/EN —
-  parité conservée (380 clés chacune), `flutter analyze` 0 issue confirme
-  qu'aucune n'était utilisée.
+- Purge of **99 orphan l10n keys** (never referenced) from the FR/EN ARB
+  files — parity kept (380 keys each); `flutter analyze` 0 issues confirms
+  that none of them was in use.
 
-## v1.1.0 — Audit expert post-v1.0.9 (2026-05-14)
+## v1.1.0 — Expert audit after v1.0.9 (2026-05-14)
 
-Suite à un audit 3-agents (sécu / perf / UX) + audit cross-files,
-23 corrections livrées (F1-F14, P1-P5, U1-U11). Aucun changement
-de format DB ni de format coffre. `flutter analyze` 0 issue, 68/68
-tests verts (+5 nouveaux `test/audit_v1_1_0_test.dart`).
+Following a 3-agent audit (security / performance / UX) + cross-file
+audit, 23 fixes shipped (F1-F14, P1-P5, U1-U11). No change to the DB
+format or to the vault format. `flutter analyze` 0 issues, 68/68 tests
+passing (+5 new in `test/audit_v1_1_0_test.dart`).
 
-### Sécurité
+### Security
 
-- **F1** — `note_editor._moveToFolder` : confirmation EXPLICITE
-  (dialog destructif `cs.errorContainer` + Cancel autofocus) avant
-  de sortir une note d'un coffre vers un dossier ordinaire. Avant :
-  le contenu était décrypté + persisté en clair sans signal UI,
-  irréversible. Si l'auto-lock du coffre tombait pendant la mutation,
-  l'utilisateur croyait l'écran fermé alors que le flush plaintext
-  passait silencieusement.
-- **F2** — `NotesDao.findByTitleLike` : ajout du filtre SQL
-  `encrypted_content IS NULL`. Avant : `BacklinksService.suggestTitles`
-  (F3 v1.0.9) filtrait côté Dart, mais le DAO sous-jacent exposait
-  toutes les notes locked à tout futur caller, et le `limit` SQL
-  était consommé par les notes vault AVANT le filtre Dart → les
-  suggestions s'amincissaient sur les gros coffres sans raison
-  apparente. Defense-in-depth.
-- **F3** — `IndexingService._indexAll` : skip explicite des notes
-  vault AVANT `_encodeWith(embedder, note)`. Avant : si
-  `knownHashes[n.id]` ne matchait pas pour une note locked
-  (hash stale), MiniLM encodait son contenu en RAM côté worker
-  ONNX, et l'embedding n'était écarté qu'APRÈS l'encoding via
-  `live.encryptedContent != null`. Désormais aucun feed à l'embedder
-  pour les notes locked, quel que soit le hash.
-- **F4** — `NoteActions.copyMarkdown` : MethodChannel natif Kotlin
-  `com.filestech.notes_tech/clipboard.copySensitive` qui pose
-  `ClipDescription.EXTRA_IS_SENSITIVE` (Android 13+) + auto-clear
-  60 s du presse-papier côté Dart (vérifie que la valeur courante
-  est encore celle qu'on a posée avant clear, ne touche pas un
-  autre secret copié entretemps). Avant : `Clipboard.setData` brut
-  exposait le plaintext d'une note vault déchiffrée à TOUT clipboard
-  manager tiers + Knox clipboard history sans expiration.
-- **F5** — `ai_chat_screen._resolveSource` : suppression du
-  `initialDirectory: '/storage/emulated/0/Download'`. Avant : path
-  absolu nécessitant READ_EXTERNAL_STORAGE (sinon SAF picker vide
-  silencieusement) ET ouvrait sur Downloads d'autres apps
-  (Telegram, WhatsApp) ouvrant la voie à un `.task` malveillant
-  non lié au flux SAF maître.
-- **F6** — `VoiceService._isPresentAndPlausible` : TTL du cache de
-  vérification SHA-256 réduit de 30 jours à 24 heures, et refus
-  si `cached.mtimeMs > cached.verifiedAtMs` (file touché après
-  notre dernière vérif réussie). Avant : un attaquant root pouvant
-  écrire un Whisper trojanisé avec `touch -t` matchant (size, mtime)
-  restait validé 30 jours sans rehash. Coût utilisateur : ~3-5 s
-  de hash strict au premier `startRecording` post-24h.
-- **F7** — `PanicService` : nouvelle étape `_wipeExportsCache` qui
-  purge `getApplicationCacheDirectory()/exports/`. Avant : un ZIP
-  d'export en cours de Share survivait à panic car
-  `_purgeTempDirectory` ne couvrait que `getTemporaryDirectory()`.
-- **F8** — `RagService._sanitize` étendu : Llama2 `<<SYS>>`,
-  ChatML `<|im_start|>` / `<|im_end|>`, Alpaca/Vicuna
-  `### Instruction:` / `### Response:`, Mistral `[ASSISTANT]` /
-  `[USER]` brackets neutralisés. Avant : Gemma 3 1B (decoder
-  generaliste pré-entraîné sur ces formats) pouvait basculer en
-  mode chat formel si un attaquant insérait ces marqueurs dans une
-  note contexte RAG. F13 v1.0.3 listait ces patterns comme
-  best-effort, désormais couverts.
-- **F10** — `FolderVaultService._unlockInProgress: Set<String>`
-  guard sur `unlock()` / `unlockWithPin()`. Avant : Dart est
-  mono-thread mais Argon2id `compute()` (600-900 ms sur S24)
-  cède l'event-loop entre `await` — un `Timer(_autoLockAfter)`
-  pouvait alors firer pendant le unlock et wiper la `folder_kek`
-  fraîchement assignée avant qu'elle ne soit consommée par
-  `encryptNote`. `_autoLockSweep` skip désormais les folderIds
-  en cours de unlock.
-- **F11** — `note_editor._flushFinalSave` : si le coffre est
-  verrouillé pendant le flush final (dispose post-auto-lock), on
-  persiste l'`id` dans `prefs.vault_lost_drafts`. Avant : « perte
-  acceptée » silencieuse, l'utilisateur croyait l'auto-save
-  infaillible. Consommable par un futur écran « N modifications
-  perdues sur des notes vault » au prochain boot.
-- **F14** — `AppDatabase._attachSql` : validation regex stricte
-  `^[A-Za-z0-9_./:\\-]+$` du path AVANT l'`ATTACH`. Avant : le
-  path provenait de `getApplicationDocumentsDirectory()`, qui peut
-  être détourné via `LD_PRELOAD` / root setup pointant vers un
-  chemin contenant des méta-SQL (`'; DROP --`). Cas extrême
-  root-only mais c'est la « source unique de vérité » de la DB.
+- **F1** — `note_editor._moveToFolder`: EXPLICIT confirmation
+  (destructive dialog `cs.errorContainer` + Cancel autofocus) before
+  moving a note out of a vault into a regular folder. Before: the content
+  was decrypted + persisted in plaintext with no UI signal, irreversibly.
+  If the vault auto-lock fired during the change, the user believed the
+  screen was closed while the plaintext flush went through silently.
+- **F2** — `NotesDao.findByTitleLike`: SQL filter
+  `encrypted_content IS NULL` added. Before: `BacklinksService.suggestTitles`
+  (F3 v1.0.9) filtered on the Dart side, but the underlying DAO exposed
+  all locked notes to any future caller, and the SQL `limit` was consumed
+  by vault notes BEFORE the Dart filter → suggestions thinned out on large
+  vaults for no apparent reason. Defense in depth.
+- **F3** — `IndexingService._indexAll`: explicit skip of vault notes
+  BEFORE `_encodeWith(embedder, note)`. Before: if `knownHashes[n.id]` did
+  not match for a locked note (stale hash), MiniLM encoded its content in
+  RAM on the ONNX worker side, and the embedding was only discarded AFTER
+  encoding, via `live.encryptedContent != null`. Now nothing is fed to the
+  embedder for locked notes, whatever the hash.
+- **F4** — `NoteActions.copyMarkdown`: native Kotlin MethodChannel
+  `com.filestech.notes_tech/clipboard.copySensitive` that sets
+  `ClipDescription.EXTRA_IS_SENSITIVE` (Android 13+) + 60 s clipboard
+  auto-clear on the Dart side (checks that the current value is still the
+  one we set before clearing; does not touch another secret copied in the
+  meantime). Before: raw `Clipboard.setData` exposed the plaintext of a
+  decrypted vault note to ANY third-party clipboard manager + Knox
+  clipboard history, with no expiry.
+- **F5** — `ai_chat_screen._resolveSource`: removal of
+  `initialDirectory: '/storage/emulated/0/Download'`. Before: an absolute
+  path requiring READ_EXTERNAL_STORAGE (otherwise the SAF picker was
+  silently empty) AND opening on other apps' Downloads (Telegram,
+  WhatsApp), paving the way for a malicious `.task` unrelated to the main
+  SAF flow.
+- **F6** — `VoiceService._isPresentAndPlausible`: TTL of the SHA-256
+  verification cache reduced from 30 days to 24 hours, and refusal if
+  `cached.mtimeMs > cached.verifiedAtMs` (file touched after our last
+  successful check). Before: a root attacker able to write a trojanized
+  Whisper model with a matching `touch -t` (size, mtime) stayed validated
+  for 30 days without rehashing. User cost: ~3-5 s of strict hashing on
+  the first `startRecording` after 24 h.
+- **F7** — `PanicService`: new step `_wipeExportsCache` that purges
+  `getApplicationCacheDirectory()/exports/`. Before: an export ZIP being
+  shared survived panic because `_purgeTempDirectory` only covered
+  `getTemporaryDirectory()`.
+- **F8** — `RagService._sanitize` extended: Llama2 `<<SYS>>`, ChatML
+  `<|im_start|>` / `<|im_end|>`, Alpaca/Vicuna `### Instruction:` /
+  `### Response:`, Mistral `[ASSISTANT]` / `[USER]` brackets neutralized.
+  Before: Gemma 3 1B (general-purpose decoder pre-trained on these
+  formats) could switch to formal chat mode if an attacker inserted these
+  markers into a RAG context note. F13 v1.0.3 listed these patterns as
+  best-effort; they are now covered.
+- **F10** — `FolderVaultService._unlockInProgress: Set<String>` guard on
+  `unlock()` / `unlockWithPin()`. Before: Dart is single-threaded, but
+  Argon2id `compute()` (600-900 ms on S24) yields the event loop between
+  `await`s — a `Timer(_autoLockAfter)` could then fire during the unlock
+  and wipe the freshly assigned `folder_kek` before it was consumed by
+  `encryptNote`. `_autoLockSweep` now skips folderIds that are being
+  unlocked.
+- **F11** — `note_editor._flushFinalSave`: if the vault is locked during
+  the final flush (dispose after auto-lock), the `id` is persisted in
+  `prefs.vault_lost_drafts`. Before: silent "accepted loss"; the user
+  believed auto-save was infallible. Can be consumed by a future
+  "N changes lost on vault notes" screen at the next boot.
+- **F14** — `AppDatabase._attachSql`: strict regex validation
+  `^[A-Za-z0-9_./:\\-]+$` of the path BEFORE the `ATTACH`. Before: the
+  path came from `getApplicationDocumentsDirectory()`, which can be
+  hijacked via `LD_PRELOAD` / a root setup pointing to a path containing
+  SQL metacharacters (`'; DROP --`). An extreme, root-only case, but it is
+  the database's "single source of truth".
 
 ### Performance
 
-- **P1** — `HomeScreen._reloadDebouncer` (250 ms) coalesce les
-  events `notes.changes` pendant l'auto-save continu (1 event/500
-  ms par frappe). Avant : un SELECT complet `listAllAlive` exécuté
-  à CHAQUE event, soit ~50-200 ms SQLCipher sur 500 notes ×
-  fréquence de frappe.
-- **P2** — `isUniversalApk = false` dans `build.gradle.kts`.
-  Avant : générait un 4ᵉ APK universel ~294 Mo embarquant les libs
-  natives des 3 ABIs (sqlcipher + ONNX + Whisper + MediaPipe).
-  Économie ~70 Mo upload GitHub Releases + bandwidth user.
-- **P3** — `BacklinksService._buildTitleIndex` : cache TTL 5 s
-  invalidé explicitement sur changement de titre. Avant :
-  `listAllAlive()` re-exécuté à CHAQUE save d'une note (rafale
-  d'auto-saves = 1 SELECT/500ms même sans mutation de titre).
-- **P5** — `MentionsLegalesScreen._MarkdownAssetView._load` :
-  cache `static final Map<String, String>` process-wide des
-  assets `.md`. Avant : `rootBundle.loadString` re-exécuté à
-  CHAQUE switch d'onglet TabBarView ou de locale.
+- **P1** — `HomeScreen._reloadDebouncer` (250 ms) coalesces
+  `notes.changes` events during continuous auto-save (1 event/500 ms per
+  keystroke). Before: a full `listAllAlive` SELECT ran on EVERY event,
+  i.e. ~50-200 ms of SQLCipher on 500 notes × typing frequency.
+- **P2** — `isUniversalApk = false` in `build.gradle.kts`. Before:
+  generated a 4th universal APK of ~294 MB bundling the native libs of all
+  3 ABIs (sqlcipher + ONNX + Whisper + MediaPipe). Saves ~70 MB of GitHub
+  Releases upload + user bandwidth.
+- **P3** — `BacklinksService._buildTitleIndex`: 5 s TTL cache, explicitly
+  invalidated on title change. Before: `listAllAlive()` re-run on EVERY
+  note save (a burst of auto-saves = 1 SELECT/500 ms even without a title
+  change).
+- **P5** — `MentionsLegalesScreen._MarkdownAssetView._load`: process-wide
+  `static final Map<String, String>` cache of the `.md` assets. Before:
+  `rootBundle.loadString` re-run on EVERY TabBarView tab switch or locale
+  change.
 
 ### UX / a11y
 
-- **U1** — `HapticFeedback.selectionClick()` sur copy Markdown
-  + `HapticFeedback.heavyImpact()` sur déclenchement panique.
-  Avant : 0 hit `HapticFeedback` dans tout `lib/` — aucun
-  feedback tactile pour les actions critiques (alignement avec
-  Pass Tech v2.4.4 U9 / AI Tech U4).
-- **U2** — `SnackbarMessengerExt.showFloatingSnack` accepte
-  désormais `foregroundColor`. 2 sites `folders_drawer` mis à
-  jour : `cs.errorContainer` + `cs.onErrorContainer` (contraste
-  WCAG AA ~13:1 en light mode vs ~3.5:1 mesuré avec `cs.error`
-  brut sur `textPri` clair).
-- **U3** — TextField titre + contenu note : `textCapitalization:
-  TextCapitalization.sentences`. Avant : saisie tactile à doigt
-  unique sans capitalisation auto → titres avec minuscules
-  initiales.
-- **U11** — TextField composer AI : `textCapitalization:
+- **U1** — `HapticFeedback.selectionClick()` on Markdown copy +
+  `HapticFeedback.heavyImpact()` on panic trigger. Before: 0
+  `HapticFeedback` hits in all of `lib/` — no haptic feedback for critical
+  actions (aligned with Pass Tech v2.4.4 U9 / AI Tech U4).
+- **U2** — `SnackbarMessengerExt.showFloatingSnack` now accepts
+  `foregroundColor`. 2 `folders_drawer` call sites updated:
+  `cs.errorContainer` + `cs.onErrorContainer` (WCAG AA contrast ~13:1 in
+  light mode vs ~3.5:1 measured with raw `cs.error` on light `textPri`).
+- **U3** — Note title + content TextField: `textCapitalization:
+  TextCapitalization.sentences`. Before: single-finger touch typing
+  without auto-capitalization → titles starting with a lowercase letter.
+- **U11** — AI composer TextField: `textCapitalization:
   TextCapitalization.sentences`.
 
 ---
 
-## v1.0.9 — Audit expert post-v1.0.8 (2026-05-13)
+## v1.0.9 — Expert audit after v1.0.8 (2026-05-13)
 
-Suite à un audit 3-agents (sécu / perf / UX), 11 corrections livrées.
-Aucun changement de format DB (toujours v6) ni de format coffre.
-`flutter analyze` 0 issue, tests verts.
+Following a 3-agent audit (security / performance / UX), 11 fixes
+shipped. No change to the DB format (still v6) or to the vault format.
+`flutter analyze` 0 issues, tests passing.
 
-### Sécurité
+### Security
 
-- **F1** — `FolderVaultService.unlock()` (mode passphrase) bénéficie
-  désormais du même lockout exponentiel monotonique que `unlockWithPin()`
-  (M-05 v1.0.7) : compteur RAM `_passFailCount` + backoff
-  `1/2/4/8/16/30 s` après 5 essais, levant `VaultLockoutInProgressException`.
-  Avant : sur S24+ flagship Argon2id m=64Mo t=3 prenait ~600-900 ms →
-  un attaquant ADB + dictionnaire 10k passphrases pouvait tester ~4
-  essais/s sans friction. API publique `passphraseLockoutRemaining()`
-  exposée pour countdown UI symétrique au PIN.
-- **F3** — `BacklinksService.suggestTitles()` filtre maintenant
-  `n.isLocked`. Avant : l'auto-complétion `[[…]]` dans une note alive
-  proposait les titres des notes verrouillées → fuite par défaut depuis
-  la création des coffres. Aligne sur M-01 v1.0.7 (`_indexByTitle`,
-  `_handleSingleChange`, `_reindexAll` qui skippaient déjà locked).
-- **F7** — `RagService.composePrompt` applique désormais `_sanitize`
-  au `userPrompt` (les titres et bodies des sources étaient déjà
-  sanitizés). Couvre une injection arrivant via dictée vocale ou
-  auto-paste (`<|system|>`, zero-width, bidi).
-- **F8** — `note_editor_screen` pose `FLAG_SECURE` (`_ensureSecureForced`)
-  AVANT `vault.decryptNote`. Avant : fenêtre ~5-20 ms (channel
-  round-trip) pendant laquelle un screenshot manuel ou MediaProjection
-  pouvait capter le plaintext entre `decryptNote` et `_ensureSecureForced`.
+- **F1** — `FolderVaultService.unlock()` (passphrase mode) now gets the
+  same monotonic exponential lockout as `unlockWithPin()` (M-05 v1.0.7):
+  RAM counter `_passFailCount` + backoff `1/2/4/8/16/30 s` after 5
+  attempts, throwing `VaultLockoutInProgressException`. Before: on an S24+
+  flagship, Argon2id m=64 MB t=3 took ~600-900 ms → an ADB attacker with a
+  10k-passphrase dictionary could test ~4 attempts/s without friction.
+  Public API `passphraseLockoutRemaining()` exposed for a UI countdown
+  symmetric with the PIN.
+- **F3** — `BacklinksService.suggestTitles()` now filters `n.isLocked`.
+  Before: `[[…]]` autocompletion in an alive note offered the titles of
+  locked notes → leak by default since vaults were introduced. Aligned
+  with M-01 v1.0.7 (`_indexByTitle`, `_handleSingleChange`, `_reindexAll`,
+  which already skipped locked notes).
+- **F7** — `RagService.composePrompt` now applies `_sanitize` to the
+  `userPrompt` (source titles and bodies were already sanitized). Covers
+  an injection arriving via voice dictation or auto-paste (`<|system|>`,
+  zero-width, bidi).
+- **F8** — `note_editor_screen` sets `FLAG_SECURE`
+  (`_ensureSecureForced`) BEFORE `vault.decryptNote`. Before: a ~5-20 ms
+  window (channel round-trip) during which a manual screenshot or
+  MediaProjection could capture the plaintext between `decryptNote` and
+  `_ensureSecureForced`.
 
 ### Performance
 
-- **P1.2** — `note_editor_screen._changesSub` filtre maintenant les
-  événements (`event.id != widget.noteId && !event.isBulk` → return).
-  Avant : `get(noteId)` re-déclenché sur CHAQUE event (y compris ses
-  propres saves + tous les autres éditeurs ouverts) → 1 SELECT
-  SQLCipher/s minimum en auto-save continu (debounce 500 ms).
-- P1.1 (backlinks title cache) et P1.4 (notes_repository.save without
-  systematic `findById`) reportés à v1.1 (refactors plus profonds).
+- **P1.2** — `note_editor_screen._changesSub` now filters events
+  (`event.id != widget.noteId && !event.isBulk` → return). Before:
+  `get(noteId)` re-triggered on EVERY event (including its own saves + all
+  other open editors) → at least 1 SQLCipher SELECT/s during continuous
+  auto-save (500 ms debounce).
+- P1.1 (backlinks title cache) and P1.4 (notes_repository.save without
+  systematic `findById`) postponed to v1.1 (deeper refactors).
 
 ### UX / a11y
 
-- **U1+U2+U11** — `PassphraseTextField` (centralisé) ajoute
-  `autofillHints: const []` (désactive Samsung Pass / Google Autofill),
-  `keyboardType: TextInputType.visiblePassword` (neutralise
-  SwiftKey/Gboard auto-cap), et `enableInteractiveSelection: !_hidden`
-  (bloque sélection/copie quand masqué — anti clipboard manager).
-- **U3** — `confirmDialog` (helper centralisé `app_dialogs.dart`) :
-  bouton Annuler `autofocus: true` quand le dialog est destructif +
-  bouton confirme via `cs.errorContainer/onErrorContainer` au lieu
-  de `cs.error` brut.
-- **U4** — `about_screen` icône `Image.asset` avec `cacheWidth: 112`
-  / `cacheHeight: 112` (avant : PNG 1024×1024 décodé sans borne pour
-  afficher 56dp = ~12 Mo RAM permanent).
-- **U9** — Empty state home : `FilledButton.tonalIcon` "Nouvelle note"
-  inline en plus du FAB (plus découvrable au premier lancement).
+- **U1+U2+U11** — `PassphraseTextField` (centralized) adds
+  `autofillHints: const []` (disables Samsung Pass / Google Autofill),
+  `keyboardType: TextInputType.visiblePassword` (neutralizes SwiftKey/Gboard
+  auto-capitalization), and `enableInteractiveSelection: !_hidden` (blocks
+  selection/copy while masked — against clipboard managers).
+- **U3** — `confirmDialog` (centralized helper `app_dialogs.dart`): Cancel
+  button `autofocus: true` when the dialog is destructive + confirm button
+  via `cs.errorContainer/onErrorContainer` instead of raw `cs.error`.
+- **U4** — `about_screen` icon `Image.asset` with `cacheWidth: 112` /
+  `cacheHeight: 112` (before: 1024×1024 PNG decoded without bounds to
+  display 56dp = ~12 MB of permanent RAM).
+- **U9** — Home empty state: inline "New note" `FilledButton.tonalIcon` in
+  addition to the FAB (more discoverable on first launch).
 
-### Info-only nettoyés (analyze 0 issue)
+### Info-level lints cleaned up (analyze 0 issues)
 
-9 occurrences `SemanticsService.announce` annotées
-`// ignore: deprecated_member_use` (migration Flutter 3.35
-`sendAnnouncement` prévue v1.1), 2 `directives_ordering`
-(home_screen / settings_screen imports triés), 3 `prefer_const`
-dans `panic_service_test.dart`.
+9 `SemanticsService.announce` occurrences annotated
+`// ignore: deprecated_member_use` (migration to Flutter 3.35
+`sendAnnouncement` planned for v1.1), 2 `directives_ordering`
+(home_screen / settings_screen imports sorted), 3 `prefer_const` in
+`panic_service_test.dart`.
 
 ### Tests
 
-Tests existants tous verts (64+ assertions). Le test e2e flow
-`unlock → wrong passphrase × 5 → lockout` est volontairement déféré
-à l'instrumentation (Keystore mock non-trivial en pure Dart, cf.
+All existing tests passing (64+ assertions). The e2e flow test
+`unlock → wrong passphrase × 5 → lockout` is deliberately deferred to
+instrumentation (a Keystore mock is non-trivial in pure Dart, see
 `folder_vault_service_test.dart`).
 
 ---
 
-**Version précédente : v1.0.4 — Mai 2026.**
+**Previous version: v1.0.4 — May 2026.**
 
-Notes Tech v1.0 introduit plusieurs durcissements sécurité :
-- `prefs.clear()` panique avec **whitelist** (`db_encrypted_v1`,
-  `secure_window_enabled` préservés) conformément à `PRIVACY.md`.
-- `flutter_markdown` cantonné aux pages légales locales (assets), aucun
-  rendu de markdown distant.
-- `ProGuard` rules complètes : `files_tech_voice`, `flutter_markdown`,
-  sqflite. Les règles MediaPipe / ONNX / flutter_gemma sont devenues
-  sans objet avec le retrait de l'IA embarquée (v2.0.0).
+Notes Tech v1.0 introduces several security hardenings:
+- Panic `prefs.clear()` with a **whitelist** (`db_encrypted_v1`,
+  `secure_window_enabled` preserved), as stated in `assets/legal/PRIVACY.en.md`.
+- `flutter_markdown` restricted to the local legal pages (assets), no
+  rendering of remote Markdown. `flutter_markdown`, discontinued
+  upstream, is replaced in v2.0.9 by `flutter_markdown_plus`, which also
+  renders the note preview; no image is loaded there, and only `http`,
+  `https` and `mailto` links are handed to the system handler.
+- Complete `ProGuard` rules: `files_tech_voice`, `flutter_markdown`,
+  sqflite. The MediaPipe / ONNX / flutter_gemma rules became moot with the
+  removal of on-device AI (v2.0.0).
 
 ## Reporting a vulnerability
 
 If you believe you've found a security issue in Notes Tech, please
-**do not open a public GitHub issue**. Instead, email :
+**do not open a public GitHub issue**. Instead, email:
 
 📧 **contact@files-tech.com**
 
-Subject : `[SECURITY] Notes Tech — <short summary>`
+Subject: `[SECURITY] Notes Tech — <short summary>`
 
-Include :
+Include:
 - A description of the issue and its potential impact.
 - Steps to reproduce (or a proof-of-concept).
-- Affected version (Réglages → À propos → Notes Tech vX.Y.Z).
+- Affected version (Settings → About Notes Tech → Notes Tech vX.Y.Z).
 - Your contact for follow-up.
 
 You'll get an acknowledgement within **72 hours**. A coordinated
@@ -330,7 +325,7 @@ disclosure timeline will be agreed upon if the issue is confirmed.
 
 ### In scope
 - Notes Tech app code (`lib/`, `android/`)
-- Module sibling `files_tech_voice` if relevant
+- Sibling module `files_tech_voice` if relevant
 - Crypto implementations (SQLCipher integration, KEK derivation /
   storage, panic mode irreversibility)
 - Permission handling (`RECORD_AUDIO`)
@@ -348,22 +343,22 @@ disclosure timeline will be agreed upon if the issue is confirmed.
 
 Notes Tech is designed for individuals and professionals who want
 **local-only** notes with strong cryptographic guarantees. Three
-adversary classes are considered :
+adversary classes are considered:
 
 ### 1. Loss / theft (lost or stolen unlocked device)
-- **Confidentiality at rest** : SQLCipher (AES-256) for the database,
+- **Confidentiality at rest**: SQLCipher (AES-256) for the database,
   AES-256-GCM for per-folder vault notes. KEK sealed by Android
   Keystore (hardware-backed on modern devices).
 - Per-folder vault adds a second factor (passphrase or PIN) on top of
   the device lockscreen.
 
 ### 2. Coercion (search, "give me your phone", border check)
-- **Panic mode** : a confirmed delete-everything action that runs a
+- **Panic mode**: a confirmed delete-everything action that runs a
   deterministic ordered sequence (see below). Designed to be fast and
   irrecoverable under coercion.
-- **PIN auto-wipe** : 5 failed PIN attempts on a vault wipes that
+- **PIN auto-wipe**: 5 failed PIN attempts on a vault wipes that
   vault's keys atomically (with crash-resume via prefs flag).
-- **`setUserAuthenticationRequired(false)`** on PIN Keystore keys : the
+- **`setUserAuthenticationRequired(false)`** on PIN Keystore keys: the
   PIN is the sole factor — adding biometric would expose the user to
   forced fingerprint unlock (a biometric-derived key survives reboot).
 
@@ -379,7 +374,7 @@ adversary classes are considered :
   Android Backup exfiltration.
 
 ### Crypto building blocks
-- **Argon2id RFC 9106** for passphrase derivation : `m=64 MiB, t=3,
+- **Argon2id RFC 9106** for passphrase derivation: `m=64 MiB, t=3,
   p=1, 32-byte output` (vault default). PIN mode uses lighter
   parameters `m=32 MiB, t=2` because the device-bound Keystore wrap is
   the primary defense and on-device rate-limiting prevents brute force.
@@ -389,22 +384,35 @@ adversary classes are considered :
   folders).
 - **HMAC verifier in constant time** to detect bad passphrase / PIN
   without trial-decrypting every note.
-- SQLCipher 4 (AES-256-CBC + HMAC-SHA512), key sealed via
-  `flutter_secure_storage` → `EncryptedSharedPreferences` → Keystore.
+- SQLCipher 4 (AES-256-CBC + HMAC-SHA512), key stored via
+  `flutter_secure_storage` 10.x: AES-GCM storage cipher, storage key
+  wrapped with RSA-OAEP by an Android Keystore key.
 
 ### Panic mode — ordered multi-step
-The panic sequence is deterministic and best-effort (a step that
-throws does not abort the next ones) :
+The panic sequence is deterministic and best-effort (a step that fails
+does not abort the next ones; the failure is recorded in the panic report
+and the final screen reports an incomplete wipe):
 
-1. `FLAG_SECURE` forced ON, microphone capture stopped
-2. **`foldersLockAll`** — lock every open vault, wipe folderKek from RAM
-3. **`pinKeysWipe`** — `deleteKeysWithPrefix("vault_pin_")` (Kotlin)
-4. **`kekDestroy`** — destroy the master Keystore key (DB instantly
+1. **`forceSecureWindow`** — `FLAG_SECURE` forced ON
+2. **`voiceCancel`** — microphone capture stopped (the temporary WAV is
+   deleted)
+3. **`clipboardClear`** — clipboard cleared
+4. **`foldersLockAll`** — lock every open vault, wipe folderKek from RAM
+5. **`pinKeysWipe`** — `deleteKeysWithPrefix("vault_pin_")` (Kotlin)
+6. **`kekDestroy`** — destroy the master Keystore key (DB instantly
    unreadable)
-5. Background workers paused (backlinks)
-6. **`dbWipe`** — overwrite SQLCipher header (16 MiB cap) + delete
-   `.db`, `.db-wal`, `.db-shm`
-7. Whisper model file deleted, all prefs cleared, tmp purged
+7. **`pauseBackgroundWork`** — background workers paused (backlinks)
+8. **`dbWipe`** — overwrite SQLCipher header (16 MiB cap) + delete
+   `.db`, `.db-journal`, `.db-wal`, `.db-shm`
+9. **`voiceWipe`** — Whisper model, verification cache and orphan WAV
+   files deleted
+10. **`legacyModelsWipe`** — purge `<appSupport>/models/` (model files
+    left by versions ≤ 1.1.6, which shipped on-device AI)
+11. **`prefsClear`** — preferences cleared, except `db_encrypted_v1` and
+    `secure_window_enabled`
+12. **`exportsWipe`** — `exports/` folders purged (temporary and cache
+    directories)
+13. **`tmpPurge`** — temporary directory purged
 
 ### Accepted limits
 - Forensic recovery from a physical memory dump of an unlocked, rooted
@@ -417,23 +425,23 @@ throws does not abort the next ones) :
 
 ## Responsible disclosure
 
-We follow a 90-day disclosure window by default :
-1. **Day 0** : your report received.
-2. **Day 0-7** : initial triage, severity assigned.
-3. **Day 7-60** : fix developed, tested, audited.
-4. **Day 60-90** : release with patched version, public CVE if
+We follow a 90-day disclosure window by default:
+1. **Day 0**: your report received.
+2. **Day 0-7**: initial triage, severity assigned.
+3. **Day 7-60**: fix developed, tested, audited.
+4. **Day 60-90**: release with patched version, public CVE if
    applicable.
-5. **Day 90+** : you're free to publish your write-up.
+5. **Day 90+**: you're free to publish your write-up.
 
 Critical issues (RCE, key extraction, full data exfiltration) may be
 patched faster than 90 days.
 
 ## Security audits run on each release
 
-Each release is checked via :
-- `flutter analyze` (lints stricts)
+Each release is checked via:
+- `flutter analyze` (strict lints)
 - `flutter test`
-- `bash j:\applications\health_check.sh notes_tech` :
+- `bash j:\applications\health_check.sh notes_tech`:
   - OSV-Scanner (CVE in dependencies)
   - gitleaks (secrets in git history)
   - Manifest hardening (no `debuggable`, no `cleartextTraffic`,
@@ -447,30 +455,29 @@ Each release is checked via :
 
 ---
 
-**Code source** : https://github.com/gitubpatrice/notes_tech
-**Licence** : Apache License 2.0
+**Source code**: https://github.com/gitubpatrice/notes_tech
+**License**: Apache License 2.0
 
-## Décisions de design
+## Design decisions
 
-- **Wipe DB header plafonné à 16 Mo** : la `kekDestroy` précédente
-  garantit déjà le secret cryptographique (la base entière devient
-  illisible sans la clé Keystore détruite). Écraser le fichier complet
-  n'apporte rien sur eMMC / UFS moderne avec wear-leveling : les
-  blocs physiques ne correspondent plus aux blocs logiques. 16 Mo
-  suffisent pour neutraliser le header SQLCipher et un préfixe
-  raisonnable. Bénéfice marginal vs latence du panic mode → 16 Mo.
-- **`setUserAuthenticationRequired(false)` sur les clés Keystore PIN**
-  (ajouté en v0.9.4) : le PIN applicatif est l'unique facteur
-  d'authentification du coffre. Le doubler par une exigence biométrique
-  exposerait l'utilisateur à la contrainte physique (un attaquant peut
-  forcer un doigt sur le capteur, et une clé dérivée biométrique
-  survit au reboot). Le PIN seul, combiné au scellage Keystore
-  device-bound et à l'auto-wipe à 5 essais, offre un meilleur compromis
-  pour le modèle de menace « contrainte ».
-- **AAD = `folder_id` / `note_id`** : empêche un attaquant local
-  d'extraire un blob chiffré et de le rejouer dans le contexte d'un
-  autre dossier ou d'une autre note (aucune confusion possible entre
-  contextes cryptographiques distincts).
-- **Reindex backlinks différé 2 s** (v0.9.3) : évite le coût quadratique
-  sur saisie active, tout en garantissant la cohérence de l'index avant
-  toute fermeture / lock du coffre.
+- **DB header wipe capped at 16 MiB**: the preceding `kekDestroy`
+  already guarantees cryptographic secrecy (the whole database becomes
+  unreadable without the destroyed Keystore key). Overwriting the full
+  file brings nothing on modern eMMC / UFS with wear-leveling: physical
+  blocks no longer map to logical blocks. 16 MiB is enough to neutralize
+  the SQLCipher header and a reasonable prefix. Marginal benefit vs panic
+  mode latency → 16 MiB.
+- **`setUserAuthenticationRequired(false)` on PIN Keystore keys**
+  (added in v0.9.4): the in-app PIN is the vault's only authentication
+  factor. Doubling it with a biometric requirement would expose the user
+  to physical coercion (an attacker can force a finger onto the sensor,
+  and a biometric-derived key survives reboot). The PIN alone, combined
+  with device-bound Keystore sealing and the 5-attempt auto-wipe, offers a
+  better trade-off for the "coercion" threat model.
+- **AAD = `folder_id` / `note_id`**: prevents a local attacker from
+  extracting an encrypted blob and replaying it in the context of another
+  folder or another note (no possible confusion between distinct
+  cryptographic contexts).
+- **Backlinks reindex deferred by 2 s** (v0.9.3): avoids quadratic cost
+  during active typing, while guaranteeing index consistency before any
+  close / lock of the vault.

@@ -139,11 +139,15 @@ class NoteExportService {
     String? inboxFallbackName,
     String? vaultMention,
   }) {
+    // A default inbox name is not the user's choice: every install before
+    // 2.0.9 seeded it in French, so it gives way to the fallback.
     final folderLabel =
-        folder?.name ??
-        (note.folderId == AppConstants.inboxFolderId
-            ? (inboxFallbackName ?? _kInboxFolderDirName)
-            : note.folderId);
+        folder != null &&
+            !AppConstants.isDefaultInboxName(folder.id, folder.name)
+        ? folder.name
+        : (note.folderId == AppConstants.inboxFolderId
+              ? (inboxFallbackName ?? _kInboxFolderDirName)
+              : note.folderId);
 
     final buf = StringBuffer()
       ..writeln('---')
@@ -423,11 +427,15 @@ class NoteExportService {
     // Nom de dossier ZIP non localisé : « inbox » est technique et
     // déterministe, ce qui évite que deux exports (FR / EN) produisent
     // des arborescences différentes. La couche UI traduit à l'affichage.
+    // A default inbox name counts as no name: the inbox gets its technical
+    // directory name, whatever language seeded it.
     final raw =
-        folder?.name ??
-        (folderId == AppConstants.inboxFolderId
-            ? _kInboxFolderDirName
-            : folderId);
+        folder != null &&
+            !AppConstants.isDefaultInboxName(folder.id, folder.name)
+        ? folder.name
+        : (folderId == AppConstants.inboxFolderId
+              ? _kInboxFolderDirName
+              : folderId);
     var clean = raw.replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1f\x7f]'), '');
     // Mêmes filtres que `safeFileName` : bidi/RTL + path traversal `..`.
     // Sans le rejet de `..`, un dossier malicieusement nommé `..`
@@ -438,7 +446,7 @@ class NoteExportService {
     // `trimRight` sur les points et espaces : couvre `.` et `..`, mais aussi
     // `...` et `. `, que Windows refuse tout autant comme nom de dossier.
     if (_stripTrailingDotsAndSpaces(clean).isEmpty || _isWindowsReserved(clean)) {
-      clean = 'sans-dossier';
+      clean = 'untitled-folder';
     }
     return clean;
   }
@@ -497,17 +505,17 @@ class NoteExportService {
 
   String _buildReadme(int noteCount, DateTime exportedAt) {
     final iso = exportedAt.toIso8601String();
-    return '# Export Notes Tech\n'
+    return '# Notes Tech export\n'
         '\n'
-        '- Exporté le : $iso\n'
-        '- Nombre de notes : $noteCount\n'
+        '- Exported: $iso\n'
+        '- Notes: $noteCount\n'
         '\n'
-        'Format : un fichier Markdown par note, avec frontmatter YAML\n'
+        'Format: one Markdown file per note, with YAML frontmatter\n'
         '(`title`, `folder`, `tags`, `created`, `updated`, `pinned`,\n'
-        '`favorite`). Compatible avec Obsidian, Logseq, Bear, Foam.\n'
+        '`favorite`). Works with Obsidian, Logseq, Bear, Foam.\n'
         '\n'
-        'L\'arborescence reflète vos dossiers à la date de l\'export.\n'
-        'Les notes en corbeille ne sont PAS incluses.\n'
+        'The folder tree mirrors your folders at export time.\n'
+        'Notes in the trash are NOT included.\n'
         '\n'
         'Notes Tech — https://www.files-tech.com\n';
   }

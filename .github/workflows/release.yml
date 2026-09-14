@@ -155,25 +155,25 @@ jobs:
           name: ${{ github.ref_name }}
           generate_release_notes: true
           body: |
-            ## Quel APK télécharger ?
+            ## Which APK should I download?
 
-            - **`arm64-v8a`** : la quasi-totalité des téléphones, dès 2016.
-              **En cas de doute, c'est celui-là.**
-            - **`armeabi-v7a`** : appareils 32 bits anciens, si l'arm64 est refusé.
-            - **`x86_64`** : émulateurs.
+            - **`arm64-v8a`**: almost every phone since 2016.
+              **If in doubt, pick this one.**
+            - **`armeabi-v7a`**: older 32-bit devices, if arm64 is refused.
+            - **`x86_64`**: emulators.
 
-            ## Vérification d'intégrité (SHA-256)
+            ## Integrity check (SHA-256)
 
             ${{ steps.sha.outputs.SHA_BLOCK }}
 
-            Vérifiez avec :
+            Verify with:
             ```
-            sha256sum <fichier>.apk
+            sha256sum <file>.apk
             ```
 
             ---
 
-            🤖 Build automatique via GitHub Actions (commit `${{ github.sha }}`)
+            🤖 Automated build via GitHub Actions (commit `${{ github.sha }}`)
           files: |
             notes-tech-arm64-v8a-${{ steps.version.outputs.VERSION }}.apk
             notes-tech-armeabi-v7a-${{ steps.version.outputs.VERSION }}.apk
