@@ -1,10 +1,13 @@
 package com.filestech.notes_tech.security.vault
 
+import android.app.KeyguardManager
+import android.content.Context
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.security.KeyStore
 import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
@@ -38,7 +41,7 @@ import javax.inject.Singleton
  * du système — cf. `docs/06-ISOLATION-PENDANT-LE-CHANTIER.md`.
  */
 @Singleton
-class AndroidVaultKeystore @Inject constructor() : VaultKeystore {
+class AndroidVaultKeystore @Inject constructor(@ApplicationContext private val context: Context) : VaultKeystore {
 
     /**
      * Chargé paresseusement, et **à chaque échec de nouveau**.
@@ -227,10 +230,14 @@ class AndroidVaultKeystore @Inject constructor() : VaultKeystore {
                 generator.init(specFor(alias, strongBox = false))
                 generator.generateKey()
             } catch (e: Exception) {
-                throw KeystoreUnavailableException(e)
+                throw classerLEchecDeGeneration(e, Build.VERSION.SDK_INT, appareilSecurise())
             }
         }
     }
+
+    /** `false` when the phone has no PIN, pattern or password; `null` when the system would not say. */
+    private fun appareilSecurise(): Boolean? =
+        runCatching { context.getSystemService(KeyguardManager::class.java)?.isDeviceSecure }.getOrNull()
 
     private fun specFor(alias: String, strongBox: Boolean): KeyGenParameterSpec {
         val builder = KeyGenParameterSpec.Builder(
@@ -310,3 +317,25 @@ class AndroidVaultKeystore @Inject constructor() : VaultKeystore {
         )
     }
 }
+
+/**
+ * What a failed PIN vault key generation means — the port's reading of notes_tech 2.0.9's
+ * `DEVICE_NOT_SECURE` (`KeystoreBridge.kt:256-270`, `keystore_bridge.dart:166-169`).
+ *
+ * On API 28+ the key requires an unlocked device, so a phone WITHOUT a screen lock cannot get one,
+ * and no retry will change that: the user has to set a screen lock or choose a passphrase vault.
+ * Asked of the system ([appareilSecurise]), never guessed from the exception, whose type and text
+ * vary between vendors.
+ *
+ * ⚠️ Everything else stays "unavailable, retry": an unknown security state (`null`) included —
+ * telling someone to set a screen lock they already have would be the worse error. Below API 28 the
+ * requirement does not exist, so a missing lock cannot be the cause.
+ *
+ * Pure, so the four cases of `keystore_error_mapping_test.dart` are replayed on the JVM.
+ */
+internal fun classerLEchecDeGeneration(cause: Exception, sdkInt: Int, appareilSecurise: Boolean?): VaultException =
+    if (sdkInt >= Build.VERSION_CODES.P && appareilSecurise == false) {
+        KeystoreDeviceNotSecureException(cause)
+    } else {
+        KeystoreUnavailableException(cause)
+    }

@@ -79,6 +79,21 @@ class KeystorePermanentlyInvalidatedException(cause: Throwable? = null) :
 class KeystoreSoftwareOnlyException : VaultException("cle keystore non retenue par du materiel securise")
 
 /**
+ * A PIN vault key cannot be created because the phone has NO screen lock.
+ *
+ * The key requires an unlocked device (`setUnlockedDeviceRequired`, API 28+), and Android refuses to
+ * create such a key when there is no PIN, pattern or password to unlock with. Before 2026-09-24 the
+ * failure surfaced as [KeystoreUnavailableException], whose own documentation says "retry later" —
+ * wrong advice here: retrying changes nothing until a screen lock exists. notes_tech 2.0.9 names the
+ * case (`DEVICE_NOT_SECURE`); so does the port now.
+ *
+ * ⚠️ Raised on KEY GENERATION only. Everywhere else a Keystore failure keeps meaning "could not
+ * look, retry" — which is also why this is not a subclass of [KeystoreUnavailableException].
+ */
+class KeystoreDeviceNotSecureException(cause: Throwable? = null) :
+    VaultException("aucun verrouillage d'ecran : cle de coffre PIN impossible a creer", cause)
+
+/**
  * Aucune session n'est ouverte pour ce coffre : sa clé n'existe nulle part en mémoire.
  *
  * ⚠️ Le portage compte **deux** exceptions pour cette condition, et c'est délibéré.

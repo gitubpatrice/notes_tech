@@ -1,9 +1,11 @@
 package com.filestech.notes_tech.ui.settings
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.export.ExportResult
 import com.filestech.notes_tech.data.export.NoteExporter
+import com.filestech.notes_tech.ui.common.userMessageFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /**
@@ -20,7 +23,7 @@ import javax.inject.Inject
  * rotation rejouerait le partage et l'utilisateur verrait une seconde fenêtre s'ouvrir sans l'avoir
  * demandée.
  */
-data class ExportUiState(val busy: Boolean = false, val result: ExportResult? = null, val error: String? = null)
+data class ExportUiState(val busy: Boolean = false, val result: ExportResult? = null, @StringRes val error: Int? = null)
 
 @HiltViewModel
 class ExportViewModel @Inject constructor(private val exporter: NoteExporter) : ViewModel() {
@@ -53,20 +56,14 @@ class ExportViewModel @Inject constructor(private val exporter: NoteExporter) : 
                 // partiel a déjà été effacé par l'exporteur.
                 throw e
             } catch (e: Exception) {
-                // ⚠️ **Le message est conservé ici, contrairement au mode panique**, et la
-                // différence est délibérée.
-                //
-                // `PanicService` ne garde que le nom de la classe : son écran de fin peut être lu
-                // par-dessus l'épaule de quelqu'un sous contrainte, et un chemin de fichier y
-                // désignerait l'application. Ici, l'utilisateur cherche à comprendre pourquoi son
-                // export a échoué — « espace insuffisant » ou « fichier verrouillé » lui sert, et
-                // le chemin qu'un message d'entrée-sortie peut contenir pointe son propre bac à
-                // sable, qu'il est seul à voir.
-                //
-                // C'est aussi ce que fait l'application publiée (`settings_screen.dart:598`).
-                // Signalé comme incohérence par un audit de sécurité (2026-08-14) ; la cohérence
-                // demandée coûterait ici un message inutilisable.
-                _state.value = ExportUiState(busy = false, error = e.message ?: e::class.java.simpleName)
+                // ⚠️ The raw message was kept here until 2026-09-24, on the grounds that "the
+                // published app does the same (`settings_screen.dart:598`)" and that "no space
+                // left" helps the user. The first half stopped being true with notes_tech 2.0.9,
+                // which shows `describeError` (`:618`); the second rested on an I/O message that is
+                // internal text in the system's language, with a sandbox path in it. The sentence
+                // now comes from `userMessageFor`, and the exception goes to the log.
+                Timber.w(e, "export de toutes les notes")
+                _state.value = ExportUiState(busy = false, error = userMessageFor(e))
             }
         }
     }

@@ -102,8 +102,12 @@ class FolderVaultService @Inject constructor(
 
         val salt = VaultCrypto.newSalt()
         val nonce = VaultCrypto.newNonce()
-        val folderKey = VaultCrypto.newFolderKey()
         val derived = VaultCrypto.derivePassphraseKey(passphrase.toByteArray(Charsets.UTF_8), salt)
+        // ⚠️ The folder key is drawn AFTER the derivation, and inside the `try` that wipes it.
+        // It used to be drawn first, outside: a derivation that throws — Argon2id asks for 64 MiB,
+        // which an old phone can refuse — left the key in memory with nobody to wipe it. notes_tech
+        // 2.0.9 fixed the same order (`folder_vault_service.dart:279-282`).
+        val folderKey = VaultCrypto.newFolderKey()
         try {
             val wrapped = VaultCrypto.seal(derived, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
             val provisioned = databases.get().folderDao().provisionPassphraseVault(
@@ -143,8 +147,9 @@ class FolderVaultService @Inject constructor(
         val alias = VaultParams.pinKeystoreAlias(folderId)
         val salt = VaultCrypto.newSalt()
         val nonce = VaultCrypto.newNonce()
-        val folderKey = VaultCrypto.newFolderKey()
         val pinKey = VaultCrypto.derivePinKey(pin.toByteArray(Charsets.UTF_8), salt)
+        // ⚠️ After the derivation — same reason as in [createPassphraseVault].
+        val folderKey = VaultCrypto.newFolderKey()
         try {
             val inner = VaultCrypto.seal(pinKey, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
             keystore.deleteKey(alias)

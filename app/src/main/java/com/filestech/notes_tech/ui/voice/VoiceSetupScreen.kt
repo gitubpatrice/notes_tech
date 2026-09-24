@@ -90,9 +90,11 @@ import com.filestech.notes_tech.ui.common.HoteDeMessages
  *
  * - `voice_setup_download`, `..._browser_open_failed`, `..._browser_open_error` : le portage n'ouvre
  *   pas de navigateur. Voir ci-dessus.
- * - `voice_setup_install_fail`, `voice_setup_checksum_mismatch_body` : elles portent `{message}` —
- *   le message **interne** de l'exception, non traduit. `VaultAttempt` a déjà dû cesser de faire ça.
- *   Remplacées par un message **par cause**.
+ * - `voice_setup_install_fail` : elle porte `{message}` — le message **interne** de l'exception, non
+ *   traduit. `VaultAttempt` a déjà dû cesser de faire ça. Remplacée par un message **par cause**.
+ *   (Its sibling `voice_setup_checksum_mismatch_body` left the ARB with notes_tech 2.0.9; the two
+ *   generic sentences 2.0.9 added in its place are not transposed — see `ECARTEES` in
+ *   `outils/arb_vers_strings.py`.)
  * - `voice_setup_import_in_progress` : le cas est **empêché** — les actions sont désarmées pendant
  *   un import — au lieu d'être signalé après coup.
  * - `voice_setup_path_unavailable` : la version publiée avait besoin d'un vrai chemin de fichier ;
@@ -329,7 +331,8 @@ private fun CarteDeModele(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(modele.displayName, style = MaterialTheme.typography.titleMedium)
+                val nom = nomDe(modele)?.let { stringResource(it) } ?: modele.displayName
+                Text(nom, style = MaterialTheme.typography.titleMedium)
                 val libelleDEtat = if (installe) {
                     R.string.voice_setup_model_installed
                 } else {
@@ -396,6 +399,18 @@ private fun CarteDeModele(
 private fun descriptionDe(modele: SttModel): Int? = when (modele.id) {
     SttModelCatalogue.whisperBaseQ5.id -> R.string.voice_model_base_notes
     SttModelCatalogue.whisperTinyQ5.id -> R.string.voice_model_tiny_notes
+    else -> null
+}
+
+/**
+ * The model's name as notes_tech 2.0.9 shows it — "Whisper Base (multilingual, 57 MB)" — translated,
+ * with the size the user is about to import. The catalogue's `displayName` ("Whisper Base") stays the
+ * fallback for a model the strings do not know.
+ */
+@StringRes
+private fun nomDe(modele: SttModel): Int? = when (modele.id) {
+    SttModelCatalogue.whisperBaseQ5.id -> R.string.voice_model_base_name
+    SttModelCatalogue.whisperTinyQ5.id -> R.string.voice_model_tiny_name
     else -> null
 }
 

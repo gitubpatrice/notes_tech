@@ -81,8 +81,7 @@ object NoteArchive {
                 )
                 val chemin = desambigue(nomsUtilises, "$nomDeDossier/$nomDeFichier")
 
-                val libelle = dossier?.name
-                    ?: if (note.folderId == Folder.INBOX_ID) inboxLabel else note.folderId
+                val libelle = NoteMarkdown.folderLabel(dossier, note.folderId, inboxLabel)
                 val contenu = NoteMarkdown.render(
                     note = note,
                     folderLabel = libelle,

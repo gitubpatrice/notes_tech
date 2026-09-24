@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.home
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,7 @@ import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.ui.common.userMessageFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -59,7 +61,8 @@ sealed interface HomeEvent {
     /** Le dossier vise est un coffre ferme : il faut le secret avant de pouvoir y ecrire. */
     data class VaultLocked(val folder: Folder) : HomeEvent
 
-    data class CreationFailed(val message: String) : HomeEvent
+    /** [message] is chosen by `userMessageFor` — never the exception's own text. */
+    data class CreationFailed(@StringRes val message: Int) : HomeEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -172,7 +175,8 @@ class HomeViewModel @Inject constructor(
                 // ne peut pas l'empêcher, seule la transaction le peut. Elle l'a fait.
                 if (dossier != null) events.emit(HomeEvent.VaultLocked(dossier))
             } catch (e: Exception) {
-                events.emit(HomeEvent.CreationFailed(e.message ?: e::class.java.simpleName))
+                Timber.w(e, "creation de note")
+                events.emit(HomeEvent.CreationFailed(userMessageFor(e)))
             }
         }
     }

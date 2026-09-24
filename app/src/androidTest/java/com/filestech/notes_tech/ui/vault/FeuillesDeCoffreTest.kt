@@ -423,7 +423,9 @@ class FeuillesDeCoffreTest {
         // alors valu deux lignes, l'assertion en aurait exigé quatre, et le test serait tombé **à
         // tort** sur le réglage d'accessibilité qu'il est justement là pour défendre. Relevé par une
         // relecture externe (Gemini, 2026-08-18).
-        poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.Failed(null)))
+        // ⚠️ Since 2026-09-24 `Failed` carries a string resource (no exception text on screen).
+        // `common_error` is still the shortest sentence this slot can be given.
+        poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.Failed(R.string.common_error)))
         // ⚠️ **L'arbre NON fusionné, et c'est le seul endroit de ce fichier où il le faut.**
         // L'emplacement fusionne ses descendants pour n'annoncer qu'une phrase ; dans l'arbre
         // fusionné, demander « le nœud qui porte ce texte » rend donc **l'emplacement lui-même**, et
@@ -562,7 +564,13 @@ class FeuillesDeCoffreTest {
         const val DOSSIER = "Dossier"
         const val SECRET = "phrase-secrete-de-test"
 
-        /** Assez long pour dépasser deux lignes sur n'importe quel écran de téléphone. */
-        val MESSAGE_DEMESURE = "détail technique ".repeat(40)
+        /**
+         * Well over two lines on any phone screen, in both languages (216 / 210 characters).
+         *
+         * ⚠️ It used to be a raw string, when `Failed` carried the exception's text. Since
+         * 2026-09-24 it carries a string resource, so the witness is one: the sheet renders what it
+         * is given, and this is an instrument check, not a production state.
+         */
+        val MESSAGE_DEMESURE = R.string.note_editor_exit_vault_body
     }
 }

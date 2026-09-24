@@ -34,7 +34,10 @@ sealed interface StartupState {
  * doivent surtout pas être confondues.
  */
 enum class FailureReason {
-    /** Aucune clé, mais une base présente. Geste : installer la 2.0.4, l'ouvrir, remettre à jour. */
+    /**
+     * Aucune clé, mais une base présente. Gesture: none that the user can make alone — keep the app
+     * and its data, write to support. ("Install 2.0.4 first" stopped being possible with 2.0.5.)
+     */
     MISSING_KEY,
 
     /** Le Keystore n'a pas répondu. Geste : réessayer, puis redémarrer l'appareil. */

@@ -14,12 +14,14 @@ import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.LinksRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.di.ApplicationScope
+import com.filestech.notes_tech.domain.export.NoteMarkdown
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
+import com.filestech.notes_tech.ui.common.userMessageFor
 import com.filestech.notes_tech.ui.navigation.Destination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -128,10 +130,9 @@ data class PanneauDeLiens(
 /**
  * L'issue d'une action lancée depuis le menu de l'éditeur.
  *
- * ⚠️ [erreur] porte le message de l'exception, comme l'export des réglages et contrairement au mode
- * panique. Le choix est le même et pour la même raison : ici l'utilisateur cherche à comprendre
- * pourquoi son geste n'a rien donné, et « espace insuffisant » ou « coffre re-verrouillé » lui
- * servent — là-bas, l'écran peut être lu sous contrainte.
+ * ⚠️ [erreur] is a string resource chosen by `userMessageFor`, no longer the exception's message
+ * (2026-09-24, parity with notes_tech 2.0.9's `describeError`). The raw message was internal French
+ * — "enregistrement prealable echoue" — shown as such to English-speaking users.
  */
 data class ActionDEditeur(
     val enCours: Boolean = false,
@@ -142,7 +143,7 @@ data class ActionDEditeur(
     val copiee: Boolean = false,
     /** La note était vide : le presse-papiers n'a **pas** été touché. */
     val copieVide: Boolean = false,
-    val erreur: String? = null,
+    @StringRes val erreur: Int? = null,
     /**
      * ⚠️ **Quelle action a échoué**, pour que l'écran choisisse la bonne phrase.
      *
@@ -503,26 +504,32 @@ class NoteEditorViewModel @Inject constructor(
      * exporter la ligne brute sans redéchiffrer produisait un `.md` au frontmatter correct et au
      * **corps vide**.
      */
-    fun exporterLaNote(vaultMention: (String) -> String) = tenterUneAction(ActionDEditeur.OrigineDErreur.EXPORT) {
-        enregistrer()
+    fun exporterLaNote(inboxLabel: String, vaultMention: (String) -> String) {
+        tenterUneAction(ActionDEditeur.OrigineDErreur.EXPORT) {
+            enregistrer()
 
-        // 🔴 **Si l'enregistrement a échoué, on n'exporte PAS.**
-        //
-        // `enregistrer` ne lève pas : il pose `saveFailed` — ou `lostToVaultLock` si le coffre s'est
-        // refermé — puis rend la main normalement. L'export continuait donc après un échec et
-        // produisait un fichier amputé des dernières modifications, en annonçant sa réussite. C'est
-        // exactement la perte silencieuse que le paragraphe ci-dessus prétend éviter : le commentaire
-        // était juste sur l'intention et faux sur le fait.
-        //
-        // Relevé PROBABLE par la relecture externe du 2026-08-15.
-        val apresEnregistrement = _state.value
-        if (apresEnregistrement.saveFailed || apresEnregistrement.lostToVaultLock) {
-            error("enregistrement prealable echoue")
+            // 🔴 **Si l'enregistrement a échoué, on n'exporte PAS.**
+            //
+            // `enregistrer` ne lève pas : il pose `saveFailed` — ou `lostToVaultLock` si le coffre s'est
+            // refermé — puis rend la main normalement. L'export continuait donc après un échec et
+            // produisait un fichier amputé des dernières modifications, en annonçant sa réussite. C'est
+            // exactement la perte silencieuse que le paragraphe ci-dessus prétend éviter : le commentaire
+            // était juste sur l'intention et faux sur le fait.
+            //
+            // Relevé PROBABLE par la relecture externe du 2026-08-15.
+            val apresEnregistrement = _state.value
+            if (apresEnregistrement.saveFailed || apresEnregistrement.lostToVaultLock) {
+                error("enregistrement prealable echoue")
+            }
+
+            val fraiche = notes.find(noteId) ?: return@tenterUneAction
+            val dossier = folders.find(fraiche.folderId)
+            // The same `folder:` rule as the whole-archive export — a default inbox name in the app's
+            // language, a missing folder by its identifier (it read "" here, and the stored French
+            // default for the inbox).
+            val libelle = NoteMarkdown.folderLabel(dossier, fraiche.folderId, inboxLabel)
+            _action.value = ActionDEditeur(export = exporter.exportOne(fraiche, libelle, vaultMention))
         }
-
-        val fraiche = notes.find(noteId) ?: return@tenterUneAction
-        val dossier = folders.find(fraiche.folderId)
-        _action.value = ActionDEditeur(export = exporter.exportOne(fraiche, dossier?.name.orEmpty(), vaultMention))
     }
 
     /**
@@ -576,7 +583,7 @@ class NoteEditorViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Timber.w(e, "action de menu sur $noteId")
-                _action.value = ActionDEditeur(erreur = e.message ?: e::class.java.simpleName, origine = origine)
+                _action.value = ActionDEditeur(erreur = userMessageFor(e), origine = origine)
             } finally {
                 // 🔴 **Sans ce retour à zéro, un menu entier devient inerte, définitivement et en
                 // silence.**

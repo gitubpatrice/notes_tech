@@ -158,8 +158,9 @@ class NoteArchiveTest {
             listOf(note("A"), note("Scellée", locked = true), note("B")),
         )
 
-        assertThat(entrees.getValue("README.md")).contains("Nombre de notes : 2")
-        assertThat(entrees.getValue("README.md")).contains("Exporté le : 2023-11-14T23:13:20.000")
+        // English since 2026-09-24, word for word notes_tech 2.0.9's README.
+        assertThat(entrees.getValue("README.md")).contains("- Notes: 2")
+        assertThat(entrees.getValue("README.md")).contains("- Exported: 2023-11-14T23:13:20.000")
     }
 
     @Test

@@ -19,7 +19,10 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 SRC = r"j:\applications\notes_tech\lib\l10n"
-DST = r"j:\applications\notes_files_tech\app\src\main\res"
+# Resolved from this script's own location, not written out: the port's folder is about to be
+# renamed (2026-09-24), and an absolute path here would make the generator write into a directory
+# that no longer exists — or worse, into a stale copy that still does.
+DST = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "app", "src", "main", "res")
 
 # ⚠️⚠️ LES AJOUTS DU PORTAGE, ET POURQUOI ILS SONT ICI ET PAS DANS `strings.xml`
 #
@@ -51,6 +54,19 @@ AJOUTS_EN = {
       Cf. 04-PIEGES.md §73.
     -->
     <string name="common_more_options">More options</string>
+    <!--
+      Port addition (2026-09-24): the wait imposed after too many wrong attempts, for a vault and
+      for the app lock. notes_tech 2.0.9 removed `common_error_with`, through which the vault
+      sheets showed "Error: 12 s"; it shows "Vault locked." instead, which drops how long to wait.
+    -->
+    <plurals name="common_retry_in_seconds">
+        <item quantity="one">Too many attempts. Try again in %1$d second.</item>
+        <item quantity="other">Too many attempts. Try again in %1$d seconds.</item>
+    </plurals>
+    <plurals name="common_retry_in_minutes">
+        <item quantity="one">Too many attempts. Try again in %1$d minute.</item>
+        <item quantity="other">Too many attempts. Try again in %1$d minutes.</item>
+    </plurals>
 """,
     "folder": """\
     <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. La version Flutter ecrit « {n} note(s) »,
@@ -93,6 +109,19 @@ AJOUTS_EN = {
     <string name="move_to_folder_vault">Vault folder: the note will be encrypted</string>
     <string name="note_editor_menu_move">Move to another folder</string>
     <string name="move_to_folder_title">Move to another folder</string>
+    <!--
+      Port addition (2026-09-24): the note info panel. Planned for notes_tech after issue #10
+      (dates of creation and modification), never shipped there. Read-only; the counts are taken
+      from the text on screen, so a vault note is counted as the user reads it.
+    -->
+    <string name="note_editor_menu_info">Info</string>
+    <string name="note_info_title">Note info</string>
+    <string name="note_info_folder">Folder</string>
+    <string name="note_info_created">Created</string>
+    <string name="note_info_modified">Last modified</string>
+    <string name="note_info_words">Words</string>
+    <string name="note_info_characters">Characters</string>
+    <string name="note_info_characters_hint">Spaces included, line breaks excluded</string>
 """,
     "trash": """\
     <!--
@@ -187,9 +216,13 @@ AJOUTS_EN = {
     <!-- 🔴 La description de chaque modele etait un champ du CATALOGUE, donc du francais en dur
          affiche tel quel dans l'application anglaise. Un texte vu par l'utilisateur se traduit ;
          un catalogue de domaine ne connait pas les ressources Android. La correspondance se fait
-         donc dans l'ecran, seul endroit qui connait les deux. -->
-    <string name="voice_model_base_notes">Recommended. Good French quality, about 3 s of compute for 5 s of speech.</string>
-    <string name="voice_model_tiny_notes">Light and fast, rough French quality. For modest devices.</string>
+         donc dans l'ecran, seul endroit qui connait les deux.
+
+         2026-09-24: `voice_model_base_notes` and `voice_model_tiny_notes` are no longer added
+         here. notes_tech 2.0.9 fixed the same defect on its side (`voice_localize.dart`) and
+         ships both keys in its ARB, with its own wording. Keeping ours made the generator refuse
+         to write (duplicate names) — which is the guard doing its job. The published wording
+         wins: these are shared strings, and the ARB is their source. -->
 
     <!--
       🔴 Le silence n'est PAS un echec. L'ecran affichait « Transcription failed » a
@@ -226,7 +259,11 @@ AJOUTS_EN = {
          à ce moment-là transforme une situation récupérable en abandon. -->
     <string name="startup_failure_title">Your notes could not be unlocked</string>
     <string name="startup_failure_notes_are_safe">Your notes are still on this device and have not been modified.</string>
-    <string name="startup_failure_missing_key">The encryption key for this database was not found. Install Notes Tech 2.0.4 first, open it once, then update again.</string>
+    <!-- 2026-09-24: the advice "install Notes Tech 2.0.4 first, then update again" had become
+         impossible. Since 2.0.5 every published version is above 2.0.4, and so is this one: going
+         back is a downgrade Android refuses, and uninstalling to get there deletes the notes. What
+         stays true, and matters most, is what NOT to do. -->
+    <string name="startup_failure_missing_key">The encryption key for this database was not found. Do not uninstall the app or clear its data: that would delete your notes for good. Write to contact@files-tech.com.</string>
     <string name="startup_failure_key_unavailable">The device keystore is temporarily unavailable. Restart the app; if the problem persists, restart the device.</string>
     <string name="startup_failure_unknown">The key was found but could not be used. Try again; if the problem persists, report it — your notes are not modified.</string>
     <string name="startup_failure_retry">Try again</string>
@@ -239,6 +276,16 @@ AJOUTS_FR = {
          retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
     <string name="common_back">Retour</string>
     <string name="common_more_options">Plus d\\'options</string>
+    <plurals name="common_retry_in_seconds">
+        <item quantity="one">Trop d\\'essais. Réessayez dans %1$d seconde.</item>
+        <item quantity="many">Trop d\\'essais. Réessayez dans %1$d de secondes.</item>
+        <item quantity="other">Trop d\\'essais. Réessayez dans %1$d secondes.</item>
+    </plurals>
+    <plurals name="common_retry_in_minutes">
+        <item quantity="one">Trop d\\'essais. Réessayez dans %1$d minute.</item>
+        <item quantity="many">Trop d\\'essais. Réessayez dans %1$d de minutes.</item>
+        <item quantity="other">Trop d\\'essais. Réessayez dans %1$d minutes.</item>
+    </plurals>
 """,
     "folder": """\
     <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. -->
@@ -266,6 +313,14 @@ AJOUTS_FR = {
     <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
     <string name="note_editor_menu_move">Déplacer vers un autre dossier</string>
     <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
+    <string name="note_editor_menu_info">Infos</string>
+    <string name="note_info_title">Infos de la note</string>
+    <string name="note_info_folder">Dossier</string>
+    <string name="note_info_created">Créée le</string>
+    <string name="note_info_modified">Modifiée le</string>
+    <string name="note_info_words">Mots</string>
+    <string name="note_info_characters">Caractères</string>
+    <string name="note_info_characters_hint">Espaces compris, retours à la ligne exclus</string>
 """,
     "trash": """\
     <plurals name="trash_emptied">
@@ -313,8 +368,6 @@ AJOUTS_FR = {
     <string name="voice_setup_error_checksum">L\\'empreinte du fichier ne correspond pas. Le téléchargement a peut-être été interrompu, ou le fichier vient d\\'une autre source. Il a été supprimé.</string>
     <string name="voice_setup_error_import_failed">L\\'import a échoué. Réessayez.</string>
 
-    <string name="voice_model_base_notes">Conseillé. Bonne qualité en français, environ 3 s de calcul pour 5 s de parole.</string>
-    <string name="voice_model_tiny_notes">Léger et rapide, qualité en français approximative. Pour les appareils modestes.</string>
 
     <string name="voice_nothing_heard">Rien n\\'a été entendu, aucun texte inséré.</string>
 
@@ -335,7 +388,7 @@ AJOUTS_FR = {
     <!-- ── Écran d'échec au démarrage ───────────────────────────────────────── -->
     <string name="startup_failure_title">Vos notes n\\'ont pas pu être déverrouillées</string>
     <string name="startup_failure_notes_are_safe">Vos notes sont toujours sur cet appareil et n\\'ont pas été modifiées.</string>
-    <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Installez d\\'abord Notes Tech 2.0.4, ouvrez-la une fois, puis remettez à jour.</string>
+    <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Ne désinstallez pas l\\'application et n\\'effacez pas ses données : vos notes seraient perdues pour de bon. Écrivez à contact@files-tech.com.</string>
     <string name="startup_failure_unknown">La clé existe mais reste inutilisable. Réessayez ; si le problème persiste, signalez-le — vos notes ne sont pas modifiées.</string>
     <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\\'appareil est momentanément indisponible. Relancez l\\'application ; si le problème persiste, redémarrez l\\'appareil.</string>
     <string name="startup_failure_retry">Réessayer</string>
@@ -406,6 +459,29 @@ REMPLACEES = {
     # est deja garde par une confirmation dediee, pas par le libelle du menu.
     "noteEditorMenuMove",
     "moveToFolderTitle",
+}
+
+# ⚠️ ARB keys the port deliberately does NOT transpose (2026-09-24), each with its reason.
+#
+# notes_tech 2.0.9 added them for behaviours the port already had, differently and on purpose. A
+# string translated in both languages and read nowhere is a signal in this repository — it pointed
+# at the right label twice (04-PIEGES §79, §80) — so an unused key is not left to rot in
+# `strings.xml`: it is either wired, or listed here with why it is not.
+ECARTEES = {
+    # Sharing ONE note: the port's subject is the file name, which says which note it is, and it
+    # adds no body text. 2.0.9's generic subject + "Note exported from Notes Tech" would put a
+    # sentence the user did not write into their message.
+    "noteExportShareSubject": "subject = file name (NoteEditorScreen / Partage.kt)",
+    "noteExportShareText": "no EXTRA_TEXT: nothing the user did not write goes into the message",
+    # The model size is part of `voiceModel*Name` ("…, 57 MB)"); no screen shows a size on its own.
+    "commonSizeMb": "the size is in the model names",
+    # A simple microphone refusal says what to do next with the port's own sentence
+    # (`voice_permission_needed`: "Tap the microphone again to allow it").
+    "voicePermissionDeniedBody": "voice_permission_needed says the next gesture",
+    # The port reports four import causes, each with its own gesture (VoiceSetupScreen.kt, §117);
+    # 2.0.9's two generic sentences would merge them back.
+    "voiceSetupImportFailedReason": "four typed causes instead",
+    "voiceSetupChecksumMismatch": "voice_setup_error_checksum says the same and what happened to the file",
 }
 
 # Regroupement par prefixe de cle. L'ordre est celui de la navigation, pas l'alphabetique : un
@@ -568,6 +644,12 @@ assert set(cles) == set(k for k in fr if not k.startswith("@")), "les deux ARB d
 inconnues = REMPLACEES - set(cles)
 assert not inconnues, "REMPLACEES cite des cles absentes de l'ARB : %r" % sorted(inconnues)
 cles = [k for k in cles if k not in REMPLACEES]
+
+# Same rule for the keys deliberately NOT transposed: each one must still exist in the ARB, or its
+# reason would be about a string nobody can look up any more.
+inconnues = set(ECARTEES) - set(cles)
+assert not inconnues, "ECARTEES cite des cles absentes de l'ARB : %r" % sorted(inconnues)
+cles = [k for k in cles if k not in ECARTEES]
 
 # ── Les index de placeholders viennent des METADONNEES, pas de l'ordre d'apparition ────────────
 #

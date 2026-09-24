@@ -61,7 +61,9 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.common.EmptyState
+import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.libelleDeTri
+import com.filestech.notes_tech.ui.common.rememberFolderDisplayName
 import com.filestech.notes_tech.ui.theme.Formes
 
 /**
@@ -92,6 +94,10 @@ fun HomeScreen(
     // visible. Deux appels à `stringResource` diraient la même chose, mais laisseraient croire que
     // les deux valeurs peuvent différer, alors que c'est justement ce qu'il ne faut pas.
     val nomDeLaNouvelleNote = stringResource(R.string.home_new_note)
+
+    // The badge names come from a raw `id → stored name` map: a default inbox name is translated
+    // here, at display time, in the language the user chose (notes_tech 2.0.9 parity).
+    val nomDuDossier = rememberFolderDisplayName()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -132,7 +138,7 @@ fun HomeScreen(
                         Text(
                             // Le titre porte le nom du dossier quand un filtre est actif — c'est
                             // le seul endroit où l'utilisateur voit ce qu'il regarde.
-                            text = state.currentFolder?.name ?: stringResource(R.string.app_title),
+                            text = state.currentFolder?.displayName() ?: stringResource(R.string.app_title),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             // ⚠️ `fill = false` : le texte prend la place qu'il lui faut sans
@@ -283,7 +289,11 @@ fun HomeScreen(
                         NoteCard(
                             note = note,
                             onClick = { onOpenNote(note) },
-                            folderName = if (state.showFolderBadge) state.folderNamesById[note.folderId] else null,
+                            folderName = if (state.showFolderBadge) {
+                                state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
+                            } else {
+                                null
+                            },
                         )
                     }
                 }

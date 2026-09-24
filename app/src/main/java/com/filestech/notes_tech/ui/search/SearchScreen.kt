@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.common.EmptyState
+import com.filestech.notes_tech.ui.common.rememberFolderDisplayName
 import com.filestech.notes_tech.ui.home.NoteCard
 
 /**
@@ -80,6 +81,9 @@ fun SearchScreen(
     modifier: Modifier = Modifier,
 ) {
     val focus = remember { FocusRequester() }
+
+    // Same translation of a default inbox name as the home screen's badges.
+    val nomDuDossier = rememberFolderDisplayName()
 
     // Le clavier s'ouvre à l'arrivée : un écran de recherche qu'il faut toucher pour commencer à
     // chercher fait perdre un geste à chaque usage.
@@ -172,7 +176,7 @@ fun SearchScreen(
                         NoteCard(
                             note = note,
                             onClick = { onOpenNote(note) },
-                            folderName = state.folderNamesById[note.folderId],
+                            folderName = state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) },
                         )
                     }
                 }

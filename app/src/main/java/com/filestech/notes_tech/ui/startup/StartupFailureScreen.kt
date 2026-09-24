@@ -32,8 +32,12 @@ import com.filestech.notes_tech.ui.theme.Formes
  * ## Pourquoi le message part du geste
  *
  * Chaque cause est traduite en **ce que l'utilisateur peut faire**, pas en ce qui a échoué. « Le
- * déchiffrement a échoué » ne mène nulle part ; « installez d'abord la 2.0.4, ouvrez-la une fois »
- * mène quelque part.
+ * déchiffrement a échoué » ne mène nulle part.
+ *
+ * ⚠️ The missing-key case used to say "install 2.0.4 first, open it once". That gesture stopped
+ * existing with 2.0.5 (every later version is above it, a downgrade Android refuses) — and the only
+ * way to force it, uninstalling, deletes the notes. The message now says what must NOT be done, and
+ * where to write. A gesture that leads somewhere is only worth giving while it still does.
  */
 @Composable
 fun StartupFailureScreen(reason: FailureReason, onRetry: () -> Unit, modifier: Modifier = Modifier) {

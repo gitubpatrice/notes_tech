@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.local
 
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.filestech.notes_tech.domain.model.Folder
 
 /**
  * Tout ce que Room **ne gère pas** dans la base héritée, en un seul endroit.
@@ -141,8 +142,11 @@ internal object UnmanagedSchema {
      *
      * `INSERT OR IGNORE`, donc idempotent, et surtout non destructif : un utilisateur qui a
      * renommé sa boîte de réception garde son libellé. Le nom posé ici n'est utilisé qu'à la
-     * toute première création, et il est écrit en dur — c'est ce que fait la version Flutter, et
-     * s'en écarter donnerait deux libellés différents selon la version qui a créé la base.
+     * toute première création.
+     *
+     * Since 2026-09-24 it is "Inbox", like notes_tech 2.0.9 (`database.dart:895`), which stopped
+     * seeding "Boîte de réception" on English phones. The name on disk is never shown as such: the
+     * interface translates a default inbox name at display time (`Folder.isDefaultInboxName`).
      *
      * ⚠️ `INSERT OR IGNORE` et non `INSERT OR REPLACE` : `REPLACE` remplacerait la ligne, donc
      * changerait son `rowid`, donc supprimerait en cascade toutes les notes de la boîte de
@@ -164,6 +168,6 @@ internal object UnmanagedSchema {
     private const val INBOX_ID = "inbox"
     private const val INBOX_ICON = "inbox"
 
-    /** Libellé d'origine, écrit en dur par la version Flutter (`database.dart:869`). */
-    private const val INBOX_DEFAULT_NAME = "Boîte de réception"
+    /** The seed — shared with the domain rule, so the name written is one the rule recognises. */
+    private const val INBOX_DEFAULT_NAME = Folder.INBOX_DEFAULT_NAME
 }

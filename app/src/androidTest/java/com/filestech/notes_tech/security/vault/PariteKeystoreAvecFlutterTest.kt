@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Before
@@ -60,7 +61,7 @@ class PariteKeystoreAvecFlutterTest {
     @Before
     fun setUp() {
         store = KeyStore.getInstance(KEYSTORE_PUBLIE).apply { load(null) }
-        portage = AndroidVaultKeystore()
+        portage = AndroidVaultKeystore(InstrumentationRegistry.getInstrumentation().targetContext)
         alias().forEach { if (store.containsAlias(it)) store.deleteEntry(it) }
     }
 

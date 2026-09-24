@@ -1,9 +1,11 @@
 package com.filestech.notes_tech.ui.trash
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.ui.common.userMessageFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,7 +53,8 @@ sealed interface TrashEvent {
     data class Emptied(val count: Int) : TrashEvent
 
     /** Le geste a échoué et **rien n'a changé** : la transaction n'a pas été appliquée. */
-    data class Failed(val message: String?) : TrashEvent
+    /** [message] is chosen by `userMessageFor` — never the exception's own text. */
+    data class Failed(@StringRes val message: Int) : TrashEvent
 }
 
 @HiltViewModel
@@ -125,7 +128,7 @@ class TrashViewModel @Inject constructor(private val notes: NotesRepository) : V
                 throw e
             } catch (e: Exception) {
                 Timber.w(e, "action de corbeille")
-                TrashEvent.Failed(e.message)
+                TrashEvent.Failed(userMessageFor(e))
             }
             if (evenement != null) events.tryEmit(evenement)
         }

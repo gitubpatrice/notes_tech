@@ -281,8 +281,6 @@ private fun DialogueDestructif(
 private fun MessagesDeCorbeille(viewModel: TrashViewModel, messages: SnackbarHostState) {
     val portee = rememberCoroutineScope()
     val ressources = LocalResources.current
-    val erreurGenerique = stringResource(R.string.common_error)
-
     LaunchedEffect(viewModel, ressources) {
         viewModel.eventFlow.collect { evenement ->
             val message = when (evenement) {
@@ -291,8 +289,9 @@ private fun MessagesDeCorbeille(viewModel: TrashViewModel, messages: SnackbarHos
                 is TrashEvent.Emptied ->
                     ressources.getQuantityString(R.plurals.trash_emptied, evenement.count, evenement.count)
 
-                is TrashEvent.Failed ->
-                    ressources.getString(R.string.common_error_with, evenement.message ?: erreurGenerique)
+                // The sentence alone: `common_error_with` ("Error: …") left with notes_tech 2.0.9,
+                // and what it wrapped was the exception's own text.
+                is TrashEvent.Failed -> ressources.getString(evenement.message)
             }
             portee.launch { messages.showSnackbar(message) }
         }

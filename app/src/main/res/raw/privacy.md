@@ -34,7 +34,7 @@ This is the **only** permission requested. Picking the model file goes through t
 
 ### Panic mode
 
-The **Settings → Panic mode** menu wipes in bulk and atomically:
+The **Settings → Panic mode** menu wipes in bulk:
 - the encrypted SQLite database (all notes),
 - the SQLCipher KEK (unrecoverable),
 - the Keystore keys associated with PIN vaults,

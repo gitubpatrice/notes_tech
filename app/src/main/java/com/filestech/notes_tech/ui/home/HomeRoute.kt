@@ -26,6 +26,7 @@ import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.ui.common.HoteDeMessages
+import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
 import com.filestech.notes_tech.ui.folders.ConfirmRemoveVaultProtectionDialog
 import com.filestech.notes_tech.ui.folders.FolderAction
@@ -145,7 +146,10 @@ fun HomeRoute(
                 // chaine gagnerait un second placeholder. Releve par l'audit i18n du 2026-08-14.
                 is HomeEvent.CreationFailed -> portee.launch {
                     snackbars.showSnackbar(
-                        ressourcesDeLEcran.getString(R.string.home_vault_create_error, evenement.message),
+                        ressourcesDeLEcran.getString(
+                            R.string.home_vault_create_error,
+                            ressourcesDeLEcran.getString(evenement.message),
+                        ),
                     )
                 }
             }
@@ -233,14 +237,19 @@ fun HomeRoute(
     }
 
     dossierARenommer?.let { dossier ->
+        // The field starts from the name the user SEES, and confirming it unchanged writes nothing
+        // (notes_tech 2.0.9, `folders_drawer.dart:115-119`). For a default inbox the shown name is a
+        // translation: writing it back would change the stored name for no reason — and, once in a
+        // language outside the default set, turn a default into a name the user never chose.
+        val nomAffiche = dossier.displayName()
         FolderNameDialog(
             title = stringResource(R.string.folder_rename_title),
             fieldLabel = stringResource(R.string.folder_rename_field),
-            initial = dossier.name,
+            initial = nomAffiche,
             onDismiss = { dossierARenommer = null },
             onConfirm = { nom ->
                 dossierARenommer = null
-                foldersViewModel.rename(dossier.id, nom)
+                if (nom != nomAffiche) foldersViewModel.rename(dossier.id, nom)
             },
         )
     }
@@ -360,7 +369,9 @@ fun HomeRoute(
                         // décompte, donc l'illusion que le reste est protégé.
                         else -> ressourcesDeLEcran.getString(
                             R.string.vault_convert_impossible,
-                            (issue as? VaultAttempt.CreatedButNotEncrypted)?.message.orEmpty(),
+                            ressourcesDeLEcran.getString(
+                                (issue as? VaultAttempt.CreatedButNotEncrypted)?.message ?: R.string.error_unexpected,
+                            ),
                         )
                     }
                     portee.launch { snackbars.showSnackbar(message) }
@@ -393,8 +404,6 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
     val portee = rememberCoroutineScope()
     val contexte = androidx.compose.ui.platform.LocalContext.current
     val ressources = contexte.resources
-    val erreurGenerique = stringResource(R.string.common_error)
-
     LaunchedEffect(viewModel, ressources) {
         viewModel.eventFlow.collect { evenement ->
             val message = when (evenement) {
@@ -423,8 +432,10 @@ private fun MessagesDeDossier(viewModel: FoldersDrawerViewModel, snackbars: Snac
                     evenement.failed,
                 )
 
-                is FolderEvent.Failed ->
-                    ressources.getString(R.string.folder_delete_cancelled_error, evenement.message ?: erreurGenerique)
+                is FolderEvent.Failed -> ressources.getString(
+                    R.string.folder_delete_cancelled_error,
+                    ressources.getString(evenement.message),
+                )
             }
             // ⚠️ Meme raison qu'au-dessus : afficher ne doit pas suspendre la collecte.
             if (message != null) portee.launch { snackbars.showSnackbar(message) }

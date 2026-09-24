@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.vault
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -8,6 +9,7 @@ import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultValidationException
 import com.filestech.notes_tech.security.vault.WrongPinException
 import com.filestech.notes_tech.security.vault.WrongSecretException
+import com.filestech.notes_tech.ui.common.userMessageFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -73,11 +75,16 @@ sealed interface VaultAttempt {
      * Trouve en relisant les correctifs de relecture — la regle qui dit de le faire
      * systematiquement a encore paye.
      */
-    data class CreatedButNotEncrypted(val message: String?) : VaultAttempt
+    data class CreatedButNotEncrypted(@StringRes val message: Int) : VaultAttempt
 
     data class Invalid(val reason: VaultValidationException.Reason) : VaultAttempt
 
-    data class Failed(val message: String?) : VaultAttempt
+    /**
+     * Something unexpected broke. [message] is a string resource chosen by [userMessageFor] — never
+     * the exception's own text, which used to be shown here as it was (2026-09-24, parity with
+     * notes_tech 2.0.9).
+     */
+    data class Failed(@StringRes val message: Int) : VaultAttempt
 }
 
 /** Ce qu'une feuille de coffre affiche pendant qu'elle travaille. */
@@ -349,7 +356,8 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            VaultAttempt.CreatedButNotEncrypted(e.message ?: e::class.java.simpleName)
+            Timber.w(e, "chiffrement du contenu d'un coffre neuf")
+            VaultAttempt.CreatedButNotEncrypted(userMessageFor(e))
         }
         _state.value = VaultSheetState(busy = false, attempt = issue)
     }
@@ -438,30 +446,17 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
             } catch (e: VaultValidationException) {
                 VaultAttempt.Invalid(e.reason)
             } catch (e: Exception) {
-                // ⚠️ **Le message est conservé ici, contrairement au mode panique**, et il faut le
-                // dire plutôt que de le laisser deviner.
+                // Every failure the user can act on is classified by TYPE above: wrong secret,
+                // throttling, self-destructed vault, refused input. What reaches this `catch` is, by
+                // construction, "something unexpected broke" — and its raw message used to be
+                // shown as it was, an open point of the 2026-08-15 consistency audit.
                 //
-                // `PanicService.etape()` ne garde que le nom de la classe : son écran de fin peut
-                // être lu par-dessus l'épaule de quelqu'un sous contrainte, et un chemin de fichier
-                // y désignerait l'application. Ces feuilles-ci portent aussi `SecureWindowGuard`,
-                // mais pour une autre raison — le champ de saisie du secret, pas le texte d'erreur —
-                // et l'utilisateur y est en train d'ouvrir son propre coffre.
-                //
-                // Tous les échecs que l'utilisateur peut corriger sont déjà classés par TYPE
-                // au-dessus : mauvais secret, freinage, coffre auto-détruit, refus de validation.
-                // Ce `catch` résiduel est par construction le « quelque chose d'inattendu a cassé »,
-                // et le message brut est alors le seul indice exploitable pour diagnostiquer.
-                //
-                // ⚠️ Point ouvert, à trancher : à la différence de `ExportViewModel`, où « espace
-                // insuffisant » sert directement l'utilisateur, ce message-ci ne lui apprend rien
-                // d'actionnable — une `SQLiteException` ou une `IOException` y déposerait un chemin
-                // de bac à sable illisible. Le remplacer par un message générique serait plus
-                // honnête ; ce serait aussi changer le comportement d'une couche antérieure à la
-                // phase 6, ce qui ne se fait pas dans un lot de correctifs d'audit.
-                //
-                // Signalé comme divergence non documentée par l'audit de cohérence du 2026-08-15,
-                // qui classait son exploitabilité PROBABLE et non CONFIRMÉE.
-                VaultAttempt.Failed(e.message ?: e::class.java.simpleName)
+                // ✅ Settled on 2026-09-24, the way notes_tech 2.0.9 settled it: the screen gets a
+                // sentence from [userMessageFor] — including the two new ones of a PIN vault that
+                // cannot be created (no screen lock, no secure hardware) — and the exception goes
+                // to the log, where the diagnosis belongs.
+                Timber.w(e, "tentative de coffre en echec")
+                VaultAttempt.Failed(userMessageFor(e))
             }
             // La tentative est allée à son terme : plus rien à constater après coup. Sur le chemin
             // d'annulation, ce `null` a déjà été posé — et lu — par [cancelAttempt].

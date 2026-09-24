@@ -19,7 +19,6 @@
     <string name="common_rename">Renommer</string>
     <string name="common_share">Partager</string>
     <string name="common_error">Erreur</string>
-    <string name="common_error_with">Erreur : %1$s</string>
     <string name="common_loading">Chargement…</string>
     <string name="common_validate">Valider</string>
     <string name="common_restore">Restaurer</string>
@@ -27,6 +26,16 @@
          retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
     <string name="common_back">Retour</string>
     <string name="common_more_options">Plus d\'options</string>
+    <plurals name="common_retry_in_seconds">
+        <item quantity="one">Trop d\'essais. Réessayez dans %1$d seconde.</item>
+        <item quantity="many">Trop d\'essais. Réessayez dans %1$d de secondes.</item>
+        <item quantity="other">Trop d\'essais. Réessayez dans %1$d secondes.</item>
+    </plurals>
+    <plurals name="common_retry_in_minutes">
+        <item quantity="one">Trop d\'essais. Réessayez dans %1$d minute.</item>
+        <item quantity="many">Trop d\'essais. Réessayez dans %1$d de minutes.</item>
+        <item quantity="other">Trop d\'essais. Réessayez dans %1$d minutes.</item>
+    </plurals>
 
     <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
     <string name="splash_tagline">La protection maximale\npour vos notes.</string>
@@ -151,10 +160,21 @@
     <string name="note_editor_exit_vault_confirm">Sortir du coffre</string>
     <string name="note_editor_menu_copy_markdown">Copier le Markdown</string>
     <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
+    <string name="note_editor_mode_edit">Éditer</string>
+    <string name="note_editor_mode_preview">Aperçu</string>
+    <string name="note_editor_preview_empty">Rien à afficher pour l\'instant.</string>
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
     <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
     <string name="note_editor_menu_move">Déplacer vers un autre dossier</string>
     <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
+    <string name="note_editor_menu_info">Infos</string>
+    <string name="note_info_title">Infos de la note</string>
+    <string name="note_info_folder">Dossier</string>
+    <string name="note_info_created">Créée le</string>
+    <string name="note_info_modified">Modifiée le</string>
+    <string name="note_info_words">Mots</string>
+    <string name="note_info_characters">Caractères</string>
+    <string name="note_info_characters_hint">Espaces compris, retours à la ligne exclus</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>
@@ -264,7 +284,7 @@
 
     <!-- ── Export Markdown / ZIP ───────────────────────────────────────── -->
     <string name="export_note_from_vault">Note du coffre : %1$s</string>
-    <string name="export_share_subject">Notes Tech — export %1$d notes</string>
+    <string name="export_share_subject">Notes Tech — export de %1$d notes</string>
 
     <!-- ── Mode panique ────────────────────────────────────────────────── -->
     <string name="panic_confirm_title">Effacer définitivement toutes les données ?</string>
@@ -333,12 +353,16 @@
     <string name="voice_setup_link_copied">Lien copié dans le presse-papiers</string>
     <string name="voice_setup_path_unavailable">Chemin du fichier non disponible</string>
     <string name="voice_setup_import_error_title">Import impossible</string>
-    <string name="voice_setup_checksum_mismatch_body">Empreinte SHA-256 différente. Le fichier a peut-être été corrompu pendant le téléchargement. Détails : %1$s</string>
     <string name="voice_setup_browser_open_failed">Aucun navigateur disponible</string>
     <string name="voice_setup_browser_open_error">Impossible d\'ouvrir le navigateur : %1$s</string>
     <string name="voice_setup_copying">Copie en cours…</string>
     <string name="voice_setup_import_in_progress">Import en cours, veuillez patienter.</string>
     <string name="voice_setup_picker_dialog_title">Choisir le fichier .bin pour %1$s</string>
+    <string name="voice_model_base_name">Whisper Base (multilingue, 57 Mo)</string>
+    <string name="voice_model_base_notes">Recommandé. Bonne qualité, environ 3 s pour transcrire 5 s d\'audio sur un téléphone milieu de gamme.</string>
+    <string name="voice_model_tiny_name">Whisper Tiny (multilingue, 32 Mo)</string>
+    <string name="voice_model_tiny_notes">Léger et rapide, mais moins précis. Pour les téléphones d\'entrée de gamme ou les prises rapides.</string>
+    <string name="voice_permission_denied_permanent_body">L\'accès au micro a été refusé définitivement. Autorisez-le dans les paramètres de l\'application.</string>
     <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Voir le commentaire de la version anglaise : « jamais
          persiste » etait faux, et l'ecran aurait contredit la politique de confidentialite. -->
     <string name="voice_setup_subtitle">Whisper, sur cet appareil. L\'audio est effacé dès la transcription obtenue.</string>
@@ -359,8 +383,6 @@
     <string name="voice_setup_error_checksum">L\'empreinte du fichier ne correspond pas. Le téléchargement a peut-être été interrompu, ou le fichier vient d\'une autre source. Il a été supprimé.</string>
     <string name="voice_setup_error_import_failed">L\'import a échoué. Réessayez.</string>
 
-    <string name="voice_model_base_notes">Conseillé. Bonne qualité en français, environ 3 s de calcul pour 5 s de parole.</string>
-    <string name="voice_model_tiny_notes">Léger et rapide, qualité en français approximative. Pour les appareils modestes.</string>
 
     <string name="voice_nothing_heard">Rien n\'a été entendu, aucun texte inséré.</string>
 
@@ -439,6 +461,10 @@
     <string name="error_vault_not_avault">Le dossier n\'est pas un coffre.</string>
     <string name="error_vault_encrypted_content_invalid">Contenu chiffré invalide (trop court).</string>
     <string name="error_vault_wrap_invalid">Wrap chiffré invalide (tag GCM tronqué).</string>
+    <string name="error_unexpected">Une erreur est survenue. Veuillez réessayer.</string>
+    <string name="error_clipboard_secure_unavailable">Copie refusée : le presse-papiers sécurisé est indisponible.</string>
+    <string name="error_vault_pin_hardware_unavailable">Les coffres PIN exigent un stockage de clés matériel, absent de cet appareil. Utilisez plutôt un coffre à passphrase.</string>
+    <string name="error_vault_pin_needs_screen_lock">Les coffres PIN exigent un verrouillage d\'écran sur ce téléphone. Définissez un code, un schéma ou un mot de passe dans les réglages Android, ou utilisez un coffre à passphrase.</string>
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Afficher le code</string>
     <string name="pin_hide_tooltip">Masquer le code</string>
@@ -446,7 +472,7 @@
     <!-- ── Écran d'échec au démarrage ───────────────────────────────────────── -->
     <string name="startup_failure_title">Vos notes n\'ont pas pu être déverrouillées</string>
     <string name="startup_failure_notes_are_safe">Vos notes sont toujours sur cet appareil et n\'ont pas été modifiées.</string>
-    <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Installez d\'abord Notes Tech 2.0.4, ouvrez-la une fois, puis remettez à jour.</string>
+    <string name="startup_failure_missing_key">La clé de chiffrement de cette base est introuvable. Ne désinstallez pas l\'application et n\'effacez pas ses données : vos notes seraient perdues pour de bon. Écrivez à contact@files-tech.com.</string>
     <string name="startup_failure_unknown">La clé existe mais reste inutilisable. Réessayez ; si le problème persiste, signalez-le — vos notes ne sont pas modifiées.</string>
     <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\'appareil est momentanément indisponible. Relancez l\'application ; si le problème persiste, redémarrez l\'appareil.</string>
     <string name="startup_failure_retry">Réessayer</string>

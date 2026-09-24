@@ -38,9 +38,45 @@ data class Folder(
      */
     val isInbox: Boolean get() = id == INBOX_ID
 
+    /**
+     * `true` while the inbox still carries a DEFAULT name — the one its database was seeded with,
+     * not one the user typed. The interface then shows the name in the app's language.
+     *
+     * See [isDefaultInboxName], the one place the rule lives.
+     */
+    val hasDefaultInboxName: Boolean get() = isDefaultInboxName(id, name)
+
     companion object {
         /** Identifiant du dossier racine indélébile. Cf. `FolderEntity.INBOX_ID`. */
         const val INBOX_ID = "inbox"
+
+        /**
+         * The name a NEW database seeds the inbox with — `AppConstants.inboxDefaultName` of
+         * notes_tech 2.0.9. Never shown as such: see [isDefaultInboxName].
+         */
+        const val INBOX_DEFAULT_NAME = "Inbox"
+
+        /**
+         * The names the inbox has carried by default: the English seed, and the French one that
+         * every database created before 2.0.9 received, whatever the phone's language — which is
+         * how an English-speaking reviewer met "Boîte de réception" (fdroiddata!37885).
+         */
+        private val INBOX_DEFAULT_NAMES = setOf(INBOX_DEFAULT_NAME, "Boîte de réception")
+
+        /**
+         * Whether [name] is a default name of the inbox, as opposed to a name the user chose.
+         *
+         * The rule of notes_tech 2.0.9 (`constants.dart:39-59`), kept identical so that both apps
+         * show the same thing for the same row: the inbox id AND one of the default names. No
+         * migration rewrites the row — a base seeded in French keeps "Boîte de réception" on disk,
+         * and a folder the user renamed keeps its name.
+         *
+         * ⚠️ Known limit, accepted by the published app and kept: renaming the inbox to EXACTLY one
+         * of these names makes it a default name again, shown in the app language. Telling the two
+         * apart would need a "renamed" flag and a migration, for a case this rare.
+         */
+        fun isDefaultInboxName(folderId: String, name: String): Boolean =
+            folderId == INBOX_ID && name in INBOX_DEFAULT_NAMES
     }
 }
 

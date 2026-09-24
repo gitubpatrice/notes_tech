@@ -34,6 +34,30 @@ object NoteMarkdown {
      */
     const val INBOX_DIR_NAME = "inbox"
 
+    /**
+     * The name of a folder that cleaning left unusable — empty, dots only, reserved by Windows.
+     *
+     * It read `sans-dossier` until notes_tech 2.0.9 turned it into English with the rest of what
+     * the app writes (2026-09-14); the port follows, for the same reader.
+     */
+    const val UNTITLED_FOLDER_DIR_NAME = "untitled-folder"
+
+    /**
+     * The `folder:` value of a note's frontmatter — one rule for the whole-archive export and for
+     * the single-note export, which used to decide it separately.
+     *
+     * A folder the user named keeps its name. The inbox with a DEFAULT name — "Boîte de réception"
+     * seeded by every Flutter version before 2.0.9, "Inbox" since — gets [inboxLabel], the name in
+     * the app's language: the stored default is not the user's choice, and exporting it wrote
+     * French into the files of an English-speaking user. A note whose folder row is missing keeps
+     * its identifier, as in notes_tech 2.0.9 (`note_export_service.dart:142-150`).
+     */
+    fun folderLabel(folder: Folder?, folderId: String, inboxLabel: String): String = when {
+        folder != null && !folder.hasDefaultInboxName -> folder.name
+        folderId == Folder.INBOX_ID -> inboxLabel
+        else -> folderId
+    }
+
     /** Au-delà, le nom est tronqué. 80 caractères laissent la marge sous les 255 octets d'un FAT32. */
     private const val MAX_FILE_NAME_LENGTH = 80
 
@@ -180,7 +204,16 @@ object NoteMarkdown {
      * juste au-dessus, et n'a rien empêché.
      */
     fun safeFolderName(folder: Folder?, folderId: String): String {
-        val brut = folder?.name ?: if (folderId == Folder.INBOX_ID) INBOX_DIR_NAME else folderId
+        // ⚠️ A DEFAULT inbox name counts as no name: the inbox gets its technical directory whatever
+        // language seeded it. Until 2026-09-24 the stored name went through, so an export of the
+        // same notes produced `Boîte de réception/` or `Inbox/` depending on which version had
+        // created the database — the very split the paragraph above says this function prevents.
+        // notes_tech 2.0.9 fixed it the same way (`note_export_service.dart:430-438`).
+        val brut = when {
+            folder != null && !folder.hasDefaultInboxName -> folder.name
+            folderId == Folder.INBOX_ID -> INBOX_DIR_NAME
+            else -> folderId
+        }
         var clean = FORBIDDEN.replace(brut, "")
         clean = BIDI.replace(clean, "")
         clean = DartTextSemantics.trim(DartTextSemantics.WHITESPACE.replace(clean, " "))
@@ -201,7 +234,7 @@ object NoteMarkdown {
         // tel quel — un nom que Windows refuse de créer. Juger sur une forme et rendre l'autre, c'est
         // valider ce qu'on n'a pas contrôlé.
         clean = clean.trimEnd(' ', '.')
-        return if (estUnNomDeDossierUtilisable(clean)) clean else "sans-dossier"
+        return if (estUnNomDeDossierUtilisable(clean)) clean else UNTITLED_FOLDER_DIR_NAME
     }
 
     /**
@@ -243,20 +276,24 @@ object NoteMarkdown {
      *
      * Il porte la date et le compte, c'est-à-dire ce qui manque cruellement à un dossier de
      * fichiers `.md` retrouvé sans contexte.
+     *
+     * In English since 2026-09-24, word for word the text of notes_tech 2.0.9
+     * (`note_export_service.dart:508-518`): a file the app writes is something it publishes, and
+     * it read French whatever the user's language.
      */
     fun readme(noteCount: Int, exportedAt: Instant, zone: ZoneId = ZoneId.systemDefault()): String =
         """
-        |# Export Notes Tech
+        |# Notes Tech export
         |
-        |- Exporté le : ${iso(exportedAt, zone)}
-        |- Nombre de notes : $noteCount
+        |- Exported: ${iso(exportedAt, zone)}
+        |- Notes: $noteCount
         |
-        |Format : un fichier Markdown par note, avec frontmatter YAML
+        |Format: one Markdown file per note, with YAML frontmatter
         |(`title`, `folder`, `tags`, `created`, `updated`, `pinned`,
-        |`favorite`). Compatible avec Obsidian, Logseq, Bear, Foam.
+        |`favorite`). Works with Obsidian, Logseq, Bear, Foam.
         |
-        |L'arborescence reflète vos dossiers à la date de l'export.
-        |Les notes en corbeille ne sont PAS incluses.
+        |The folder tree mirrors your folders at export time.
+        |Notes in the trash are NOT included.
         |
         |Notes Tech — https://www.files-tech.com
         |

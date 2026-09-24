@@ -146,7 +146,7 @@ class PariteExportAvecFlutterTest {
         assertThat(NoteMarkdown.safeFileName("LPT0", id)).isEqualTo("note-11111111.md")
         assertThat(NoteMarkdown.safeFileName("COM¹", id)).isEqualTo("note-11111111.md")
         assertThat(NoteMarkdown.safeFileName("lpt³.txt", id)).isEqualTo("note-11111111.md")
-        assertThat(NoteMarkdown.safeFolderName(null, "COM0")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "COM0")).isEqualTo("untitled-folder")
 
         // COM10 n'existe pas comme périphérique : la liste s'arrête à un seul chiffre.
         assertThat(NoteMarkdown.safeFileName("COM10", id)).isEqualTo("COM10.md")
@@ -155,11 +155,11 @@ class PariteExportAvecFlutterTest {
     @Test
     @DisplayName("un dossier réservé le reste avec une extension — le jumeau du test ci-dessus")
     fun dossierReserveAvecExtension() {
-        assertThat(NoteMarkdown.safeFolderName(null, "CON.txt")).isEqualTo("sans-dossier")
-        assertThat(NoteMarkdown.safeFolderName(null, "aux.old")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "CON.txt")).isEqualTo("untitled-folder")
+        assertThat(NoteMarkdown.safeFolderName(null, "aux.old")).isEqualTo("untitled-folder")
         // Réduit à des points : « . » et « .. » étaient déjà rejetés, « ... » ne l'était pas, et
         // Windows le refuse tout autant.
-        assertThat(NoteMarkdown.safeFolderName(null, "...")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "...")).isEqualTo("untitled-folder")
         assertThat(NoteMarkdown.safeFolderName(null, "Contrats")).isEqualTo("Contrats")
     }
 
@@ -315,7 +315,7 @@ class PariteExportAvecFlutterTest {
     @Test
     @DisplayName("un dossier nommé « .. » ne produit pas une entrée qui s'extrait dans le parent")
     fun dossierZipSlip() {
-        assertThat(NoteMarkdown.safeFolderName(null, "..")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "..")).isEqualTo("untitled-folder")
     }
 
     /**
@@ -326,7 +326,7 @@ class PariteExportAvecFlutterTest {
     @Test
     @DisplayName("un dossier ne peut pas porter un nom réservé de Windows non plus")
     fun dossierReserve() {
-        assertThat(NoteMarkdown.safeFolderName(null, "CON")).isEqualTo("sans-dossier")
+        assertThat(NoteMarkdown.safeFolderName(null, "CON")).isEqualTo("untitled-folder")
     }
 
     @Test

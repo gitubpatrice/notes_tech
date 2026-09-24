@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -318,6 +319,10 @@ private fun DialogueDeMicroRefuse(onOuvrirLesReglages: () -> Unit, onFermer: () 
     AlertDialog(
         onDismissRequest = onFermer,
         title = { Text(stringResource(R.string.voice_permission_denied)) },
+        // The dialog had a title and no body: "Microphone permission denied" did not say that the
+        // way out is the system settings, which is what the first button opens. notes_tech 2.0.9
+        // ships the sentence (`voicePermissionDeniedPermanentBody`).
+        text = { CorpsDeDialogue(stringResource(R.string.voice_permission_denied_permanent_body)) },
         confirmButton = {
             ActionDeDialogue(
                 texte = stringResource(R.string.voice_open_system_settings),

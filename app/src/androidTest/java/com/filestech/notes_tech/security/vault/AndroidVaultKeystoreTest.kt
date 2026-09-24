@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.security.vault
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.filestech.notes_tech.core.crypto.SecretBytes
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
@@ -23,7 +24,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AndroidVaultKeystoreTest {
 
-    private val keystore = AndroidVaultKeystore()
+    private val keystore = AndroidVaultKeystore(InstrumentationRegistry.getInstrumentation().targetContext)
     private val alias = VaultParams.pinKeystoreAlias("test-${javaClass.simpleName}")
 
     @After

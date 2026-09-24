@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.folders
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.repository.FoldersRepository
@@ -7,6 +8,7 @@ import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.ui.common.userMessageFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 /** Les dossiers du tiroir, avec l'état ouvert/fermé de ceux qui sont des coffres. */
@@ -59,17 +62,15 @@ sealed interface FolderEvent {
     data class VaultPartiallyRemoved(val failed: Int) : FolderEvent
 
     /**
-     * ⚠️⚠️ **`null` autorisé, et c'est le point.** Ce champ était non-nullable, et l'émetteur y
-     * mettait `e::class.java.simpleName` quand l'exception n'avait pas de message — c'est-à-dire
-     * qu'il affichait « SQLiteConstraintException » à l'utilisateur. Un nom de classe n'est pas un
-     * message, et un ViewModel n'a pas à décider du texte lu à l'écran.
+     * A folder action failed; [message] is the sentence to show.
      *
-     * Effet de bord révélateur : l'écran portait bien un repli vers `common_error`, mais sur une
-     * valeur qui ne pouvait pas être nulle — le compilateur signalait un elvis mort. *Un repli
-     * inatteignable et une valeur de secours inventée ailleurs sont le même défaut vu des deux
-     * bouts.*
+     * History, because the field changed shape twice: it first carried `e::class.java.simpleName`
+     * when the exception had no message — "SQLiteConstraintException" on screen — then the raw
+     * message or `null`. Since 2026-09-24 it carries a string resource chosen by
+     * `userMessageFor`, like notes_tech 2.0.9's `describeError`: the exception's text was internal
+     * French shown as such to English-speaking users.
      */
-    data class Failed(val message: String?) : FolderEvent
+    data class Failed(@StringRes val message: Int) : FolderEvent
 }
 
 /**
@@ -190,9 +191,9 @@ class FoldersDrawerViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // ⚠️ Le message brut, tel quel — et `null` s'il n'y en a pas. C'est l'écran qui
-                // choisit quoi dire dans ce cas ; voir [FolderEvent.Failed].
-                events.emit(FolderEvent.Failed(e.message))
+                // A sentence chosen by `userMessageFor`, never the raw message — see [FolderEvent.Failed].
+                Timber.w(e, "action de dossier")
+                events.emit(FolderEvent.Failed(userMessageFor(e)))
             }
         }
     }

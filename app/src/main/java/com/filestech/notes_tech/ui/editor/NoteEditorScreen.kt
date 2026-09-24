@@ -80,6 +80,7 @@ import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
+import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.SemanticColors
@@ -156,6 +157,9 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     // 2026-08-14 sur l'export des réglages, et la même forme est reprise ici.
     val mentionDeCoffre: (String) -> String = { nom -> ressources.getString(R.string.export_note_from_vault, nom) }
     val titreDuSelecteur = stringResource(R.string.common_share)
+    // From the activity's resources, like `mentionDeCoffre`: the export writes the inbox in the
+    // language the user chose, not the phone's.
+    val libelleBoiteDeReception = stringResource(R.string.home_folder_inbox)
 
     IssueDUneAction(
         action = action,
@@ -278,7 +282,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         onEpingler = viewModel::setPinned,
         onFavori = viewModel::setFavorite,
         onDeplacer = { deplacementOuvert = true },
-        onExporter = { viewModel.exporterLaNote(mentionDeCoffre) },
+        onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
         onCopier = {
             // Retour haptique sur un geste réussi, comme l'application publiée
             // (`note_editor_screen.dart:544`). Il part à l'appui, pas à l'issue : c'est l'accusé de
@@ -360,7 +364,7 @@ fun NoteEditorScreen(
                 },
                 title = {
                     TitreDeLEditeur(
-                        dossier = state.folder?.name.orEmpty(),
+                        dossier = state.folder?.displayName().orEmpty(),
                         enregistrement = state.saving,
                         // 🔴 **`loadError` compte comme un échec pour cette ligne.** Sans lui,
                         // l'écran affichait « Enregistré », coche comprise, **par-dessus un état
@@ -744,16 +748,25 @@ private fun IssueDUneAction(
             }
 
             erreur != null -> {
-                val gabarit = when (action.origine) {
-                    ActionDEditeur.OrigineDErreur.EXPORT -> R.string.note_editor_export_failed
-                    ActionDEditeur.OrigineDErreur.DEPLACEMENT -> R.string.note_editor_move_failed
-                    // ⚠️ Création, corbeille et copie n'ont pas de phrase dédiée : « Erreur : … » dit
-                    // ce qu'il faut sans inventer une chaîne qui n'existe dans aucune des deux
-                    // langues. `COPIE` a rejoint cette liste avec le copier en Markdown ; ce
-                    // commentaire ne nommait toujours que les deux premières.
-                    else -> R.string.common_error_with
+                val phrase = ressources.getString(erreur)
+                // ⚠️ Exhaustive, `null` included: a new origin must decide how it is announced.
+                // Export and move keep their own framing; creating a linked note uses
+                // `home_vault_create_error`, as notes_tech 2.0.9 does (`note_editor_screen.dart:914`);
+                // trash and copy show the sentence alone — the "Error: …" frame they used,
+                // `common_error_with`, left with 2.0.9 together with the raw text it wrapped.
+                val message = when (action.origine) {
+                    ActionDEditeur.OrigineDErreur.EXPORT ->
+                        ressources.getString(R.string.note_editor_export_failed, phrase)
+                    ActionDEditeur.OrigineDErreur.DEPLACEMENT ->
+                        ressources.getString(R.string.note_editor_move_failed, phrase)
+                    ActionDEditeur.OrigineDErreur.CREATION ->
+                        ressources.getString(R.string.home_vault_create_error, phrase)
+                    ActionDEditeur.OrigineDErreur.CORBEILLE,
+                    ActionDEditeur.OrigineDErreur.COPIE,
+                    null,
+                    -> phrase
                 }
-                portee.launch { messages.showSnackbar(ressources.getString(gabarit, erreur)) }
+                portee.launch { messages.showSnackbar(message) }
                 onConsommer()
             }
         }

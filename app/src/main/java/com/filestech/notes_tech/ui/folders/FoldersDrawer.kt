@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
+import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.theme.Formes
 
 /**
@@ -125,7 +126,10 @@ fun FoldersDrawer(
                     icon = Icons.Outlined.Inbox,
                     // La boîte de réception peut manquer d'une base abîmée : son nom traduit sert
                     // alors de repli, plutôt qu'une ligne absente qui rendrait l'écran incohérent.
-                    label = state.inbox?.name ?: stringResource(R.string.home_folder_inbox),
+                    // A default inbox name is shown in the app's language — the row seeded in
+                    // French by every Flutter version before 2.0.9 read "Boîte de réception" on an
+                    // English phone (fdroiddata!37885).
+                    label = state.inbox?.displayName() ?: stringResource(R.string.home_folder_inbox),
                     selected = currentFolderId == Folder.INBOX_ID,
                     onClick = { onSelect(Folder.INBOX_ID) },
                     // ⚠️ Pas de bouton si la boîte manque de la base : il n'y aurait rien à
@@ -158,7 +162,7 @@ fun FoldersDrawer(
                     EntreeDeTiroir(
                         icon = if (folder.isVault) Icons.Outlined.Lock else Icons.Outlined.Folder,
                         iconTint = if (folder.isVault) MaterialTheme.colorScheme.error else null,
-                        label = folder.name,
+                        label = folder.displayName(),
                         selected = currentFolderId == folder.id,
                         onClick = { onSelect(folder.id) },
                         trailing = {

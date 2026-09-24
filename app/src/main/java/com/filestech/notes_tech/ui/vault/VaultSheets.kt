@@ -69,8 +69,10 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
-import com.filestech.notes_tech.security.vault.VaultValidationException
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.displayName
+import com.filestech.notes_tech.ui.common.refusalMessageFor
+import com.filestech.notes_tech.ui.common.retryWaitMessage
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
 
@@ -295,7 +297,7 @@ private fun PassphraseSheet(
 
     FeuilleDePhraseSecrete(
         state = state,
-        nomDuDossier = folder.name,
+        nomDuDossier = folder.displayName(),
         creating = creating,
         chiffrementEnCours = viewModel::chiffrementEnCours,
         // ⚠️ **Un seul rappel de sortie pour les trois chemins** — Retour, balayage, « Annuler ».
@@ -571,7 +573,7 @@ private fun PinSheet(
 
     FeuilleDeCode(
         state = state,
-        nomDuDossier = folder.name,
+        nomDuDossier = folder.displayName(),
         creating = creating,
         chiffrementEnCours = viewModel::chiffrementEnCours,
         // Même raison qu'à la feuille à phrase secrète : les trois chemins de sortie faisaient deux
@@ -1073,18 +1075,16 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
         stringResource(R.string.vault_convert_partial_fail, attempt.failed, attempt.encrypted + attempt.failed)
     }
 
-    is VaultAttempt.LockedOut -> stringResource(
-        R.string.common_error_with,
-        "${(attempt.remainingMillis + MILLIS - 1) / MILLIS} s",
-    )
+    // "Too many attempts. Try again in 12 seconds." — it read "Error: 12 s" through
+    // `common_error_with`, which notes_tech 2.0.9 removed. See `retryWaitMessage`.
+    is VaultAttempt.LockedOut -> retryWaitMessage(attempt.remainingMillis)
 
     is VaultAttempt.CreatedButNotEncrypted ->
-        stringResource(R.string.vault_convert_impossible, attempt.message.orEmpty())
+        stringResource(R.string.vault_convert_impossible, stringResource(attempt.message))
 
-    is VaultAttempt.Invalid -> stringResource(messageDeRefus(attempt.reason))
+    is VaultAttempt.Invalid -> stringResource(refusalMessageFor(attempt.reason))
 
-    is VaultAttempt.Failed -> attempt.message?.let { stringResource(R.string.common_error_with, it) }
-        ?: stringResource(R.string.common_error)
+    is VaultAttempt.Failed -> stringResource(attempt.message)
 }
 
 /**
@@ -1206,30 +1206,6 @@ private fun BoutonDeFermeture(onDone: () -> Unit) {
     }
 }
 
-/**
- * La chaine qui explique un refus de saisie.
- *
- * ⚠️ `when` **exhaustif** : ajouter une raison sans décider de ce qu'on en dit à l'utilisateur
- * doit échouer à la compilation. C'est exactement ce qui manquait — la raison existait, la chaîne
- * aussi, et rien ne reliait les deux.
- *
- * ⚠️ **Deux raisons n'ont PAS de chaîne dédiée** dans l'ARB de la version publiée, et je n'en
- * invente pas : une clé que la version Flutter n'a pas serait une divergence d'i18n à réconcilier en
- * phase 8. Elles retombent sur le message générique, ce qui reste infiniment mieux que du texte de
- * débogage.
- */
-private fun messageDeRefus(reason: VaultValidationException.Reason): Int = when (reason) {
-    VaultValidationException.Reason.PASSPHRASE_TOO_SHORT -> R.string.error_vault_passphrase_too_short
-    VaultValidationException.Reason.PIN_LENGTH_OUT_OF_RANGE -> R.string.error_vault_pin_too_short
-    VaultValidationException.Reason.PIN_NOT_DIGITS_ONLY -> R.string.error_vault_pin_not_digits
-    VaultValidationException.Reason.ALREADY_A_VAULT -> R.string.error_vault_already_enabled
-    VaultValidationException.Reason.NOT_A_VAULT -> R.string.error_vault_not_avault
-    VaultValidationException.Reason.NOT_A_PIN_VAULT -> R.string.error_vault_not_pin_vault
-    VaultValidationException.Reason.FOLDER_NOT_FOUND,
-    VaultValidationException.Reason.NOT_A_PASSPHRASE_VAULT,
-    -> R.string.common_error
-}
-
 private fun Modifier.clickableListItem(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)
 
 /**
@@ -1247,4 +1223,3 @@ private val TOUCHES = listOf(
 )
 
 private val TAILLE_TOUCHE = 72.dp
-private const val MILLIS = 1_000L

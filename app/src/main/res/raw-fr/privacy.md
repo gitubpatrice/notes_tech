@@ -34,7 +34,7 @@ C'est la **seule** permission demandée. Le choix du fichier de modèle passe pa
 
 ### Mode panique
 
-Le menu **Réglages → Mode panique** efface en bloc et de manière atomique :
+Le menu **Réglages → Mode panique** efface en bloc :
 - la base SQLite chiffrée (toutes les notes),
 - la KEK SQLCipher (irrécupérable),
 - les clés Keystore associées aux coffres PIN,

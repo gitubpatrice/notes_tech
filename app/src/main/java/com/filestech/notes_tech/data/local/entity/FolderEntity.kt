@@ -110,10 +110,11 @@ class FolderEntity(
          * Identifiant du dossier racine indélébile, créé au premier démarrage et recréé à chaque
          * ouverture par un `INSERT OR IGNORE`. Les notes orphelines y sont réassignées.
          *
-         * ⚠️ Son libellé d'origine, `Boîte de réception`, est écrit **en dur dans la base** par la
-         * version Flutter (`database.dart:869`). Ce n'est pas une chaîne localisée : l'affichage
-         * doit substituer la traduction au moment du rendu, sans réécrire la ligne — un utilisateur
-         * a pu renommer ce dossier.
+         * ⚠️ Son libellé d'origine est écrit **en dur dans la base** : `Boîte de réception` par
+         * toutes les versions Flutter avant la 2.0.9, `Inbox` depuis (et par ce portage). Ce n'est
+         * pas une chaîne localisée : l'affichage substitue la traduction au moment du rendu, sans
+         * réécrire la ligne — un utilisateur a pu renommer ce dossier. Cf.
+         * `Folder.isDefaultInboxName`.
          */
         const val INBOX_ID = "inbox"
     }

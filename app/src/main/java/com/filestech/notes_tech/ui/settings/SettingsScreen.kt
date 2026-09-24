@@ -516,7 +516,7 @@ private fun LigneDExport(snackbars: SnackbarHostState) {
             }
 
             erreur != null -> {
-                val message = ressources.getString(R.string.settings_export_error, erreur)
+                val message = ressources.getString(R.string.settings_export_error, ressources.getString(erreur))
                 viewModel.consume()
                 portee.launch { snackbars.showSnackbar(message) }
             }

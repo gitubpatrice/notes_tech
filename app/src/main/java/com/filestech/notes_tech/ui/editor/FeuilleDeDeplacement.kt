@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.ui.common.HAUTEUR_MAXIMALE_LISTE_DE_CHOIX
+import com.filestech.notes_tech.ui.common.displayName
 
 /**
  * Le choix d'un dossier de destination.
@@ -84,7 +85,7 @@ fun FeuilleDeDeplacement(
                         ListItem(
                             headlineContent = {
                                 Text(
-                                    text = dossier.name,
+                                    text = dossier.displayName(),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )

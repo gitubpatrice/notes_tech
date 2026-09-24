@@ -20,7 +20,8 @@ import xml.etree.ElementTree as ET
 sys.stdout.reconfigure(encoding="utf-8")
 
 SRC = r"j:\applications\notes_tech\lib\l10n"
-DST = r"j:\applications\notes_files_tech\app\src\main\res"
+# Same resolution as `arb_vers_strings.py`: relative to this script, so a renamed folder still works.
+DST = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "app", "src", "main", "res")
 
 
 def snake(cle):
