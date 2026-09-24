@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
@@ -126,6 +127,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
 
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
+    var infosOuvertes by rememberSaveable { mutableStateOf(false) }
 
     // Les deux détours du déplacement, retenus par **identifiant** pour survivre à une rotation et
     // à une mort de processus — un `Folder` ne se met pas dans un `Bundle`.
@@ -230,6 +232,20 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 
     SurcoucheDeDictee(dictee)
 
+    if (infosOuvertes) {
+        // ⚠️ Rebuilt from the live state on every recomposition, never captured when the menu was
+        // tapped: a rotation or a save landing while the panel is open must not show stale dates.
+        // If the note stops being showable — vault relocked underneath, for instance — the panel
+        // closes instead of describing a text that is no longer on screen.
+        val info = noteInfoOf(state, folderName = state.folder?.displayName().orEmpty())
+        if (info != null) {
+            NoteInfoDialog(info = info, onDismiss = { infosOuvertes = false })
+        } else {
+            // Closed from an effect, not by writing the state in the middle of a composition.
+            LaunchedEffect(Unit) { infosOuvertes = false }
+        }
+    }
+
     if (autocompletionOuverte) {
         FeuilleDAutocompletion(
             suggestions = suggestions,
@@ -281,6 +297,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         onInsererUnLien = { autocompletionOuverte = true },
         onEpingler = viewModel::setPinned,
         onFavori = viewModel::setFavorite,
+        onInfos = { infosOuvertes = true },
         onDeplacer = { deplacementOuvert = true },
         onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
         onCopier = {
@@ -341,6 +358,8 @@ fun NoteEditorScreen(
     onInsererUnLien: () -> Unit,
     onEpingler: (Boolean) -> Unit,
     onFavori: (Boolean) -> Unit,
+    // ⚠️ No default: a menu entry wired to `{}` would be a dead button that compiles.
+    onInfos: () -> Unit,
     onDeplacer: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
@@ -458,6 +477,7 @@ fun NoteEditorScreen(
                             // pour un même geste, dont l'un peut être en retard d'une recomposition.
                             onEpingler = { onEpingler(!note.pinned) },
                             onFavori = { onFavori(!note.favorite) },
+                            onInfos = onInfos,
                             onDeplacer = onDeplacer,
                             onExporter = onExporter,
                             onCopier = onCopier,
@@ -893,6 +913,7 @@ private fun MenuDeDebordement(
     favorite: Boolean,
     onEpingler: () -> Unit,
     onFavori: () -> Unit,
+    onInfos: () -> Unit,
     onDeplacer: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
@@ -949,6 +970,16 @@ private fun MenuDeDebordement(
             onClick = {
                 ouvert = false
                 onFavori()
+            },
+        )
+        // The info panel sits with pin and favourite: all three are about the note's record card,
+        // not about its text — reading the dates or the word count is not an editing gesture.
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_info)) },
+            leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onInfos()
             },
         )
         DropdownMenuItem(

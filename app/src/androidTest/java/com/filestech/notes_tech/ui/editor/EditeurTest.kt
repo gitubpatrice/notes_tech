@@ -77,6 +77,7 @@ class EditeurTest {
     private val insertionsDeLien = mutableListOf<Unit>()
     private val epingles = mutableListOf<Boolean>()
     private val favoris = mutableListOf<Boolean>()
+    private val infos = mutableListOf<Unit>()
     private val deplacements = mutableListOf<Unit>()
     private val exports = mutableListOf<Unit>()
     private val copies = mutableListOf<Unit>()
@@ -120,6 +121,7 @@ class EditeurTest {
                     onInsererUnLien = { insertionsDeLien += Unit },
                     onEpingler = { epingles += it },
                     onFavori = { favoris += it },
+                    onInfos = { infos += Unit },
                     onDeplacer = { deplacements += Unit },
                     onExporter = { exports += Unit },
                     onCopier = { copies += Unit },
