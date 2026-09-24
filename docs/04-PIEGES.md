@@ -4424,3 +4424,54 @@ Un constat a été **reclassé** plutôt qu'appliqué tel quel : « la biométri
 absente » n'est pas une faille (la classe 3 authentifie le propriétaire, et l'état ne naît que d'un
 défaut du Keystore) ; le vrai défaut était l'écran, qui cachait alors la biométrie et disait que tout
 effacer était la seule issue. *Vérifier un constat, c'est aussi vérifier sa prémisse.*
+
+## §142 — 🔴 Le test du correctif de Gemini passait AVEC le défaut : un crochet qui se déclenche deux fois
+
+Le correctif du §141 (époque lue avant l'écriture du compte) avait son test,
+`lock_during_the_count_write_wins`, commité avec la mention « contrôle négatif raisonné seulement ».
+Le contrôle réel (`scratchpad/controle_negatif_m15.py`, 2026-09-24) remet le défaut : l'époque relue
+après l'écriture. **Aucun test ne tombe.**
+
+Cause : le crochet du faux magasin, `duringSave = { lock.lockIfConfigured() }`, se déclenche à
+**chaque** écriture. Or un bon PIN écrit deux fois : le compte avant la vérification, puis la remise à
+zéro du compteur. Le second verrouillage fait avancer l'époque une fois de plus, et la lecture fautive
+(qui voyait la première) échouait aussi à rouvrir l'app — le test passait pour une raison étrangère
+au correctif. Corrigé : le crochet se désarme au premier appel, donc ne verrouille **que** pendant
+l'écriture du compte ; le contrôle négatif tombe alors sur ce test et lui seul, et les 336 tests
+passent sur le code juste.
+
+*Un raisonnement sur un test suppose le scénario qu'on a en tête ; le contrôle négatif exécute celui
+que le code produit. Un crochet de faux doit viser UN événement, pas tous ceux du même nom.*
+
+## §143 — 🔴 Deux tests de feuille qui ne mesuraient pas ce qu'ils croyaient : la hauteur de l'écran, et l'instant de la lecture
+
+Relance des classes touchées par le verrou sur trois appareils (2026-09-24, soir) : `FeuillesDeCoffreTest`
+tombe sur les trois, mais **pas sur le même test** — ni l'un ni l'autre n'est un défaut du verrou.
+
+1. **Le témoin dépendait de la hauteur de l'écran.** `un_message_ordinaire_ne_deplace_pas_le_pave_…`
+   mesurait la touche « 5 » à l'écran. Or une feuille qui a de la place au-dessus d'elle grandit vers
+   le **haut** : son pavé ne bouge pas, quel que soit le message. Seul le S9 (740 dp de haut) met la
+   feuille à pleine hauteur. Sur le S24 (832 dp) et l'émulateur (891 dp), le témoin « un message
+   démesuré déplace le pavé » tombait — et l'égalité qu'il garantit y était donc vacante. Le défaut
+   datait du jour même (`9d0c59f`) : le témoin de 680 caractères y avait été remplacé par une
+   ressource de 216, jugée suffisante parce que « bien plus de deux lignes ». Deux lignes n'étaient
+   pas la condition : remplir la feuille l'était. Invisible tant que la classe ne tournait que sur le
+   S9. Corrigé : le pavé se mesure **dans** la feuille (de la poignée à la touche), où il descend dès
+   que l'emplacement du message grandit, sur tout écran.
+2. **Deux lectures de positions à deux instants.** `containsExactly(poignee)` compare les bornes du
+   nœud muet de la poignée material3 à celles du nœud qui porte `Dismiss` : deux nœuds DISTINCTS aux
+   mêmes coordonnées, que seule la géométrie relie (une comparaison par identité est donc
+   impossible). Lues par deux `fetch` successifs pendant que la feuille suit le clavier
+   (`imePadding()`, animé sur des images que `waitForIdle` n'attend pas), elles ont différé de 72 px
+   sur le S9, une fois en suite complète ; 5 relances isolées sur 5 vertes. Corrigé :
+   `seuleLaPoigneeEstSansNom()` (`BalayageDAccessibilite.kt`) lit les deux bornes dans **une seule
+   tâche du fil d'interface**, donc dans la même image, et remplace l'idiome recopié dans quatre
+   fichiers (coffre, autocomplétion, déplacement, tiroir).
+
+Mesuré après correction : les quatre classes, **S9 54/54, S24 54/54**. Contrôle négatif de
+l'utilitaire sur l'émulateur (`scratchpad/controle_negatif_poignee.py`) : la touche Effacer privée de
+son étiquette fait tomber le test, avec un rectangle de plus que la poignée ; source restaurée,
+SHA-256 vérifié. L'émulateur n'a pas refait la passe positive des quatre classes.
+
+*Un témoin qui tombe sur un seul appareil n'est pas un test instable : il dit que, là, l'instrument ne
+voit plus rien. Et une égalité entre deux lectures n'a de sens que si rien ne peut bouger entre elles.*

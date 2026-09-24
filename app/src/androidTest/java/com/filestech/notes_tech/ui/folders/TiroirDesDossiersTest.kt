@@ -2,8 +2,6 @@ package com.filestech.notes_tech.ui.folders
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -25,6 +23,7 @@ import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.champsDeSaisieSansNom
+import com.filestech.notes_tech.ui.seuleLaPoigneeEstSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -276,9 +275,7 @@ class TiroirDesDossiersTest {
     fun aucun_actionnable_du_menu_n_est_sans_nom_hormis_la_poignee() {
         poserLeMenu(coffre("secrets", "Secrets"), deverrouille = true)
 
-        val poignee = regle.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.Dismiss))
-            .fetchSemanticsNode().boundsInRoot
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee)
+        regle.seuleLaPoigneeEstSansNom()
         assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 

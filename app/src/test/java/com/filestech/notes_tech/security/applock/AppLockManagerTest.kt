@@ -247,13 +247,22 @@ class AppLockManagerTest {
         assertThat(store.persisted.failures).isEqualTo(1)
     }
 
-    /** Found by the second review (Gemini): the epoch was read after the count's blocking write. */
+    /**
+     * Found by the second review (Gemini): the epoch was read after the count's blocking write.
+     *
+     * The lock fires during that write ONLY. The right PIN writes again to clear the counter, and a
+     * second lock there moved the epoch once more, so the faulty read failed too and the test
+     * passed with the fault in place (negative control, 2026-09-24).
+     */
     @Test
     @DisplayName("a lock during the count's write keeps the app locked, right PIN or not")
     fun lock_during_the_count_write_wins() = runTest {
         configure()
         val lock = manager().apply { resolveAtLaunch() }
-        store.duringSave = { lock.lockIfConfigured() }
+        store.duringSave = {
+            store.duringSave = {}
+            lock.lockIfConfigured()
+        }
 
         assertThat(lock.attemptPin(PIN)).isInstanceOf(PinCheck.Accepted::class.java)
 

@@ -2,7 +2,6 @@ package com.filestech.notes_tech.ui.editor
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
@@ -15,9 +14,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
-import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.champsDeSaisieSansNom
+import com.filestech.notes_tech.ui.seuleLaPoigneeEstSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -289,11 +288,10 @@ class AutocompletionTest {
         // ⚠️ L'extension du balayage à l'appui long vient des **deux relectures externes** du
         // 2026-08-17, et elle était justifiée. Ce constat en est le premier effet de bord : *un filtre
         // élargi voit aussi ce que les bibliothèques laissent traîner.*
-        val poignee = regle.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.Dismiss))
-            .fetchSemanticsNode()
-            .boundsInRoot
-
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee)
+        //
+        // Since 2026-09-24 the check is `seuleLaPoigneeEstSansNom`, shared by every sheet: the same
+        // exception, with both bounds read in one frame.
+        regle.seuleLaPoigneeEstSansNom()
     }
 
     /** Le filet de régression de §74. */

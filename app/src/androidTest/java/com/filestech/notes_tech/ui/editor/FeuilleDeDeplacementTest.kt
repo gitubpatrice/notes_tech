@@ -1,8 +1,6 @@
 package com.filestech.notes_tech.ui.editor
 
 import androidx.activity.ComponentActivity
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -12,7 +10,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultDescriptor
 import com.filestech.notes_tech.domain.model.VaultMode
-import com.filestech.notes_tech.ui.actionnablesSansNom
+import com.filestech.notes_tech.ui.seuleLaPoigneeEstSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -165,11 +163,7 @@ class FeuilleDeDeplacementTest {
     fun aucun_element_actionnable_n_est_sans_nom_sauf_la_poignee_de_material3() {
         poser(dossiers = listOf(COFFRE, COURSES), dossierActuel = null)
 
-        val poignee = regle.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.Dismiss))
-            .fetchSemanticsNode()
-            .boundsInRoot
-
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee)
+        regle.seuleLaPoigneeEstSansNom()
     }
 
     private companion object {

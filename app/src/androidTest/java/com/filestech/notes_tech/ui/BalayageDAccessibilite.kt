@@ -8,6 +8,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.ComposeTestRule
+import com.google.common.truth.Truth.assertThat
 
 /**
  * **Le balayage « actionnable sans nom », à recopier écran par écran.**
@@ -33,15 +34,37 @@ import androidx.compose.ui.test.junit4.ComposeTestRule
  */
 internal fun ComposeTestRule.actionnablesSansNom(): List<Rect> =
     onAllNodes(hasClickAction() or APPUI_LONG).fetchSemanticsNodes()
-        .filter { noeud ->
-            val description = noeud.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
-            val texte = noeud.config.getOrNull(SemanticsProperties.Text).orEmpty()
-            // ⚠️ Les champs de saisie sont exclus : leur nom vient de leur `EditableText`, et un
-            // champ vide n'est pas un défaut d'étiquetage.
-            val saisie = noeud.config.getOrNull(SemanticsProperties.EditableText) != null
-            description.all { it.isBlank() } && texte.all { it.text.isBlank() } && !saisie
-        }
+        .filter(::estSansNom)
         .map { it.boundsInRoot }
+
+private fun estSansNom(noeud: SemanticsNode): Boolean {
+    val description = noeud.config.getOrNull(SemanticsProperties.ContentDescription).orEmpty()
+    val texte = noeud.config.getOrNull(SemanticsProperties.Text).orEmpty()
+    // ⚠️ Les champs de saisie sont exclus : leur nom vient de leur `EditableText`, et un
+    // champ vide n'est pas un défaut d'étiquetage.
+    val saisie = noeud.config.getOrNull(SemanticsProperties.EditableText) != null
+    return description.all { it.isBlank() } && texte.all { it.text.isBlank() } && !saisie
+}
+
+/**
+ * **On a sheet, the one unnamed actionable allowed: material3's handle.**
+ *
+ * `BottomSheetDefaults.DragHandle` lays TWO nodes at the same coordinates, one named, the other
+ * carrying `OnLongClick` alone and no name — not the port's, and not nameable from the caller. The
+ * exception is anchored on the node carrying `Dismiss`, and the check stays a `containsExactly`: it
+ * will fail the day material3 names its node, which will be the order to drop the exception.
+ *
+ * ⚠️ Both bounds are read in ONE task on the UI thread, so in the same frame. Read one after the
+ * other, they were once 72 px apart on the S9 (full run, 2026-09-24): typing had brought up the
+ * keyboard, and a sheet's `imePadding()` follows it over frames that `waitForIdle` does not wait
+ * for. No layout can come between two reads made in one UI task.
+ */
+internal fun ComposeTestRule.seuleLaPoigneeEstSansNom() {
+    val sansNom = onAllNodes(hasClickAction() or APPUI_LONG).fetchSemanticsNodes().filter(::estSansNom)
+    val poignee = onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.Dismiss)).fetchSemanticsNode()
+    val (bornes, bornesDeLaPoignee) = runOnUiThread { sansNom.map { it.boundsInRoot } to poignee.boundsInRoot }
+    assertThat(bornes).containsExactly(bornesDeLaPoignee)
+}
 
 /**
  * ⚠️ `hasLongClickAction()` n'existe pas dans l'API de test : le pendant de `hasClickAction()` se

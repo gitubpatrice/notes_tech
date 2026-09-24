@@ -5,8 +5,9 @@
 
 ## 🎯 ÉTAT AU 2026-09-24 (nuit) — LIRE CECI D'ABORD
 
-> Écrit avant un `/compact` (le 2e du jour). Tout ce qui suit est vérifié, pas supposé. Les sections
-> plus bas (08-15 → 08-20) sont l'historique : **elles décrivent un monde qui a bougé** (§128).
+> Écrit avant un `/compact` (le 2e du jour), **mis à jour en fin de soirée** (après le 3e) avant une
+> coupure jusqu'au lendemain. Tout ce qui suit est vérifié, pas supposé. Les sections plus bas
+> (08-15 → 08-20) sont l'historique : **elles décrivent un monde qui a bougé** (§128).
 
 ### Contexte (inchangé depuis le compactage précédent)
 
@@ -39,7 +40,9 @@
 | `f640903` | panneau Infos |
 | `1e1a71d` | docs du compactage précédent |
 | `aab469b` | **verrouillage de l'application (D-023)** — cf. ci-dessous |
-| (ce commit-ci) | docs : D-023 « réalisation », §135-§141, cette section |
+| `2eea4c1` | docs : D-023 « réalisation », §135-§141, cette section |
+| `d4a3e74` | docs : renommage en `notes_tech_kotlin` décidé, audit complet à la fin |
+| (ce commit-ci) | tests : le 15e contrôle négatif et les deux tests de feuille corrigés (§142, §143) |
 
 ### Le verrouillage de l'application — FAIT (`aab469b`)
 
@@ -53,13 +56,23 @@ biométrique, Récents), `ui/LockedAppHost.kt`, `ui/common/{PinPad,AppResultLaun
 **Mesuré :**
 - JVM : **336 tests (36 classes), 0 ignoré** ; lint, detekt, ktlint, `check-manifest-permissions.py`
   verts (`USE_BIOMETRIC`/`USE_FINGERPRINT` admises + `privacy.md` v1.1.0).
-- **14 contrôles négatifs** (gardes cassées une à une) : chacun fait tomber son test. ⚠️ Le 15e —
-  la lecture d'époque corrigée après Gemini (`lock_during_the_count_write_wins`) — a son test mais
-  **pas encore son contrôle négatif** (raisonné seulement).
+- **15 contrôles négatifs** (gardes cassées une à une) : chacun fait tomber son test. Le 15e — la
+  lecture d'époque corrigée après Gemini — **ne tombait PAS** au premier essai : son test
+  (`lock_during_the_count_write_wins`) passait avec le défaut, son crochet verrouillant aussi pendant
+  la remise à zéro du compteur (§142). Test corrigé ; le contrôle tombe désormais sur lui seul.
 - Instrumenté, **avant** les correctifs de relecture : S9 **403 cas, 401 verts, 2 ignorés connus**
   (transcription : pas de modèle Whisper ; chiffrement non authentifié : pas d'empreinte sur le S9) ;
   classes du verrou vertes sur l'**émulateur API 34** et sur le **S24 (Android 16, empreinte
   réelle)**. Après les 1ers correctifs : verrou + coffre + panique sur S9, **63 verts**.
+- **Soir du 09-24, APK courants (tous les correctifs)** : suite complète S9 **404 cas : 401 réussis,
+  2 ignorés connus, 1 échec** ; S24 et émulateur, 9 classes (verrou, panique, coffre, Réglages) :
+  **79 cas : 77 réussis, 1 ignoré attendu** (`a_failed_creation_leaves_no_key`, jumeau qui exige un
+  appareil SANS empreinte), **1 échec** chacun. Les deux échecs sont des défauts de TESTS de feuille,
+  pas du verrou (§143), corrigés : les 4 classes de feuilles repassent **S9 54/54, S24 54/54** ;
+  contrôle négatif de l'utilitaire commun sur l'émulateur : tombe comme attendu. JVM après
+  correction : 336 tests, 0 échec, 0 ignoré ; ktlint, detekt verts.
+  Comptage : `scratchpad/compte_instrument.py` lit les codes de statut test par test (le lanceur
+  écrit « OK » même quand des tests sont ignorés) ; validé sur l'ancienne passe (403 = 401 + 2).
 - Bout en bout sur l'émulateur (empreinte simulée, `adb emu finger touch 1`, code appareil 1111) :
   activer le verrou et la biométrie par l'interface, quitter, revenir → invite automatique → doigt →
   **retour sur les Réglages à la même position**. Récents API 34 : carte neutre avec verrou, contenu
@@ -71,17 +84,20 @@ biométrique, Récents), `ui/LockedAppHost.kt`, `ui/common/{PinPad,AppResultLaun
   `scratchpad/relecture_verrou_{gpt,gemini}.md` (non conservés après la session — résumé ici).
 
 **Sur le S24 de Patrice** : `com.filestech.notes_tech.next.debug` (« Notes Tech (Kotlin debug) »)
-**est installée**, avec l'APK de test — distincte de sa vraie Notes Tech. Il devait tester à la main
-(parcours donné en séance). **Son retour n'est pas encore arrivé.** L'APK installé date d'AVANT les
-correctifs de relecture.
+**est installée**, avec l'APK de test — distincte de sa vraie Notes Tech. Le 09-24 au soir, Patrice
+a autorisé les tests (« test sur le S24 si tu veux ») : **APK courants installés** (app du 09-24
+21 h 31, tous les correctifs ; APK de test du soir), classes passées (cf. Mesuré). Aucun verrou n'y
+était configuré (aucune clé `app_lock_*`). **Son test à la main, avec son empreinte : pas de
+retour** — facultatif.
 
 ### 🔴 CE QUI RESTE, dans l'ordre
 
-1. **Retour de Patrice sur le S24** (le verrou à la main, avec son empreinte) — puis réinstaller la
-   version courante sur le S24 s'il veut retester (avec son accord du moment).
-2. **Contrôle négatif du 15e garde** (époque lue avant l'écriture) + **relancer les classes du verrou
-   sur le S9 et l'émulateur** avec les APK courants (les passes datent d'avant les derniers
-   correctifs).
+1. **Test à la main de Patrice sur le S24** (le verrou avec son empreinte), facultatif : la version
+   installée est à jour.
+2. ✅ ~~Contrôle négatif du 15e garde + relance des classes du verrou~~ — fait le 09-24 au soir
+   (cf. Mesuré, §142, §143). Reste, facultatif : la passe positive des 4 classes de feuilles sur
+   l'émulateur, et une suite complète S9 avec les correctifs de tests, pour une mesure propre avant
+   l'audit final.
 3. **Aperçu Markdown** (A1/A2) — **D-024** ; notes détaillées dans la section « Rapports d'agents »
    ci-dessous et dans D-024. Pièges : pas de défilement imbriqué, barre d'action pleine (§80).
 4. **Test instrumenté de `NoteInfoDialog`** (balayages d'accessibilité).

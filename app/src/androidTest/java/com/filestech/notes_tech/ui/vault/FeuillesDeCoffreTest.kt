@@ -32,9 +32,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
-import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.champsDeSaisieSansNom
+import com.filestech.notes_tech.ui.seuleLaPoigneeEstSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -140,14 +140,22 @@ class FeuillesDeCoffreTest {
         regle.onNodeWithContentDescription(texte(R.string.vault_pin_key_label, chiffre))
 
     /**
-     * 🔴🔴 **La poignée de material3 pose DEUX nœuds aux mêmes coordonnées**, l'un nommé, l'autre
-     * portant `OnLongClick` **seul et sans nom**. Ce n'est pas le portage, ce n'est pas nommable
-     * depuis l'appelant, et c'est mesuré ici plutôt qu'écrit : l'exception est ancrée sur le nœud qui
-     * porte `Dismiss`, et l'assertion reste un `containsExactly`. Elle tombera le jour où material3
-     * nommera son nœud, et ce sera l'ordre de retirer l'exception. Même idiome qu'`AutocompletionTest`.
+     * The top of the sheet: its handle, the node carrying `Dismiss`. Its mute twin, the one unnamed
+     * actionable a sheet is allowed, is dealt with by [seuleLaPoigneeEstSansNom].
      */
     private fun poignee(): Rect =
         regle.onNode(SemanticsMatcher.keyIsDefined(SemanticsActions.Dismiss)).fetchSemanticsNode().boundsInRoot
+
+    /**
+     * Where the pad sits IN the sheet: from the sheet's top down to the key "5".
+     *
+     * ⚠️ Not on screen. A sheet with room left above it grows UPWARD when its message grows, and its
+     * pad stays put whatever the message: on screen, only a sheet already at its full height shows
+     * the pad moving. That was the S9 (740 dp tall) and no other device — on the S24 and an API 34
+     * emulator the witness below fell (2026-09-24), which is what a witness is for. Inside the
+     * sheet, the pad moves as soon as the message slot grows, on any screen.
+     */
+    private fun hauteurAuDessusDuPave(): Float = touche("5").fetchSemanticsNode().boundsInRoot.top - poignee().top
 
     // ── Question 1 : ce qu'un lecteur d'écran reçoit ─────────────────────────────────────────────
 
@@ -290,15 +298,15 @@ class FeuillesDeCoffreTest {
     @Test
     fun aucun_actionnable_de_la_feuille_de_code_n_est_sans_nom() {
         poserLeCode(creation = true)
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee())
+        regle.seuleLaPoigneeEstSansNom()
 
         repeat(4) { touche("1").performClick() }
         regle.onNodeWithText(texte(R.string.common_validate)).performClick()
         regle.waitForIdle()
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee())
+        regle.seuleLaPoigneeEstSansNom()
 
         poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.Created(encrypted = 3, failed = 2)))
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee())
+        regle.seuleLaPoigneeEstSansNom()
     }
 
     @Test
@@ -307,7 +315,7 @@ class FeuillesDeCoffreTest {
         regle.onAllNodes(CHAMP_DE_SAISIE)[0].performTextInput(SECRET)
         regle.waitForIdle()
 
-        assertThat(regle.actionnablesSansNom()).containsExactly(poignee())
+        regle.seuleLaPoigneeEstSansNom()
     }
 
     /** Le filet de régression de §74, sur les deux feuilles. */
@@ -446,17 +454,19 @@ class FeuillesDeCoffreTest {
      * ⚠️ Ce témoin dit aussi la **limite assumée** de la garde : deux lignes, pas davantage. Figer la
      * hauteur comme le fait le publié tronquerait à l'ellipse la phrase qui annonce la destruction du
      * coffre — et sur ce chemin-là, il n'y a de toute façon plus de pavé à déplacer.
+     *
+     * ⚠️ The pad is measured inside the sheet, not on screen: see [hauteurAuDessusDuPave].
      */
     @Test
     fun un_message_ordinaire_ne_deplace_pas_le_pave_mais_un_message_demesure_le_deplace() {
         poserLeCode()
-        val repos = touche("5").fetchSemanticsNode().boundsInRoot
+        val repos = hauteurAuDessusDuPave()
 
         poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.WrongSecret(3)))
-        assertThat(touche("5").fetchSemanticsNode().boundsInRoot).isEqualTo(repos)
+        assertThat(hauteurAuDessusDuPave()).isEqualTo(repos)
 
         poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.Failed(MESSAGE_DEMESURE)))
-        assertThat(touche("5").fetchSemanticsNode().boundsInRoot).isNotEqualTo(repos)
+        assertThat(hauteurAuDessusDuPave()).isGreaterThan(repos)
     }
 
     /**
@@ -570,6 +580,10 @@ class FeuillesDeCoffreTest {
          * ⚠️ It used to be a raw string, when `Failed` carried the exception's text. Since
          * 2026-09-24 it carries a string resource, so the witness is one: the sheet renders what it
          * is given, and this is an instrument check, not a production state.
+         *
+         * ⚠️ Over two lines is all it takes because the pad is measured inside the sheet
+         * ([hauteurAuDessusDuPave]). Measured on screen, the witness had to fill the sheet to its
+         * full height, which these 216 characters do on the S9 only.
          */
         val MESSAGE_DEMESURE = R.string.note_editor_exit_vault_body
     }
