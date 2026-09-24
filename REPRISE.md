@@ -14,9 +14,16 @@
   versionCode **407** → splits 4071/4072/4073). MR F-Droid `!37885` en 2.0.9, « mostly ready » —
   **ne pas y toucher**. Le S9 est un téléphone de TESTS : **le rodage n'a pas eu lieu**.
 - Consignes de Patrice : « fais tout ce qui est nécessaire, et proprement » ; panneau Infos ✅ ;
-  **verrouillage par PIN ou biométrie** ✅ (ci-dessous) ; renommage du dossier `notes_files_tech`
-  → `notes_files_kotlin` (proposé `notes_tech_kotlin`, **réponse attendue** ; à faire VS Code
-  fermé, supprimer `app\.cxx` et `build`, recopier la mémoire vers la nouvelle clé de projet).
+  **verrouillage par PIN ou biométrie** ✅ (ci-dessous).
+- **Renommage du dossier : `notes_tech_kotlin`** (choisi par Patrice le 2026-09-24, soir). À faire
+  **VS Code fermé** (le répertoire de travail est verrouillé par Windows pendant une session) :
+  renommer `J:\applications\notes_files_tech` → `notes_tech_kotlin` ; supprimer `build`,
+  `app\build`, `app\.cxx` (générés, chemins absolus CMake) ; **copier** (pas déplacer)
+  `~\.claude\projects\j--applications-notes-files-tech` → `j--applications-notes-tech-kotlin` ;
+  rouvrir. À la reprise : vérifier que la mémoire est bien retrouvée sous la nouvelle clé. Rien
+  dans le code ne dépend de l'ancien nom (vérifié : seuls un rapport et un commentaire le citent).
+- **Audit complet (3 axes, cohérence, i18n) : « on voit à la fin »** (Patrice, 2026-09-24) — pas
+  avant la fin des fonctionnalités.
 - **Langue** (précisé par Patrice le 09-24) : **anglais uniquement pour ce qui part dans le domaine
   public** (GitHub, F-Droid : code, commentaires neufs, commits, textes de l'app) ; tout le local
   (docs, REPRISE, audits, mémoire) en français.
