@@ -590,3 +590,85 @@ existe précisément pour qu'un changement de moteur ne touche pas les appelants
 cinquante mégaoctets sur l'appareil de test. Ce qui **est** vérifié sur le S9, c'est que
 `libnotes_stt.so` **se charge** — le seul contrôle qui distingue « le CMake a produit un fichier »
 de « ce fichier est utilisable ici ».
+
+## D-022 — versionCode : schéma F-Droid `base × 10 + ABI`, base 500
+
+**2026-09-24 · décidée en séance (« fais tout ce qui est nécessaire », Patrice)** — commit `8715023`.
+
+**Contexte.** Le portage produisait `rang × 1000 + 53` (1053/2053/3053), repris du `--split-per-abi`
+de Flutter pour dépasser la 2.0.4. Pendant le mois où le portage est resté à l'arrêt, la Flutter a
+publié 2.0.5 à 2.0.9, et F-Droid a **imposé** `base × 10 + ABI` (linsui, `!37885`, 2026-09-13) : la
+2.0.9 est publiée en 4071/4072/4073. La 3.0.0 était devenue un **downgrade** pour tout le monde.
+
+**Décision.** Sortie = `base × 10 + rang`, rangs de Flutter (armeabi-v7a 1, arm64-v8a 2, x86_64 3),
+base **500** → 5001/5002/5003. Palier franc au-dessus de toute la lignée 2.0.x, qui garde 408..499
+pour d'éventuels correctifs Flutter pendant la transition. Deux gardes : rangs à un chiffre
+(structurelle), base > 407 (**plancher, pas preuve** : la liste de contrôle de publication compare
+au dernier tag Flutter publié).
+
+**Écarté.** *408 (la suite immédiate)* : la Flutter a prévu d'utiliser 408 pour le panneau Infos ;
+une collision rendrait l'une des deux impubliable. *Garder ×1000* : refusé par F-Droid, et
+entrelace les codes de deux versions une fois triés par `rewritemeta`.
+
+## D-023 — Verrouillage de l'application : PIN + biométrie forte, sur le modèle d'Agenda Tech
+
+**2026-09-24 · demandé par Patrice (« la possibilité de vérouiller l'appli par pin ou biométrie,
+empreinte ou face ID »)** — conception arrêtée, **pas encore câblée** (fondations non commitées, cf.
+`REPRISE.md`).
+
+**Contexte.** Aucune des deux versions n'avait de verrou d'application : la version Flutter n'a pas
+`local_auth`. SMS Tech et Agenda Tech en ont un ; une étude de SMS Tech (rapport d'agent du
+2026-09-24, résumé dans `REPRISE.md`) a relevé ses défauts, dont plusieurs corrigés par Agenda Tech.
+
+**Décision — ce qui est repris, et d'où :**
+
+| Point | Choix | Origine |
+|---|---|---|
+| Hôte d'interface | NavController + `rememberSaveableStateHolder` **au-dessus** du verrou ; le contenu **sort de la composition** tant que c'est verrouillé (ni dessiné, ni atteignable, ni lu par TalkBack, ses dialogues disparaissent avec lui) ; l'écran quitté revient intact | Agenda `LockedAppHost` |
+| Décision de verrouiller | **synchrone** dans `MainActivity.onStop`, jamais dans une coroutine ; pas sur `isChangingConfigurations` (le changement de langue recrée l'activité) | Agenda F13 + ajout Notes Tech |
+| Délai | au choix (immédiat par défaut), mesuré par `elapsedRealtime` au `onStart` — l'horloge qui compte la veille (le `delay()` de SMS Tech ne la comptait pas, S2) | ajout |
+| Sélecteur ouvert par l'app | pas de PIN au retour (import du modèle vocal), dans les bornes d'Agenda : 3 s, écran éteint, 3 min | Agenda `PickerRelockPolicy` |
+| Vérificateur du PIN | `HMAC_cléKeystore(libellé ‖ Argon2id(pin, sel))`, sel 16 o, Argon2id allégé (32 Mio, t=2). Clé **sans** authentification, **sans** `setUnlockedDeviceRequired`, **sans** exigence matérielle | nouveau — voir ci-dessous |
+| Temporisation | 5 essais libres, puis 30 s doublés jusqu'à 1 h ; compteur persistant (écriture `commit`), horloge monotone (un redémarrage relance l'attente, ne la raccourcit jamais) ; **jamais d'effacement** | nouveau |
+| Biométrie | `BIOMETRIC_STRONG` **seule** + `CryptoObject` sur une clé AES invalidée par un nouvel enrôlement ; créée **à l'activation**, jamais recréée en silence (clé absente = invalidation → biométrie désarmée, PIN) ; seulement par-dessus un PIN | SMS Tech 1.25.3 H2 + correction de S4 |
+| PIN oublié | la seule sortie honnête : le **mode panique** existant (tout effacer) | nouveau |
+| Récents | API 33+ : `setRecentsScreenshotEnabled(false)` quand un verrou existe ; en dessous : `FLAG_SECURE` imposé par le contrôleur (seul auteur du drapeau, cf. `SecureWindowController`) | nouveau |
+| Panique | nouvelle étape qui efface les clés du verrou ; les préférences `app_lock_*` partent avec `PREFS_CLEAR` (liste blanche) | nouveau |
+| Baisser une protection | désactiver, changer le PIN, allonger le délai, **activer** la biométrie : exigent le PIN courant | SMS Tech S7 |
+
+**Pourquoi une clé Keystore pour un verrou qui ne chiffre rien.** Le PIN ne protège rien
+cryptographiquement — la base s'ouvre sans lui — mais sa **valeur** mérite protection : on réutilise
+ses PIN, et celui-ci est très probablement celui d'un coffre. Stocké en simple empreinte salée, il
+tomberait hors ligne en secondes, et ouvrirait ensuite le coffre en un essai : le modèle des coffres
+PIN repose précisément sur l'hypothèse inverse. **Pourquoi pas la recette des coffres** : elle exige
+du matériel sécurisé et un appareil déverrouillable — elle interdirait le verrou sur un téléphone
+**sans** verrouillage d'écran, c'est-à-dire à ceux qui en ont le plus besoin.
+
+**Écarté.** *Code de l'appareil (DEVICE_CREDENTIAL) comme repli ou comme verrou* : il réadmet la
+biométrie faible, et un proche qui connaît le code du téléphone est exactement ce contre quoi un
+verrou de notes protège. *`BIOMETRIC_WEAK`* (visage 2D) : une photo suffisait (SMS Tech, retiré en
+1.25.3) — ⚠️ conséquence à dire à Patrice : **le visage n'est proposé que là où il est de classe 3**
+(Pixel récents), pas sur la plupart des Samsung. *Le verrou comme destination de navigation* (SMS
+Tech) : perd l'écran en cours à chaque verrouillage. *Effacement après N échecs* : un enfant qui joue
+avec le téléphone détruirait les notes.
+
+## D-024 — Aperçu Markdown : analyseur JetBrains, rendu Compose écrit ici
+
+**2026-09-24 · parité 2.0.9 (A1/A2 de l'inventaire)** — **pas encore codé**.
+
+**Contexte.** La 2.0.9 a ajouté un aperçu (bascule Éditer/Aperçu, `flutter_markdown_plus`, GFM,
+`[[Titre]]` cliquable, images jamais chargées). Le portage n'a aucune bibliothèque Markdown — le
+rendu minimal de `LegalScreen` ne couvre que quatre pages statiques (§125).
+
+**Décision.** `org.jetbrains:markdown` (analyseur GFM pur Kotlin, Apache 2.0, Maven Central) → un
+modèle de blocs testé **sur la JVM** → un rendu Compose écrit ici. Parité de rendu avec la 2.0.9 :
+titres, listes, cases GFM **non interactives**, citations, code, tableaux, règles ; gras, italique,
+barré, code en ligne, liens ; `[[Titre]]` par le **même motif** que l'indexeur (rendre public
+`WikiLinkParser.LINK`), **pas** dans le code ; résolu à la demande, ouvert, ou **créé puis ouvert**
+comme la 2.0.9 ; liens externes `http`/`https`/`mailto` seulement, vers une autre application ;
+images **jamais chargées** (texte alternatif en italique) ; HTML affiché **littéralement** (écart
+assumé : la 2.0.9 fait disparaître les blocs HTML).
+
+**Écarté.** *`multiplatform-markdown-renderer`* : dépendances Compose Multiplatform, et le lien
+`[[…]]` à cheval sur plusieurs jetons y est difficile à intercepter. *Markwon* : vues Android,
+inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni blocs de code.

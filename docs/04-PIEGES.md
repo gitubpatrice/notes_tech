@@ -4269,3 +4269,74 @@ cannot be present when splits abi filters are set
 produiraient un APK annonçant une architecture dont il ne porte pas la bibliothèque native ; une
 seule liste ne peut pas diverger d'elle-même.* Vérifié après coup : chaque APK contient **exactement
 une** ABI.
+
+---
+
+## §128 — 🔴 Un mois d'arrêt, et le portage était devenu un downgrade pour tout le monde
+
+Constaté le 2026-09-24. Le portage produisait 1053/2053/3053 ; la Flutter, qui a continué de publier
+pendant l'arrêt, était arrivée à 4071/4072/4073 sous un schéma **imposé par F-Droid** (`base × 10 +
+ABI`). Personne n'avait relié les deux dépôts : `REPRISE.md` décrivait encore une 2.0.4 publiée et une
+MR en 2.0.3. Corrigé par D-022 (`8715023`), avec un plancher de 407 dans `build.gradle.kts` et son
+contrôle positif (base 53 remise → la configuration échoue).
+
+> **Une ligne d'état survit à la levée de son motif** — la leçon de Notes Tech `!37885` (« bloquée sur
+> Play Core »), reproduite ici par l'inverse : l'état était juste, c'est le monde autour qui avait bougé.
+> Un dépôt qui dépend d'un autre se relit **contre l'autre**, pas contre lui-même.
+
+## §129 — 🔴 L'outil d'écriture transforme les échappements `\uXXXX` en caractères réels
+
+Mesuré le 2026-09-24 sur `TextStatisticsTest` : écrit avec un échappement d'espace insécable, le
+fichier portait un vrai U+00A0 — et la même chose pour U+202F, U+200B, U+2028, U+2029. Le test
+passait, mais contre des caractères **invisibles**, exactement ce que `DartTextSemanticsTest`
+s'interdit.
+
+**Règle** : un caractère invisible se construit par son point de code (`Char(0x00A0)`), jamais par
+un littéral ni par un échappement `\u`, que l'outil réinterprète. Vérification : un script qui liste
+les caractères > 0x7F hors commentaires.
+
+## §130 — Le générateur de chaînes a refusé d'écrire, et c'était la bonne réponse
+
+La 2.0.9 a ajouté aux `.arb` deux clés que le portage avait déjà ajoutées de son côté
+(`voice_model_{base,tiny}_notes`). `arb_vers_strings.py` a levé « noms dupliqués » **avant toute
+écriture**. Tranché : le texte publié l'emporte (chaînes partagées, l'ARB est leur source). Et six
+clés 2.0.9 que le portage n'utilise volontairement pas sont listées avec leur raison (`ECARTEES`)
+plutôt que laissées orphelines — une chaîne traduite lue nulle part reste un signal dans ce dépôt.
+
+⚠️ Régénérer le 2026-09-24 a tiré **tout** l'ARB 2.0.9, y compris la **suppression** de
+`common_error_with` : la compilation a cassé à quatre endroits. C'est ce qui a fait porter A5 en même
+temps que la régénération, et pas après.
+
+## §131 — ⚠️ Un test de parité comparé à la constante du code ne mesure plus rien
+
+En remplaçant `"sans-dossier"` par `"untitled-folder"`, la première version comparait
+`safeFolderName(…)` à `NoteMarkdown.UNTITLED_FOLDER_DIR_NAME` — c'est-à-dire le code à lui-même. Le
+test serait resté vert quelle que soit la valeur. Remis sur le **littéral** attendu, celui de la
+2.0.9. *Une parité se vérifie contre la référence, jamais contre soi.*
+
+## §132 — ⚠️ Un conseil qui menait quelque part peut cesser d'exister
+
+`startup_failure_missing_key` disait « installez d'abord Notes Tech 2.0.4, ouvrez-la, puis remettez à
+jour ». Juste le 2026-08-13 ; impossible depuis la 2.0.5 (tout ce qui suit est au-dessus : un
+downgrade refusé), et la seule façon de le forcer — désinstaller — détruit les notes. Le message dit
+désormais ce qu'il ne faut **pas** faire. *Un geste proposé à l'utilisateur se revérifie quand le
+monde autour bouge, comme une ligne d'état (§128).*
+
+## §133 — Outillage : trois pièges de la séance du 2026-09-24
+
+- **Le hook `pretooluse-protect` lit le TEXTE de la commande** : une ouverture Python en écriture
+  (`open` avec le mode `"w"`) y est refusée même quand elle vise le scratchpad par une variable — et
+  même quand ce texte n'est qu'une citation dans un heredoc de documentation. Écrire par
+  `ecrire_atomique.remplacer` / `patcher`, ou par l'outil Write, puis `cat fichier >> cible`.
+- **Heredoc + apostrophes échappées** : `\\'` dans un `'''…'''` Python dans un heredoc bash ne donne
+  pas ce qu'on croit. Construire la chaîne explicitement dans un fichier de script (`BS = "\\"`).
+- **ktlint trie les imports** lexicographiquement **avec `java`, `javax`, `kotlin` à la fin** : un
+  tri purement lexicographique les met au milieu et fait échouer `ktlintCheck`.
+
+## §134 — Séparer un commit quand un fichier porte deux sujets
+
+`NoteEditorScreen.kt` portait à la fois la parité 2.0.9 et le panneau Infos. `git add -p` n'est pas
+disponible ici. Procédé suivi, et vérifié : construire par script la version **sans** les morceaux du
+second sujet ; mettre de côté les fichiers des commits suivants (empreintes SHA-256 notées) ; faire
+tourner le **gate complet sur l'état exact du commit** ; commiter ; restaurer ; recomparer les
+empreintes. Plus long qu'un gros commit, et c'est ce qui rend l'historique relisable.

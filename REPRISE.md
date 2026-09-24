@@ -1,9 +1,238 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, **mis à jour le 2026-08-19**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, **puis le 2026-09-24**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## État en trois lignes
+## 🎯 ÉTAT AU 2026-09-24 (soir) — LIRE CECI D'ABORD
+
+> Écrit avant un `/compact`, pour reprendre sans rien perdre. Tout ce qui suit est vérifié, pas supposé.
+> Les sections plus bas (08-15 → 08-20) sont l'historique : **elles décrivent un monde qui a bougé**
+> (cf. `docs/04-PIEGES.md` §128) — ne pas en reprendre un état sans le revérifier.
+
+### Ce qui s'était passé pendant l'arrêt (08-26 → 09-24)
+
+Le portage n'a pas bougé pendant un mois ; la Flutter `notes_tech` a publié **2.0.5 → 2.0.9**
+(dernière : `e3ee1d6`, tag `v2.0.9`, versionCode **407** → splits **4071/4072/4073**, schéma
+`base × 10 + ABI` imposé par F-Droid). La MR F-Droid `!37885` est en **2.0.9**, « mostly ready »
+(linsui), en file de test — **ne pas y toucher**. Patrice : **le S9 est un téléphone de TESTS
+uniquement**, la 3.0.0 n'a jamais servi — **le rodage (phase 0) n'a pas eu lieu** (cf.
+`docs/12-PLAN-DE-BASCULE.md`, correction du 09-24).
+
+### Consignes de Patrice du 2026-09-24
+
+- « Fais tout ce qui est nécessaire, et proprement » : rattraper la parité 2.0.9, **ajouter le panneau
+  Infos** au Kotlin, **ajouter le verrouillage de l'app par PIN ou biométrie** (empreinte, visage).
+- Tests : **émulateur sans fenêtre** (`emu-test-api34`) **ou le S9** (`22dbb7390a057ece`) — jamais le
+  S24 FE. Relectures externes autorisées : **GPT 5.6 sol** ou **Gemini Pro** (vérifier les noms de
+  modèles que `~/.claude/tools/audit-ia.py` accepte réellement).
+- Renommer le dossier `notes_files_tech` → `notes_files_kotlin` (Patrice) — **proposé**
+  `notes_tech_kotlin`, **réponse attendue**. Impossible pendant une session (répertoire de travail
+  verrouillé par Windows) : à faire VS Code fermé — renommer, supprimer `app\.cxx` et `build` (chemins
+  absolus CMake), rouvrir ; copier la mémoire `~/.claude/projects/j--applications-notes-files-tech/`
+  vers le nouveau nom. Les deux scripts i18n ne dépendent plus du nom (commit `9d0c59f`).
+- **Tout ce qui est écrit désormais en anglais** (code, commentaires neufs, commits) ; les docs de ce
+  dossier (`docs/`, `REPRISE.md`) restent en français : journal local.
+
+### Commits du jour, sur `master` (aucun remote, rien de poussé)
+
+| Commit | Contenu |
+|---|---|
+| `8715023` | versionCode `base × 10 + ABI`, base **500** → 5001/5002/5003 (D-022) ; garde plancher 407 + contrôle positif |
+| `9d0c59f` | **parité 2.0.9** : aucun texte d'exception à l'écran (`ui/common/UserMessages.kt`), boîte de réception « Inbox » et nom par défaut traduit partout (`Folder.isDefaultInboxName`, `ui/common/FolderNames.kt`), export (`inbox/`, `untitled-folder`, README anglais, `NoteMarkdown.folderLabel`), coffre PIN sans verrouillage d'écran (`KeystoreDeviceNotSecureException`), clé de coffre tirée après Argon2id, compte à rebours de freinage en mots (`ui/common/RetryWait.kt`), noms de modèles publiés, message « clé introuvable » réécrit, « atomique » retiré de privacy, chaînes régénérées depuis l'ARB 2.0.9 (`ECARTEES` pour 6 clés volontairement non reprises) |
+| `f640903` | **panneau Infos** (menu ⋮ de l'éditeur → dossier, créée, modifiée, mots, caractères) — `core/text/TextStatistics.kt`, `ui/editor/NoteInfo.kt`, `NoteInfoDialog.kt` |
+| (ce commit-ci) | docs : D-022/D-023/D-024, inventaire 2.0.9 dans `05-PARITE.md`, §128-§134, plan de bascule |
+
+Gate au dernier commit de code : `assembleDebug`, **259 tests JVM (30 classes), 0 ignoré**, `lintDebug`,
+detekt, ktlint, compilation `androidTest`. ⚠️ **La suite instrumentée n'a PAS tourné** depuis le
+2026-08-20.
+
+### 🔴 CE QUI RESTE, dans l'ordre
+
+1. **Verrouillage de l'app** — conception arrêtée : **D-023** (tout y est : hôte à la Agenda, décision
+   synchrone dans `onStop`, vérificateur HMAC Keystore, temporisation, biométrie forte + `CryptoObject`,
+   PIN oublié → mode panique, Récents, étape de panique, PIN exigé pour baisser une protection).
+   **Fondations écrites, NON commitées, NON testées** :
+   - `app/src/main/java/com/filestech/notes_tech/security/applock/AppLockKeystore.kt` (interface +
+     exceptions), `AndroidAppLockKeystore.kt` (clé HMAC `app_lock_hmac_v1`, relit après suppression),
+     `AppLockPin.kt` (`StoredPin` v1, `AppLockParams` 4-6 chiffres, `AppLockPinVerifier`,
+     `AppLockThrottle` 5 libres puis 30 s doublés → 1 h) ;
+   - `data/prefs/LegacyPreferences.kt` : `long()` et `commit { }` (écritures synchrones, préfixe et
+     types du greffon conservés).
+   Reste : tests JVM de ces fondations (faux Keystore) ; `AppLockStore` (clés `app_lock_*` dans le
+   fichier Flutter — la présence du vérificateur VAUT « verrou configuré », un vérificateur illisible
+   laisse VERROUILLÉ) ; `AppLockManager` (singleton, `attemptPin` atomique sous mutex **vérification
+   comprise** — leçon S16 d'Agenda) ; `BiometricUnlockKey` ; `PickerRelockPolicy` (copie d'Agenda +
+   ses 12 cas) ; `MainActivity` → `FragmentActivity` + `onStop`/`onStart`/`onResume` ; hôte
+   (`LockedAppHost`) dans `ContenuPrincipal` ; écran de verrouillage (réutiliser le pavé et les
+   pastilles de `VaultSheets.kt` en les sortant dans `ui/common`, sans changer leur comportement) ;
+   section Réglages ; étape de panique ; `androidx.biometric:biometric:1.1.0` (celle de SMS Tech) ;
+   `tools/check-manifest-permissions.py` (`USE_BIOMETRIC`, `USE_FINGERPRINT`) **et** la table de
+   `privacy.md` FR/EN ; chaînes EN/FR dans `AJOUTS_*` du générateur.
+   Référence : `J:\applications\agenda_tech\app\src\main\java\com\filestech\agenda_tech\` —
+   `ui/LockedAppHost.kt`, `security/{AppLockManager,PickerRelockPolicy,BiometricGate,StrongBiometrics}.kt`,
+   `MainActivity.kt:90-135, 280-400, 452-530`.
+2. **Aperçu Markdown** (A1/A2) — **D-024**. Ce que la 2.0.9 rend (lu dans
+   `lib/ui/widgets/note_markdown_preview.dart` et `flutter_markdown_plus-1.0.12`) : GFM ;
+   `selectable:false` ; saut de ligne simple = espace ; titres h1-h6 ; listes ; cases **non
+   interactives** ; citations (fond `surfaceContainerHighest`, liseré `primary` 3 px) ; code
+   monospace à défilement horizontal ; tableaux bordés, en-tête gras ; images → texte alternatif (ou
+   URI) en italique, **jamais chargées** ; HTML en ligne littéral ; `[[Titre]]` = motif de l'indexeur,
+   évalué avant les autres syntaxes, **pas dans le code**, `trim()` Dart ; tap → note ouverte
+   (enregistrement d'abord, auto-lien ignoré) ou **créée dans le dossier courant puis ouverte** ;
+   lien externe : `http`/`https`/`mailto` seulement, application externe, erreurs avalées ;
+   `SegmentedButton` compact, basculer ferme le clavier, toute note s'ouvre en édition, contenu vide →
+   `note_editor_preview_empty`, une insertion (lien, dictée) repasse en édition. Pièges : le contenu
+   vit dans une `Column.verticalScroll` avec le panneau de liens — **aucun défilement imbriqué** ;
+   `creerLaNoteManquante` crée sans ouvrir ; `SecureWindowGuard(isVaultNote)` couvre déjà l'aperçu ;
+   la barre d'action est pleine (6 actions écrasaient le titre, §80 et suivants).
+3. **Tests instrumentés** (S9 ou émulateur) : suite complète (365 + les nouveaux), décompte des
+   ignorés `-3`/`-4`, empreinte du modèle après la suite. ⚠️ **Le S9 ne porte plus AUCUNE Notes Tech**
+   (vérifié 2026-09-24) : le modèle `whisper-base-q5_1.bin` n'y est plus ; aucun `.bin` dans
+   `/sdcard/Download`. `TranscriptionSurAppareilTest` sera donc ignoré tant que le modèle n'est pas
+   réimporté — le dire, ne pas le compter vert. Écrire le test instrumenté de `NoteInfoDialog`
+   (balayages d'accessibilité, compte des champs = 0).
+4. **Bascule depuis une vraie 2.0.9** sur le S9 (jamais mesurée) : installer l'APK arm64 publié
+   (4072), créer notes + coffre PIN + coffre passphrase, poser la 3.0.0 signée
+   (`-Pnotestech.replaceInstalledApp=true`, signature par `apksigner`, secret lu à la volée dans
+   `notes_tech/android/key.properties`, **aucun fichier de mot de passe écrit**), vérifier.
+5. **Relectures externes** (autorisées) sur le verrouillage et l'aperçu, puis vérifier chaque constat.
+6. Docs finales : `05-PARITE.md` (cocher A1/A2), `REPRISE.md`, `12-PLAN-DE-BASCULE.md`.
+
+### Rapports d'agents du 2026-09-24 (résumés ici : les transcriptions ne survivent pas)
+
+- **Inventaire 2.0.4 → 2.0.9** : intégré à `docs/05-PARITE.md` (A1-A21, D4). Hors portage, signalé :
+  la Flutter dit « l'audio n'est jamais persisté » dans ses textes publiés — faux si son moteur lit
+  un fichier ; non vérifié côté Flutter. Et `outils/verif_i18n_retour_arriere.py` ignore
+  `REMPLACEES` (donc aussi `ECARTEES`) : il était déjà rouge avant le 09-24, sur les 8 clés réécrites.
+- **Verrou de SMS Tech** : défauts à NE PAS reprendre — verrou poussé comme destination de navigation
+  (perd l'écran) ; délai par `delay()` sur une horloge qui s'arrête en veille ; rien pour les
+  sélecteurs ; empreinte du PIN hors Keystore ; recréation silencieuse de la clé biométrique après
+  invalidation ; baisser une protection sans le secret ; échec ouvert si l'empreinte manque ;
+  biométrie qui franchit le blocage de façon incohérente ; libellé qui promet le visage en classe 3
+  seule. À reprendre : état fermé par défaut, primitive unique de fermeture qui verrouille aussi les
+  coffres, comparaison à temps constant, `when` exhaustifs sans `else`, `withResumed` avant
+  `authenticate` (la 1.1.0 abandonne en silence après `onSaveInstanceState`), garde anti-empilement
+  des invites.
+
+### Aide-mémoire opérationnel — repris de `PROMPT-REPRISE.md` (fichier non suivi, supprimé le 2026-09-24)
+
+> Toujours valable : la méthode et les contraintes dures. Seule mise à jour : les relectures externes sont désormais **autorisées** par Patrice (GPT 5.6 sol, Gemini Pro), et `pretooluse-protect` refuse toute ouverture Python en écriture dans une commande (cf. `docs/04-PIEGES.md` §133).
+
+### La méthode qui a trouvé les douze défauts — ne pas improviser
+
+Ne demande **pas** « est-ce que l'écran marche ? » : cette question n'a rien trouvé en six tours.
+Pose les quatre autres.
+
+#### 1. Que reçoit un lecteur d'écran ? — **trois** balayages, pas deux
+
+Ils se recopient tels quels depuis `app/src/androidTest/.../ui/BalayageDAccessibilite.kt`, et chacun a
+son **témoin** dans `BalayageDAccessibiliteTest` :
+
+- `actionnablesSansNom()` — une **action sans nom** ;
+- `actionsPerduesALaFusion()` — un **nom sans action**, le motif inverse ;
+- `champsDeSaisieSansNom()` — une **zone de saisie sans nom**, née au §80.
+
+⚠️⚠️ **Compte tes champs AVANT d'affirmer qu'aucun n'est muet.** `CHAMP_DE_SAISIE` est exposé à côté
+des balayages pour ça : *un balayage qui n'a rien trouvé à balayer est vert lui aussi*. Le compte
+attendu s'écrit **par écran**, jamais « au moins un ».
+
+⚠️ Un champ **vide** ne discrimine rien — son placeholder le nomme. Pose du texte.
+⚠️ Sur un écran **sans** champ, appeler le balayage est l'assertion creuse elle-même : affirme plutôt
+« cet écran ne porte aucun nœud éditable », comme `CorbeilleTest` (fil-piège).
+
+🔴 **Sur une feuille (`ModalBottomSheet`), `actionnablesSansNom` signalera TOUJOURS un nœud muet** :
+`BottomSheetDefaults.DragHandle` pose **deux** nœuds aux mêmes coordonnées, l'un nommé, l'autre avec
+`OnLongClick` **seul et sans nom**. Ce n'est pas le portage et ce n'est pas nommable depuis l'appelant.
+Reprends l'exception d'`AutocompletionTest` : ancrée sur le nœud portant `Dismiss`, avec
+`containsExactly` conservé — **jamais** dans l'instrument partagé.
+
+#### Les deux instruments qui se sont révélés VACANTS le 08-18 — ne pas les refaire
+
+- 🔴🔴 **Une `ModalBottomSheet` compose dans une fenêtre qui REPOSE ses propres `CompositionLocal`.**
+  `LocalDensity`, `LocalTextToolbar` (et probablement les autres) fournis **au-dessus** d'elle **n'y
+  entrent pas**. Deux mesures à l'échelle de texte ×2 ont rendu des bornes **identiques au pixel
+  près** — impossible, et c'est ce qui a dénoncé l'instrument. Pour mesurer une taille de texte :
+  `adb shell settings put system font_scale 2.0`, puis **restaurer à `1.0`**.
+- 🔴 **Un espion de `TextToolbar` ne voit rien** dans ce harnais, *y compris sur un champ ordinaire* :
+  `performTouchInput { longClick() }` n'ouvre pas la barre de sélection. Ce qui répond à la question
+  « peut-on copier ce champ ? », c'est **l'arbre sémantique** : poser une sélection par
+  `SemanticsActions.SetSelection`, puis regarder `CopyText` / `CutText`. Témoin obligatoire sur un
+  champ ordinaire, qui les porte.
+
+#### 2. Quels états ne sait-on pas atteindre à la main ?
+
+Rends l'écran **sans état** — `Route` branché + composable qui ne reçoit qu'un état et des rappels,
+comme `HomeRoute`/`HomeScreen`, `TrashRoute`, `SearchRoute`, `SettingsRoute`, `NoteEditorRoute`.
+`FeuilleDAutocompletion` et `FeuilleDeDeplacement` étaient déjà sans état : vérifie avant de découper.
+
+#### 3. Combien de tests ont été ignorés ? — **des deux côtés**
+
+- instrumenté : `grep -c 'INSTRUMENTATION_STATUS_CODE: -3'` (ignoré) **et** `-4` (échec d'hypothèse),
+  jamais le « OK (N tests) » ;
+- 🔴 **JVM aussi**, depuis §82 : le dépôt tourne en **JUnit 5** (`app/build.gradle.kts:219`), et une
+  classe écrite en **JUnit 4 est ignorée sans un mot**, sous `BUILD SUCCESSFUL`. Compte la somme des
+  `tests=` dans `app/build/test-results/testDebugUnitTest/*.xml`, et vérifie que **le XML de ta classe
+  existe**.
+
+#### 4. Ce que le publié VOULAIT — pas seulement ce qu'il fait
+
+C'est la question *« quel fichier joue ce rôle, et pourquoi ? »* qui a trouvé les défauts que
+*« est-ce que ça marche ? »* laissait passer. Et une **chaîne traduite des deux côtés et lue nulle
+part** est un signal — elle a désigné le bon libellé deux fois (§79, §80).
+
+#### Les motifs déjà nommés, à chercher d'emblée
+
+- une valeur initiale de `stateIn` indiscernable d'une donnée (§75, §76) ;
+- une réponse qui ne dit pas **à quelle question** elle répond (§76, §84) ;
+- un composant interactif en slot sans nom, ou une sémantique posée sur un autre nœud que celui qui
+  agit (§74, §77) ;
+- une `contentDescription` qui nomme autre chose que l'action (§73, §79) ;
+- 🔴 **un commentaire qui ment** : le dépôt en a maintenant **deux** cas avérés, et le second a été
+  **repris tel quel par un relecteur externe** comme preuve que le code était bon (§84).
+
+### Contraintes dures — les enfreindre coûte des données réelles
+
+- **Appareil de test = le S9, `ANDROID_SERIAL=22dbb7390a057ece`.** ⚠️ **JAMAIS** le S24 FE
+  (`RZCY41EGKYL`) : c'est le téléphone réel de Patrice.
+- **La suite instrumentée se lance par `adb shell am instrument -w -r
+  com.filestech.notes_tech.next.debug.test/com.filestech.notes_tech.HiltTestRunner`**, jamais par
+  `connectedAndroidTest`, qui désinstalle l'application.
+- ⚠️ **Réinstalle l'APK applicatif, pas seulement celui des tests**, dès qu'une classe **de production**
+  est ajoutée — sinon `ClassNotFoundException` au lancement (vécu ce soir).
+- **Contrôler le modèle de 57 Mo après chaque suite** :
+  `adb shell "run-as com.filestech.notes_tech.next.debug sha256sum files/stt/whisper-base-q5_1.bin"`
+  doit rendre `422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898`.
+- **`MSYS_NO_PATHCONV=1`** devant tout `adb` contenant `/sdcard/…` ou `/data/…`.
+- **`strings.xml` est GÉNÉRÉ** par `outils/arb_vers_strings.py` : toute chaîne nouvelle s'ajoute dans
+  `AJOUTS_EN` / `AJOUTS_FR` du script, **jamais** dans le XML.
+- **Jamais `git add -A`** : nommer les fichiers un par un. **Commits par `-F`, jamais `-m`.**
+- ⚠️ `./gradlew ktlintFormat` réécrit les fins de ligne de fichiers **non modifiés** : vérifie
+  `git diff --numstat` et restaure ceux à zéro ligne de diff réel.
+- **Ne jamais régénérer une baseline** pour faire passer un gate.
+- `cmd | tail` rend le code de sortie de `tail` : mesurer par `cmd > /tmp/log 2>&1; echo $?`.
+
+### Ce que j'attends en fin de tour
+
+1. La ligne cochée dans `docs/05-PARITE.md` **uniquement sur mesure sur appareil**, en nommant le test
+   qui la prouve et le nombre de cas.
+2. Les défauts consignés en `docs/04-PIEGES.md` (§86 et suivants), avec la **mesure** qui les établit.
+3. Le gate complet vert, le décompte des ignorés **JVM et instrumentés**, et l'empreinte du modèle.
+4. Un commit par `-F`, message dense, en français.
+5. **Un contrôle positif** dès que tu écris un filtre ou un test qui « ne signale rien » : remets le
+   défaut en place dans le **vrai code**, mesure, puis restaure — et **vérifie la restauration au
+   SHA-256** si le fichier porte du travail non commité (`git checkout --` l'emporterait).
+6. Relecture externe : `~/.claude/tools/audit-ia.py --provider gpt --model gpt-5.2 --diff HEAD` et
+   `--provider gemini`, avec `--prompt <fichier>`.
+   ⚠️ **`--prompt` et `--out` sont obligatoires.** ⚠️ `gpt-5.5`/`5.6` **n'existent pas** côté API.
+   ⚠️⚠️ **`git diff HEAD` ignore les fichiers NON SUIVIS** ⇒ `git add -N` sur les fichiers neufs
+   **avant** de lancer, sinon le relecteur juge un lot amputé — et le dira.
+   ⚠️ Gemini rend souvent **503** : reboucler. Un rapport vide est un **échec**, pas un « rien trouvé ».
+   ⚠️ **Vérifie chaque constat avant de l'appliquer**, et **relis le correctif** : sur les deux tours
+   d'hier, un correctif issu d'une relecture a introduit un défaut que l'autre relecture a rattrapé.
+
+---
+
+## (historique) État en trois lignes — au 2026-08-19
 
 - Dépôt : `j:\applications\notes_files_tech`, branche `master`, arbre **propre**, et **toujours aucun
   remote** — rien n'est poussé nulle part. ⚠️ Le compte de commits n'est plus écrit ici : il devenait
@@ -29,7 +258,7 @@
   répertoires non suivis (`.audit_tmp/`, `_audit_results/`, `prompts/`) ne doivent **jamais** entrer
   dans l'index — pas de `git add -A`.
 
-## 🎯 RESTE À FAIRE — au 2026-08-20 au soir
+## (historique) RESTE À FAIRE — au 2026-08-20 au soir — ⚠️ dépassé, cf. la section du 2026-09-24
 
 > ✅ **La bascule a eu lieu.** Les trois dernières lignes de `05-PARITE.md` sont cochées **sur
 > mesure**, pas sur raisonnement. Ce qui suit est ce qui reste derrière.

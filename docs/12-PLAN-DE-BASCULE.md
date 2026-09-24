@@ -32,7 +32,7 @@ irréversible arrive le plus tard possible, et sur le moins de monde possible.
 | La base SQLCipher héritée est relue | notes en clair retrouvées intactes |
 | Les coffres **PIN et passphrase** créés en Flutter s'ouvrent en Kotlin | les deux mesurés, clair affiché |
 | La signature autorise la mise à jour | `ddb385de…42e9`, vérifié contre l'**APK 2.0.4 installé** |
-| Le `versionCode` dépasse celui des installations réelles | 1053 / 2053 / 3053, contre 1052 / 2052 / 3052 |
+| ~~Le `versionCode` dépasse celui des installations réelles~~ | ~~1053 / 2053 / 3053, contre 1052 / 2052 / 3052~~ — **FAUX depuis la 2.0.5** : la 2.0.9 publiée est en 4071/4072/4073. Refait le 2026-09-24 : **5001 / 5002 / 5003** (D-022, `8715023`) |
 
 ---
 
@@ -72,7 +72,13 @@ jour J se réduit à un merge.
 sont exactement là où vivent les 124 pièges de `04-PIEGES.md` ; les aplatir rendrait ce fichier
 invérifiable.
 
-### B. Le `versionCode` n'a qu'une marge de **1**
+### B. ✅ TRANCHÉE le 2026-09-24 — `base × 10 + ABI`, base 500 (D-022)
+
+> Ce qui suit est l'état du 2026-08-20. Il s'est produit exactement ce qu'il annonçait : la 2.0.5 a pris
+> 2053, puis F-Droid a imposé un autre schéma, et la 3.0.0 est devenue un downgrade pour tout le monde.
+> Cf. `04-PIEGES.md` §128.
+
+### B. (état du 2026-08-20) Le `versionCode` n'a qu'une marge de **1**
 
 3.0.0 = 2053, la 2.0.4 publiée = 2052. **Si une 2.0.5 Flutter sort d'ici la bascule, elle prend
 2053 et la 3.0.0 devient impossible à publier sans re-bumper.**
@@ -82,6 +88,13 @@ permis de mesurer la bascule le jour même. Pour une publication, un **palier fr
 À trancher.
 
 ### C. Que fait-on de la MR F-Droid `!37885` ?
+
+> **2026-09-24** : la MR est désormais en **2.0.9** (4071/4072/4073), « mostly ready » selon linsui,
+> dans la file de test. La recommandation ci-dessous tient **plus que jamais** : convertir la recette
+> maintenant la renverrait en revue. Et linsui demande de mettre la MR à jour à **chaque** nouvelle
+> version publiée — une 3.0.0 publiée avant la fusion obligerait donc à réécrire la recette en pleine
+> revue. ⚠️ `UpdateCheckData` devra lire `version.properties` (le portage n'écrit pas son
+> `versionCode` dans `build.gradle.kts`).
 
 Elle est épinglée sur **2.0.3 / 51**, décrit un build Flutter, et attend en revue depuis juin.
 
@@ -94,6 +107,14 @@ demande en bas de la file, pour une app qui n'est pas encore prête à être pub
 ## Le plan, dans l'ordre
 
 ### Phase 0 — Le rodage. **Le seul point qu'on ne peut pas accélérer.**
+
+> 🔴 **Correction du 2026-09-24 — ce rodage N'A PAS EU LIEU.** Patrice : « je n'ai pas utilisé la
+> 3.0.0, le S9 est un téléphone de TESTS uniquement ». Les trois retours du 2026-08-20 venaient d'un
+> essai de quelques minutes, pas d'un usage. Et le S24 FE, le seul téléphone réel, ne doit jamais
+> servir de banc d'essai. **Le rodage reste donc entièrement à organiser, et c'est une décision de
+> Patrice** : sur quel appareil, avec quelles notes, combien de temps — sachant que poser la 3.0.0
+> par-dessus une installation réelle est irréversible (cf. « Le point de non-retour »). Piste : une
+> pré-publication GitHub (phase 4, palier 1) pour des volontaires qui savent revenir en arrière.
 
 Le portage n'a **jamais servi une seule journée**. 595 tests et trois bascules mesurées ne
 remplacent pas une semaine d'usage : ce qui reste à trouver est ergonomique, et aucun test ne voit

@@ -854,3 +854,44 @@ couvre aussi zéro. Le « 1 » écrit en dur dans l'ARB devient donc l'argument 
 « 0 note a perdu… », singulier avec zéro, ce qui est la règle française. La version Flutter y
 affiche « 0 notes ont perdu… ». **L'anglais est rigoureusement identique** dans les deux, `one` n'y
 valant que pour 1.
+
+---
+
+## 🔄 Rattrapage 2.0.4 → 2.0.9 — inventaire du 2026-09-24
+
+> Ce tableau-ci ne remet **pas** en cause le précédent, complet contre la **2.0.4** et coché sur
+> mesure. Il couvre ce que la Flutter a publié **pendant que le portage était à l'arrêt** (2.0.5 à
+> 2.0.9, du 2026-09-02 au 2026-09-14). Inventaire fait hunk par hunk (`git diff v2.0.4 v2.0.9 -- lib
+> assets android/app/src`), chaque hunk rattaché à une ligne ou déclaré sans objet. Seuls trois
+> commits Flutter changent un comportement : `e3ee1d6` (2.0.9), `f2d81a4` (éditeur légal), `419b0ea`
+> (cycle de vie Flutter, sans objet ici).
+
+| # | Changement 2.0.9 | Statut portage | Où / preuve |
+|---|---|---|---|
+| A1 | Aperçu Markdown (bascule Éditer/Aperçu, GFM, images jamais chargées) | ⏳ **à faire** | D-024 |
+| A2 | `[[Titre]]` de l'aperçu : même motif que l'indexeur, résolu à la demande, créé **et ouvert** s'il manque | ⏳ **à faire** (briques présentes : `titlesForLinking`, `WikiLinkParser`) | D-024 |
+| A3 | Boîte de réception semée « Inbox », nom par défaut affiché dans la langue de l'app | ✅ `9d0c59f` | `Folder.isDefaultInboxName`, `FolderNames.kt` ; 11 surfaces ; renommer sans changer n'écrit rien ; `InboxDefaultNameTest` (6 cas, contrôle positif 4/6) |
+| A4 | Export : `inbox/`, libellé traduit, `untitled-folder`, README anglais | ✅ `9d0c59f` | `NoteMarkdown.folderLabel` (une règle pour l'archive ET la note seule) ; tests de parité mis à jour sur **littéral** |
+| A5 | Aucun texte d'exception à l'écran (`describeError`) | ✅ `9d0c59f` | `UserMessages.kt` ; 6 écrans ; `UserMessagesTest` (7 cas) |
+| A6 | Coffre PIN : message dédié sans verrouillage d'écran / Keystore logiciel | ✅ `9d0c59f` | `KeystoreDeviceNotSecureException`, `classerLEchecDeGeneration` (4 cas JVM = vecteurs Flutter) |
+| A7 | Clé de coffre tirée après Argon2id, effacée si la création échoue | ✅ `9d0c59f` | `FolderVaultService` (les deux modes) — ⚠️ pas de test : l'échec d'Argon2id ne se provoque pas sans l'injecter |
+| A8 | Refus du presse-papiers sécurisé nommé | ✅ `9d0c59f` | `ClipboardException` → `error_clipboard_secure_unavailable` |
+| A9 | Bandeaux lancés depuis le tiroir visibles | ✅ **déjà** | hôte de messages hors du tiroir (`HomeRoute`, vérifié S9 2026-08-15) |
+| A10 | Sujet/texte du partage d'une note traduits | ⛔ sans objet | le portage met le nom du fichier et aucun texte ; clés en `ECARTEES` |
+| A11 | Noms et descriptions des modèles traduits | ✅ `9d0c59f` | noms publiés (avec la taille) ; descriptions : **le texte publié l'emporte** (collision du générateur) |
+| A12 | Échec d'import sans texte d'exception | ✅ **déjà, et mieux** | 4 causes typées ; clés 2.0.9 en `ECARTEES` |
+| A13 | Refus du micro traduit | ✅ `9d0c59f` | le dialogue de refus définitif reçoit le corps qui lui manquait |
+| A14 | Mentions légales par langue | ✅ **déjà** | `raw` / `raw-fr` |
+| A15 | Textes légaux | ✅ `9d0c59f` | « atomique » retiré (se contredisait dix lignes plus bas) ; le reste est propre au portage et plus exact |
+| A16 | FR « export **de** {n} notes » | ✅ régénération | placeholder inchangé |
+| A17–A20 | Cycle de vie Flutter, `label` de tri, `appVersion`, manifeste OpenCL | ⛔ sans objet | — |
+| A21 | versionCode `base × 10 + ABI` | ✅ `8715023` | D-022 |
+| D4 | Message « clé introuvable » : « installez d'abord la 2.0.4 » impossible depuis la 2.0.5 | ✅ `9d0c59f` | dit ce qu'il ne faut PAS faire, et où écrire |
+
+**Ce que ce rattrapage n'a PAS encore mesuré :**
+
+- ⚠️ **aucune bascule depuis une vraie 2.0.9** : celles du 2026-08-20 partaient de 2.0.3 et 2.0.4. Les
+  versions verrouillées de `flutter_secure_storage`, `sqflite_sqlcipher` et `shared_preferences` sont
+  identiques d'un `pubspec.lock` à l'autre — c'est un indice, pas une mesure ;
+- les lignes A3/A5/A6/A13 n'ont **aucun** test instrumenté neuf, et la suite instrumentée n'a pas
+  tourné depuis le 2026-08-20 (S9 débranché, puis sans aucune Notes Tech installée le 2026-09-24).
