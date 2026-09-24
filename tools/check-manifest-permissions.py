@@ -67,8 +67,14 @@ FORBIDDEN = {
 # vérification que la table de `app/src/main/res/raw/privacy.md` et de `res/raw-fr/privacy.md` la
 # documente déjà dans les deux langues. C'est l'appariement décrit ci-dessus : la liste ne vaut que
 # si l'entrée s'accompagne de sa ligne dans le document que l'utilisateur peut lire.
+#
+# ⚠️ `USE_BIOMETRIC` and `USE_FINGERPRINT` entered on 2026-09-24 with the app lock (D-023). This
+# script refused them first — they arrive through `androidx.biometric`, not the source manifest — and
+# they were added here only once the table of both `privacy.md` files described them.
 ALLOWED: set[str] = {
     "android.permission.RECORD_AUDIO",
+    "android.permission.USE_BIOMETRIC",
+    "android.permission.USE_FINGERPRINT",
 }
 
 # Permissions de niveau signature générées par androidx pour ses propres receivers non exportés.

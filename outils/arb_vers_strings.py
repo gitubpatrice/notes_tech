@@ -248,6 +248,66 @@ AJOUTS_EN = {
          formatee (« 2:00 »), exactement celle que le compteur affichait pendant la dictee. -->
     <string name="voice_limit_reached">Text inserted. Limit of %1$s reached: the rest was not recorded.</string>
 """,
+    "applock": """\
+    <!--
+      Port addition (2026-09-24): the app lock, decision D-023. notes_tech never had one - the
+      Flutter app has no `local_auth`. Two lessons of the portfolio are in the words: the biometric
+      labels never promise the face (Class 3 only, which most Samsung face unlock is not), and
+      forgetting the PIN is stated for what it costs.
+    -->
+    <string name="app_lock_prompt">Enter your PIN</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_wrong_pin">Incorrect PIN.</string>
+    <string name="app_lock_use_biometric">Unlock with biometrics</string>
+    <string name="app_lock_biometric_prompt_title">Unlock Notes Tech</string>
+    <string name="app_lock_biometric_prompt_use_pin">Use PIN</string>
+    <string name="app_lock_biometric_failed">Biometric unlock did not work. Use your PIN.</string>
+    <string name="app_lock_biometric_invalidated">The fingerprints or faces of this device have changed, so biometric unlock was turned off. Unlock with your PIN, then turn it back on in Settings.</string>
+    <string name="app_lock_keystore_unavailable">The PIN could not be checked right now. Try again in a moment.</string>
+    <string name="app_lock_forgot_pin">Forgot your PIN?</string>
+    <string name="app_lock_forgot_body">The PIN cannot be recovered or reset: it never leaves this device. The only way to use Notes Tech again is to erase all your notes and settings with panic mode.</string>
+    <string name="app_lock_forgot_erase">Erase everything…</string>
+    <string name="app_lock_unverifiable">The PIN can no longer be checked on this device: the key that verifies it is missing or damaged. Your notes have not been modified, but the only way back into Notes Tech is to erase everything with panic mode.</string>
+    <string name="app_lock_unverifiable_biometric">The PIN can no longer be checked on this device: the key that verifies it is missing or damaged. Your notes have not been modified. Biometric unlock still works; without it, the only way back into Notes Tech is to erase everything with panic mode.</string>
+    <!-- A count that cannot be written means the attempt is not made: counted after the check, it
+         was a free guess after every force-stop on a full disk (external review, 2026-09-24). -->
+    <string name="app_lock_not_recorded">This attempt could not be recorded on the device, so the PIN was not checked. Free up some storage space, then try again.</string>
+
+    <string name="app_lock_settings_title">App lock</string>
+    <string name="app_lock_settings_toggle">Lock the app with a PIN</string>
+    <string name="app_lock_settings_toggle_subtitle">Asked when you open Notes Tech</string>
+    <string name="app_lock_settings_change_pin">Change PIN</string>
+    <string name="app_lock_settings_biometric">Unlock with biometrics</string>
+    <string name="app_lock_settings_biometric_subtitle">Fingerprint, or face where the device rates its face unlock as secure</string>
+    <string name="app_lock_settings_biometric_not_enrolled">Add a fingerprint in the device settings first.</string>
+    <string name="app_lock_settings_biometric_unavailable">This device has no biometric sensor secure enough.</string>
+    <string name="app_lock_settings_delay">Lock after leaving the app</string>
+    <string name="app_lock_delay_immediately">Immediately</string>
+    <plurals name="app_lock_delay_seconds">
+        <item quantity="one">After %1$d second</item>
+        <item quantity="other">After %1$d seconds</item>
+    </plurals>
+    <plurals name="app_lock_delay_minutes">
+        <item quantity="one">After %1$d minute</item>
+        <item quantity="other">After %1$d minutes</item>
+    </plurals>
+    <!-- Below Android 13, FLAG_SECURE is the only way to keep the notes out of the recent apps
+         screen, so the lock forces it: the switch must not claim that screenshots are allowed. -->
+    <string name="app_lock_secure_window_forced">Always on while the app lock is on: on this version of Android, it is what hides your notes from the recent apps screen.</string>
+
+    <string name="app_lock_pin_current_title">Enter your current PIN</string>
+    <string name="app_lock_pin_new_title">Choose a PIN</string>
+    <string name="app_lock_pin_confirm_title">Confirm the PIN</string>
+    <string name="app_lock_pin_new_warning">If you forget this PIN, the only way back into Notes Tech will be to erase all your notes.</string>
+
+    <string name="app_lock_enabled">App lock on.</string>
+    <string name="app_lock_disabled">App lock off.</string>
+    <string name="app_lock_pin_changed">PIN changed.</string>
+    <string name="app_lock_biometric_enabled">Biometric unlock on.</string>
+    <string name="app_lock_not_saved">The change could not be saved. Try again.</string>
+    <string name="app_lock_proof_expired">Too much time has passed. Enter your PIN again.</string>
+    <string name="app_lock_biometric_setup_failed">Biometric unlock could not be set up on this device.</string>
+""",
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Show PIN</string>
@@ -380,6 +440,59 @@ AJOUTS_FR = {
     <!-- Voir le commentaire cote EN : la borne de 2 min s'appliquait en silence (04-PIEGES.md §96). -->
     <string name="voice_limit_reached">Texte inséré. Limite de %1$s atteinte : la suite n\\'a pas été enregistrée.</string>
 """,
+    "applock": """\
+    <!-- Voir le commentaire cote EN (D-023). -->
+    <string name="app_lock_prompt">Saisissez votre PIN</string>
+    <string name="app_lock_unlock">Déverrouiller</string>
+    <string name="app_lock_wrong_pin">PIN incorrect.</string>
+    <string name="app_lock_use_biometric">Déverrouiller par biométrie</string>
+    <string name="app_lock_biometric_prompt_title">Déverrouiller Notes Tech</string>
+    <string name="app_lock_biometric_prompt_use_pin">Utiliser le PIN</string>
+    <string name="app_lock_biometric_failed">Le déverrouillage biométrique n\\'a pas abouti. Utilisez votre PIN.</string>
+    <string name="app_lock_biometric_invalidated">Les empreintes ou visages de cet appareil ont changé : le déverrouillage biométrique a été désactivé. Déverrouillez avec votre PIN, puis réactivez-le dans les Réglages.</string>
+    <string name="app_lock_keystore_unavailable">Le PIN n\\'a pas pu être vérifié pour l\\'instant. Réessayez dans un moment.</string>
+    <string name="app_lock_forgot_pin">PIN oublié ?</string>
+    <string name="app_lock_forgot_body">Le PIN ne peut être ni retrouvé ni réinitialisé : il ne quitte jamais cet appareil. La seule façon de réutiliser Notes Tech est d\\'effacer toutes vos notes et vos réglages avec le mode panique.</string>
+    <string name="app_lock_forgot_erase">Tout effacer…</string>
+    <string name="app_lock_unverifiable">Le PIN ne peut plus être vérifié sur cet appareil : la clé qui le contrôle est absente ou endommagée. Vos notes n\\'ont pas été modifiées, mais la seule façon de revenir dans Notes Tech est de tout effacer avec le mode panique.</string>
+    <string name="app_lock_unverifiable_biometric">Le PIN ne peut plus être vérifié sur cet appareil : la clé qui le contrôle est absente ou endommagée. Vos notes n\\'ont pas été modifiées. Le déverrouillage biométrique fonctionne encore ; sans lui, la seule façon de revenir dans Notes Tech est de tout effacer avec le mode panique.</string>
+    <string name="app_lock_not_recorded">Cet essai n\\'a pas pu être enregistré sur l\\'appareil : le PIN n\\'a donc pas été vérifié. Libérez de l\\'espace de stockage, puis réessayez.</string>
+
+    <string name="app_lock_settings_title">Verrouillage de l\\'application</string>
+    <string name="app_lock_settings_toggle">Verrouiller l\\'application par PIN</string>
+    <string name="app_lock_settings_toggle_subtitle">Demandé à l\\'ouverture de Notes Tech</string>
+    <string name="app_lock_settings_change_pin">Changer le PIN</string>
+    <string name="app_lock_settings_biometric">Déverrouiller par biométrie</string>
+    <string name="app_lock_settings_biometric_subtitle">Empreinte, ou visage si l\\'appareil juge son déverrouillage facial sûr</string>
+    <string name="app_lock_settings_biometric_not_enrolled">Ajoutez d\\'abord une empreinte dans les réglages de l\\'appareil.</string>
+    <string name="app_lock_settings_biometric_unavailable">Cet appareil n\\'a pas de capteur biométrique assez sûr.</string>
+    <string name="app_lock_settings_delay">Verrouiller après avoir quitté l\\'application</string>
+    <string name="app_lock_delay_immediately">Immédiatement</string>
+    <plurals name="app_lock_delay_seconds">
+        <item quantity="one">Après %1$d seconde</item>
+        <item quantity="many">Après %1$d de secondes</item>
+        <item quantity="other">Après %1$d secondes</item>
+    </plurals>
+    <plurals name="app_lock_delay_minutes">
+        <item quantity="one">Après %1$d minute</item>
+        <item quantity="many">Après %1$d de minutes</item>
+        <item quantity="other">Après %1$d minutes</item>
+    </plurals>
+    <string name="app_lock_secure_window_forced">Toujours actif tant que le verrouillage l\\'est : sur cette version d\\'Android, c\\'est ce qui masque vos notes dans l\\'écran des applications récentes.</string>
+
+    <string name="app_lock_pin_current_title">Saisissez votre PIN actuel</string>
+    <string name="app_lock_pin_new_title">Choisissez un PIN</string>
+    <string name="app_lock_pin_confirm_title">Confirmez le PIN</string>
+    <string name="app_lock_pin_new_warning">Si vous oubliez ce PIN, la seule façon de revenir dans Notes Tech sera d\\'effacer toutes vos notes.</string>
+
+    <string name="app_lock_enabled">Verrouillage activé.</string>
+    <string name="app_lock_disabled">Verrouillage désactivé.</string>
+    <string name="app_lock_pin_changed">PIN modifié.</string>
+    <string name="app_lock_biometric_enabled">Déverrouillage biométrique activé.</string>
+    <string name="app_lock_not_saved">La modification n\\'a pas pu être enregistrée. Réessayez.</string>
+    <string name="app_lock_proof_expired">Trop de temps s\\'est écoulé. Saisissez de nouveau votre PIN.</string>
+    <string name="app_lock_biometric_setup_failed">Le déverrouillage biométrique n\\'a pas pu être configuré sur cet appareil.</string>
+""",
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Afficher le code</string>
@@ -498,6 +611,7 @@ SECTIONS = [
     ("trash", "Corbeille"),
     ("vault", "Coffres — passphrase et code PIN"),
     ("settings", "Réglages"),
+    ("applock", "Verrouillage de l'application"),
     ("export", "Export Markdown / ZIP"),
     ("panic", "Mode panique"),
     ("voice", "Dictée vocale"),

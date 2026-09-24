@@ -59,6 +59,21 @@ class LegacyPreferences @Inject constructor(@ApplicationContext private val cont
 
     fun string(key: String): String? = prefs.getString(prefixed(key), null)
 
+    /** Whether [key] exists, whatever the type of its value. */
+    fun contains(key: String): Boolean = prefs.contains(prefixed(key))
+
+    /**
+     * The value of [key] if it is a `String`; `null` when it is absent OR of another type.
+     *
+     * [string] throws `ClassCastException` on a value of another type. For a security setting that
+     * is a crash on the launch path, every launch: the app lock reads through this one, and treats
+     * "present but not a string" as unreadable — never as absent.
+     */
+    fun stringOrNull(key: String): String? = prefs.all[prefixed(key)] as? String
+
+    /** A `bool` read the same way: `null` when absent or of another type, never an exception. */
+    fun booleanOrNull(key: String): Boolean? = prefs.all[prefixed(key)] as? Boolean
+
     fun putString(key: String, value: String) = prefs.edit { putString(prefixed(key), value) }
 
     fun boolean(key: String, default: Boolean): Boolean = prefs.getBoolean(prefixed(key), default)
@@ -77,7 +92,53 @@ class LegacyPreferences @Inject constructor(@ApplicationContext private val cont
 
     fun putInt(key: String, value: Int) = prefs.edit { putLong(prefixed(key), value.toLong()) }
 
+    /**
+     * A Dart `int` read in full — the plugin stores it as a `Long`, and [int] truncates to 32 bits.
+     * Needed for monotonic timestamps, which pass `Int.MAX_VALUE` milliseconds after 25 days of uptime.
+     */
+    fun long(key: String, default: Long): Long = (prefs.all[prefixed(key)] as? Number)?.toLong() ?: default
+
     fun remove(key: String) = prefs.edit { remove(prefixed(key)) }
+
+    /**
+     * Several writes in ONE `commit()`, reporting whether the disk accepted them.
+     *
+     * ## Why this exists next to the `apply()`-based setters
+     *
+     * `apply()` returns at once and writes later. For a theme that is fine; for security state it is
+     * not: an app lock enabled with `apply()` and a process killed a moment later would come back
+     * without a lock, and a failed-PIN counter could lose increments to a well-timed force-stop —
+     * handing out fresh free attempts. Callers that guard something use this, check the result, and
+     * refuse to report success when it is `false`.
+     *
+     * The same three conventions as everything else in this class — `flutter.` prefix, `int` as
+     * `Long` — are applied by [Edition], so the committed values stay readable by the plugin.
+     */
+    fun commit(changes: Edition.() -> Unit): Boolean {
+        val editor = prefs.edit()
+        Edition(editor).changes()
+        return editor.commit()
+    }
+
+    /** The subset of `SharedPreferences.Editor` this file's format allows, keys prefixed. */
+    inner class Edition internal constructor(private val editor: SharedPreferences.Editor) {
+        fun putString(key: String, value: String) {
+            editor.putString(prefixed(key), value)
+        }
+
+        fun putBoolean(key: String, value: Boolean) {
+            editor.putBoolean(prefixed(key), value)
+        }
+
+        /** A Dart `int`, stored as a `Long` like the plugin does. */
+        fun putLong(key: String, value: Long) {
+            editor.putLong(prefixed(key), value)
+        }
+
+        fun remove(key: String) {
+            editor.remove(prefixed(key))
+        }
+    }
 
     /** Les clés Dart nues qui commencent par [prefix]. Le préfixe `flutter.` est retiré. */
     fun keysStartingWith(prefix: String): List<String> {

@@ -80,6 +80,17 @@ class PanicReportTest {
     }
 
     /**
+     * The app lock PIN is very likely a vault's, or a card's: its verifier must stop being checkable
+     * before the long part of the sequence, like the vault PIN keys.
+     */
+    @Test
+    @DisplayName("the app lock keys go before the database key, like the vault PIN keys")
+    fun app_lock_keys_before_the_key() {
+        assertThat(PanicStep.APP_LOCK_KEYS_WIPE.ordinal).isLessThan(PanicStep.KEK_DESTROY.ordinal)
+        assertThat(PanicStep.APP_LOCK_KEYS_WIPE.ordinal).isGreaterThan(PanicStep.FOLDERS_LOCK_ALL.ordinal)
+    }
+
+    /**
      * ⚠️ Les clés des coffres ouverts sont effacées de la **mémoire vive** avant qu'on touche au
      * Keystore. Sans cela, une panique déclenchée coffre ouvert laisse sa clé en RAM pendant toute
      * la séquence.
@@ -117,7 +128,7 @@ class PanicReportTest {
      * ajoutées s'exécutent vraiment avant de les inscrire ici.
      */
     @Test
-    @DisplayName("la séquence est exactement celle qu'on croit — treize étapes, dans cet ordre")
+    @DisplayName("la séquence est exactement celle qu'on croit — quatorze étapes, dans cet ordre")
     fun sequenceFigee() {
         assertThat(PanicStep.entries).containsExactly(
             PanicStep.FORCE_SECURE_WINDOW,
@@ -125,6 +136,9 @@ class PanicReportTest {
             PanicStep.CLIPBOARD_CLEAR,
             PanicStep.FOLDERS_LOCK_ALL,
             PanicStep.PIN_KEYS_WIPE,
+            // 2026-09-24, with the app lock (D-023): it failed here as designed, and the step was
+            // checked to run (`PanicService.executer`) before being written down.
+            PanicStep.APP_LOCK_KEYS_WIPE,
             PanicStep.KEK_DESTROY,
             PanicStep.EXPORTS_WIPE,
             PanicStep.VOICE_CAPTURES_WIPE,

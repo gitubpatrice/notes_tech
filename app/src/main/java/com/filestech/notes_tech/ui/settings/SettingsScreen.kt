@@ -68,6 +68,9 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.ui.applock.AppLockRecents
+import com.filestech.notes_tech.ui.applock.AppLockSection
+import com.filestech.notes_tech.ui.applock.AppLockSettingsViewModel
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CarteFilesTech
 import com.filestech.notes_tech.ui.common.HoteDeMessages
@@ -76,11 +79,8 @@ import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.panic.PanicConfirmDialog
-import com.filestech.notes_tech.ui.panic.PanicOverlay
-import com.filestech.notes_tech.ui.panic.PanicUiState
-import com.filestech.notes_tech.ui.panic.PanicViewModel
+import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import kotlinx.coroutines.launch
-import kotlin.system.exitProcess
 
 /**
  * Les réglages, branchés : trois ViewModels, le changement de langue, et le recouvrement de panique.
@@ -93,7 +93,8 @@ import kotlin.system.exitProcess
  *
  * ⚠️ **Ce qui reste ici, et pourquoi ça ne peut pas descendre dans l'écran** : l'annonce du
  * changement de langue et la recréation de l'activité (elles demandent `LocalActivity` et
- * `LocalView`), et le recouvrement de panique, qui appelle `exitProcess`.
+ * `LocalView`), et le déclenchement de la panique. Its overlay, which calls `exitProcess`, is hosted
+ * at the top of the app since 2026-09-24 (`MainActivity`).
  */
 @Composable
 fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup: () -> Unit) {
@@ -111,14 +112,21 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
 
     val snackbars = remember { SnackbarHostState() }
 
-    // ⚠️ Le modèle de panique est obtenu ICI, et non dans la ligne qui le déclenche : son
-    // recouvrement doit être posé en frère du `Scaffold`, hors de la colonne défilante.
-    val panique: PanicViewModel = hiltViewModel()
+    // ⚠️ Le modèle de panique est obtenu ICI, et non dans la ligne qui le déclenche.
+    // Since 2026-09-24 it is the ACTIVITY's instance, and its overlay is hosted at the top of the app
+    // (`MainActivity`): panic mode can also start from the lock screen, and one host shows it.
+    val panique = activityPanicViewModel()
     val etatDePanique by panique.state.collectAsStateWithLifecycle()
+
+    // The same instance as the section's own (both scoped to this destination): the screenshot switch
+    // must know whether the app lock forces the flag.
+    val verrou: AppLockSettingsViewModel = hiltViewModel()
+    val etatDuVerrou by verrou.state.collectAsStateWithLifecycle()
 
     SettingsScreen(
         state = state,
         paniqueEnCours = etatDePanique.running,
+        fenetreImposeeParLeVerrou = etatDuVerrou.configured && !AppLockRecents.hidesWithoutSecureFlag(),
         onBack = onBack,
         onTheme = viewModel::setTheme,
         onLocale = { choisie ->
@@ -158,9 +166,8 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
         onOpenVoiceSetup = onOpenVoiceSetup,
         snackbarHost = { HoteDeMessages(snackbars) },
         ligneDExport = { LigneDExport(snackbars) },
+        sectionDeVerrouillage = { AppLockSection(snackbars) },
     )
-
-    RecouvrementDePanique(etatDePanique)
 }
 
 /**
@@ -189,8 +196,10 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit,
     onOpenVoiceSetup: () -> Unit,
     modifier: Modifier = Modifier,
+    fenetreImposeeParLeVerrou: Boolean = false,
     snackbarHost: @Composable () -> Unit = {},
     ligneDExport: @Composable () -> Unit = {},
+    sectionDeVerrouillage: @Composable () -> Unit = {},
 ) {
     var choixDeTheme by remember { mutableStateOf(false) }
     var choixDeLangue by remember { mutableStateOf(false) }
@@ -286,16 +295,36 @@ fun SettingsScreen(
                     // centaines de lignes plus bas. Laisser les deux actifs ferait **deux** cibles pour
                     // un seul réglage, dont l'une plus petite que le minimum accessible, et deux arrêts
                     // de focus pour une seule information.
+                    // ⚠️ Below Android 13 the app lock FORCES the flag — it is the only way to keep the
+                    // notes out of the recent apps screen there (D-023). The switch then says so and
+                    // cannot be turned off: showing "off" while every screenshot fails would be a
+                    // switch that lies.
+                    val capturesAutorisables = !fenetreImposeeParLeVerrou
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.settings_secure_window)) },
-                        supportingContent = { Text(stringResource(R.string.settings_secure_window_subtitle)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (capturesAutorisables) {
+                                        R.string.settings_secure_window_subtitle
+                                    } else {
+                                        R.string.app_lock_secure_window_forced
+                                    },
+                                ),
+                            )
+                        },
                         leadingContent = { Icon(Icons.Outlined.VisibilityOff, contentDescription = null) },
                         trailingContent = {
-                            Switch(checked = state.secureWindow, onCheckedChange = null)
+                            Switch(
+                                checked = state.secureWindow || !capturesAutorisables,
+                                onCheckedChange = null,
+                                enabled = capturesAutorisables,
+                            )
                         },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.toggleable(
-                            value = state.secureWindow,
+                            value = state.secureWindow || !capturesAutorisables,
+                            enabled = capturesAutorisables,
                             role = Role.Switch,
                             onValueChange = onSecureWindow,
                         ),
@@ -323,6 +352,9 @@ fun SettingsScreen(
                     )
                 }
             }
+
+            // The app lock (D-023): after the other protections, before the export.
+            sectionDeVerrouillage()
 
             // ⚠️ La section porte le libellé de son unique ligne, comme dans l'application
             // publiée (`settings_screen.dart:121`). Inventer un titre demanderait une clé i18n
@@ -626,53 +658,8 @@ private fun LigneDePanique(enCours: Boolean, onDeclencher: () -> Unit) {
     }
 }
 
-/**
- * Le recouvrement plein écran de la destruction.
- *
- * ## ⚠️ Posé en frère du `Scaffold`, jamais dans son contenu
- *
- * Il défile verticalement, et le contenu des réglages aussi. Imbriquer les deux fait mesurer le
- * second avec une hauteur infinie et tue l'application — mesuré sur appareil, après que la
- * destruction avait déjà eu lieu.
- *
- * ## ⚠️ Un recouvrement, pas une destination de navigation
- *
- * Une destination serait quittable par le bouton retour, par le geste système, par une restauration
- * d'état. Or il n'y a rien à quitter : la clé est détruite, les notes ne reviendront pas, et une
- * sortie ne ferait que laisser croire à une annulation.
- */
 @Composable
-private fun RecouvrementDePanique(state: PanicUiState) {
-    val activite = LocalActivity.current
-
-    if (state.running || state.report != null) {
-        PanicOverlay(
-            running = state.running,
-            report = state.report,
-            // 🔴 Fermer l'activité NE SUFFIT PAS, et l'oublier casserait le lancement suivant.
-            //
-            // `finishAndRemoveTask` d'abord : `finish` seul laisserait la tâche dans l'aperçu des
-            // applications récentes. `FLAG_SECURE` en noircit la vignette, mais l'entrée resterait
-            // — une trace visible de l'application, juste après avoir passé dix secondes à en
-            // effacer les traces.
-            //
-            // Puis `exitProcess`, et c'est le point non évident : la base est **scellée** dans un
-            // objet unique du graphe d'injection, qui vit aussi longtemps que le processus. Un
-            // relancement sans mort du processus retrouverait ce sceau et refuserait d'ouvrir la
-            // base, sans rien expliquer. Terminer le processus rend au lancement suivant sa
-            // qualité de premier lancement — ce que l'écran promet juste au-dessus.
-            //
-            // Aucune écriture n'est en attente : la panique a tout confirmé par `commit()`.
-            onClose = {
-                activite?.finishAndRemoveTask()
-                exitProcess(0)
-            },
-        )
-    }
-}
-
-@Composable
-private fun <T> DialogueDeChoix(
+internal fun <T> DialogueDeChoix(
     titre: String,
     options: List<T>,
     actif: T,

@@ -15,6 +15,10 @@ navigation-compose = "2.9.8"
 room = "2.8.4"
 datastore = "1.1.1"
 splashscreen = "1.0.1"
+# The app lock's fingerprint / face unlock (D-023). Same version as Agenda Tech and SMS Tech: 1.1.0 is
+# the last stable release, and the two portfolio apps that ship it have measured its pitfalls
+# (`authenticate` after `onSaveInstanceState` gives up in silence; see `BiometricPrompts`).
+biometric = "1.1.0"
 
 # Hilt — plafonné à la dernière version compatible AGP 8.x (Hilt 2.58+ exige AGP 9).
 hilt = "2.57.2"
@@ -57,6 +61,7 @@ ktlint-gradle = "12.1.1"
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 androidx-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splashscreen" }
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }

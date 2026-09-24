@@ -8,6 +8,9 @@ import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.voice.SttModelStore
 import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.di.ApplicationScope
+import com.filestech.notes_tech.security.applock.AppLockKeystore
+import com.filestech.notes_tech.security.applock.AppLockKeystoreUnavailableException
+import com.filestech.notes_tech.security.applock.BiometricUnlockKey
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -73,6 +76,20 @@ enum class PanicStep {
 
     /** Supprime toutes les clés `vault_pin_*`, y compris les orphelines. */
     PIN_KEYS_WIPE,
+
+    /**
+     * The app lock's two Keystore keys: the one that makes its PIN verifier checkable, and the one
+     * behind the biometric unlock (D-023). Added on 2026-09-24 WITH the lock whose keys it deletes.
+     *
+     * ⚠️ Next to [PIN_KEYS_WIPE] and for the same reason, BEFORE the database key: the app lock PIN
+     * is very likely the PIN of a vault — or of a bank card. Its verifier stays in the preferences
+     * until [PREFS_CLEAR], near the end; without its key, that verifier can no longer be checked by
+     * anyone, so an interruption in between leaves nothing to brute-force.
+     *
+     * Not swept with the `vault_pin_` keys: their aliases are deliberately outside that prefix, so
+     * that neither sweep can delete, or miss, the other's keys by accident.
+     */
+    APP_LOCK_KEYS_WIPE,
 
     /** 🔴 **Point de non-retour.** Après cette étape, la base est du bruit. */
     KEK_DESTROY,
@@ -269,6 +286,8 @@ class PanicService @Inject constructor(
     private val prefs: LegacyPreferences,
     private val clipboard: SensitiveClipboard,
     private val voiceCapture: VoiceCapture,
+    private val appLockKeystore: AppLockKeystore,
+    private val biometricUnlockKey: BiometricUnlockKey,
 ) {
 
     private val verrou = Any()
@@ -345,6 +364,21 @@ class PanicService @Inject constructor(
         issues += etape(PanicStep.PIN_KEYS_WIPE) {
             val effacees = keystore.deleteKeysWithPrefix(VaultParams.PIN_KEYSTORE_ALIAS_PREFIX)
             Timber.i("panique : %d clés de coffre à code effacées", effacees)
+        }
+
+        // 4 bis. The app lock's keys. Both are attempted even if the first resists; the step fails
+        //    if either survives — each deletion re-reads the Keystore, so "gone" is observed, not
+        //    assumed.
+        issues += etape(PanicStep.APP_LOCK_KEYS_WIPE) {
+            var firstFailure: Exception? = null
+            for (delete in listOf(appLockKeystore::deleteKey, biometricUnlockKey::delete)) {
+                try {
+                    delete()
+                } catch (e: AppLockKeystoreUnavailableException) {
+                    if (firstFailure == null) firstFailure = e
+                }
+            }
+            firstFailure?.let { throw it }
         }
 
         // 5. 🔴 POINT DE NON-RETOUR. À partir d'ici, un arrêt brutal ne perd plus la garantie

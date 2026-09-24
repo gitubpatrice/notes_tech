@@ -3,7 +3,6 @@ package com.filestech.notes_tech.ui.voice
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +51,7 @@ import com.filestech.notes_tech.domain.voice.SttModel
 import com.filestech.notes_tech.domain.voice.SttModelCatalogue
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.HoteDeMessages
+import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
 
 /**
  * L'installation du modèle de dictée.
@@ -127,7 +127,9 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     // Relevé par les DEUX relectures (2026-08-16).
     var modeleVise by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val selecteur = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    // Through the app's seam (`rememberAppResultLauncher`): the document picker is another app, and
+    // without the seam the app lock would ask for the PIN in the middle of the import (D-023).
+    val selecteur = rememberAppResultLauncher(ActivityResultContracts.OpenDocument()) { uri ->
         val modele = modeleVise?.let(SttModelCatalogue::parIdentifiant)
         if (uri != null && modele != null) viewModel.importer(modele, uri)
         modeleVise = null

@@ -1,6 +1,6 @@
 # Privacy policy — Notes Tech
 
-**Version 1.0.0 — May 2026**
+**Version 1.1.0 — September 2026**
 
 ## In one sentence
 
@@ -12,10 +12,11 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 
 - **Your Markdown notes**: generated and kept exclusively on your phone, in a SQLite database encrypted by **SQLCipher** with a unique key generated locally (32-byte KEK) stored in the **Android Keystore**.
 - **Per-folder vaults**: each vault you enable uses a distinct **passphrase** or **PIN**, derived through **Argon2id RFC 9106** (m=64MB, t=3 for passphrase; lighter for PIN, compensated by device-bound Keystore sealing). Locked note content is encrypted with **AES-256-GCM**, AAD bound to `note_id`.
+- **App lock (optional)**: the PIN itself is never stored. What is kept is a value derived from it with **Argon2id** and bound by **HMAC-SHA256** to a key of the **Android Keystore** that never leaves the phone — so it cannot be checked anywhere else. After five wrong PINs, each new attempt waits longer (30 seconds, doubling up to one hour); wrong attempts never erase anything. **Fingerprint or face unlock** is handled entirely by Android: Notes Tech receives no biometric data, only the confirmation that a Keystore key was allowed to work, and only strong (Class 3) biometrics are accepted.
 - **Backlinks `[[Title]]`**: local inverted index, never transmitted.
 - **Voice dictation model (Whisper `.bin`)**: you obtain it yourself — the app shows the file name and its source — then import it through the Android document picker. Notes Tech has no Internet permission and **exposes no way to download anything**. Its SHA-256 is verified on import and before every load.
 - **Audio captured during dictation**: written to a temporary file in the app's private storage — the transcription engine reads a file, there is no way around it — then **wiped as soon as the transcription is returned**. It is also wiped on app start and by panic mode, so an abrupt shutdown leaves nothing behind.
-- **Settings (theme, sort, dictation enabled, vault auto-lock)**: stored in clear in local preferences (no sensitive data).
+- **Settings (theme, sort, dictation enabled, vault auto-lock, app lock options)**: stored in clear in local preferences (no sensitive data).
 
 ### Data NOT processed
 
@@ -29,8 +30,9 @@ Notes Tech requests **NO `INTERNET` permission**. The app is technically unable 
 
 Active permissions are strictly utilitarian:
 - `RECORD_AUDIO` (dictation: audio is written to a private temporary file, then wiped as soon as the transcription is returned).
+- `USE_BIOMETRIC` and `USE_FINGERPRINT` (optional fingerprint or face unlock of the app lock; declared by the AndroidX biometric library — `USE_FINGERPRINT` is the name the same permission has on Android 8 and older).
 
-This is the **only** permission requested. Picking the model file goes through the Android document picker, which requires none.
+These are the **only** permissions requested. Picking the model file goes through the Android document picker, which requires none.
 
 ### Panic mode
 
@@ -38,6 +40,7 @@ The **Settings → Panic mode** menu wipes in bulk:
 - the encrypted SQLite database (all notes),
 - the SQLCipher KEK (unrecoverable),
 - the Keystore keys associated with PIN vaults,
+- the Keystore keys of the app lock (PIN verification and biometric unlock),
 - the per-folder vaults (passphrases and PINs),
 - the clipboard, where a copied note sits in the clear,
 - export archives and dictation recordings, the app's only cleartext files,

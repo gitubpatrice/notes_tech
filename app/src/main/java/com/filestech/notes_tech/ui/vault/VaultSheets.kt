@@ -10,13 +10,10 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Key
@@ -34,7 +31,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,14 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -70,6 +64,8 @@ import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
+import com.filestech.notes_tech.ui.common.ClavierNumerique
+import com.filestech.notes_tech.ui.common.PointsDeSaisie
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.refusalMessageFor
 import com.filestech.notes_tech.ui.common.retryWaitMessage
@@ -709,7 +705,12 @@ internal fun FeuilleDeCode(
                 // pour une saisie précédente. La clé du `remember` est donc l'étape elle-même.
                 var codeVisible by remember(enConfirmation, state.attempt) { mutableStateOf(false) }
 
-                PointsDeSaisie(saisi = saisi, visible = codeVisible, onBasculer = { codeVisible = !codeVisible })
+                PointsDeSaisie(
+                    saisi = saisi,
+                    longueurMax = VaultParams.PIN_MAX_LENGTH,
+                    visible = codeVisible,
+                    onBasculer = { codeVisible = !codeVisible },
+                )
             }
 
             MessageDEtat(
@@ -956,95 +957,6 @@ private fun MessageDEtat(message: String?, busy: Boolean, phase: PhaseDeCoffre) 
     }
 }
 
-@Composable
-private fun PointsDeSaisie(saisi: String, visible: Boolean, onBasculer: () -> Unit) {
-    val couleurs = MaterialTheme.colorScheme
-    val annonce = stringResource(R.string.vault_pin_digits_announce, saisi.length, VaultParams.PIN_MAX_LENGTH)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(vertical = 8.dp),
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.semantics { contentDescription = annonce },
-        ) {
-            repeat(VaultParams.PIN_MAX_LENGTH) { index ->
-                val chiffre = saisi.getOrNull(index)
-                if (visible && chiffre != null) {
-                    // ⚠️ Même largeur qu'une pastille : sans cela, la rangée change de longueur au
-                    // basculement et le pavé numérique sautille sous les doigts.
-                    Text(
-                        text = chiffre.toString(),
-                        style = MaterialTheme.typography.titleMedium,
-                        textAlign = TextAlign.Center,
-                        color = couleurs.primary,
-                        modifier = Modifier.width(14.dp).clearAndSetSemantics { },
-                    )
-                } else {
-                    Surface(
-                        modifier = Modifier.size(14.dp).clip(CircleShape).clearAndSetSemantics { },
-                        shape = CircleShape,
-                        color = if (index < saisi.length) couleurs.primary else couleurs.surfaceContainerHighest,
-                    ) {}
-                }
-            }
-        }
-        IconButton(onClick = onBasculer) {
-            Icon(
-                imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                contentDescription = stringResource(
-                    if (visible) R.string.pin_hide_tooltip else R.string.pin_show_tooltip,
-                ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ClavierNumerique(enabled: Boolean, onDigit: (Char) -> Unit, onDelete: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (ligne in TOUCHES) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (touche in ligne) {
-                    when (touche) {
-                        ' ' -> Surface(modifier = Modifier.size(TAILLE_TOUCHE), color = Color.Transparent) {}
-                        '\b' -> TextButton(
-                            onClick = onDelete,
-                            enabled = enabled,
-                            shape = Formes.bouton,
-                            modifier = Modifier.size(TAILLE_TOUCHE),
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Backspace,
-                                contentDescription = stringResource(R.string.vault_pin_key_delete),
-                            )
-                        }
-
-                        else -> {
-                            // ⚠️ `vault_pin_key_label` (« Touche %1$s ») existait et n'était jamais
-                            // utilisée : le lecteur d'écran annonçait « 7 » tout court, indiscernable
-                            // d'un texte affiché. Relevé par l'audit i18n du 2026-08-14.
-                            val etiquette = stringResource(R.string.vault_pin_key_label, "$touche")
-                            TextButton(
-                                onClick = { onDigit(touche) },
-                                enabled = enabled,
-                                shape = Formes.bouton,
-                                modifier = Modifier
-                                    .size(TAILLE_TOUCHE)
-                                    .semantics { contentDescription = etiquette },
-                            ) {
-                                Text(text = "$touche", style = MaterialTheme.typography.headlineSmall)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /**
  * Traduit l'issue d'une tentative en message, ou en rien.
  *
@@ -1214,12 +1126,3 @@ private fun Modifier.clickableListItem(onClick: () -> Unit): Modifier = this.cli
  * emplacement n'affiche rien.
  */
 internal const val EMPLACEMENT_DU_MESSAGE = "emplacement-du-message-de-coffre"
-
-private val TOUCHES = listOf(
-    charArrayOf('1', '2', '3'),
-    charArrayOf('4', '5', '6'),
-    charArrayOf('7', '8', '9'),
-    charArrayOf(' ', '0', '\b'),
-)
-
-private val TAILLE_TOUCHE = 72.dp

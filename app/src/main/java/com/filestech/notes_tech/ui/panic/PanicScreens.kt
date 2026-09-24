@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.panic
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,12 +39,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.ViewModelStoreOwner
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.security.panic.PanicReport
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
 import java.util.Locale
+import kotlin.system.exitProcess
 
 /**
  * Le dialogue qui précède la destruction.
@@ -356,6 +360,72 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
             Button(onClick = onClose, shape = Formes.bouton) { Text(stringResource(R.string.panic_complete_close)) }
         }
     }
+}
+
+/**
+ * Le recouvrement plein écran de la destruction.
+ *
+ * Hosted ONCE, at the top of the app (`MainActivity`), since 2026-09-24 — moved here from
+ * `SettingsScreen.kt` unchanged, when panic mode became reachable from the lock screen too. Above
+ * both the lock and the content: whatever started the panic, and whatever the lock does while it
+ * runs, the report stays on screen.
+ *
+ * ## ⚠️ Posé en frère du `Scaffold`, jamais dans son contenu
+ *
+ * Il défile verticalement, et le contenu des réglages aussi. Imbriquer les deux fait mesurer le
+ * second avec une hauteur infinie et tue l'application — mesuré sur appareil, après que la
+ * destruction avait déjà eu lieu.
+ *
+ * ## ⚠️ Un recouvrement, pas une destination de navigation
+ *
+ * Une destination serait quittable par le bouton retour, par le geste système, par une restauration
+ * d'état. Or il n'y a rien à quitter : la clé est détruite, les notes ne reviendront pas, et une
+ * sortie ne ferait que laisser croire à une annulation.
+ */
+@Composable
+fun RecouvrementDePanique(state: PanicUiState) {
+    val activite = LocalActivity.current
+
+    if (state.running || state.report != null) {
+        PanicOverlay(
+            running = state.running,
+            report = state.report,
+            // 🔴 Fermer l'activité NE SUFFIT PAS, et l'oublier casserait le lancement suivant.
+            //
+            // `finishAndRemoveTask` d'abord : `finish` seul laisserait la tâche dans l'aperçu des
+            // applications récentes. `FLAG_SECURE` en noircit la vignette, mais l'entrée resterait
+            // — une trace visible de l'application, juste après avoir passé dix secondes à en
+            // effacer les traces.
+            //
+            // Puis `exitProcess`, et c'est le point non évident : la base est **scellée** dans un
+            // objet unique du graphe d'injection, qui vit aussi longtemps que le processus. Un
+            // relancement sans mort du processus retrouverait ce sceau et refuserait d'ouvrir la
+            // base, sans rien expliquer. Terminer le processus rend au lancement suivant sa
+            // qualité de premier lancement — ce que l'écran promet juste au-dessus.
+            //
+            // Aucune écriture n'est en attente : la panique a tout confirmé par `commit()`.
+            onClose = {
+                activite?.finishAndRemoveTask()
+                exitProcess(0)
+            },
+        )
+    }
+}
+
+/**
+ * THE panic model of the activity — one instance for the settings, the lock screen and the overlay
+ * host at the top of the app (`MainActivity`).
+ *
+ * Scoped to the activity, not to a navigation entry, on purpose (2026-09-24): panic mode can start
+ * from the lock screen, which lives outside the navigation, and the overlay that reports it must
+ * outlive whatever started it. One instance means one report, wherever the panic came from.
+ */
+@Composable
+fun activityPanicViewModel(): PanicViewModel {
+    val owner = checkNotNull(LocalActivity.current as? ViewModelStoreOwner) {
+        "panic mode needs its activity: without it, the report would have nowhere to live"
+    }
+    return hiltViewModel(owner)
 }
 
 @Composable

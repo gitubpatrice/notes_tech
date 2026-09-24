@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui
 
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
@@ -16,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,13 +27,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.rememberNavController
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
+import com.filestech.notes_tech.security.applock.AppLockLifecycle
+import com.filestech.notes_tech.security.applock.AppLockManager
+import com.filestech.notes_tech.security.applock.AppLockState
+import com.filestech.notes_tech.ui.applock.AppLockRoute
+import com.filestech.notes_tech.ui.applock.RecentsGuard
+import com.filestech.notes_tech.ui.common.ExternalActivityGuard
+import com.filestech.notes_tech.ui.common.LocalExternalActivityGuard
+import com.filestech.notes_tech.ui.panic.RecouvrementDePanique
+import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
 import com.filestech.notes_tech.ui.splash.SplashScreen
@@ -43,8 +54,14 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.util.Locale
 import javax.inject.Inject
 
+/**
+ * The single activity.
+ *
+ * A [FragmentActivity] since the app lock (D-023): `androidx.biometric` attaches its prompt as a
+ * fragment. The lifecycle callbacks below feed [AppLockLifecycle], synchronously — see its KDoc.
+ */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var settings: AppSettings
@@ -52,17 +69,56 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var secureWindow: SecureWindowController
 
+    @Inject
+    lateinit var appLock: AppLockManager
+
+    @Inject
+    lateinit var appLockLifecycle: AppLockLifecycle
+
+    /** One instance for the activity's life: a new one per recomposition would invalidate every screen. */
+    private val externalActivityGuard = ExternalActivityGuard { appLockLifecycle.onExternalActivityLaunched() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Posé AVANT `super.onCreate` : c'est la condition pour que l'écran de démarrage prenne la
         // main. Après, la fenêtre est déjà créée et l'appel n'a plus d'effet.
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // Before anything is composed, and synchronously: the first frame must already be the lock
+        // screen when a lock is configured. Once per process — a recreated activity keeps the state.
+        appLock.resolveAtLaunch()
         enableEdgeToEdge()
         setContent {
-            CompositionLocalProvider(LocalSecureWindow provides secureWindow) {
-                NotesTechApp(settings, secureWindow)
+            CompositionLocalProvider(
+                LocalSecureWindow provides secureWindow,
+                LocalExternalActivityGuard provides externalActivityGuard,
+            ) {
+                NotesTechApp(settings, secureWindow, appLock)
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        appLockLifecycle.onStart()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appLockLifecycle.onResume()
+    }
+
+    /**
+     * ⚠️ `isChangingConfigurations`: the language change recreates the activity on purpose
+     * (`SettingsRoute`), and must not ask for the PIN in the middle of the settings.
+     */
+    override fun onStop() {
+        super.onStop()
+        appLockLifecycle.onStop(changingConfigurations = isChangingConfigurations)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        appLockLifecycle.onNewIntent()
     }
 
     /**
@@ -73,7 +129,8 @@ class MainActivity : ComponentActivity() {
      *
      * `LocaleManager` (langue par application) n'existe qu'à partir de l'API 33 ; le plancher du
      * projet est 24. `AppCompatDelegate.setApplicationLocales` demanderait AppCompat, que ce
-     * portage n'embarque pas — l'activité est une `ComponentActivity` et l'interface est en Compose.
+     * portage n'embarque pas — l'activité est une `FragmentActivity` (pour l'invite biométrique, D-023),
+     * pas une `AppCompatActivity`, et l'interface est en Compose.
      *
      * ⚠️ **Hilt n'est pas encore prêt à ce stade** : `attachBaseContext` s'exécute avant l'injection
      * de l'activité. La préférence est donc relue directement, avec la même classe et les mêmes
@@ -100,7 +157,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun NotesTechApp(settings: AppSettings, secureWindow: SecureWindowController) {
+private fun NotesTechApp(settings: AppSettings, secureWindow: SecureWindowController, appLock: AppLockManager) {
     val theme by settings.theme.collectAsStateWithLifecycle(initialValue = settings.themeNow())
     val fenetreProtegee by secureWindow.active.collectAsStateWithLifecycle(
         // ⚠️ La valeur initiale est LUE. Un défaut à `false` laisserait la fenêtre capturable
@@ -111,6 +168,12 @@ private fun NotesTechApp(settings: AppSettings, secureWindow: SecureWindowContro
 
     FenetreProtegee(fenetreProtegee)
 
+    // ⚠️ `collectAsState`, NOT `collectAsStateWithLifecycle`: the lock is decided in `onStop`, and
+    // the composition must see it WHILE the activity is stopped. Paused collection would resume only
+    // at `onStart`, and the first frame after the return could still be the unlocked content.
+    val verrouConfigure by appLock.configured.collectAsState(initial = appLock.isConfigured())
+    RecentsGuard(lockConfigured = verrouConfigure)
+
     NotesTechTheme(
         darkTheme = when (theme) {
             ThemePreference.LIGHT -> false
@@ -118,17 +181,23 @@ private fun NotesTechApp(settings: AppSettings, secureWindow: SecureWindowContro
             ThemePreference.SYSTEM -> isSystemInDarkTheme()
         },
     ) {
-        ContenuPrincipal(settings)
+        ContenuPrincipal(settings, appLock, verrouConfigure)
     }
 }
 
 @Composable
-private fun ContenuPrincipal(settings: AppSettings) {
+private fun ContenuPrincipal(settings: AppSettings, appLock: AppLockManager, verrouConfigure: Boolean) {
     val viewModel: StartupViewModel = hiltViewModel()
     // `collectAsStateWithLifecycle` et non `collectAsState` : sans lui, la collecte continue quand
     // l'application passe en arrière-plan. Pour une application qui verrouille ses coffres sur
     // inactivité, garder des flux actifs hors écran est exactement ce qu'on ne veut pas.
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // THE panic model of the activity: the overlay below is its only host (settings and lock
+    // screen only trigger). `collectAsState` for the same reason as the lock state.
+    val panique = activityPanicViewModel()
+    val etatDePanique by panique.state.collectAsState()
+    val paniqueDeclenchee = etatDePanique.running || etatDePanique.report != null
 
     // `rememberSaveable` : l'écran de présentation ne doit pas rejouer à chaque rotation. Le
     // drapeau persistant, lui, ne répond qu'à « l'a-t-il déjà vu une fois », pas à « est-il en
@@ -154,7 +223,24 @@ private fun ContenuPrincipal(settings: AppSettings) {
                 CircularProgressIndicator()
             }
 
-            StartupState.Ready -> NotesTechNavHost(navController = rememberNavController())
+            // 🔴 The app lock guards the NOTES, so it wraps the content and only it (D-023). The
+            // opening spinner and the start-up failure screen show nothing of the user's: the failure
+            // screen in particular must stay readable, since what it says — do not uninstall, write
+            // to support — is what saves the notes when the key is missing.
+            //
+            // `collectAsState` for the reason given in `NotesTechApp`. And "locked" requires a lock
+            // that still EXISTS — a lock screen asking for a PIN that no longer exists is a dead end
+            // — EXCEPT while panic mode runs or reports: it clears the preferences, PIN included,
+            // two steps before its end, and lifting the lock then would show the notes' screens on a
+            // sealed database, under the report.
+            StartupState.Ready -> {
+                val verrou by appLock.state.collectAsState()
+                val verrouille = verrou as? AppLockState.Locked
+                LockedAppHost(
+                    locked = verrouille != null && (verrouConfigure || paniqueDeclenchee),
+                    lockScreen = { AppLockRoute(epoch = verrouille?.epoch ?: 0) },
+                ) { navController -> NotesTechNavHost(navController = navController) }
+            }
 
             is StartupState.Failed -> StartupFailureScreen(
                 reason = current.reason,
@@ -163,6 +249,10 @@ private fun ContenuPrincipal(settings: AppSettings) {
             )
         }
     }
+
+    // Above the lock AND the content, as a sibling of the Scaffold — never inside its scrolling
+    // content (the nested-scroll crash of 2026-08-14, `SettingsScreen`).
+    RecouvrementDePanique(etatDePanique)
 }
 
 /**

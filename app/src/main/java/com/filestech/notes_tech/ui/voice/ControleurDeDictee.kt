@@ -8,7 +8,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.LocalActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarHostState
@@ -31,6 +30,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CorpsDeDialogue
+import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -161,7 +161,9 @@ fun rememberControleurDeDictee(
     val microRefuse = stringResource(R.string.voice_permission_needed)
     val reglagesInjoignables = stringResource(R.string.voice_system_settings_unavailable)
 
-    val demande = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { accordee ->
+    // Through the seam as well, although a permission dialog never spares the lock — the seam
+    // decides that by the contract's type (`sparesRelock`), not the call site.
+    val demande = rememberAppResultLauncher(ActivityResultContracts.RequestPermission()) { accordee ->
         if (accordee) {
             dictee.demarrer()
         } else {

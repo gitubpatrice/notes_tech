@@ -1,6 +1,6 @@
 # Politique de confidentialité — Notes Tech
 
-**Version 1.0.0 — Mai 2026**
+**Version 1.1.0 — Septembre 2026**
 
 ## En une phrase
 
@@ -12,10 +12,11 @@ Notes Tech ne collecte, ne transmet et ne stocke aucune donnée sur des serveurs
 
 - **Vos notes Markdown** : générées et conservées exclusivement sur votre téléphone, dans une base SQLite chiffrée par **SQLCipher** avec une clé unique générée localement (KEK 32 octets) stockée dans le **Android Keystore**.
 - **Coffres par dossier** : chaque coffre que vous activez utilise une **passphrase** ou un **PIN** distinct, dérivé via **Argon2id RFC 9106** (m=64MB, t=3 pour passphrase ; allégé pour PIN, compensé par le scellage Keystore device-bound). Le contenu des notes verrouillées est chiffré **AES-256-GCM** avec AAD lié à `note_id`.
+- **Verrouillage de l'application (facultatif)** : le PIN lui-même n'est jamais conservé. Ce qui l'est, c'est une valeur dérivée par **Argon2id** et liée par **HMAC-SHA256** à une clé du **Keystore Android** qui ne quitte jamais le téléphone : elle ne peut donc être vérifiée nulle part ailleurs. Après cinq PIN erronés, chaque nouvel essai attend plus longtemps (30 secondes, doublées jusqu'à une heure) ; un essai raté n'efface jamais rien. Le **déverrouillage par empreinte ou par visage** est entièrement géré par Android : Notes Tech ne reçoit aucune donnée biométrique, seulement la confirmation qu'une clé du Keystore a été autorisée à servir, et seule la biométrie forte (classe 3) est acceptée.
 - **Backlinks `[[Titre]]`** : index inversé local, jamais transmis.
 - **Modèle de dictée vocale (Whisper `.bin`)** : vous vous le procurez vous-même — l'application affiche le nom du fichier et sa source — puis vous l'importez par le sélecteur de documents Android. Notes Tech n'a pas la permission Internet et **n'expose aucun moyen de télécharger quoi que ce soit**. Son empreinte SHA-256 est vérifiée à l'import et avant chaque chargement.
 - **Audio capturé pendant la dictée** : écrit dans un fichier temporaire du stockage privé de l'application — le moteur de transcription lit un fichier, il ne peut pas en être autrement — puis **effacé dès la transcription obtenue**. Il l'est également au démarrage de l'application et par le mode panique, de sorte qu'un arrêt brutal ne laisse rien derrière lui.
-- **Préférences (thème, tri, dictée activée, auto-lock coffre)** : stockées en clair dans les préférences locales (pas de donnée sensible).
+- **Préférences (thème, tri, dictée activée, auto-lock coffre, options du verrouillage)** : stockées en clair dans les préférences locales (pas de donnée sensible).
 
 ### Données NON traitées
 
@@ -29,8 +30,9 @@ Notes Tech ne demande **AUCUNE permission `INTERNET`**. L'application est techni
 
 Les permissions actives sont strictement utilitaires :
 - `RECORD_AUDIO` (dictée : l'audio est écrit dans un fichier temporaire privé, puis effacé dès la transcription obtenue).
+- `USE_BIOMETRIC` et `USE_FINGERPRINT` (déverrouillage facultatif de l'application par empreinte ou par visage ; déclarées par la bibliothèque biométrique AndroidX — `USE_FINGERPRINT` est le nom que porte la même permission sur Android 8 et antérieur).
 
-C'est la **seule** permission demandée. Le choix du fichier de modèle passe par le sélecteur de documents Android, qui n'en exige aucune.
+Ce sont les **seules** permissions demandées. Le choix du fichier de modèle passe par le sélecteur de documents Android, qui n'en exige aucune.
 
 ### Mode panique
 
@@ -38,6 +40,7 @@ Le menu **Réglages → Mode panique** efface en bloc :
 - la base SQLite chiffrée (toutes les notes),
 - la KEK SQLCipher (irrécupérable),
 - les clés Keystore associées aux coffres PIN,
+- les clés Keystore du verrouillage de l'application (vérification du PIN et déverrouillage biométrique),
 - les coffres par dossier (passphrases et PIN),
 - le presse-papiers, où une note copiée attend en clair,
 - les archives d'export et les enregistrements de dictée, seuls fichiers en clair de l'application,
