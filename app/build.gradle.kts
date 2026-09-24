@@ -233,7 +233,8 @@ android {
     }
 
     // SQLCipher embarque du natif : le découpage par ABI réduit sensiblement la taille par
-    // architecture. L'APK universel reste produit pour l'installation manuelle.
+    // architecture. The universal APK is NOT produced any more — see `isUniversalApk` below; this
+    // comment claimed the opposite for a month after the switch.
     splits {
         abi {
             isEnable = true
@@ -254,35 +255,41 @@ android {
 }
 
 // -----------------------------------------------------------------------------
-// versionCode par ABI - la 3.0.0 doit pouvoir REMPLACER les installations Flutter
+// Per-ABI versionCode: `base * 10 + ABI rank` — the scheme F-Droid requires.
 //
-// La 2.0.4 publiee est decoupee par ABI avec l'offset x1000 du plugin Flutter :
-// armeabi-v7a 1052, arm64-v8a 2052, x86_64 3052. Un APK a `versionCode = 53` est
-// donc un DOWNGRADE pour toute installation reelle, et Android le refuse -- mesure
-// le 2026-08-20 sur un S24 FE porteur de la 2052, ou l'installation echouait par
-// INSTALL_FAILED_VERSION_DOWNGRADE.
+// Three steps, each forced by a real constraint:
 //
-// Le meme offset est donc repris ici. L'universel prend le rang 4 : il n'a pas de
-// filtre d'ABI, et sans rang propre il resterait a 53, c'est-a-dire non installable
-// par-dessus quoi que ce soit. Le rang 4 le place au-dessus de tous les splits, ce
-// qui est le comportement attendu d'un APK qui les remplace tous.
+// 1. Until 2026-08-20 this block copied the offset of Flutter's `--split-per-abi`, `rank * 1000 +
+//    base`, so that the 3.0.0 could replace the 2.0.4 installations (1052/2052/3052). A plain
+//    `versionCode = 53` had failed on a device with INSTALL_FAILED_VERSION_DOWNGRADE (§121).
+// 2. On 2026-09-13 F-Droid refused that scheme for Notes Tech (linsui, fdroiddata!37885): once
+//    `fdroid rewritemeta` sorts the Builds, the codes of two versions interleave — 1055, 1056,
+//    2055, 2056… — and `checkupdates` pairs the last three with the wrong ABI. Flutter 2.0.8 moved
+//    to `base * 10 + rank` and jumped its base to 406, so that 4061 stays above 2.0.7's 4055.
+// 3. Flutter 2.0.9 ships 4071/4072/4073. The 3.0.0 built by the step-1 block produced
+//    1053/2053/3053, i.e. a DOWNGRADE for every installed user — refused by Android, and the only
+//    way out (uninstalling) destroys the Keystore alias along with the database. Found on
+//    2026-09-24, while the port had been idle for a month.
 //
-// ATTENTION `version.properties` reste la source unique : l'offset s'applique a la
-// SORTIE, il ne redefinit pas `versionCode`. Et `BuildConfig.VERSION_CODE` gardera
-// la valeur de base -- verifie le 2026-08-20 : ni le code ni les tests ne le lisent.
+// The ranks are Flutter's own (`android/app/build.gradle.kts` in notes_tech), so that a given ABI
+// keeps the same last digit across the switch, and the F-Droid recipe keeps `%c * 10 + 1/2/3`.
+//
+// ⚠️ `version.properties` stays the single source: the rank is applied to the OUTPUT only, and
+// `BuildConfig.VERSION_CODE` keeps the base value — checked 2026-08-20, nothing reads it.
 // -----------------------------------------------------------------------------
 val rangsDAbi = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
 
-// ATTENTION Le schema x1000 suppose que le versionCode de base tient sous 1000, et RIEN ne le
-// verifiait. A 1000, les plages par ABI se chevauchent : le rang 1 donnerait 2000, soit exactement
-// ce que le rang 2 produit pour un versionCode de base 0 -- deux ABI differentes porteraient le
-// meme code, et l'ordre des mises a jour deviendrait faux sans que rien ne le signale.
-//
-// La base vaut 53 aujourd'hui ; le mur est loin, et c'est bien pour cela qu'il faut l'ecrire
-// maintenant. Releve par une relecture externe le 2026-08-20.
-require(appVersionCode in 1..999) {
-    "versionCode = $appVersionCode : le schema d'offset par ABI (x1000) exige une base sous 1000. " +
-        "Au-dela, les plages se chevauchent -- il faut changer de schema, pas forcer cette garde."
+// ⚠️ A rank must be a single digit, otherwise two ABIs of two consecutive bases collide: rank 10 of
+// base N would equal rank 0 of base N + 1. Structural, so it cannot go stale.
+require(rangsDAbi.values.all { it in 1..9 }) { "ABI ranks must be single digits: $rangsDAbi" }
+
+// ⚠️ A FLOOR, not a proof. 407 is the base of Flutter 2.0.9, the last release published when this
+// was written (2026-09-14). It stops an accidental return to the old base 53; it cannot know about a
+// Flutter release shipped since — the release checklist compares with the last published tag.
+val derniereBaseFlutterPubliee = 407
+require(appVersionCode > derniereBaseFlutterPubliee) {
+    "versionCode = $appVersionCode is not above Flutter 2.0.9 ($derniereBaseFlutterPubliee): every " +
+        "installed user would get INSTALL_FAILED_VERSION_DOWNGRADE."
 }
 
 androidComponents {
@@ -294,16 +301,17 @@ androidComponents {
             // `getValue` et non `get` : une ABI ajoutee sans rang doit faire ECHOUER
             // la configuration, pas produire un APK silencieusement non installable.
             //
-            // ATTENTION Une sortie SANS filtre d'ABI est un APK universel, et il n'y en a plus --
-            // `isUniversalApk` est a false. Si celui qui lit ceci vient de le remettre a true, il
-            // doit choisir un rang en connaissance de cause : au-DESSUS des splits, l'universel les
-            // eclipse et enferme ses utilisateurs ; en-DESSOUS, il ne peut s'installer sur aucune
-            // installation existante. Echouer ici est le seul comportement qui l'oblige a trancher.
+            // ⚠️ An output WITHOUT an ABI filter is a universal APK, and there is none any more —
+            // `isUniversalApk` is false. Whoever turns it back on must pick its rank on purpose.
+            // Under the `* 1000` scheme a rank above the splits locked its users out of every later
+            // split; under `* 10` it only shadows the splits of the SAME version, and the next
+            // version replaces it normally — but it would still be an APK F-Droid does not build,
+            // with a code no recipe line describes. Failing here is what forces that decision.
             val rang = rangsDAbi[abi] ?: error(
                 "sortie sans ABI connue (abi=$abi) : l'universel n'est plus produit. " +
                     "Le reactiver impose de lui choisir un rang -- voir le commentaire ci-dessus.",
             )
-            sortie.versionCode.set(rang * 1000 + appVersionCode)
+            sortie.versionCode.set(appVersionCode * 10 + rang)
         }
     }
 }
