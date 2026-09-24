@@ -111,6 +111,14 @@ retour** — facultatif.
 8. Ménage de l'émulateur `emu-test-api34` : une empreinte et un code appareil `1111` y ont été posés
    pour les essais (sans conséquence ; à retirer si l'AVD doit resservir « neuf »).
 
+**⚠️ Avant toute publication — `docs/12-PLAN-DE-BASCULE.md`, à relire en entier** (oublié de cette
+liste jusqu'au 09-24 au soir) : une 3.0.0 publiée est **irréversible** pour l'utilisateur. Il faut
+donc, en plus des points 3 à 7 et de l'audit complet : le **rodage** (phase 0, JAMAIS fait : quel
+appareil, quelles notes, combien de temps — décision de Patrice ; piste : pré-publication GitHub pour
+des volontaires) ; les décisions **A** (le code poussé dans `notes_tech`, branche `kotlin`) et **C**
+(la MR `!37885` laissée en 2.0.9 jusqu'à sa fusion, F-Droid en dernier) ; les métadonnées de la
+phase 3 (`versionName` sans `-alpha01`, changelogs FR + EN ≤ 500 caractères, manifeste FUSIONNÉ).
+
 ### Rapports d'agents du 2026-09-24 (résumés ici : les transcriptions ne survivent pas)
 
 - **Inventaire 2.0.4 → 2.0.9** : intégré à `docs/05-PARITE.md` (A1-A21, D4). Hors portage, signalé :
