@@ -613,8 +613,9 @@ entrelace les codes de deux versions une fois triés par `rewritemeta`.
 ## D-023 — Verrouillage de l'application : PIN + biométrie forte, sur le modèle d'Agenda Tech
 
 **2026-09-24 · demandé par Patrice (« la possibilité de vérouiller l'appli par pin ou biométrie,
-empreinte ou face ID »)** — conception arrêtée, **pas encore câblée** (fondations non commitées, cf.
-`REPRISE.md`).
+empreinte ou face ID »)** — conçue puis **câblée le même jour** (cf. « Réalisation » en fin de
+section) ; mesurée sur le S9 (API 29), l'émulateur (API 34) et le S24 (API 36, avec l'accord
+explicite de Patrice, paquet `.next.debug` séparé de sa vraie Notes Tech).
 
 **Contexte.** Aucune des deux versions n'avait de verrou d'application : la version Flutter n'a pas
 `local_auth`. SMS Tech et Agenda Tech en ont un ; une étude de SMS Tech (rapport d'agent du
@@ -626,7 +627,7 @@ empreinte ou face ID »)** — conception arrêtée, **pas encore câblée** (fo
 |---|---|---|
 | Hôte d'interface | NavController + `rememberSaveableStateHolder` **au-dessus** du verrou ; le contenu **sort de la composition** tant que c'est verrouillé (ni dessiné, ni atteignable, ni lu par TalkBack, ses dialogues disparaissent avec lui) ; l'écran quitté revient intact | Agenda `LockedAppHost` |
 | Décision de verrouiller | **synchrone** dans `MainActivity.onStop`, jamais dans une coroutine ; pas sur `isChangingConfigurations` (le changement de langue recrée l'activité) | Agenda F13 + ajout Notes Tech |
-| Délai | au choix (immédiat par défaut), mesuré par `elapsedRealtime` au `onStart` — l'horloge qui compte la veille (le `delay()` de SMS Tech ne la comptait pas, S2) | ajout |
+| Délai | immédiat (défaut), 15 s, 1 min, 5 min — les paliers de SMS Tech, **sans** son « au prochain lancement » ; mesuré par `elapsedRealtime` au `onStart` — l'horloge qui compte la veille (le `delay()` de SMS Tech ne la comptait pas, S2). Valeur inconnue sur le disque → **immédiat**, jamais plus long | ajout |
 | Sélecteur ouvert par l'app | pas de PIN au retour (import du modèle vocal), dans les bornes d'Agenda : 3 s, écran éteint, 3 min | Agenda `PickerRelockPolicy` |
 | Vérificateur du PIN | `HMAC_cléKeystore(libellé ‖ Argon2id(pin, sel))`, sel 16 o, Argon2id allégé (32 Mio, t=2). Clé **sans** authentification, **sans** `setUnlockedDeviceRequired`, **sans** exigence matérielle | nouveau — voir ci-dessous |
 | Temporisation | 5 essais libres, puis 30 s doublés jusqu'à 1 h ; compteur persistant (écriture `commit`), horloge monotone (un redémarrage relance l'attente, ne la raccourcit jamais) ; **jamais d'effacement** | nouveau |
@@ -651,6 +652,46 @@ verrou de notes protège. *`BIOMETRIC_WEAK`* (visage 2D) : une photo suffisait (
 (Pixel récents), pas sur la plupart des Samsung. *Le verrou comme destination de navigation* (SMS
 Tech) : perd l'écran en cours à chaque verrouillage. *Effacement après N échecs* : un enfant qui joue
 avec le téléphone détruirait les notes.
+
+**Réalisation (2026-09-24) — ce que le code a précisé ou changé par rapport au tableau.**
+
+- **La règle « baisser une protection exige le PIN » vit dans le gestionnaire**, pas dans l'écran :
+  `AppLockManager` refuse toute baisse sans `PinProof` — émise par `attemptPin`, **à usage unique**,
+  valable 2 min et **dans l'époque de verrouillage** où elle est née (un verrouillage l'annule). Un
+  bouton ajouté plus tard qui oublierait de demander le PIN échoue donc au gestionnaire.
+- **Époques de verrouillage** (`AppLockState.Locked(epoch)`) : un verrouillage survenu pendant la
+  vérification d'un PIN — PIN tapé puis Accueil aussitôt — **l'emporte** ; la biométrie n'ouvre que
+  l'époque pour laquelle son invite a été montrée ; et l'invite s'affiche une fois par époque (ni une
+  seule fois par processus, ni à chaque recomposition, qui bouclerait sur un appareil dont l'invite
+  met l'activité en pause).
+- **Le verrou couvre le contenu, et lui seul** : ni l'écran d'ouverture, ni l'**écran d'échec au
+  démarrage**, qui ne montrent rien de l'utilisateur — et dont le second doit rester lisible (« ne
+  désinstallez pas, écrivez-nous » est ce qui sauve les notes quand la clé manque).
+- **La politique de reverrouillage est à l'échelle du processus**, pas de l'activité : une activité
+  détruite en arrière-plan (« ne pas conserver les activités ») aurait sinon oublié que l'app était
+  partie. Agenda Tech a ce trou.
+- **Écran éteint pendant un sélecteur** : le délai de l'utilisateur s'applique à partir de là (Agenda
+  verrouille aussitôt, faute de délai). Un téléphone posé sur un sélecteur est traité comme un
+  téléphone posé dans l'app.
+- **Récents sous Android 13** : le verrou pose sa demande par un `SecureWindowGuard` au sommet de
+  l'app (le contrôleur reste le seul auteur du drapeau) — et l'interrupteur « captures d'écran »
+  **le dit** et devient inactif, au lieu d'afficher « désactivé » pendant que toute capture échoue.
+  Mesuré sur l'émulateur API 34 (contrôle négatif compris) : verrou actif, carte des Récents neutre ;
+  verrou désactivé, contenu visible.
+- **Un seul recouvrement de panique, au sommet** (cf. `04-PIEGES.md` §139), et le verrou maintenu
+  tant qu'une panique tourne ou a rendu son rapport.
+- **Le pavé et les pastilles** sont sortis des feuilles de coffre vers `ui/common/PinPad.kt`, sans
+  changement de comportement ; l'écran de verrouillage prend des touches de 64 dp pour tenir sur le
+  S9 sans défiler (§137).
+- **`androidx.biometric:1.1.0`** apporte `USE_BIOMETRIC` et `USE_FINGERPRINT` au manifeste fusionné :
+  refusées d'abord par `tools/check-manifest-permissions.py`, puis admises **avec** leur ligne dans les
+  deux `privacy.md` (qui passent en version 1.1.0).
+
+**Limite connue, assumée.** Si la clé du verrou disparaît (défaut du Keystore, jamais un geste de
+l'utilisateur) pendant que l'app est ouverte, le verrou ne peut plus être désactivé — aucun PIN n'est
+vérifiable — et le verrouillage suivant ne laisse que l'effacement. Relâcher la preuve dans ce seul
+cas a été écarté : il ne se produit qu'avec la perte d'une clé que l'utilisateur ne peut pas
+provoquer, et c'est le cas même où la prudence doit l'emporter.
 
 ## D-024 — Aperçu Markdown : analyseur JetBrains, rendu Compose écrit ici
 

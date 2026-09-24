@@ -4340,3 +4340,87 @@ disponible ici. Procédé suivi, et vérifié : construire par script la version
 second sujet ; mettre de côté les fichiers des commits suivants (empreintes SHA-256 notées) ; faire
 tourner le **gate complet sur l'état exact du commit** ; commiter ; restaurer ; recomparer les
 empreintes. Plus long qu'un gros commit, et c'est ce qui rend l'historique relisable.
+
+## §135 — 🔴 Un contrôle négatif qui « tombe » n'a rien prouvé tant qu'on n'a pas vu QUEL test tombe
+
+Verrou d'application, 2026-09-24 : onze gardes cassées tour à tour par script (`scratchpad/
+controles_negatifs_verrou.py`), le test attendu devant tomber à chaque fois. **Deux passes entières
+n'ont rien mesuré** :
+
+1. `cmd /c gradlew.bat` introuvable depuis le sous-processus Python : Gradle échouait sans lancer un
+   test, et le script comptait l'échec de Gradle comme « test tombé ». Rattrapé parce que le verdict
+   exigeait aussi le **nom** du test attendu parmi les échecs du rapport XML — il n'y en avait aucun.
+2. `["bash", "./gradlew"]` : sous Windows, `CreateProcess` cherche dans **System32 avant le PATH**, et
+   y trouve le `bash` de **WSL**, qui bute sur les CRLF de `gradlew`. Rattrapé par un second garde
+   ajouté entre-temps : **le rapport XML doit avoir été réécrit** (date comparée avant/après).
+   Correctif : `shutil.which("bash")`.
+
+La troisième passe a fait tomber les onze, chacune sur son test. *Un contrôle négatif se vérifie comme
+un test : ce qu'il mesure, et la preuve qu'il a mesuré.*
+
+## §136 — `mockk` en test instrumenté fait planter TOUT le processus sur Android 10
+
+`mockk<AppSettings>()` dans un test Compose sur le S9 : `NoClassDefFoundError:
+android.app.PictureInPictureUiState`, processus tué, suite interrompue. L'agent « inline » de MockK
+instrumente `toString`, et l'appel sur l'activité réfléchit sur ses méthodes, dont une signature
+d'API 31. Les tests existants n'employaient déjà jamais `mockk` en instrumenté. Remplacé par
+`IsolatedPreferencesContext` (les préférences seules détournées vers un fichier de test, cf. §72) :
+un vrai `AppSettings`, sans écrire dans le vrai fichier.
+
+## §137 — 🔴 L'écran de verrouillage ne tenait pas sur le S9 — et `performClick` a cliqué dans le vide
+
+Le S9 est à 360 × 740 dp (1080 × 2220 à 480 dpi). Logo au-dessus du titre, touches de 72 dp comme la
+feuille de coffre : il fallait ~800 dp, et « PIN oublié ? » — la seule sortie de qui a oublié son PIN
+— était **sous le pli**. Deux tests l'ont révélé à leur façon : un clic sur le bouton biométrique hors
+écran n'a rien déclenché (`performClick` injecte un toucher aux coordonnées, sans défiler), et le
+dialogue « PIN oublié » n'était « pas affiché ».
+
+Corrigé : logo et titre sur une ligne, touches de 64 dp pour ce seul écran (le coffre garde 72 dp,
+paramètre à défaut), boutons secondaires côte à côte. Un test fige l'exigence
+(`the_whole_screen_fits_without_scrolling`), et les autres défilent avant de toucher. *Mesuré sur
+l'émulateur seul, ce défaut ne se voyait pas : son écran est plus haut.*
+
+## §138 — Ouvrir la feuille effaçait ce qu'on venait d'y préparer
+
+`onDelayChosen` posait `pendingDelay` PUIS appelait `openSheet()`, qui commence par oublier le
+parcours précédent — `pendingDelay` compris. L'utilisateur tapait son PIN et recevait « Trop de temps
+s'est écoulé » : le délai plus long ne s'appliquait **jamais**. Trouvé par le test JVM du modèle
+(`AppLockSettingsViewModelTest.delay_flow`), contre un vrai `AppLockManager`. *Une remise à zéro
+placée en tête d'une fonction efface aussi ce que l'appelant vient de poser.*
+
+## §139 — 🔴 Une panique lancée depuis l'écran de verrouillage aurait levé le verrou sous elle
+
+Le mode panique efface les préférences (étape `PREFS_CLEAR`), **PIN du verrou compris**, deux étapes
+avant la fin. L'hôte levait le verrou dès que le PIN n'existait plus ; l'écran de verrouillage — qui
+portait le recouvrement de fin — quittait la composition, et le contenu s'affichait sur une base
+scellée, sans rapport. Trouvé en relisant l'enchaînement, avant tout essai.
+
+Corrigé : **un seul** recouvrement de panique, au sommet de l'application (au-dessus du verrou et du
+contenu), un seul `PanicViewModel` à l'échelle de l'activité (`activityPanicViewModel`), et le verrou
+maintenu tant qu'une panique tourne ou a rendu son rapport. Les Réglages et l'écran de verrouillage ne
+font plus que la déclencher.
+
+## §140 — `ktlintFormat` : deux effets à surveiller
+
+- Il a réécrit en LF un fichier **hors périmètre** (`NoteCard.kt`, en CRLF) : `git diff` vide, mais
+  `git status` le marquait modifié. Restauré par `git checkout --`. Regarder la liste des fichiers
+  touchés après chaque formatage automatique.
+- Il coupe les lignes longues là où il peut : `attempts =` / `attempts + 1`, `if (delay ==` / `null`.
+  Conforme, illisible. Réécrit à la main (petites fonctions `answered`, `withWait`) : *le format
+  automatique répare la règle, pas la lecture.*
+
+## §141 — 🔴 Les relectures externes du verrou : un correctif est du code neuf, à relire comme tel
+
+GPT-5.6 sol (0,56 $) a trouvé quatre défauts réels, dont un que ni les tests ni les contrôles
+négatifs ne pouvaient voir : **un échec compté APRÈS la vérification** ne survit pas à un disque plein
+suivi d'un arrêt forcé — cinq essais neufs à chaque redémarrage. Corrigé en **comptant avant de
+vérifier** (pas de compte écrit, pas de vérification). Puis Gemini 3.1 Pro, lancé sur les seuls
+correctifs, a trouvé la course que **ce correctif-là** avait introduite : l'époque de verrouillage
+était lue après l'écriture bloquante du compte, donc un « PIN tapé puis Accueil » pendant l'écriture
+rouvrait l'app en arrière-plan. *Le premier relecteur trouve le défaut ; le second trouve celui du
+correctif — d'où l'intérêt de ne pas s'arrêter au premier.*
+
+Un constat a été **reclassé** plutôt qu'appliqué tel quel : « la biométrie ouvre malgré une clé de PIN
+absente » n'est pas une faille (la classe 3 authentifie le propriétaire, et l'état ne naît que d'un
+défaut du Keystore) ; le vrai défaut était l'écran, qui cachait alors la biométrie et disait que tout
+effacer était la seule issue. *Vérifier un constat, c'est aussi vérifier sa prémisse.*

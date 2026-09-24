@@ -3,100 +3,90 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, **puis le 2026-09-24**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-24 (soir) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-24 (nuit) — LIRE CECI D'ABORD
 
-> Écrit avant un `/compact`, pour reprendre sans rien perdre. Tout ce qui suit est vérifié, pas supposé.
-> Les sections plus bas (08-15 → 08-20) sont l'historique : **elles décrivent un monde qui a bougé**
-> (cf. `docs/04-PIEGES.md` §128) — ne pas en reprendre un état sans le revérifier.
+> Écrit avant un `/compact` (le 2e du jour). Tout ce qui suit est vérifié, pas supposé. Les sections
+> plus bas (08-15 → 08-20) sont l'historique : **elles décrivent un monde qui a bougé** (§128).
 
-### Ce qui s'était passé pendant l'arrêt (08-26 → 09-24)
+### Contexte (inchangé depuis le compactage précédent)
 
-Le portage n'a pas bougé pendant un mois ; la Flutter `notes_tech` a publié **2.0.5 → 2.0.9**
-(dernière : `e3ee1d6`, tag `v2.0.9`, versionCode **407** → splits **4071/4072/4073**, schéma
-`base × 10 + ABI` imposé par F-Droid). La MR F-Droid `!37885` est en **2.0.9**, « mostly ready »
-(linsui), en file de test — **ne pas y toucher**. Patrice : **le S9 est un téléphone de TESTS
-uniquement**, la 3.0.0 n'a jamais servi — **le rodage (phase 0) n'a pas eu lieu** (cf.
-`docs/12-PLAN-DE-BASCULE.md`, correction du 09-24).
+- Pendant l'arrêt (08-26 → 09-24), la Flutter `notes_tech` a publié **2.0.5 → 2.0.9** (`e3ee1d6`,
+  versionCode **407** → splits 4071/4072/4073). MR F-Droid `!37885` en 2.0.9, « mostly ready » —
+  **ne pas y toucher**. Le S9 est un téléphone de TESTS : **le rodage n'a pas eu lieu**.
+- Consignes de Patrice : « fais tout ce qui est nécessaire, et proprement » ; panneau Infos ✅ ;
+  **verrouillage par PIN ou biométrie** ✅ (ci-dessous) ; renommage du dossier `notes_files_tech`
+  → `notes_files_kotlin` (proposé `notes_tech_kotlin`, **réponse attendue** ; à faire VS Code
+  fermé, supprimer `app\.cxx` et `build`, recopier la mémoire vers la nouvelle clé de projet).
+- **Langue** (précisé par Patrice le 09-24) : **anglais uniquement pour ce qui part dans le domaine
+  public** (GitHub, F-Droid : code, commentaires neufs, commits, textes de l'app) ; tout le local
+  (docs, REPRISE, audits, mémoire) en français.
+- Tests : émulateur sans fenêtre ou S9 ; **le S24 seulement sur accord du moment** (donné une fois le
+  09-24 pour le verrou). Relectures externes : **budget ~3 $ par série** (« j'ai peu de budget »).
 
-### Consignes de Patrice du 2026-09-24
-
-- « Fais tout ce qui est nécessaire, et proprement » : rattraper la parité 2.0.9, **ajouter le panneau
-  Infos** au Kotlin, **ajouter le verrouillage de l'app par PIN ou biométrie** (empreinte, visage).
-- Tests : **émulateur sans fenêtre** (`emu-test-api34`) **ou le S9** (`22dbb7390a057ece`) — jamais le
-  S24 FE. Relectures externes autorisées : **GPT 5.6 sol** ou **Gemini Pro** (vérifier les noms de
-  modèles que `~/.claude/tools/audit-ia.py` accepte réellement).
-- Renommer le dossier `notes_files_tech` → `notes_files_kotlin` (Patrice) — **proposé**
-  `notes_tech_kotlin`, **réponse attendue**. Impossible pendant une session (répertoire de travail
-  verrouillé par Windows) : à faire VS Code fermé — renommer, supprimer `app\.cxx` et `build` (chemins
-  absolus CMake), rouvrir ; copier la mémoire `~/.claude/projects/j--applications-notes-files-tech/`
-  vers le nouveau nom. Les deux scripts i18n ne dépendent plus du nom (commit `9d0c59f`).
-- **Tout ce qui est écrit désormais en anglais** (code, commentaires neufs, commits) ; les docs de ce
-  dossier (`docs/`, `REPRISE.md`) restent en français : journal local.
-
-### Commits du jour, sur `master` (aucun remote, rien de poussé)
+### Commits du 2026-09-24, sur `master` (aucun remote, rien de poussé)
 
 | Commit | Contenu |
 |---|---|
-| `8715023` | versionCode `base × 10 + ABI`, base **500** → 5001/5002/5003 (D-022) ; garde plancher 407 + contrôle positif |
-| `9d0c59f` | **parité 2.0.9** : aucun texte d'exception à l'écran (`ui/common/UserMessages.kt`), boîte de réception « Inbox » et nom par défaut traduit partout (`Folder.isDefaultInboxName`, `ui/common/FolderNames.kt`), export (`inbox/`, `untitled-folder`, README anglais, `NoteMarkdown.folderLabel`), coffre PIN sans verrouillage d'écran (`KeystoreDeviceNotSecureException`), clé de coffre tirée après Argon2id, compte à rebours de freinage en mots (`ui/common/RetryWait.kt`), noms de modèles publiés, message « clé introuvable » réécrit, « atomique » retiré de privacy, chaînes régénérées depuis l'ARB 2.0.9 (`ECARTEES` pour 6 clés volontairement non reprises) |
-| `f640903` | **panneau Infos** (menu ⋮ de l'éditeur → dossier, créée, modifiée, mots, caractères) — `core/text/TextStatistics.kt`, `ui/editor/NoteInfo.kt`, `NoteInfoDialog.kt` |
-| (ce commit-ci) | docs : D-022/D-023/D-024, inventaire 2.0.9 dans `05-PARITE.md`, §128-§134, plan de bascule |
+| `8715023` | versionCode `base × 10 + ABI`, base 500 → 5001/5002/5003 (D-022) |
+| `9d0c59f` | parité 2.0.9 (messages sans exception, « Inbox » traduite, export, coffre PIN sans verrouillage d'écran…) |
+| `f640903` | panneau Infos |
+| `1e1a71d` | docs du compactage précédent |
+| `aab469b` | **verrouillage de l'application (D-023)** — cf. ci-dessous |
+| (ce commit-ci) | docs : D-023 « réalisation », §135-§141, cette section |
 
-Gate au dernier commit de code : `assembleDebug`, **259 tests JVM (30 classes), 0 ignoré**, `lintDebug`,
-detekt, ktlint, compilation `androidTest`. ⚠️ **La suite instrumentée n'a PAS tourné** depuis le
-2026-08-20.
+### Le verrouillage de l'application — FAIT (`aab469b`)
+
+PIN 4-6 chiffres ; délais immédiat / 15 s / 1 min / 5 min ; biométrie **classe 3 seulement** (le
+visage Samsung, classe 2, n'est pas proposé) ; « PIN oublié » → mode panique ; Récents masqués ;
+tout ce qui baisse la protection exige une **preuve de PIN** (unique, 2 min, liée à l'époque de
+verrouillage). Détail et choix : **`docs/01-DECISIONS.md` D-023**, section « Réalisation ».
+Code : `security/applock/` (cœur, testable JVM), `ui/applock/` (écran, Réglages, invite
+biométrique, Récents), `ui/LockedAppHost.kt`, `ui/common/{PinPad,AppResultLauncher}.kt`.
+
+**Mesuré :**
+- JVM : **336 tests (36 classes), 0 ignoré** ; lint, detekt, ktlint, `check-manifest-permissions.py`
+  verts (`USE_BIOMETRIC`/`USE_FINGERPRINT` admises + `privacy.md` v1.1.0).
+- **14 contrôles négatifs** (gardes cassées une à une) : chacun fait tomber son test. ⚠️ Le 15e —
+  la lecture d'époque corrigée après Gemini (`lock_during_the_count_write_wins`) — a son test mais
+  **pas encore son contrôle négatif** (raisonné seulement).
+- Instrumenté, **avant** les correctifs de relecture : S9 **403 cas, 401 verts, 2 ignorés connus**
+  (transcription : pas de modèle Whisper ; chiffrement non authentifié : pas d'empreinte sur le S9) ;
+  classes du verrou vertes sur l'**émulateur API 34** et sur le **S24 (Android 16, empreinte
+  réelle)**. Après les 1ers correctifs : verrou + coffre + panique sur S9, **63 verts**.
+- Bout en bout sur l'émulateur (empreinte simulée, `adb emu finger touch 1`, code appareil 1111) :
+  activer le verrou et la biométrie par l'interface, quitter, revenir → invite automatique → doigt →
+  **retour sur les Réglages à la même position**. Récents API 34 : carte neutre avec verrou, contenu
+  visible sans (contrôle négatif).
+- Relectures : **GPT-5.6 sol (0,56 $)** → 4 constats, tous vérifiés et corrigés (essai compté AVANT
+  vérification, preuve revalidée sous le verrou d'époque, échéance négative, écran « invérifiable »
+  qui cachait la biométrie) ; **Gemini 3.1 Pro** sur les correctifs → 1 course introduite par le
+  premier correctif (époque lue après l'écriture bloquante), corrigée. Rapports :
+  `scratchpad/relecture_verrou_{gpt,gemini}.md` (non conservés après la session — résumé ici).
+
+**Sur le S24 de Patrice** : `com.filestech.notes_tech.next.debug` (« Notes Tech (Kotlin debug) »)
+**est installée**, avec l'APK de test — distincte de sa vraie Notes Tech. Il devait tester à la main
+(parcours donné en séance). **Son retour n'est pas encore arrivé.** L'APK installé date d'AVANT les
+correctifs de relecture.
 
 ### 🔴 CE QUI RESTE, dans l'ordre
 
-1. **Verrouillage de l'app** — conception arrêtée : **D-023** (tout y est : hôte à la Agenda, décision
-   synchrone dans `onStop`, vérificateur HMAC Keystore, temporisation, biométrie forte + `CryptoObject`,
-   PIN oublié → mode panique, Récents, étape de panique, PIN exigé pour baisser une protection).
-   **Fondations écrites, NON commitées, NON testées** :
-   - `app/src/main/java/com/filestech/notes_tech/security/applock/AppLockKeystore.kt` (interface +
-     exceptions), `AndroidAppLockKeystore.kt` (clé HMAC `app_lock_hmac_v1`, relit après suppression),
-     `AppLockPin.kt` (`StoredPin` v1, `AppLockParams` 4-6 chiffres, `AppLockPinVerifier`,
-     `AppLockThrottle` 5 libres puis 30 s doublés → 1 h) ;
-   - `data/prefs/LegacyPreferences.kt` : `long()` et `commit { }` (écritures synchrones, préfixe et
-     types du greffon conservés).
-   Reste : tests JVM de ces fondations (faux Keystore) ; `AppLockStore` (clés `app_lock_*` dans le
-   fichier Flutter — la présence du vérificateur VAUT « verrou configuré », un vérificateur illisible
-   laisse VERROUILLÉ) ; `AppLockManager` (singleton, `attemptPin` atomique sous mutex **vérification
-   comprise** — leçon S16 d'Agenda) ; `BiometricUnlockKey` ; `PickerRelockPolicy` (copie d'Agenda +
-   ses 12 cas) ; `MainActivity` → `FragmentActivity` + `onStop`/`onStart`/`onResume` ; hôte
-   (`LockedAppHost`) dans `ContenuPrincipal` ; écran de verrouillage (réutiliser le pavé et les
-   pastilles de `VaultSheets.kt` en les sortant dans `ui/common`, sans changer leur comportement) ;
-   section Réglages ; étape de panique ; `androidx.biometric:biometric:1.1.0` (celle de SMS Tech) ;
-   `tools/check-manifest-permissions.py` (`USE_BIOMETRIC`, `USE_FINGERPRINT`) **et** la table de
-   `privacy.md` FR/EN ; chaînes EN/FR dans `AJOUTS_*` du générateur.
-   Référence : `J:\applications\agenda_tech\app\src\main\java\com\filestech\agenda_tech\` —
-   `ui/LockedAppHost.kt`, `security/{AppLockManager,PickerRelockPolicy,BiometricGate,StrongBiometrics}.kt`,
-   `MainActivity.kt:90-135, 280-400, 452-530`.
-2. **Aperçu Markdown** (A1/A2) — **D-024**. Ce que la 2.0.9 rend (lu dans
-   `lib/ui/widgets/note_markdown_preview.dart` et `flutter_markdown_plus-1.0.12`) : GFM ;
-   `selectable:false` ; saut de ligne simple = espace ; titres h1-h6 ; listes ; cases **non
-   interactives** ; citations (fond `surfaceContainerHighest`, liseré `primary` 3 px) ; code
-   monospace à défilement horizontal ; tableaux bordés, en-tête gras ; images → texte alternatif (ou
-   URI) en italique, **jamais chargées** ; HTML en ligne littéral ; `[[Titre]]` = motif de l'indexeur,
-   évalué avant les autres syntaxes, **pas dans le code**, `trim()` Dart ; tap → note ouverte
-   (enregistrement d'abord, auto-lien ignoré) ou **créée dans le dossier courant puis ouverte** ;
-   lien externe : `http`/`https`/`mailto` seulement, application externe, erreurs avalées ;
-   `SegmentedButton` compact, basculer ferme le clavier, toute note s'ouvre en édition, contenu vide →
-   `note_editor_preview_empty`, une insertion (lien, dictée) repasse en édition. Pièges : le contenu
-   vit dans une `Column.verticalScroll` avec le panneau de liens — **aucun défilement imbriqué** ;
-   `creerLaNoteManquante` crée sans ouvrir ; `SecureWindowGuard(isVaultNote)` couvre déjà l'aperçu ;
-   la barre d'action est pleine (6 actions écrasaient le titre, §80 et suivants).
-3. **Tests instrumentés** (S9 ou émulateur) : suite complète (365 + les nouveaux), décompte des
-   ignorés `-3`/`-4`, empreinte du modèle après la suite. ⚠️ **Le S9 ne porte plus AUCUNE Notes Tech**
-   (vérifié 2026-09-24) : le modèle `whisper-base-q5_1.bin` n'y est plus ; aucun `.bin` dans
-   `/sdcard/Download`. `TranscriptionSurAppareilTest` sera donc ignoré tant que le modèle n'est pas
-   réimporté — le dire, ne pas le compter vert. Écrire le test instrumenté de `NoteInfoDialog`
-   (balayages d'accessibilité, compte des champs = 0).
-4. **Bascule depuis une vraie 2.0.9** sur le S9 (jamais mesurée) : installer l'APK arm64 publié
-   (4072), créer notes + coffre PIN + coffre passphrase, poser la 3.0.0 signée
-   (`-Pnotestech.replaceInstalledApp=true`, signature par `apksigner`, secret lu à la volée dans
-   `notes_tech/android/key.properties`, **aucun fichier de mot de passe écrit**), vérifier.
-5. **Relectures externes** (autorisées) sur le verrouillage et l'aperçu, puis vérifier chaque constat.
-6. Docs finales : `05-PARITE.md` (cocher A1/A2), `REPRISE.md`, `12-PLAN-DE-BASCULE.md`.
+1. **Retour de Patrice sur le S24** (le verrou à la main, avec son empreinte) — puis réinstaller la
+   version courante sur le S24 s'il veut retester (avec son accord du moment).
+2. **Contrôle négatif du 15e garde** (époque lue avant l'écriture) + **relancer les classes du verrou
+   sur le S9 et l'émulateur** avec les APK courants (les passes datent d'avant les derniers
+   correctifs).
+3. **Aperçu Markdown** (A1/A2) — **D-024** ; notes détaillées dans la section « Rapports d'agents »
+   ci-dessous et dans D-024. Pièges : pas de défilement imbriqué, barre d'action pleine (§80).
+4. **Test instrumenté de `NoteInfoDialog`** (balayages d'accessibilité).
+5. **Bascule depuis une vraie 2.0.9** sur le S9 (jamais mesurée) — procédure dans l'ancienne liste :
+   APK arm64 publié (4072), notes + coffres, puis 3.0.0 signée (`apksigner`, secret lu à la volée,
+   aucun fichier de mot de passe écrit).
+6. **Relecture externe du diff de parité 2.0.9 + panneau Infos** (`5f7dcd3..f640903`, jamais relu) —
+   budget restant ~2 $.
+7. Docs finales : `05-PARITE.md` (A1/A2 ; le verrou est un **ajout** hors parité), `12-PLAN-DE-BASCULE.md`
+   (la 3.0.0 ajoute `USE_BIOMETRIC`/`USE_FINGERPRINT` : description F-Droid, site files-tech.com).
+8. Ménage de l'émulateur `emu-test-api34` : une empreinte et un code appareil `1111` y ont été posés
+   pour les essais (sans conséquence ; à retirer si l'AVD doit resservir « neuf »).
 
 ### Rapports d'agents du 2026-09-24 (résumés ici : les transcriptions ne survivent pas)
 
