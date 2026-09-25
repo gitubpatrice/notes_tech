@@ -77,6 +77,16 @@
    dernière ligne atteignable en police double ; fermer ; balayages d'accessibilité, population
    vérifiée). **Cinq contrôles négatifs, tous tombent** (fusion retirée, `toString`, colonne non
    défilante, comptes pris sur la ligne en base, coffre à déverrouiller non écarté).
+9. **La suite de l'émulateur devient lisible** (point 3 facultatif) : les tests du coffre qui ont besoin
+   d'une clé du portage passent par `AndroidVaultKeystore.creerOuIgnorer` (androidTest), qui transforme
+   le **seul** refus `KeystoreSoftwareOnlyException` en hypothèse non tenue. **Le témoin**
+   `la_cle_creee_est_retenue_par_le_materiel_securise` ne l'utilise pas : il échoue sur l'émulateur,
+   exprès (§156). Mesuré : émulateur **4 réussis, 8 ignorés, 1 échec = le témoin**, motif
+   `KeystoreSoftwareOnlyException` ; S9 **13/13, rien d'ignoré** — sur un vrai matériel l'aide ne se
+   déclenche jamais.
+10. **Suite complète du S9 sur l'état final** (avant le point 9) : **442 cas, 440 réussis, 2 hypothèses
+    connues** (pas de modèle Whisper, pas d'empreinte), **0 échec** ; la note « Essai TalkBack » y a
+    survécu, et aucune donnée de test n'est restée.
 
 ### Mesuré
 
@@ -117,11 +127,9 @@
    être neuf), `ecran_s9.py` (lire l'arbre d'accessibilité, toucher un nœud), `taper_note.py`.
 2. ✅ ~~`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel~~ — S24, Android 16 : 27/27 avec
    les deux classes du Keystore du coffre (point 6 ci-dessus).
-3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel pourraient **s'ignorer**
-   (tenter la création, puis `assume` sur `KeystoreSoftwareOnlyException`), pour une suite d'émulateur
-   lisible (§156). ⚠️ **Sauf un témoin** : `la_cle_creee_est_retenue_par_le_materiel_securise` doit
-   continuer d'échouer. Sans lui, un portage qui prendrait à tort le S9 pour un Keystore logiciel
-   ferait s'ignorer tous les tests du coffre au lieu de les faire tomber.
+3. ✅ ~~Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel~~ — fait le 25 au soir
+   (point 9 ci-dessus) : 8 s'ignorent sur `KeystoreSoftwareOnlyException`, **le témoin**
+   `la_cle_creee_est_retenue_par_le_materiel_securise` continue d'échouer sur l'émulateur, exprès.
 4. ✅ ~~Les trois décisions de Patrice~~ — tranchées le 25 au soir et faites : solution **B** pour les
    liens dans un coffre, pages légales au rendu de l'aperçu, message corrigé (point 6 ci-dessus).
    ✅ **Suites de B** : tranchées par Claude sur délégation (point 7 ci-dessus, §159).

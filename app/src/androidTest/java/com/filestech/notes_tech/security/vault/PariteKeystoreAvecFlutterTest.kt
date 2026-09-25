@@ -97,7 +97,7 @@ class PariteKeystoreAvecFlutterTest {
      */
     @Test
     fun un_scelle_du_portage_s_ouvre_comme_le_PONT_PUBLIE_l_ouvre() {
-        portage.createKey(ALIAS)
+        portage.creerOuIgnorer(ALIAS)
         val scelle = portage.seal(ALIAS, CLAIR)
 
         val relu = desceller(ALIAS, scelle.ciphertext, scelle.nonce)
@@ -162,7 +162,7 @@ class PariteKeystoreAvecFlutterTest {
     @Test
     fun la_cle_du_portage_et_celle_du_pont_publie_ont_la_MEME_specification() {
         creerLaCleCommeLePontPublie(ALIAS)
-        portage.createKey(ALIAS_TEMOIN)
+        portage.creerOuIgnorer(ALIAS_TEMOIN)
 
         val duPont = infoDeLaCle(ALIAS)
         val duPortage = infoDeLaCle(ALIAS_TEMOIN)
@@ -198,7 +198,7 @@ class PariteKeystoreAvecFlutterTest {
         creerLaCleCommeLePontPublie(ALIAS)
         val duPont = scellerCommeLePontPublie(ALIAS, CLAIR)
 
-        portage.createKey(ALIAS_TEMOIN)
+        portage.creerOuIgnorer(ALIAS_TEMOIN)
         val duPortage = portage.seal(ALIAS_TEMOIN, CLAIR)
 
         assertThat(duPont.second.size).isEqualTo(12)

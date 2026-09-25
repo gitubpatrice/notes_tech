@@ -6,6 +6,7 @@ import com.filestech.notes_tech.core.crypto.SecretBytes
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Assert.assertThrows
+import org.junit.AssumptionViolatedException
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -34,7 +35,7 @@ class AndroidVaultKeystoreTest {
 
     @Test
     fun une_cle_creee_scelle_et_descelle_ce_quon_lui_donne() {
-        assertThat(keystore.createKey(alias)).isTrue()
+        assertThat(keystore.creerOuIgnorer(alias)).isTrue()
         val clair = SecretBytes.randomBytes(VaultParams.FOLDER_KEY_BYTES)
 
         val scelle = keystore.seal(alias, clair)
@@ -49,7 +50,7 @@ class AndroidVaultKeystoreTest {
         // `setRandomizedEncryptionRequired(true)` interdit de fournir un nonce, donc le Keystore en
         // tire un neuf à chaque fois. Si ce test échouait, le même couple (clé, nonce) servirait
         // deux fois — ce qui casse GCM au point de laisser retrouver la clé d'authentification.
-        keystore.createKey(alias)
+        keystore.creerOuIgnorer(alias)
         val clair = SecretBytes.randomBytes(VaultParams.FOLDER_KEY_BYTES)
 
         val premier = keystore.seal(alias, clair)
@@ -61,7 +62,7 @@ class AndroidVaultKeystoreTest {
 
     @Test
     fun creer_deux_fois_le_meme_alias_ne_remplace_pas_la_cle() {
-        assertThat(keystore.createKey(alias)).isTrue()
+        assertThat(keystore.creerOuIgnorer(alias)).isTrue()
         val scelle = keystore.seal(alias, CLAIR_CONNU)
 
         assertThat(keystore.createKey(alias)).isFalse()
@@ -76,7 +77,7 @@ class AndroidVaultKeystoreTest {
         // 🔴 La distinction décide de détruire ou non les notes de quelqu'un. Le code de
         // l'utilisateur n'intervient PAS à cette couche : une étiquette qui ne valide pas dit que
         // la donnée est abîmée, jamais que le code est faux.
-        keystore.createKey(alias)
+        keystore.creerOuIgnorer(alias)
         val scelle = keystore.seal(alias, CLAIR_CONNU)
         val abime = SealedByKeystore(
             ciphertext = scelle.ciphertext.copyOf().also { it[0] = (it[0].toInt() xor 1).toByte() },
@@ -100,7 +101,7 @@ class AndroidVaultKeystoreTest {
 
     @Test
     fun supprimer_est_idempotent_et_observable() {
-        keystore.createKey(alias)
+        keystore.creerOuIgnorer(alias)
         assertThat(keystore.hasKey(alias)).isTrue()
 
         keystore.deleteKey(alias)
@@ -127,4 +128,19 @@ class AndroidVaultKeystoreTest {
     private companion object {
         val CLAIR_CONNU = ByteArray(VaultParams.FOLDER_KEY_BYTES) { (it * 3 + 1).toByte() }
     }
+}
+
+/**
+ * Creates the key, or skips the test where the Keystore is software only — an emulator: the vault
+ * refuses such a key on purpose (`KeystoreSoftwareOnlyException`, as 2.0.9 does), so nothing that
+ * needs it can run there, and failing would only bury real failures in known ones (§156).
+ *
+ * ⚠️ **`AndroidVaultKeystoreTest.la_cle_creee_est_retenue_par_le_materiel_securise` does not use it,
+ * and must keep failing there.** It is the witness: were the port to take a phone's TEE for a
+ * software Keystore, every vault test would skip on that phone instead of failing — that one would not.
+ */
+internal fun AndroidVaultKeystore.creerOuIgnorer(alias: String): Boolean = try {
+    createKey(alias)
+} catch (e: KeystoreSoftwareOnlyException) {
+    throw AssumptionViolatedException("software-only Keystore: the vault refuses its keys", e)
 }
