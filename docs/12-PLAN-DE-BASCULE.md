@@ -138,6 +138,19 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
 - `SECURITY.md`, `README`, `PRIVACY` : l'application change de **langage**, pas de promesses — mais
   ça se vérifie plutôt que se suppose. Contrôle : `~/.claude/tools/check-fastlane-markdown.py`
 - ⚠️ vérifier le **manifeste fusionné**, pas le manifeste source, pour les permissions
+- **Ce que la 3.0.0 ajoute, à déclarer** (ajouté le 2026-09-25) :
+  - deux permissions, `USE_BIOMETRIC` et `USE_FINGERPRINT`, pour le verrouillage de l'application
+    (D-023). Elles viennent de la bibliothèque AndroidX biometric, donc du manifeste **fusionné**
+    seulement. `privacy.md` les déclare déjà (v1.1.0) ; restent la description F-Droid et le site.
+    Toujours **aucune** permission réseau ;
+  - une dépendance, `org.jetbrains:markdown` **0.7.14** (Apache 2.0, Maven Central, pur Kotlin) pour
+    l'aperçu (D-024), à la place de `flutter_markdown_plus` dans la 2.0.9. À citer dans la description
+    de la MR si les relecteurs y listent les dépendances.
+- **Fins de ligne des `.md` embarqués** (§157) : avec `core.autocrlf=true`, les pages légales de
+  `res/raw*` sortent en CRLF d'une construction Windows et en LF d'une construction Linux, celle de
+  F-Droid. Le lecteur lit les deux (CRLF corrigé le 25) : c'est une question d'**octets**, pas
+  d'affichage. Poser un `.gitattributes` (`*.md text eol=lf`, au moins pour `app/src/main/res/raw*/`)
+  **avant** toute recherche de reproductibilité, sinon l'APK diffère d'un octet par ligne.
 
 ### Phase 4 — Publication par paliers, du moins risqué au plus risqué
 
