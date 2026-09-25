@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.data.repository
 
 import android.content.Context
+import android.os.Looper
 import androidx.room.withTransaction
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -24,6 +25,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Before
@@ -463,6 +465,32 @@ class NotesRepositoryTest {
         val echec = runCatching { notes.resolveTitleFrom(second, "Codes") }.exceptionOrNull()
 
         assertThat(echec).isInstanceOf(VaultLockedException::class.java)
+    }
+
+    /**
+     * The vault's notes are opened off the main thread, **even when asked from it** — the editor asks
+     * from there, and the vault service decrypts on its caller's thread (GPT-5.6 review, 2026-09-25).
+     * Discriminating: called from a test thread, the check would pass whatever the code does.
+     */
+    @Test
+    fun a_vault_is_opened_off_the_main_thread_even_when_asked_from_it(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val codes = notes.create(folderId = second, title = "Codes", content = "0000")
+        val fils = mutableListOf<Boolean>()
+        ouvreur = object : VaultOpener {
+            override suspend fun decrypt(note: Note): Note {
+                synchronized(fils) { fils += Looper.myLooper() == Looper.getMainLooper() }
+                return coffre.decrypt(note)
+            }
+        }
+
+        val trouvee = withContext(Dispatchers.Main) { notes.resolveTitleFrom(second, "Codes") }
+
+        assertThat(trouvee).isEqualTo(codes.id)
+        assertThat(fils).isNotEmpty()
+        assertThat(fils).doesNotContain(true)
     }
 
     // ── Protection des notes de coffre ───────────────────────────────────────

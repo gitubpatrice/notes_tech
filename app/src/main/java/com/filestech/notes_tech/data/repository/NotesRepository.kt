@@ -15,10 +15,13 @@ import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.domain.repository.VaultOpener
 import com.filestech.notes_tech.domain.repository.VaultSealer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import java.time.Clock
 import java.util.UUID
 import javax.inject.Inject
@@ -198,12 +201,23 @@ class NotesRepository @Inject constructor(
     /**
      * The notes of the vault [folderId] by normalised title, read through its open session, with
      * [linkTargets]'s order and tie rule: of two notes with the same title, the same one wins.
+     *
+     * ⚠️ Opened on [Dispatchers.Default]: the vault service decrypts on its caller's thread, and the
+     * editor calls from the main one — a large vault would freeze the screen at each tap (GPT-5.6
+     * review, 2026-09-25). A cancelled tap stops between two notes.
      */
-    private suspend fun vaultTargets(folderId: String): Map<String, String> =
-        databases.get().noteDao().listAliveInFolder(folderId)
-            .map { opener.decrypt(it.toDomain()) }
-            .filter { it.title.isNotEmpty() }
-            .associate { TitleNormalizer.normalize(it.title) to it.id }
+    private suspend fun vaultTargets(folderId: String): Map<String, String> {
+        val lignes = databases.get().noteDao().listAliveInFolder(folderId)
+        return withContext(Dispatchers.Default) {
+            lignes
+                .map { ligne ->
+                    ensureActive()
+                    opener.decrypt(ligne.toDomain())
+                }
+                .filter { it.title.isNotEmpty() }
+                .associate { TitleNormalizer.normalize(it.title) to it.id }
+        }
+    }
 
     // ── Écritures ────────────────────────────────────────────────────────────
 

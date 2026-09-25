@@ -117,9 +117,10 @@ fun LegalRoute(onBack: () -> Unit) {
 
 /**
  * A Markdown file of `res/raw`, drawn as the note preview draws a note (D-024): headings, lists,
- * quotes, emphasis, rules and links, read off the main thread, laid out lazily. 2.0.9 renders these
- * pages with a Markdown widget too, `selectable` so that a passage can be copied — hence the
- * [SelectionContainer]. Links open in another app, as in the preview.
+ * quotes, emphasis, rules and links, parsed off the main thread, laid out lazily — the file itself,
+ * a few KB, is read with the composition. 2.0.9 renders these pages with a Markdown widget too,
+ * `selectable` so that a passage can be copied — hence the [SelectionContainer], which, around a lazy
+ * list as in 2.0.9, selects within what is laid out. Links open in another app, as in the preview.
  *
  * Until 2026-09-25, this screen drew its own minimal Markdown, line by line. It had shown the MIT
  * licence of `whisper.cpp` with its `>` markers while its comment said these files held no quote;

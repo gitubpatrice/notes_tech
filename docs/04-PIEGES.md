@@ -4873,4 +4873,20 @@ coffres → tentative d'ouvrir le blob d'un autre coffre ; départage inversé ;
 
 ⚠️ Hors de la solution, inchangés et à savoir : le **panneau des liens** d'une note de coffre reste vide
 (ses liens sortants ne sont pas indexés, pour ne rien écrire en clair) ; l'autocomplétion de `[[` ne
-propose pas de note de coffre (`findByTitleLike` les écarte).
+propose pas de note de coffre (`findByTitleLike` les écarte). Et lire un titre au format 2 déchiffre
+tout le blob : chaque appui met brièvement en mémoire le clair de **toutes** les notes du coffre ouvert
+— inévitable sans changer de format.
+
+**Relecture externe GPT-5.6 sol du code de la soirée** (CRLF, pages légales, solution B) : **0,31 $**
+(18 008 jetons d'entrée, 7 463 de sortie) ; total des relectures du jour **1,14 $**. Sept constats,
+vérifiés un par un :
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | le dossier de la note, pris dans l'état de l'éditeur, peut être périmé après un déplacement | **réfuté** : le déplacement relit la note et met l'état à jour **dans la même action**, et `tenterUneAction` interdit tout autre geste pendant ce temps ; aucun autre chemin ne change le dossier d'une note dont l'éditeur est ouvert. Pas de garde ajoutée : sans scénario, elle serait du code mort (§151) |
+| 2 | un dossier inconnu est traité comme un coffre | **réfuté par le schéma** : `ON DELETE CASCADE`, appliqué par Room — un dossier supprimé n'a plus de notes, la résolution retombe sur la règle globale |
+| 3 | deux appuis rapides créent deux notes | **réfuté** pour l'interface : `tenterUneAction` sérialise (déjà réfuté le matin, §152 n° 7) |
+| 4 | départage non déterministe à `updated_at` égal | réel, **préexistant** : même requête pour l'indexeur, et dans la 2.0.9 ; laissé |
+| 5 | le déchiffrement du coffre tourne sur le fil de l'appelant — le fil principal, depuis l'éditeur | **réel**, corrigé : `Dispatchers.Default`, annulation entre deux notes ; test appelé **depuis** le fil principal, contrôle négatif (`Unconfined`) : tombe |
+| 6 | « lu hors du fil principal » : faux pour le fichier légal lui-même | **réel** (commentaire), corrigé : seule l'analyse l'est ; quelques Ko lus à la composition |
+| 7 | la sélection d'une liste paresseuse ne couvre que ce qui est composé | limite réelle, **partagée avec la 2.0.9** (liste paresseuse elle aussi) ; consignée dans le KDoc |
