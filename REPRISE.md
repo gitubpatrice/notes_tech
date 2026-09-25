@@ -3,7 +3,30 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-25 (nuit, après le compactage) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-25 (fin de soirée) — LIRE CECI D'ABORD
+
+> Patrice : « consigne tout et on reprend demain ». Tout est commité, **rien n'est poussé**.
+
+**Fait ce soir, après le compactage** (dans l'ordre des commits) : clé de coffre perdue `346d95b`,
+`314e613`, `74f2b14` (D-026) ; pages légales `a94ad36`, `ebee629` (D-027 : **la version française fait
+foi** ; gratuit, par un particulier, usage sous la responsabilité de l'utilisateur ; phrase RGPD
+corrigée d'après la CNIL § 3.3 — Patrice publie **à titre personnel et gratuit**) ; langues terminées
+`c9bad7d`, `7abf065` (test sur l'APK installé, contrôles négatifs, 0 texte en dur, relecture des
+traductions : aucun contresens ; **S9 : OK (452 tests)**). Relectures externes du jour : **2,98 $**.
+
+### 🔴 EN COURS — l'audit de sécurité, INTERROMPU (Patrice devait couper)
+
+Tout est dans **`audits/securite-2026-09-25-etat.md`** : révision `ebee629`, palier profond, modèle
+de menace, les cinq cellules, **sept candidats NON vérifiés** (V1 moyen : note de coffre encore lisible
+dans l'éditeur après la fermeture du coffre ; V2 faible ; K1 moyen : ancien clair dans l'index FTS5 et
+`note_links` après conversion en coffre ; K2 faible ; K3 moyen ; K4 moyen ; K5 faible), et comment
+reprendre. **Demain** : relancer les cellules 3, 4, 5 ; vérifier les candidats par lots (20 agents
+simultanés au plus) ; écrire chaque rapport sur le disque dès son arrivée ; le rapport final. Puis
+l'**audit 3 axes**, en dernier. ⚠️ Et un point à lire soi-même (K3) : la clé de la base des
+utilisateurs de la 2.0.4 porterait `setUnlockedDeviceRequired` — si oui, retirer le verrouillage
+d'écran la supprime, et seule la copie `flutter_secure_storage` sauve la base.
+
+## 🎯 ÉTAT AU 2026-09-25 (nuit, après le compactage) — section précédente
 
 > La section « nuit » juste en dessous reste valable : sa liste « CE QUI RESTE » (les trois langues)
 > n'a pas bougé, sauf son point 7, réglé ici. Tout est commité, **rien n'est poussé**.
