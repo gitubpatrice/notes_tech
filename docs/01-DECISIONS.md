@@ -774,6 +774,10 @@ inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni bl
 - **Message** : l'échec de création d'une note liée dit « Impossible de créer la note liée », et non plus
   « Création du coffre échouée » comme la 2.0.9, pour n'importe quelle note (Patrice, 2026-09-25).
 
-**Limites connues** : une note de coffre n'est jamais cible d'un lien — toucher `[[X]]` depuis un
-coffre crée une nouvelle « X » à chaque fois, comme dans la 2.0.9 → **solution B retenue par Patrice le
-2026-09-25** : chercher d'abord dans le même coffre ouvert (en cours).
+- **Écart assumé : les liens dans un coffre** (solution B, Patrice, 2026-09-25 ; §158). La 2.0.9 ne
+  résout aucune note chiffrée : toucher `[[X]]` depuis un coffre créait une nouvelle « X » à chaque fois.
+  Depuis une note de coffre, les notes de **ce** coffre ouvert passent d'abord, puis les notes hors de
+  tout coffre ; une note d'un autre coffre n'est jamais cible, ni une note de coffre depuis l'extérieur.
+
+**Limites connues** : le panneau des liens d'une note de coffre reste vide, et l'autocomplétion de `[[`
+n'y propose pas les notes du coffre — ni l'un ni l'autre ne font partie de la solution B.

@@ -297,6 +297,14 @@ interface NoteDao {
      */
     @Query("SELECT * FROM notes WHERE folder_id = :folderId AND encrypted_content IS NOT NULL")
     suspend fun findLockedInFolder(folderId: String): List<NoteEntity>
+
+    /**
+     * The live notes of a folder, blobs included, in [titlesForLinking]'s order — which is part of
+     * the tie rule. For the `[[…]]` a vault note writes, resolved among the notes of its own vault
+     * while it is open (`NotesRepository.resolveTitleFrom`).
+     */
+    @Query("SELECT * FROM notes WHERE folder_id = :folderId AND trashed_at IS NULL ORDER BY updated_at DESC")
+    suspend fun listAliveInFolder(folderId: String): List<NoteEntity>
 }
 
 /**

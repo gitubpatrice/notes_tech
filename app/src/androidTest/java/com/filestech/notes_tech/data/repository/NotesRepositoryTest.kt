@@ -394,6 +394,77 @@ class NotesRepositoryTest {
         assertThat(notes.resolveTitle("Code de la carte")).isEqualTo(claire.id)
     }
 
+    /**
+     * 🔴 **From a vault note, the note of that vault** — solution B (Patrice, 2026-09-25). Its title is
+     * in the blob (format 2): only the open session reads it. The control: from outside the vault,
+     * the same title names nothing, as it never did.
+     *
+     * The second vault is the one resolved from: the fixture's vault holds a legacy blob the fake
+     * vault cannot open — and resolving from another vault must not try to.
+     */
+    @Test
+    fun resolve_title_from_a_vault_note_finds_the_note_of_that_vault(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val codes = notes.create(folderId = second, title = "Codes", content = "0000")
+        assertThat(notes.find(codes.id)!!.title).isEmpty()
+
+        assertThat(notes.resolveTitleFrom(second, "  codes ")).isEqualTo(codes.id)
+        assertThat(notes.resolveTitleFrom(LegacyDatabaseFixture.Fixtures.FOLDER_WORK, "Codes")).isNull()
+        assertThat(notes.resolveTitle("Codes")).isNull()
+    }
+
+    /** From a vault note: never a note of another vault, and still a note outside every vault. */
+    @Test
+    fun resolve_title_from_a_vault_note_skips_other_vaults_and_still_reaches_ordinary_notes(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT, title = "Codes", content = "0000")
+        val adresses = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Adresses")
+
+        assertThat(notes.resolveTitleFrom(second, "Codes")).isNull()
+        assertThat(notes.resolveTitleFrom(second, "Adresses")).isEqualTo(adresses.id)
+    }
+
+    /** The vault's own note comes first, and a tie goes the indexer's way: the least recently modified. */
+    @Test
+    fun from_a_vault_its_own_note_comes_first_and_a_tie_goes_the_indexers_way(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val ordinaire = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Codes")
+        horloge.avance(60_000)
+        val ancienne = notes.create(folderId = second, title = "Codes", content = "a")
+        horloge.avance(60_000)
+        notes.create(folderId = second, title = "Codes", content = "b")
+
+        assertThat(notes.resolveTitleFrom(second, "Codes")).isEqualTo(ancienne.id)
+        assertThat(notes.resolveTitleFrom(LegacyDatabaseFixture.Fixtures.FOLDER_WORK, "Codes")).isEqualTo(ordinaire.id)
+    }
+
+    /**
+     * A closed session fails the call, as `VaultOpener` wants every failure to be a refusal: nothing is
+     * resolved — and the editor, which creates the note only when nothing is found, creates nothing.
+     */
+    @Test
+    fun resolve_title_from_a_closed_vault_fails(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        notes.create(folderId = second, title = "Codes", content = "0000")
+        ouvreur = UnavailableVaultOpener()
+
+        val echec = runCatching { notes.resolveTitleFrom(second, "Codes") }.exceptionOrNull()
+
+        assertThat(echec).isInstanceOf(VaultLockedException::class.java)
+    }
+
     // ── Protection des notes de coffre ───────────────────────────────────────
 
     /**

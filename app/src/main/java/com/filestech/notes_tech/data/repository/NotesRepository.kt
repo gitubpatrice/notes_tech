@@ -174,6 +174,37 @@ class NotesRepository @Inject constructor(
         return linkTargets(databases.get())[normalized]
     }
 
+    /**
+     * The note a `[[title]]` written in a note of [folderId] points to, or `null`.
+     *
+     * From a vault note, the notes of **that** vault come first, their titles read through its open
+     * session — solution B, chosen by Patrice on 2026-09-25. [resolveTitle] alone names no vault note,
+     * as in 2.0.9, so a link tapped in a vault created a new, empty note each time, even when the
+     * vault held one of that title. Then, from anywhere, [resolveTitle]: a note outside every vault,
+     * which a vault note could already reach.
+     *
+     * ⚠️ Nothing more is revealed: a note of another vault is never a target, nor is a vault note from
+     * outside it, and the titles read here stay in memory — nothing is indexed or written. Every note
+     * of the vault is opened for its title: a tap pays it, never a keystroke. A closed session fails
+     * the call ([VaultOpener.decrypt]), and the editor says so.
+     */
+    suspend fun resolveTitleFrom(folderId: String, title: String): String? {
+        val normalized = TitleNormalizer.normalize(title)
+        if (normalized.isEmpty()) return null
+        if (folders.isVaultFolder(folderId)) vaultTargets(folderId)[normalized]?.let { return it }
+        return linkTargets(databases.get())[normalized]
+    }
+
+    /**
+     * The notes of the vault [folderId] by normalised title, read through its open session, with
+     * [linkTargets]'s order and tie rule: of two notes with the same title, the same one wins.
+     */
+    private suspend fun vaultTargets(folderId: String): Map<String, String> =
+        databases.get().noteDao().listAliveInFolder(folderId)
+            .map { opener.decrypt(it.toDomain()) }
+            .filter { it.title.isNotEmpty() }
+            .associate { TitleNormalizer.normalize(it.title) to it.id }
+
     // ── Écritures ────────────────────────────────────────────────────────────
 
     /**

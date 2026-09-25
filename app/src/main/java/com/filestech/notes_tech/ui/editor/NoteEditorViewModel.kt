@@ -350,14 +350,14 @@ class NoteEditorViewModel @Inject constructor(
      * link attaches itself when the note is born (`resolveIncoming`), and the title used is the one
      * tapped, never read back from the created note (see [creerPuisLier], for a vault).
      *
-     * ⚠️ Resolution follows the indexer's rule (`NotesRepository.resolveTitle`): a vault note is never
-     * a target. In a vault, a tapped link therefore creates a new note each time, as it does in 2.0.9.
+     * ⚠️ Resolution starts from the note's folder (`NotesRepository.resolveTitleFrom`): from a vault
+     * note, the notes of that open vault first, then the notes outside every vault; from anywhere
+     * else, never a vault note. 2.0.9 resolves no vault note at all, and a link tapped in a vault
+     * created a new note each time — solution B, chosen by Patrice on 2026-09-25.
      */
     fun ouvrirOuCreerLaNote(titre: String) = tenterUneAction(ActionDEditeur.OrigineDErreur.CREATION) {
-        val cible = notes.resolveTitle(titre) ?: run {
-            val dossier = _state.value.note?.folderId ?: return@tenterUneAction
-            notes.create(folderId = dossier, title = titre).id
-        }
+        val dossier = _state.value.note?.folderId ?: return@tenterUneAction
+        val cible = notes.resolveTitleFrom(dossier, titre) ?: notes.create(folderId = dossier, title = titre).id
         _action.value = ActionDEditeur(aOuvrir = cible)
     }
 

@@ -4841,3 +4841,36 @@ Inutile — la lecture repasse par l'état « en cours » à un seul élément, 
 construction Windows et en LF d'une construction Linux — celle de F-Droid. Le rendu n'en dépend plus,
 mais l'APK, si. Un `.gitattributes` (`*.md text eol=lf`) est à envisager avant toute recherche de
 reproductibilité.
+
+## §158 — Solution B : un `[[Titre]]` touché dans un coffre ouvre la note de ce coffre
+
+Choisie par Patrice le 2026-09-25 (§150 posait la question). Jusque-là, comme dans la 2.0.9, la
+résolution écartait **toute** note chiffrée : depuis une note de coffre, toucher `[[Codes]]` créait une
+nouvelle note « Codes » vide à chaque appui, même quand le coffre en contenait une.
+
+`NotesRepository.resolveTitleFrom(dossier, titre)`, appelé par l'éditeur :
+
+1. depuis un coffre, les notes de **ce** coffre d'abord — titres lus par sa session ouverte
+   (`VaultOpener.decrypt`), le format 2 gardant le titre dans le blob ;
+2. puis, de partout, les notes hors de tout coffre, comme avant — une note de coffre pouvait déjà les
+   atteindre, et c'est ce que la solution ne devait pas casser ;
+3. sinon, création dans le dossier de la note, comme avant.
+
+Rien de plus n'est révélé : une note d'un **autre** coffre n'est jamais cible, ni une note de coffre
+depuis l'extérieur ; les titres lus restent en mémoire, rien n'est indexé ni écrit. Même ordre et même
+départage que l'indexeur (`updated_at DESC`, la moins récemment modifiée gagne). Coût : chaque note du
+coffre est ouverte pour son titre — à l'appui, jamais à la frappe. Conformément au contrat de
+`VaultOpener` (« tout échec est un refus »), une session fermée **ou une seule note illisible** fait
+échouer l'appui, et l'éditeur le dit (« Impossible de créer la note liée : … ») : il ne crée rien.
+
+Tests : quatre dans `NotesRepositoryTest` (note du coffre trouvée ; autre coffre ignoré et notes
+ordinaires atteintes ; priorité au coffre et départage ; session fermée) avec le faux coffre qui lie le
+blob à son dossier ; et `LiensDansUnCoffreTest`, le vrai `NoteEditorViewModel` sur un **vrai coffre à
+phrase secrète** créé pour l'occasion, notes scellées pour de vrai. S9 : 10/10 avec les tests voisins.
+Contrôles négatifs, **les cinq tombent** pour la bonne raison : éditeur sur l'ancienne résolution → il
+ouvre une note **neuve** au lieu de « Codes » ; branche du coffre retirée ; recherche étendue à tous les
+coffres → tentative d'ouvrir le blob d'un autre coffre ; départage inversé ; session fermée avalée.
+
+⚠️ Hors de la solution, inchangés et à savoir : le **panneau des liens** d'une note de coffre reste vide
+(ses liens sortants ne sont pas indexés, pour ne rien écrire en clair) ; l'autocomplétion de `[[` ne
+propose pas de note de coffre (`findByTitleLike` les écarte).
