@@ -54,6 +54,22 @@
      ViewModel ;
    - **relecture GPT-5.6 sol du code du soir : 0,31 $** (total du jour **1,14 $**) : 2 réels corrigés
      (déchiffrement du coffre sur le fil principal ; un commentaire), 3 réfutés, 2 laissés avec raison.
+7. **Après le 2e compactage — Patrice : « pour les 2 questions, fais ce qui est le mieux ! Tu as carte
+   blanche » — commit `be5f8e3`** (§159, D-024) :
+   - **suites de B tranchées** à la règle de la réponse publique à l'issue #10 (aucune liste de titres
+     de coffre à l'écran) : le **panneau des liens** d'une note de coffre reste absent (ses rétroliens
+     seraient une telle liste) ; la **feuille `[[`** ne liste pas les titres du coffre ;
+   - mais la feuille était **fautive**, trouvé en examinant la question : elle ne voyait aucune note de
+     coffre — dans un coffre contenant « Codes », Entrée créait un **doublon**, et le lien ouvrait
+     ensuite l'ancienne note. Désormais la note du coffre dont le titre est tapé **en entier** est
+     reconnue (Entrée la lie) ; tapé en partie, rien du coffre ;
+   - 🔴 un **plantage évité, mesuré** : coffre refermé pendant que la feuille est ouverte → l'application
+     tombait (« Process crashed ») ; la recherche en échec le dit désormais et ne propose rien ;
+   - **relecture GPT-5.6 sol : 0,38 $** (total du jour **1,52 $** sur 2 $) : 2 réels corrigés (échec
+     répondu en liste vide qui laissait créer ; tout le clair du coffre gardé en mémoire), 2 préexistants
+     laissés (homonymes, troncature à 8 : §84, identiques dans la 2.0.9) ;
+   - **TalkBack** : Claude ne peut pas entendre ; la note d'essai est **prête sur le S9** et les étapes
+     sont ci-dessous (« CE QUI RESTE », point 5).
 
 ### Mesuré
 
@@ -70,6 +86,12 @@
   principal) — chacun fait tomber **son** test, motif relu dans la sortie.
 - Après la solution B : S9 **65/65** (`NotesRepositoryTest` entier, le vrai coffre, l'écran légal) ;
   émulateur **13/13** sur les tests de B, le bout en bout de l'aperçu (clavier compris) et l'écran légal.
+- Après la feuille `[[` (`be5f8e3`) : JVM **405 tests**, 45 classes, 0 ignoré ; ktlint, detekt, lint
+  (0 erreur, 76 avertissements) verts ; S9 **110/110** sur les cinq classes de l'éditeur (liens du
+  coffre, dépôt, feuille, éditeur, bout en bout de l'aperçu). **Treize contrôles négatifs** (F1-F8,
+  G1-G5), tous tombent, motif relu. ⚠️ Le contrôle F7 fait planter le processus : le `tearDown` ne
+  tourne pas, et un coffre de test (« Vault 476b50c9 », 2 notes) est resté dans l'application de
+  développement du S9 — données effacées ensuite (`pm clear` du seul paquet `.next.debug`).
 
 ### 🔴 CE QUI RESTE, dans l'ordre
 
@@ -79,10 +101,13 @@
    `controles_plancher.py`, `controle_mgf1_emulateur.py`, `controles_legal.py`, `controles_b.py` (une
    mutation, construction, installation, test ciblé, **motif** de l'échec gardé, restauration vérifiée
    au SHA-256 ; les scratchpads ne survivent pas aux sessions).
-   **État des appareils au compactage** : l'émulateur `emu-test-api34` tourne encore **sans fenêtre**
-   (`emulator-5554`, code 1111, sans empreinte) ; le S9 porte les APK du code final ; le **S24** porte
+   **État des appareils (après `be5f8e3`)** : l'émulateur `emu-test-api34` tourne encore **sans
+   fenêtre** (`emulator-5554`, code 1111, sans empreinte) ; le S9 porte les APK de `be5f8e3`, données de
+   l'application de développement **effacées** puis la note « Essai TalkBack » créée ; le **S24** porte
    l'application de test `.next.debug` installée **avant** les pages légales et la solution B (le soir,
-   pour les classes Keystore) — sans conséquence, mais pas la dernière version.
+   pour les classes Keystore) — sans conséquence, mais pas la dernière version. Nouveaux scripts :
+   `controles_feuille.py`, `controles_feuille_2.py` (JVM : verdict lu dans le rapport XML, qui doit
+   être neuf), `ecran_s9.py` (lire l'arbre d'accessibilité, toucher un nœud), `taper_note.py`.
 2. ✅ ~~`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel~~ — S24, Android 16 : 27/27 avec
    les deux classes du Keystore du coffre (point 6 ci-dessus).
 3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel pourraient **s'ignorer**
@@ -92,13 +117,24 @@
    ferait s'ignorer tous les tests du coffre au lieu de les faire tomber.
 4. ✅ ~~Les trois décisions de Patrice~~ — tranchées le 25 au soir et faites : solution **B** pour les
    liens dans un coffre, pages légales au rendu de l'aperçu, message corrigé (point 6 ci-dessus).
-   **Suites possibles de B, non demandées** : le panneau des liens d'une note de coffre reste vide, et
-   l'autocomplétion de `[[` n'y propose pas les notes du coffre (§158). ❓ **Question posée à Patrice le
-   25 au soir, sans réponse avant le compactage** : ne rien faire d'office.
-5. **TalkBack réel** sur l'aperçu (§149 : le paragraphe portant des liens n'est pas
-   `screenReaderFocusable` ; TalkBack le focalise normalement — à écouter). ❓ **Proposé à Patrice le 25
-   au soir, sans réponse** : Claude ne peut pas entendre la voix — c'est à Patrice de l'écouter ; lui
-   donner les étapes (activer TalkBack, ouvrir une note à liens en Aperçu, balayer) s'il le souhaite.
+   ✅ **Suites de B** : tranchées par Claude sur délégation (point 7 ci-dessus, §159).
+5. **TalkBack réel** sur l'aperçu — **à faire par Patrice** (Claude ne peut pas entendre ; §149 : le
+   paragraphe à liens n'est pas `screenReaderFocusable`, TalkBack devrait le lire quand même). Cinq
+   minutes. La note **« Essai TalkBack »** est prête dans « Notes Tech (Kotlin debug) » **sur le S9**
+   (Boîte de réception) : un titre de section, un paragraphe avec un lien de note `[[Codes]]` et un lien
+   web, deux puces, deux cases à cocher.
+   1. Ouvrir la note, toucher **Aperçu**.
+   2. Activer le lecteur d'écran : Paramètres → Accessibilité → Lecteur d'écran → **Voice Assistant**.
+      ⚠️ Sur le S9, c'est l'ancien lecteur de Samsung (5.1, Android 10) ; le **S24** a le TalkBack actuel,
+      plus représentatif — la même note s'y tape en une minute (l'application de test y est déjà).
+   3. Balayer vers la droite, un élément à la fois. À entendre : « Une section » annoncé comme **titre** ;
+      puis **le paragraphe entier** « Voir Codes et le site web » — le point non mesuré : il doit être
+      lu, pas sauté ; puis les puces (« • » est un arrêt à part, comme dans la 2.0.9) ; puis « Fait »,
+      « Faite », « À faire », « A faire ».
+   4. Sur le paragraphe, le menu du lecteur (TalkBack récent : glisser vers le bas puis vers la droite,
+      ou toucher avec trois doigts) doit proposer **« Liens »**, avec « Codes » et « site web » ; choisir
+      « Codes » ouvre la note « Codes » (créée au passage).
+   5. Désactiver par le même chemin (lecteur actif : un toucher sélectionne, deux touchers activent).
 6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
    bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
    finales (`05-PARITE.md`, `12-PLAN-DE-BASCULE.md` : la 3.0.0 ajoute aussi une **dépendance**,
