@@ -164,6 +164,9 @@
 
 - **Dans une commande Bash, `\\` arrive comme `\`** (§145) : tout contenu avec antislash par Write/Edit.
 - Des caractères invisibles tapés tels quels (U+E000, U+FFFD, espace insécable) : vérifier à l'octet.
+  **L'échappement `\uXXXX` écrit dans l'outil d'édition arrive comme le caractère lui-même** (U+FEFF,
+  deux fois le 25 au soir) ; et un balayage dont la liste de caractères est **tapée** dans la commande
+  peut tout signaler ou tout laisser passer : nommer les caractères par leur code (§159).
 - `ktlintFormat` réécrit toujours les fins de ligne de `SttModelStoreTest`, `WhisperSttTest`,
   `NoteCard` : les restaurer (`git checkout --`) quand leur diff réel est vide.
 - `rm -rf` est refusé par une règle `deny` globale : `rm -r` sans `-f`, sur accord.

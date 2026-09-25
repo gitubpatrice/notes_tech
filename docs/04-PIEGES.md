@@ -4947,4 +4947,8 @@ feuille qui le tait, texte du coffre gardé). F5 et F6 tombent sur la même asse
 d'ouvertures), chacun par son propre appel.
 
 ⚠️ Piège refait : l'échappement de U+FEFF écrit dans l'outil d'édition est arrivé comme **le caractère lui-même**,
-invisible. Corrigé par script, vérifié à l'octet (le diff entier est balayé).
+invisible. Corrigé par script, vérifié à l'octet. ⚠️ Et le balayage lui-même était faillible : sa liste
+de caractères, **tapée** dans la commande, a fini par contenir une espace ordinaire — il a signalé
+toutes les lignes, ce qui a trahi le défaut ; plus tôt, il a pu tout laisser passer. Refait avec les
+caractères **nommés par leur code** (`scratchpad/invisibles.py`), témoin positif compris (les deux
+U+FEFF de la sauvegarde d'avant correction) : 0 ligne douteuse dans les cinq commits du soir.
