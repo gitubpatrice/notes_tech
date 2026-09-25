@@ -856,6 +856,20 @@ couvre aussi zéro. Le « 1 » écrit en dur dans l'ARB devient donc l'argument 
 affiche « 0 notes ont perdu… ». **L'anglais est rigoureusement identique** dans les deux, `one` n'y
 valant que pour 1.
 
+## Ajout hors parité : allemand, espagnol, italien (2026-09-25, D-025)
+
+La 2.0.9 ne parle qu'anglais et français. Le portage ajoute trois langues, au registre formel : les
+chaînes (`values-de|es|it`), les deux pages légales (`raw-de|es|it`, la version française faisant foi —
+D-027), le sélecteur à cinq langues, les dates dans la forme de chaque langue, et le filtre de l'APK
+(`localeFilters`). **Tenu par** : `LanguesDeLApplicationTest` (JVM : mêmes noms, arguments et formes de
+pluriel que l'anglais, filtre = langues proposées), `FormatDesDatesTest`, `PagesLegalesTest` (plan de
+l'original français dans chaque langue), et `LanguesDansLApkTest` (appareil : chaque langue diffère de
+l'anglais **dans l'APK installé** — seul endroit où un filtre mal réglé se voit). Contrôles négatifs,
+tous tombés le 2026-09-25 : clé retirée (de, it), argument changé (es), forme `many` retirée (es),
+italien retiré du filtre (JVM **et** appareil), dates remises en « anglais, sinon français ». Aucun texte
+visible codé en dur dans le code (101 littéraux relus). **Pas encore** : relecture externe des
+traductions ; textes du store de-DE/es-ES/it-IT (`docs/12-PLAN-DE-BASCULE.md`, phase 3).
+
 ---
 
 ## 🔄 Rattrapage 2.0.4 → 2.0.9 — inventaire du 2026-09-24

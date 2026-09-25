@@ -5042,6 +5042,22 @@ demi-cadratins dans « 4–6 » (lint `TypographyDashes`). Le contrôle rapide
 ⚠️ **Pas encore fait** (REPRISE, « CE QUI RESTE ») : test d'appareil sur l'APK installé, contrôles
 négatifs, suite complète S9, recherche des textes codés en dur, relecture externe des traductions.
 
+✅ **Fait le 2026-09-25 au soir, après le compactage :**
+- `LanguesDansLApkTest` (S9) : pour chaque langue proposée, `common_cancel` et les deux pages légales
+  diffèrent de l'anglais **dans l'APK installé**. Il exige une différence, pas une présence : une
+  langue filtrée se résout quand même, vers l'anglais. **Contrôle négatif : italien retiré de
+  `localeFilters` → le test tombe.**
+- Contrôles négatifs JVM, **tous tombent**, chacun sur son test : clé retirée en allemand ; `%1$d`
+  devenu `%1$s` en espagnol ; forme `many` retirée en espagnol ; italien retiré du filtre ; dates
+  remises en « anglais, sinon français » (trois cas de `FormatDesDatesTest`). Plus, dans la journée,
+  une clé retirée en italien et deux sur le plan des pages légales.
+- **Textes codés en dur : aucun visible.** Détecteur large de Pass Tech (tout littéral avec une espace,
+  hors commentaires, journaux, exceptions et SQL, `scratchpad/textes_en_dur.py`) : 101 littéraux, tous
+  relus — SQL, messages d'exception internes, motifs de date, format d'export anglais voulu (parité
+  2.0.9), noms propres (« Whisper Base »), numéros. Aucun `.message` d'exception n'atteint l'écran
+  (dictée : `IssueDeDictee` typée ; démarrage : `FailureReason` → ressource). Pass Tech en avait 24.
+- Reste : la relecture externe des traductions (budget du jour presque atteint : à proposer).
+
 ## §162 — Une clé de coffre perdue : deux mensonges, et la mesure a déplacé le problème
 
 Demandé par Patrice le 2026-09-25 au soir, sur le constat 7 b de §160 (« Message pour une clé de coffre

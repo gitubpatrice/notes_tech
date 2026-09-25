@@ -146,6 +146,11 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
   - une dépendance, `org.jetbrains:markdown` **0.7.14** (Apache 2.0, Maven Central, pur Kotlin) pour
     l'aperçu (D-024), à la place de `flutter_markdown_plus` dans la 2.0.9. À citer dans la description
     de la MR si les relecteurs y listent les dépendances.
+- **Trois langues de plus** (ajouté le 2026-09-25, D-025) : l'application parle allemand, espagnol et
+  italien. À la publication : métadonnées fastlane `de-DE`, `es-ES`, `it-IT` (titre, descriptions
+  courte et longue, captures si possible), le changelog de la 3.0.0 dans ces langues ou au moins en
+  anglais, la description F-Droid qui cite les cinq langues, et le site. Le portage n'a encore aucun
+  dossier fastlane : il vit dans le dépôt Flutter (`notes_tech/fastlane/`), à reprendre à la fusion.
 - **À dire dans le changelog de la 3.0.0** (ajouté le 2026-09-25, D-026) : un coffre à code dont la clé a
   été supprimée par Android — retrait du verrouillage d'écran, Android 12 et plus — le dit enfin, au
   lieu de « Coffre verrouillé. » à chaque essai ; et le choix du mode prévient avant. Patrice : pas de

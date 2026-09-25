@@ -75,22 +75,18 @@ a de mieux ».
 2,25 $**) → **`0bee89e`** (bascule depuis une vraie 2.0.9 mesurée sur le S9, phrase secrète ET code —
 Patrice : « super tout fonctionne ») → **`5466624`** (allemand, espagnol, italien, §161, D-025).
 
-### 🔴 CE QUI RESTE — les trois langues, dans l'ordre
+### 🔴 CE QUI RESTE — les trois langues, dans l'ordre (mis à jour après le compactage)
 
-1. **Test d'appareil** `LanguesDansLApkTest` : pour chaque langue, une chaîne et une page légale
-   diffèrent de l'anglais **dans l'APK installé** (le filtre agit à la construction : seul l'APK le
-   prouve). Contrôle négatif : `it` retiré de `localeFilters` → le test d'appareil tombe.
-2. **Contrôles négatifs JVM** : une clé retirée de `values-de` ; un argument changé ; une forme `many`
-   retirée en `es` ; `it` retiré de `localeFilters` ; le format de date remis en « anglais sinon
-   français ».
-3. **Suite complète sur le S9** avec les APK du commit `5466624` (dont `ReglagesTest`, qui liste les
-   langues ; `EcranAProposEtLegalTest`, qui compare les pages par langue).
-4. **Textes codés en dur** : chercher les littéraux affichés hors des ressources (Pass Tech en avait 24,
-   SMS Tech des SMS d'urgence en français) — la traduction est ce qui les révèle.
-5. **Relecture externe des traductions** (~0,40 $ ; Patrice : « fais relire tout ce qui est
-   nécessaire »).
-6. Docs : `05-PARITE.md` (ajout hors parité), `12-PLAN-DE-BASCULE.md` (métadonnées fastlane
-   de-DE/es-ES/it-IT et description F-Droid à la publication).
+1. ✅ **Test d'appareil** `LanguesDansLApkTest` — fait, S9 vert ; contrôle négatif (`it` retiré de
+   `localeFilters`) : **tombe**.
+2. ✅ **Contrôles négatifs JVM** — les cinq tombent, chacun sur son test (§161).
+3. ⏳ **Suite complète sur le S9** — lancée sur l'état courant (voir la section du haut pour le
+   résultat).
+4. ✅ **Textes codés en dur** — aucun visible : 101 littéraux relus, tous internes (§161).
+5. ⏸️ **Relecture externe des traductions** — à proposer à Patrice : le budget du jour (2,58 $) est
+   presque au plafond de 3 $, et une relecture des trois langues coûterait 0,5 à 0,7 $.
+6. ✅ Docs : `05-PARITE.md` (ajout hors parité), `12-PLAN-DE-BASCULE.md` (fastlane de-DE/es-ES/it-IT,
+   description F-Droid).
 7. ~~**À dire à Patrice**~~ — **réglé après le compactage** (section au-dessus) : le ton de Pass Tech est
    décidé (vouvoiement, plus tard) ; le message de clé de coffre est fait (`346d95b`, et « retirer le
    code d'écran ne l'invalide pas » était faux sur Android 14 : il la **supprime**). Reste seul ouvert :
