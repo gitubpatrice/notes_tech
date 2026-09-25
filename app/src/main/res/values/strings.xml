@@ -218,6 +218,9 @@
     <!-- Above a note the preview does not parse: too long, or shaped so that parsing it would
          freeze the screen (MarkdownPreviewReader). Says why the text below is not formatted. -->
     <string name="note_preview_as_written">Too long or too complex to preview: shown as written.</string>
+    <!-- A note a [[Title]] link would create, in the preview or the links panel, could not be
+         created. notes_tech 2.0.9 says "Vault creation failed" here, of any note, in a vault or not. -->
+    <string name="note_editor_link_create_failed">Could not create the linked note: %1$s</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insert link</string>

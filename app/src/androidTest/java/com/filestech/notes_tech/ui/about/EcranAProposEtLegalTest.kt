@@ -6,11 +6,14 @@ import android.content.res.Resources
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollToIndexAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.filestech.notes_tech.R
@@ -120,8 +123,8 @@ class EcranAProposEtLegalTest {
      * 🔴 Les deux onglets rendent **du texte**, et pas le même.
      *
      * ⚠️ Le titre de niveau 1 de chaque fichier sert d'ancre, **sans son croisillon** : il vérifie
-     * du même coup que le rendu Markdown minimal fait son travail. Un fichier affiché brut
-     * montrerait « # Politique de confidentialité ».
+     * du même coup que le rendu Markdown fait son travail. Un fichier affiché brut montrerait
+     * « # Politique de confidentialité ».
      */
     @Test
     fun les_deux_onglets_rendent_leur_texte_sans_le_croisillon() {
@@ -130,14 +133,14 @@ class EcranAProposEtLegalTest {
         assertThat(titrePrivacy).isNotEqualTo(titreTerms)
 
         regle.setContent { NotesTechTheme { LegalRoute(onBack = {}) } }
-        regle.waitForIdle()
+        attendre(titrePrivacy)
 
-        regle.onNodeWithText(titrePrivacy).assertIsDisplayed()
+        regle.onNode(hasText(titrePrivacy) and isHeading()).assertIsDisplayed()
 
         regle.onNodeWithText(texte(R.string.legal_tab_terms)).performClick()
-        regle.waitForIdle()
+        attendre(titreTerms)
 
-        regle.onNodeWithText(titreTerms).assertIsDisplayed()
+        regle.onNode(hasText(titreTerms) and isHeading()).assertIsDisplayed()
     }
 
     /**
@@ -166,11 +169,12 @@ class EcranAProposEtLegalTest {
         val attendu = premiere.removePrefix(">").trim()
 
         regle.setContent { NotesTechTheme { LegalRoute(onBack = {}) } }
-        regle.waitForIdle()
         regle.onNodeWithText(texte(R.string.legal_tab_terms)).performClick()
-        regle.waitForIdle()
+        attendre(premierTitre(R.raw.terms))
 
-        regle.onNodeWithText(attendu).performScrollTo().assertIsDisplayed()
+        // The page is a lazy list: the licence, at its end, is composed once scrolled to.
+        regle.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(attendu))
+        regle.onNodeWithText(attendu).assertIsDisplayed()
         // ⚠️ Et la forme brute ne doit PAS être à l'écran — sinon le cas passerait aussi bien sur le
         // rendu fautif, qui affichait les deux fois la même ligne, chevron en plus.
         regle.onAllNodesWithText(premiere).assertCountEquals(0)
@@ -180,9 +184,17 @@ class EcranAProposEtLegalTest {
     @Test
     fun aucun_element_actionnable_n_est_sans_nom_sur_les_mentions() {
         regle.setContent { NotesTechTheme { LegalRoute(onBack = {}) } }
-        regle.waitForIdle()
+        // The page itself, not only its "reading" indicator: it is read off the main thread.
+        attendre(premierTitre(R.raw.privacy))
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /** The pages are read off the main thread: wait for [attendu] to be composed. */
+    private fun attendre(attendu: String) {
+        regle.waitUntil(ATTENTE_DE_LA_LECTURE_MS) {
+            regle.onAllNodesWithText(attendu).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     private fun lire(ressources: Resources, fichier: Int): String =
@@ -194,4 +206,8 @@ class EcranAProposEtLegalTest {
         .first { it.trim().startsWith("# ") }
         .trim()
         .removePrefix("# ")
+
+    private companion object {
+        const val ATTENTE_DE_LA_LECTURE_MS = 10_000L
+    }
 }

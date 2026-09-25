@@ -179,6 +179,7 @@
     <string name="note_preview_task_open">À faire</string>
     <string name="note_preview_link_no_app">Aucune application de cet appareil ne peut ouvrir ce lien.</string>
     <string name="note_preview_as_written">Trop long ou trop complexe pour l\'aperçu : affiché tel quel.</string>
+    <string name="note_editor_link_create_failed">Impossible de créer la note liée : %1$s</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>

@@ -942,7 +942,7 @@ private fun champSansDecor() = TextFieldDefaults.colors(
  * navigation toucherait un `ViewModel` dont l'écran est déjà parti.
  */
 @Composable
-private fun IssueDUneAction(
+internal fun IssueDUneAction(
     action: ActionDEditeur,
     contexte: Context,
     ressources: Resources,
@@ -1001,17 +1001,18 @@ private fun IssueDUneAction(
             erreur != null -> {
                 val phrase = ressources.getString(erreur)
                 // ⚠️ Exhaustive, `null` included: a new origin must decide how it is announced.
-                // Export and move keep their own framing; creating a linked note uses
-                // `home_vault_create_error`, as notes_tech 2.0.9 does (`note_editor_screen.dart:914`);
-                // trash and copy show the sentence alone — the "Error: …" frame they used,
-                // `common_error_with`, left with 2.0.9 together with the raw text it wrapped.
+                // Export and move keep their own framing, and so does creating a linked note —
+                // where notes_tech 2.0.9 says "Vault creation failed" (`note_editor_screen.dart:914`),
+                // of any note, in a vault or not; trash and copy show the sentence alone — the
+                // "Error: …" frame they used, `common_error_with`, left with 2.0.9 together with the
+                // raw text it wrapped.
                 val message = when (action.origine) {
                     ActionDEditeur.OrigineDErreur.EXPORT ->
                         ressources.getString(R.string.note_editor_export_failed, phrase)
                     ActionDEditeur.OrigineDErreur.DEPLACEMENT ->
                         ressources.getString(R.string.note_editor_move_failed, phrase)
                     ActionDEditeur.OrigineDErreur.CREATION ->
-                        ressources.getString(R.string.home_vault_create_error, phrase)
+                        ressources.getString(R.string.note_editor_link_create_failed, phrase)
                     ActionDEditeur.OrigineDErreur.CORBEILLE,
                     ActionDEditeur.OrigineDErreur.COPIE,
                     null,

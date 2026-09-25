@@ -133,6 +133,9 @@ AJOUTS_EN = {
     <!-- Above a note the preview does not parse: too long, or shaped so that parsing it would
          freeze the screen (MarkdownPreviewReader). Says why the text below is not formatted. -->
     <string name="note_preview_as_written">Too long or too complex to preview: shown as written.</string>
+    <!-- A note a [[Title]] link would create, in the preview or the links panel, could not be
+         created. notes_tech 2.0.9 says "Vault creation failed" here, of any note, in a vault or not. -->
+    <string name="note_editor_link_create_failed">Could not create the linked note: %1$s</string>
 """,
     "trash": """\
     <!--
@@ -396,6 +399,7 @@ AJOUTS_FR = {
     <string name="note_preview_task_open">À faire</string>
     <string name="note_preview_link_no_app">Aucune application de cet appareil ne peut ouvrir ce lien.</string>
     <string name="note_preview_as_written">Trop long ou trop complexe pour l\\'aperçu : affiché tel quel.</string>
+    <string name="note_editor_link_create_failed">Impossible de créer la note liée : %1$s</string>
 """,
     "trash": """\
     <plurals name="trash_emptied">

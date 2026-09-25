@@ -2,17 +2,21 @@ package com.filestech.notes_tech.ui.about
 
 import androidx.annotation.RawRes
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -21,19 +25,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.domain.markdown.LinkTarget
+import com.filestech.notes_tech.ui.common.ouvrirUnLienExterne
+import com.filestech.notes_tech.ui.editor.apercuMarkdown
+import com.filestech.notes_tech.ui.editor.rememberLectureDeLApercu
+import kotlinx.coroutines.launch
 
 /**
  * Les mentions légales : **le vrai texte**, dans les deux langues.
@@ -56,6 +63,21 @@ import com.filestech.notes_tech.R
 fun LegalRoute(onBack: () -> Unit) {
     var onglet by rememberSaveable { mutableIntStateOf(0) }
     val titres = listOf(R.string.legal_tab_privacy, R.string.legal_tab_terms)
+    val messages = remember { SnackbarHostState() }
+    val portee = rememberCoroutineScope()
+    val contexte = LocalContext.current
+    val aucuneApplication = stringResource(R.string.note_preview_link_no_app)
+    val onLien: (LinkTarget) -> Unit = { cible ->
+        when (cible) {
+            // As in the note preview: another app opens it, and a tap that can do nothing says so.
+            is LinkTarget.Web -> if (!ouvrirUnLienExterne(contexte, cible.url)) {
+                portee.launch { messages.showSnackbar(aucuneApplication) }
+            }
+            // A legal page holds no `[[…]]` outside code, where it is text — `PagesLegalesTest`
+            // reads the four files to keep it so: there is no note to open from here.
+            is LinkTarget.Note -> Unit
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -76,6 +98,7 @@ fun LegalRoute(onBack: () -> Unit) {
                 },
             )
         },
+        snackbarHost = { SnackbarHost(messages) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             TabRow(selectedTabIndex = onglet) {
@@ -87,125 +110,36 @@ fun LegalRoute(onBack: () -> Unit) {
                     )
                 }
             }
-            TexteLegal(if (onglet == 0) R.raw.privacy else R.raw.terms)
+            TexteLegal(if (onglet == 0) R.raw.privacy else R.raw.terms, onLien)
         }
     }
 }
 
 /**
- * Rend un fichier Markdown de `res/raw`.
+ * A Markdown file of `res/raw`, drawn as the note preview draws a note (D-024): headings, lists,
+ * quotes, emphasis, rules and links, read off the main thread, laid out lazily. 2.0.9 renders these
+ * pages with a Markdown widget too, `selectable` so that a passage can be copied — hence the
+ * [SelectionContainer]. Links open in another app, as in the preview.
  *
- * ## Un rendu volontairement minimal, et ce qu'il couvre
- *
- * Titres `#` à `###`, listes à puces, **citations**, gras `**…**`, paragraphes, lignes horizontales.
- * Embarquer une bibliothèque de rendu Markdown pour quatre pages statiques coûterait plus qu'elle
- * ne rapporte, et ajouterait une dépendance à une application qui en compte peu.
- *
- * ## 🔴 Ce commentaire a menti, et il faut savoir pourquoi
- *
- * Il affirmait : « tableaux, liens, images, code — ce qui n'est pas géré est aussi ce qui n'apparaît
- * pas dans ces fichiers, **vérifié en les lisant, pas supposé** ». C'était faux : `terms.md` contient
- * **20 lignes de citation** dans ses deux langues — la licence MIT de `whisper.cpp`, que cette
- * licence **exige** de reproduire — et un lien vers le dépôt. Elles tombaient dans la branche par
- * défaut et s'affichaient **chevron compris** : `> MIT License`, `> Copyright (c)…`.
- *
- * *Une affirmation de vérification est une affirmation comme une autre : elle se vérifie. Un
- * `grep -c '^>'` sur les quatre fichiers y suffisait, et personne ne l'avait fait.* Repéré en
- * lisant l'écran sur un téléphone, le 2026-08-20.
- *
- * ⚠️ Restent non gérés, et cette fois **comptés** : tableaux (0 occurrence), images (0), blocs de
- * code (0). Le lien unique des CGU s'affiche en clair, ce qui convient — une URL lisible reste une
- * URL recopiable, et l'application n'a pas la permission Internet pour l'ouvrir de toute façon.
+ * Until 2026-09-25, this screen drew its own minimal Markdown, line by line. It had shown the MIT
+ * licence of `whisper.cpp` with its `>` markers while its comment said these files held no quote;
+ * the preview's reader covers CommonMark and GFM instead of a counted subset.
  */
 @Composable
-private fun TexteLegal(@RawRes fichier: Int) {
+private fun TexteLegal(@RawRes fichier: Int, onLien: (LinkTarget) -> Unit) {
     val ressources = LocalResources.current
-    val lignes = remember(fichier) {
-        ressources.openRawResource(fichier).bufferedReader().use { it.readText() }.lines()
+    val texte = remember(fichier) {
+        ressources.openRawResource(fichier).bufferedReader().use { it.readText() }
     }
+    val lecture = rememberLectureDeLApercu(texte, actif = true)
+    val barreDeNavigation = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp),
-    ) {
-        lignes.forEach { ligne ->
-            val nette = ligne.trim()
-            when {
-                nette.isEmpty() -> Column(Modifier.padding(top = 6.dp)) {}
-
-                nette.startsWith("### ") -> Titre(nette.removePrefix("### "), MaterialTheme.typography.titleSmall)
-                nette.startsWith("## ") -> Titre(nette.removePrefix("## "), MaterialTheme.typography.titleMedium)
-                nette.startsWith("# ") -> Titre(nette.removePrefix("# "), MaterialTheme.typography.titleLarge)
-
-                // Une ligne horizontale Markdown : on ne dessine rien, on espace. Un trait plein
-                // entre deux paragraphes juridiques alourdit sans rien séparer que le blanc ne
-                // sépare déjà.
-                nette.all { it == '-' } && nette.length >= 3 -> Column(Modifier.padding(top = 12.dp)) {}
-
-                // Citation : la licence MIT reproduite dans les conditions d'utilisation.
-                // ⚠️ Testé avant les puces : une ligne `> - quelque chose` est d'abord une citation.
-                nette.startsWith(">") -> {
-                    val cite = nette.removePrefix(">").trim()
-                    if (cite.isEmpty()) {
-                        // `>` seul sépare deux paragraphes de la citation : c'est un blanc, pas un vide.
-                        Column(Modifier.padding(top = 6.dp)) {}
-                    } else {
-                        Text(
-                            text = enrichir(cite),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(start = 12.dp, top = 2.dp),
-                        )
-                    }
-                }
-
-                nette.startsWith("- ") || nette.startsWith("* ") -> Text(
-                    text = enrichir("•  " + nette.drop(2)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(start = 8.dp, top = 4.dp),
-                )
-
-                else -> Text(
-                    text = enrichir(nette),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
+    SelectionContainer {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp + barreDeNavigation),
+        ) {
+            apercuMarkdown(lecture, onLien)
         }
     }
-}
-
-@Composable
-private fun Titre(texte: String, style: androidx.compose.ui.text.TextStyle) {
-    Text(
-        text = texte,
-        style = style.copy(fontWeight = FontWeight.SemiBold),
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp).semantics { heading() },
-    )
-}
-
-/**
- * Applique le gras `**…**` et retire ses marqueurs.
- *
- * ⚠️ Un nombre **impair** de délimiteurs laisse le dernier segment en maigre plutôt que d'ouvrir un
- * gras qui ne se referme jamais. Un texte juridique mal balisé doit rester lisible.
- */
-private fun enrichir(ligne: String): AnnotatedString = buildAnnotatedString {
-    val morceaux = ligne.split("**")
-    morceaux.forEachIndexed { index, morceau ->
-        val enGras = index % 2 == 1 && index < morceaux.size - 1
-        if (enGras) {
-            withStyleGras(morceau)
-        } else {
-            append(morceau)
-        }
-    }
-}
-
-private fun androidx.compose.ui.text.AnnotatedString.Builder.withStyleGras(texte: String) {
-    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-    append(texte)
-    pop()
 }

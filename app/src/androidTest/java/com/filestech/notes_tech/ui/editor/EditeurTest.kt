@@ -3,13 +3,20 @@ package com.filestech.notes_tech.ui.editor
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -594,6 +601,46 @@ class EditeurTest {
             ),
         ).performClick()
         assertThat(fantomes).containsExactly(TITRE_FANTOME)
+    }
+
+    /**
+     * A linked note that could not be created says so. notes_tech 2.0.9 says "Vault creation failed"
+     * there — of any note, in a vault or not — and the port had copied it (Patrice, 2026-09-25).
+     */
+    @Test
+    fun a_linked_note_that_could_not_be_created_says_so() {
+        val messages = SnackbarHostState()
+        regle.setContent {
+            NotesTechTheme {
+                Scaffold(snackbarHost = { SnackbarHost(messages) }) { marges ->
+                    Box(Modifier.padding(marges)) {
+                        IssueDUneAction(
+                            action = ActionDEditeur(
+                                erreur = R.string.error_vault_locked,
+                                origine = ActionDEditeur.OrigineDErreur.CREATION,
+                            ),
+                            contexte = LocalContext.current,
+                            ressources = LocalResources.current,
+                            titreDuSelecteur = "",
+                            messages = messages,
+                            portee = rememberCoroutineScope(),
+                            onConsommer = {},
+                            onBack = {},
+                            onOuvrirNote = {},
+                        )
+                    }
+                }
+            }
+        }
+        val phrase = texte(R.string.error_vault_locked)
+        val attendu = regle.activity.getString(R.string.note_editor_link_create_failed, phrase)
+
+        regle.waitUntil(ATTENTE_DE_L_APERCU_MS) {
+            regle.onAllNodesWithText(attendu).fetchSemanticsNodes().isNotEmpty()
+        }
+        regle.onNodeWithText(attendu).assertIsDisplayed()
+        val ancienMessage = regle.activity.getString(R.string.home_vault_create_error, phrase)
+        regle.onAllNodesWithText(ancienMessage).assertCountEquals(0)
     }
 
     /** Une note qui **mentionne** celle-ci s'ouvre depuis le panneau. */

@@ -4795,3 +4795,49 @@ hypothèses connues**, 0 échec.
 *Un test qui mesure la plateforme se périme avec elle. Celui-ci l'avait écrit dans son commentaire ; il
 a fallu une suite complète sur une version plus récente pour que ce soit vrai. La bascule de Patrice se
 fera sur Android 16, où cette classe n'a encore jamais tourné.*
+
+**Suite, le soir même (accord de Patrice) : le S24, Android 16 (API 36)** — la classe de la KEK et les
+deux classes du Keystore du coffre : **27/27**. La branche prise par le test MGF1 n'y est pas visible
+(il passe dans les deux) ; celle d'Android 14 a été prouvée sur l'émulateur.
+
+## §157 — Les pages légales au rendu de l'aperçu : elles ont révélé que le lecteur ignorait les fins de ligne CRLF
+
+Décidé par Patrice le 2026-09-25 (« affiche les pages légales avec le nouveau rendu »). `LegalScreen`
+lisait ses quatre fichiers avec son propre Markdown minimal, ligne à ligne ; il passe au rendu de
+l'aperçu (lecture hors du fil principal, liste paresseuse), **sélectionnable** comme dans la 2.0.9
+(`selectable: true`), liens ouverts dans une autre application comme dans l'aperçu.
+
+🔴 **Le test existant de la licence MIT est tombé**, et il avait raison : le lecteur rendait toute la
+licence en **un seul paragraphe**. Une sonde sur la JVM l'a montré, les octets l'ont expliqué : `git`
+(`core.autocrlf=true`) donne à `terms.md` des fins de ligne **CRLF** sur le disque, donc dans l'APK ;
+l'analyseur de JetBrains ne connaît que `\n`. Le `\r` restait dans le texte, et une ligne `>` suivie
+de `\r` n'était plus vide : les paragraphes se soudaient. L'ancien rendu découpait par `.lines()`, qui
+gère CRLF : c'est le changement de rendu qui l'a révélé. **Les notes étaient touchées aussi** — une note
+importée d'un fichier Windows, que la 2.0.9 (bibliothèque Dart `markdown`) lit correctement.
+
+⚠⚠ **Et il cachait une faille de la garde anti-notes-hostiles** (§147) : le balayage comptait une
+ligne faite d'un `\r` comme **vide**, l'analyseur non. Une note hostile pouvait donc découper, aux yeux
+du seul balayage, un bloc de milliers de `[` en petits blocs. Correctif :
+`MarkdownPreviewReader.lineFeedsOnly` (CRLF et `\r` seul → `\n`, comme CommonMark, sans copie quand il
+n'y a pas de `\r`) avant tout le reste, et le `\r` retiré du test de ligne vide du balayage — balayage et
+analyseur jugent désormais une ligne de la même façon.
+
+Aussi, à la demande de Patrice : l'échec de création d'une note liée a son propre message
+(`note_editor_link_create_failed`, « Impossible de créer la note liée : … ») — la 2.0.9, et le portage
+après elle, disaient « Création du coffre échouée » pour n'importe quelle note, coffre ou pas.
+
+Tests : `CRLF and lone CR endings read as line feeds` ; `PagesLegalesTest` (JVM : les quatre pages lues
+comme du Markdown, aucun lien de note — un `[[…]]` y serait un lien qui ne fait rien) ;
+`a_linked_note_that_could_not_be_created_says_so` ; les trois tests de l'écran légal adaptés (lecture
+asynchrone, liste paresseuse, titre exigé **titre** pour le lecteur d'écran). Contrôles négatifs : fins
+de ligne non normalisées, `[[Title]]` sorti du code dans `privacy.md`, ancien message remis — **les
+trois tombent**, chacun sur son test.
+
+⚠️ Une garde retirée avant d'être commitée : un `key(fichier)` pour que chaque onglet reparte en haut.
+Inutile — la lecture repasse par l'état « en cours » à un seul élément, qui ramène déjà la liste en haut
+— et donc du code mort sous un commentaire qui prétendait faire le travail (§151).
+
+⚠️ **Pour la publication** : avec `autocrlf=true`, les `.md` de `res/raw` sortent en CRLF d'une
+construction Windows et en LF d'une construction Linux — celle de F-Droid. Le rendu n'en dépend plus,
+mais l'APK, si. Un `.gitattributes` (`*.md text eol=lf`) est à envisager avant toute recherche de
+reproductibilité.

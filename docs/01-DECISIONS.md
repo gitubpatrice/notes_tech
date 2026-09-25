@@ -767,7 +767,13 @@ inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni bl
 - **Accessibilité mesurée sur l'arbre réel d'Android** (§149) : chaque lien arrive au lecteur d'écran
   comme un `AccessibilityClickableSpan` sur ses mots.
 
+- **Pages légales au même rendu** (Patrice, 2026-09-25 ; §157) : `LegalScreen` dessine ses quatre
+  fichiers comme l'aperçu dessine une note, **sélectionnables** comme dans la 2.0.9. Le passage a
+  révélé que le lecteur ignorait les fins de ligne **CRLF** (notes importées de Windows comprises) et
+  qu'une ligne faite d'un `\r` ouvrait une faille dans la garde anti-notes-hostiles : corrigé.
+- **Message** : l'échec de création d'une note liée dit « Impossible de créer la note liée », et non plus
+  « Création du coffre échouée » comme la 2.0.9, pour n'importe quelle note (Patrice, 2026-09-25).
+
 **Limites connues** : une note de coffre n'est jamais cible d'un lien — toucher `[[X]]` depuis un
-coffre crée une nouvelle « X » à chaque fois, comme dans la 2.0.9 (à trancher) ; le rendu de
-`LegalScreen` reste le rendu minimal ligne à ligne (son KDoc justifiait de ne pas embarquer de
-bibliothèque, ce qui n'est plus le cas : le passer au rendu de l'aperçu est possible, non fait).
+coffre crée une nouvelle « X » à chaque fois, comme dans la 2.0.9 → **solution B retenue par Patrice le
+2026-09-25** : chercher d'abord dans le même coffre ouvert (en cours).
