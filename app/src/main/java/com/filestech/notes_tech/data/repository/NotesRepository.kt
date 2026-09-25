@@ -160,6 +160,20 @@ class NotesRepository @Inject constructor(
             .toDomain()
     }
 
+    /**
+     * The note a `[[title]]` points to, or `null` — asked when the link is tapped in the preview,
+     * like notes_tech 2.0.9's `BacklinksService.resolveTitle`.
+     *
+     * ⚠️ A vault note is **never** a target, locked or not: `NoteDao.titlesForLinking` leaves out
+     * every encrypted note, so a link cannot reveal, from a note that is not protected, that a
+     * vault holds a note of that title. Same rule as the indexer, by the same map.
+     */
+    suspend fun resolveTitle(title: String): String? {
+        val normalized = TitleNormalizer.normalize(title)
+        if (normalized.isEmpty()) return null
+        return linkTargets(databases.get())[normalized]
+    }
+
     // ── Écritures ────────────────────────────────────────────────────────────
 
     /**
@@ -642,13 +656,7 @@ class NotesRepository @Inject constructor(
             return
         }
 
-        // ⚠️ `associate` garde la DERNIÈRE valeur en cas de clé répétée, et la requête trie par
-        // `updated_at DESC` : deux notes de même titre normalisé résolvent donc vers la moins
-        // récemment modifiée. C'est le comportement de l'application publiée, dont le littéral de
-        // map écrase les doublons dans le même ordre. Changer l'un des deux ferait pointer les
-        // liens ambigus ailleurs.
-        val byNormalizedTitle = database.noteDao().titlesForLinking()
-            .associate { TitleNormalizer.normalize(it.title) to it.id }
+        val byNormalizedTitle = linkTargets(database)
 
         database.linkWriter.replaceLinksOf(
             sourceId = note.id,
@@ -664,6 +672,21 @@ class NotesRepository @Inject constructor(
             },
         )
     }
+
+    /**
+     * Titre normalisé → identifiant de la note qu'un `[[Titre]]` désigne.
+     *
+     * ⚠️ `associate` garde la DERNIÈRE valeur en cas de clé répétée, et la requête trie par
+     * `updated_at DESC` : deux notes de même titre normalisé résolvent donc vers la moins
+     * récemment modifiée. C'est le comportement de l'application publiée, dont le littéral de
+     * map écrase les doublons dans le même ordre. Changer l'un des deux ferait pointer les
+     * liens ambigus ailleurs.
+     *
+     * One map for the indexer and for [resolveTitle]: the preview and the links panel must name
+     * the same note for the same title, and a second copy of this rule is how they would not.
+     */
+    private suspend fun linkTargets(database: NotesDatabase): Map<String, String> =
+        database.noteDao().titlesForLinking().associate { TitleNormalizer.normalize(it.title) to it.id }
 
     /**
      * Réaccroche les liens qui visent [note], et détache ceux qui ne la visent plus.

@@ -175,6 +175,10 @@
     <string name="note_info_words">Mots</string>
     <string name="note_info_characters">Caractères</string>
     <string name="note_info_characters_hint">Espaces compris, retours à la ligne exclus</string>
+    <string name="note_preview_task_done">Fait</string>
+    <string name="note_preview_task_open">À faire</string>
+    <string name="note_preview_link_no_app">Aucune application de cet appareil ne peut ouvrir ce lien.</string>
+    <string name="note_preview_as_written">Trop long ou trop complexe pour l\'aperçu : affiché tel quel.</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>

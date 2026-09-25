@@ -7,14 +7,19 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -27,6 +32,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -43,6 +50,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -63,7 +73,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
@@ -76,12 +88,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.domain.markdown.LinkTarget
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CorpsDeDialogue
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.displayName
+import com.filestech.notes_tech.ui.common.ouvrirUnLienExterne
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.SemanticColors
@@ -116,6 +130,10 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         if (cible != state.note?.id) onOpenNote(cible)
     }
 
+    // Edit or Preview (D-024). Saved: a rotation, or the app lock taking the screen away and giving
+    // it back, returns to the side the user was reading.
+    var apercu by rememberSaveable { mutableStateOf(false) }
+
     var autocompletionOuverte by rememberSaveable { mutableStateOf(false) }
     val suggestions by viewModel.suggestionsDeLien.collectAsStateWithLifecycle()
 
@@ -141,8 +159,13 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     // refus et sept messages distincts. Posée ici, elle a fait franchir à cette fonction les seuils
     // de longueur ET de complexité que detekt garde — et le gate avait raison. Cf.
     // `ui/voice/ControleurDeDictee.kt`.
+    // ⚠️ What is inserted — dictated text, a link — goes into the text field: back to Edit, or the
+    // text lands where the user cannot see it. notes_tech 2.0.9's `_insertAtCursor` does the same.
     val dictee = rememberControleurDeDictee(
-        onTexte = viewModel::insererAuCurseur,
+        onTexte = { texte ->
+            apercu = false
+            viewModel.insererAuCurseur(texte)
+        },
         messages = messages,
         onInstallerLeModele = onInstallerLaDictee,
     )
@@ -151,6 +174,15 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     val contexte = LocalContext.current
     val ressources = LocalResources.current
     val portee = rememberCoroutineScope()
+
+    val lienDeLApercu: (LinkTarget) -> Unit = { cible ->
+        when (cible) {
+            is LinkTarget.Note -> viewModel.ouvrirOuCreerLaNote(cible.title)
+            is LinkTarget.Web -> if (!ouvrirUnLienExterne(contexte, cible.url)) {
+                portee.launch { messages.showSnackbar(ressources.getString(R.string.note_preview_link_no_app)) }
+            }
+        }
+    }
 
     AnnonceDEnregistrement(enregistrement = state.saving, echec = state.saveFailed || state.lostToVaultLock)
 
@@ -172,6 +204,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         portee = portee,
         onConsommer = viewModel::consommerLAction,
         onBack = onBack,
+        onOuvrirNote = ouvrirUneAutreNote,
     )
 
     if (deplacementOuvert) {
@@ -251,10 +284,12 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             suggestions = suggestions,
             onRequeteChange = viewModel::chercherUnTitre,
             onChoisirUnTitre = { titre ->
+                apercu = false
                 viewModel.insererUnLien(titre)
                 fermerLAutocompletion()
             },
             onCreer = { titre ->
+                apercu = false
                 viewModel.creerPuisLier(titre)
                 fermerLAutocompletion()
             },
@@ -313,9 +348,12 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         onCorbeille = viewModel::moveToTrash,
         onOuvrirNote = ouvrirUneAutreNote,
         // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite : l'appuyer la crée, avec
-        // le titre du lien. Le texte de la note, lui, ne bouge pas — le `[[Titre]]` y est déjà, et
-        // c'est l'indexation qui rattachera le lien à sa cible une fois la note née.
-        onLienFantome = viewModel::creerLaNoteManquante,
+        // le titre du lien, **puis l'ouvre** — le même chemin qu'un `[[Titre]]` touché dans l'aperçu,
+        // comme dans l'application publiée. Le texte de la note, lui, ne bouge pas.
+        onLienFantome = viewModel::ouvrirOuCreerLaNote,
+        apercu = apercu,
+        onApercu = { apercu = it },
+        onLienDeLApercu = lienDeLApercu,
     )
 
     state.lockedVault?.let { dossier ->
@@ -366,6 +404,10 @@ fun NoteEditorScreen(
     onCorbeille: () -> Unit,
     onOuvrirNote: (String) -> Unit,
     onLienFantome: (String) -> Unit,
+    /** `true`: the Markdown is drawn instead of the text field (D-024). */
+    apercu: Boolean,
+    onApercu: (Boolean) -> Unit,
+    onLienDeLApercu: (LinkTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -491,6 +533,13 @@ fun NoteEditorScreen(
         Box(Modifier.fillMaxSize().padding(padding)) {
             val chargementEnCours = stringResource(R.string.common_loading)
 
+            // Above the Edit / Preview branch, not inside it: the branch leaving the composition took
+            // the preview's position with it, and every switch put a long note back at its top
+            // (GPT-5.6 review, 2026-09-25). Saveable, so a rotation keeps it too. The Edit side has no
+            // such state to keep: its field scrolls itself and exposes none — as in 2.0.9, where the
+            // field is rebuilt on each switch.
+            val defilementDeLApercu = rememberLazyListState()
+
             // Recopie locale : `state` est un délégué, le lissage de type ne s'y applique pas.
             val erreurDeChargement = state.loadError
 
@@ -535,90 +584,160 @@ fun NoteEditorScreen(
                     },
                 )
 
-                else -> Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .imePadding(),
-                ) {
-                    if (state.saveFailed) BanniereEchecEnregistrement(state.saveFailureReason)
-                    // 🔴🔴 **`label` et non `placeholder` : les deux champs n'avaient AUCUN nom
-                    // accessible dès qu'ils portaient du texte.**
-                    //
-                    // Un `placeholder` de Material3 disparaît à la première lettre, et le nom
-                    // accessible du champ redevient alors son seul contenu. Un lecteur d'écran
-                    // annonçait donc, sur une note ouverte, deux zones de saisie **anonymes** : le
-                    // titre lu comme du texte, puis la note entière lue comme du texte, sans que rien
-                    // ne dise laquelle est laquelle ni ce qu'on est censé y écrire. Sur une note
-                    // **vide** le défaut était invisible — le placeholder est là, il nomme le champ,
-                    // et c'est l'état sous lequel l'écran a toujours été relu.
-                    //
-                    // L'application publiée porte `labelText` sur les deux (`note_editor_screen.dart`
-                    // :1072 et :1102), en plus de son `hintText`. Un `label` Material3 fait la même
-                    // chose : il flotte au-dessus du champ rempli, donc il **reste** annoncé.
-                    //
-                    // ⚠️ **Le balayage `actionnablesSansNom` ne pouvait pas le voir** : il exclut
-                    // délibérément les nœuds qui portent un `EditableText`, au motif qu'un champ vide
-                    // n'est pas un défaut d'étiquetage. C'est juste, et ça laissait un motif entier
-                    // hors de portée — d'où `champsDeSaisieSansNom`, le troisième instrument.
-                    //
-                    // ⚠️ Pas de `placeholder` sur le titre : il vaudrait la même chaîne que le
-                    // `label`, et Material3 les affiche **tous les deux** sur un champ vide et
-                    // focalisé. Le contenu, lui, garde le sien — `note_editor_content_hint` dit
-                    // `[[Titre]] pour lier`, ce que son libellé ne dit pas.
-                    TextField(
-                        value = state.title,
-                        // 🔴 **Le titre est plafonné À LA SAISIE, comme dans l'application publiée**
-                        // (`LengthLimitingTextInputFormatter(AppConstants.noteTitleMaxLength)`).
-                        //
-                        // Sans ce plafond, coller un paragraphe dans le titre faisait échouer
-                        // **chaque** enregistrement de la note — `saveEdits` refuse au-delà de
-                        // [NotesRepository.TITLE_MAX_LENGTH], et il refuse le titre **et le corps
-                        // ensemble**, puisque c'est un seul appel. Le texte tapé ensuite n'était donc
-                        // écrit nulle part. La bannière le dit tant qu'on est sur l'écran ; quitter
-                        // l'emportait en silence, l'enregistrement au départ échouant lui aussi.
-                        //
-                        // ⚠️ La règle elle-même vit dans [PlafondDuTitre], à part et testée sur la
-                        // JVM : ce qui peut s'y tromper est un rapport de **longueurs**, et une table
-                        // de cas le dit mieux qu'un écran. Elle rend `null` pour une saisie à
-                        // ignorer — un titre déjà au plafond n'accepte plus rien, plutôt que de se
-                        // faire manger la fin à chaque frappe.
-                        onValueChange = { nouveau ->
-                            PlafondDuTitre.applique(state.title, nouveau)?.let(onTitreChange)
-                        },
-                        label = { Text(stringResource(R.string.note_editor_title)) },
-                        textStyle = MaterialTheme.typography.headlineSmall,
-                        singleLine = true,
-                        colors = champSansDecor(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    TextField(
-                        value = state.content,
-                        onValueChange = onContenuChange,
-                        // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
-                        // part** — le publié en fait le `labelText` de ce champ exactement. Même
-                        // discriminant que §79, appliqué au même écran le même jour.
-                        label = { Text(stringResource(R.string.note_editor_content)) },
-                        placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        colors = champSansDecor(),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    // ⚠️ Le panneau est DANS la colonne défilante : il ne doit donc porter aucun
-                    // défilement propre. Cf. son KDoc — c'est la configuration qui a fait planter
-                    // l'écran de fin du mode panique.
-                    LiensDeLaNote(
-                        liens = liens,
-                        onOuvrirNote = onOuvrirNote,
-                        onLienFantome = onLienFantome,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                    Spacer(Modifier.height(48.dp))
+                // 🔴 **The layout of notes_tech 2.0.9: header, body filling the rest, links panel.**
+                //
+                // The title and the Edit / Preview switch stay put, where 2.0.9's `SegmentedButton`
+                // sits above its `Expanded` body; the body — the field, or the preview — fills what is
+                // left and scrolls itself; the links panel stays under it. Two defects came from the
+                // port's first layout, a column scrolling as one:
+                //
+                // 1. 🔴🔴 **A long note crashed the editor on opening.** The body field, measured at
+                //    its full height inside the scrolling column, asked for Constraints taller than
+                //    Compose can represent next to a phone's width — about 262 000 px: "Can't
+                //    represent a width of 1080 and height of 360096", measured on the S9 with 5 000
+                //    lines (2026-09-25), roughly 3 600 lines and up. Every opening of such a note
+                //    crashed the app, since the editor opens in Edit mode; 2.0.9 opens them. A field
+                //    that fills its space scrolls within it and never asks for that height.
+                // 2. Leaving the preview of a long note meant scrolling back to its top to find the
+                //    switch.
+                else -> Column(Modifier.fillMaxSize().imePadding()) {
+                    EnTeteDeLEditeur(state, onTitreChange, apercu, onApercu)
+                    // ⚠️ The text on screen, not the last saved one: what the preview draws is what
+                    // the user has just typed — the save is 500 ms behind. Called in both modes: a
+                    // reading, and so the preview's position, survives a trip to Edit when nothing
+                    // was typed (see `rememberLectureDeLApercu`).
+                    val lecture = rememberLectureDeLApercu(state.content.text, actif = apercu)
+                    if (apercu) {
+                        // 🔴 Lazy in preview — see `apercuMarkdown`: a note has no size limit.
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            state = defilementDeLApercu,
+                            contentPadding = PaddingValues(bottom = 24.dp),
+                        ) {
+                            apercuMarkdown(lecture, onLienDeLApercu)
+                        }
+                    } else {
+                        TextField(
+                            value = state.content,
+                            onValueChange = onContenuChange,
+                            // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
+                            // part** — le publié en fait le `labelText` de ce champ exactement. Même
+                            // discriminant que §79, appliqué au même écran le même jour.
+                            label = { Text(stringResource(R.string.note_editor_content)) },
+                            placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
+                            textStyle = MaterialTheme.typography.bodyLarge,
+                            colors = champSansDecor(),
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                        )
+                    }
+                    PiedDeLEditeur(liens, onOuvrirNote, onLienFantome)
                 }
             }
         }
     }
 }
+
+/**
+ * What the editor shows above the note's body, in both modes, and does not scroll: the save
+ * failure, the title, and the Edit / Preview switch.
+ */
+@Composable
+private fun EnTeteDeLEditeur(
+    state: EditorUiState,
+    onTitreChange: (String) -> Unit,
+    apercu: Boolean,
+    onApercu: (Boolean) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth()) {
+        if (state.saveFailed) BanniereEchecEnregistrement(state.saveFailureReason)
+        // 🔴🔴 **`label` et non `placeholder` : les deux champs n'avaient AUCUN nom
+        // accessible dès qu'ils portaient du texte.**
+        //
+        // Un `placeholder` de Material3 disparaît à la première lettre, et le nom
+        // accessible du champ redevient alors son seul contenu. Un lecteur d'écran
+        // annonçait donc, sur une note ouverte, deux zones de saisie **anonymes** : le
+        // titre lu comme du texte, puis la note entière lue comme du texte, sans que rien
+        // ne dise laquelle est laquelle ni ce qu'on est censé y écrire. Sur une note
+        // **vide** le défaut était invisible — le placeholder est là, il nomme le champ,
+        // et c'est l'état sous lequel l'écran a toujours été relu.
+        //
+        // L'application publiée porte `labelText` sur les deux (`note_editor_screen.dart`
+        // :1072 et :1102), en plus de son `hintText`. Un `label` Material3 fait la même
+        // chose : il flotte au-dessus du champ rempli, donc il **reste** annoncé.
+        //
+        // ⚠️ **Le balayage `actionnablesSansNom` ne pouvait pas le voir** : il exclut
+        // délibérément les nœuds qui portent un `EditableText`, au motif qu'un champ vide
+        // n'est pas un défaut d'étiquetage. C'est juste, et ça laissait un motif entier
+        // hors de portée — d'où `champsDeSaisieSansNom`, le troisième instrument.
+        //
+        // ⚠️ Pas de `placeholder` sur le titre : il vaudrait la même chaîne que le
+        // `label`, et Material3 les affiche **tous les deux** sur un champ vide et
+        // focalisé. Le contenu, lui, garde le sien — `note_editor_content_hint` dit
+        // `[[Titre]] pour lier`, ce que son libellé ne dit pas.
+        TextField(
+            value = state.title,
+            // 🔴 **Le titre est plafonné À LA SAISIE, comme dans l'application publiée**
+            // (`LengthLimitingTextInputFormatter(AppConstants.noteTitleMaxLength)`).
+            //
+            // Sans ce plafond, coller un paragraphe dans le titre faisait échouer
+            // **chaque** enregistrement de la note — `saveEdits` refuse au-delà de
+            // [NotesRepository.TITLE_MAX_LENGTH], et il refuse le titre **et le corps
+            // ensemble**, puisque c'est un seul appel. Le texte tapé ensuite n'était donc
+            // écrit nulle part. La bannière le dit tant qu'on est sur l'écran ; quitter
+            // l'emportait en silence, l'enregistrement au départ échouant lui aussi.
+            //
+            // ⚠️ La règle elle-même vit dans [PlafondDuTitre], à part et testée sur la
+            // JVM : ce qui peut s'y tromper est un rapport de **longueurs**, et une table
+            // de cas le dit mieux qu'un écran. Elle rend `null` pour une saisie à
+            // ignorer — un titre déjà au plafond n'accepte plus rien, plutôt que de se
+            // faire manger la fin à chaque frappe.
+            onValueChange = { nouveau ->
+                PlafondDuTitre.applique(state.title, nouveau)?.let(onTitreChange)
+            },
+            label = { Text(stringResource(R.string.note_editor_title)) },
+            textStyle = MaterialTheme.typography.headlineSmall,
+            singleLine = true,
+            colors = champSansDecor(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        BasculeEditionApercu(
+            apercu = apercu,
+            onApercu = onApercu,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+    }
+}
+
+/**
+ * The note's links, under its body in both modes — where 2.0.9 puts its `BacklinksPanel`.
+ *
+ * ⚠️ **Bounded, and scrolling itself**: a third of the screen at most. 2.0.9 does not bound it, so
+ * a note citing a few hundred titles pushes its body out of the screen. The panel is no longer inside
+ * a scrolling parent, so its own scroll is measured with a finite height — what crashed the panic
+ * mode's end screen (§ of `LiensDeLaNote`) was a scroll inside a scroll, which this is not. A quarter
+ * was tried first: two sections of 48 dp chips did not fit on the S9, and the mention was cut off.
+ *
+ * ⚠️ **Hidden while the keyboard is up.** Fixed under the body, it left the field a few lines to type
+ * in on a phone with the keyboard open. Before the body scrolled itself, the panel sat at the end of
+ * the note and was out of sight while typing: hiding it keeps that.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PiedDeLEditeur(liens: PanneauDeLiens, onOuvrirNote: (String) -> Unit, onLienFantome: (String) -> Unit) {
+    if (WindowInsets.isImeVisible) return
+    val hauteurMaximale = LocalConfiguration.current.screenHeightDp.dp / PART_D_ECRAN_DU_PANNEAU
+    Column(Modifier.fillMaxWidth().heightIn(max = hauteurMaximale).verticalScroll(rememberScrollState())) {
+        LiensDeLaNote(
+            liens = liens,
+            onOuvrirNote = onOuvrirNote,
+            onLienFantome = onLienFantome,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
+}
+
+/** The links panel takes at most a third of the screen's height. */
+private const val PART_D_ECRAN_DU_PANNEAU = 3
 
 /**
  * L'avertissement qu'un enregistrement a échoué.
@@ -686,6 +805,46 @@ private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> U
     )
 }
 
+/**
+ * Edit / Preview, under the title — where notes_tech 2.0.9 puts its `SegmentedButton`.
+ *
+ * Switching closes the keyboard, as in 2.0.9 (`FocusManager.instance.primaryFocus?.unfocus()`): it
+ * would cover the preview, and reading needs no cursor. ⚠️ The title field stays on screen across
+ * the switch — the header does not scroll — so its focus, and the keyboard, would stay too without
+ * this `clearFocus`. (While the header scrolled with the body, both fields left the composition on
+ * every switch and the call was dead code — a negative control proved it on the S9, 2026-09-25.)
+ *
+ * Tapping the side already shown does nothing — 2.0.9's `onSelectionChanged` does not fire either —
+ * so it cannot close a keyboard the user is typing with.
+ */
+@Composable
+private fun BasculeEditionApercu(apercu: Boolean, onApercu: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val focus = LocalFocusManager.current
+    val cotes = listOf(
+        Triple(false, R.string.note_editor_mode_edit, Icons.Outlined.Edit),
+        Triple(true, R.string.note_editor_mode_preview, Icons.Outlined.Visibility),
+    )
+    SingleChoiceSegmentedButtonRow(modifier = modifier) {
+        cotes.forEachIndexed { index, (valeur, libelle, icone) ->
+            SegmentedButton(
+                selected = apercu == valeur,
+                onClick = {
+                    if (valeur != apercu) {
+                        focus.clearFocus(force = true)
+                        onApercu(valeur)
+                    }
+                },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = cotes.size),
+                // The label names the segment; the icon only repeats it.
+                icon = {
+                    Icon(icone, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
+                },
+                label = { Text(stringResource(libelle)) },
+            )
+        }
+    }
+}
+
 /** Deux champs de texte qui ne ressemblent pas à un formulaire. */
 @Composable
 private fun champSansDecor() = TextFieldDefaults.colors(
@@ -729,11 +888,20 @@ private fun IssueDUneAction(
     portee: CoroutineScope,
     onConsommer: () -> Unit,
     onBack: () -> Unit,
+    onOuvrirNote: (String) -> Unit,
 ) {
     LaunchedEffect(action) {
         val export = action.export
         val erreur = action.erreur
+        val aOuvrir = action.aOuvrir
         when {
+            // ⚠️ Consumed BEFORE navigating: this editor stays in the back stack, and an outcome still
+            // set when the user comes back would open the same note again — in a loop.
+            aOuvrir != null -> {
+                onConsommer()
+                onOuvrirNote(aOuvrir)
+            }
+
             export != null -> {
                 partagerUnFichier(
                     context = contexte,

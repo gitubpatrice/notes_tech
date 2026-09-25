@@ -7,14 +7,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -23,8 +30,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.local.dao.NoteLinkRow
 import com.filestech.notes_tech.data.repository.NotesRepository
+import com.filestech.notes_tech.domain.markdown.LinkTarget
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.champsDeSaisieSansNom
@@ -84,6 +93,8 @@ class EditeurTest {
     private val corbeilles = mutableListOf<Unit>()
     private val notesOuvertes = mutableListOf<String>()
     private val fantomes = mutableListOf<String>()
+    private val basculements = mutableListOf<Boolean>()
+    private val liensDeLApercu = mutableListOf<LinkTarget>()
 
     private fun texte(id: Int): String = regle.activity.getString(id)
 
@@ -91,14 +102,23 @@ class EditeurTest {
     private val liensCourants = mutableStateOf(PanneauDeLiens())
     private val dicteeCourante = mutableStateOf(false)
 
+    /** Held here, as the Route holds it: tapping the switch really switches the screen. */
+    private val apercuCourant = mutableStateOf(false)
+
     private var pose = false
 
-    private fun poser(etat: EditorUiState, liens: PanneauDeLiens = PanneauDeLiens(), dicteeActive: Boolean = false) {
+    private fun poser(
+        etat: EditorUiState,
+        liens: PanneauDeLiens = PanneauDeLiens(),
+        dicteeActive: Boolean = false,
+        apercu: Boolean = false,
+    ) {
         if (pose) {
             regle.runOnIdle {
                 etatCourant.value = etat
                 liensCourants.value = liens
                 dicteeCourante.value = dicteeActive
+                apercuCourant.value = apercu
             }
             regle.waitForIdle()
             return
@@ -106,6 +126,7 @@ class EditeurTest {
         etatCourant.value = etat
         liensCourants.value = liens
         dicteeCourante.value = dicteeActive
+        apercuCourant.value = apercu
         pose = true
         regle.setContent {
             NotesTechTheme {
@@ -128,6 +149,12 @@ class EditeurTest {
                     onCorbeille = { corbeilles += Unit },
                     onOuvrirNote = { notesOuvertes += it },
                     onLienFantome = { fantomes += it },
+                    apercu = apercuCourant.value,
+                    onApercu = {
+                        basculements += it
+                        apercuCourant.value = it
+                    },
+                    onLienDeLApercu = { liensDeLApercu += it },
                 )
             }
         }
@@ -561,23 +588,183 @@ class EditeurTest {
     fun une_mention_ouvre_la_note_qui_cite_celle_ci() {
         poser(noteChargee(), liens = liensComplets())
 
-        regle.onNodeWithText(TITRE_MENTION).performClick()
+        // The panel is bounded and scrolls itself (2026-09-25): bring the mention into its view first,
+        // as a finger would — a touch on a chip scrolled out of the panel lands elsewhere.
+        regle.onNodeWithText(TITRE_MENTION).performScrollTo().performClick()
 
         assertThat(notesOuvertes).containsExactly("mention")
+    }
+
+    // ------------------------------------------------------- the Markdown preview (D-024)
+
+    @Test
+    fun switching_to_preview_replaces_the_body_field_with_the_rendering_and_back() {
+        poser(noteChargee(corps = "# Heading of the note\n\nA paragraph."))
+        // The control: in edit mode the body is a field, and there is no rendering.
+        champDuCorps().assertExists()
+        regle.onNode(hasText("Heading of the note") and isHeading()).assertDoesNotExist()
+
+        regle.onNodeWithText(texte(R.string.note_editor_mode_preview)).performClick()
+        attendre("Heading of the note")
+
+        assertThat(basculements).containsExactly(true)
+        champDuCorps().assertDoesNotExist()
+        regle.onNode(hasText("Heading of the note") and isHeading()).assertExists()
+
+        regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
+        regle.waitForIdle()
+        assertThat(basculements).containsExactly(true, false).inOrder()
+        champDuCorps().assertExists()
+    }
+
+    /**
+     * Switching closes the keyboard, as 2.0.9 does — and tapping the side already shown does
+     * nothing, so it cannot close the keyboard under the fingers of someone typing.
+     */
+    @Test
+    fun switching_closes_the_keyboard_and_the_side_already_shown_does_nothing() {
+        poser(noteChargee())
+        champDuTitre().performClick()
+        champDuTitre().assertIsFocused()
+
+        regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
+        regle.waitForIdle()
+        champDuTitre().assertIsFocused()
+        assertThat(basculements).isEmpty()
+
+        regle.onNodeWithText(texte(R.string.note_editor_mode_preview)).performClick()
+        regle.waitForIdle()
+        champDuTitre().assertIsNotFocused()
+    }
+
+    @Test
+    fun the_preview_of_a_blank_note_says_there_is_nothing_to_show() {
+        poser(noteChargee(corps = " \n\t\n "), apercu = true)
+
+        attendre(texte(R.string.note_editor_preview_empty))
+    }
+
+    /**
+     * 🔴 **Lazy: a long note lays out what is on screen.** Discriminating: in a scrolling column the
+     * last paragraph would EXIST in the tree — composed, just not displayed — where a lazy list does
+     * not compose it until it is scrolled to.
+     */
+    @Test
+    fun a_long_note_is_previewed_lazily() {
+        val corps = (0 until PARAGRAPHES_D_UNE_LONGUE_NOTE).joinToString("\n\n") { "Paragraph $it" }
+        poser(noteChargee(corps = corps), apercu = true)
+        attendre("Paragraph 0")
+        val dernier = "Paragraph ${PARAGRAPHES_D_UNE_LONGUE_NOTE - 1}"
+
+        regle.onNodeWithText(dernier).assertDoesNotExist()
+
+        regle.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(dernier))
+        regle.onNodeWithText(dernier).assertIsDisplayed()
+    }
+
+    /**
+     * 🔴 The switch stays on screen at the end of a long preview: the header does not scroll, as in
+     * 2.0.9. It scrolled with the note at first, and leaving the preview meant scrolling back to the
+     * top — discriminating: in that layout, the switch is off screen once the last paragraph is shown.
+     */
+    @Test
+    fun the_switch_stays_on_screen_at_the_end_of_a_long_preview() {
+        val corps = (0 until PARAGRAPHES_D_UNE_LONGUE_NOTE).joinToString("\n\n") { "Paragraph $it" }
+        poser(noteChargee(corps = corps), apercu = true)
+        attendre("Paragraph 0")
+        val dernier = "Paragraph ${PARAGRAPHES_D_UNE_LONGUE_NOTE - 1}"
+        regle.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(dernier))
+
+        regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).assertIsDisplayed().performClick()
+        regle.waitForIdle()
+
+        assertThat(basculements).containsExactly(false)
+        champDuCorps().assertExists()
+    }
+
+    /**
+     * The preview comes back where it was left, after a trip to Edit with nothing typed (GPT-5.6
+     * review, 2026-09-25): its list state lives above the branch, and its reading survives the trip.
+     * Discriminating: a preview read again starts from one "reading" item, and its list falls back to
+     * the top — where the far paragraph is not even composed.
+     */
+    @Test
+    fun the_preview_comes_back_where_it_was_left_after_a_trip_to_edit() {
+        val corps = (0 until PARAGRAPHES_D_UNE_LONGUE_NOTE).joinToString("\n\n") { "Paragraph $it" }
+        poser(noteChargee(corps = corps), apercu = true)
+        attendre("Paragraph 0")
+        regle.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(PARAGRAPHE_DU_MILIEU))
+        regle.onNodeWithText(PARAGRAPHE_DU_MILIEU).assertIsDisplayed()
+
+        regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
+        regle.waitForIdle()
+        champDuCorps().assertExists()
+        regle.onNodeWithText(texte(R.string.note_editor_mode_preview)).performClick()
+        regle.waitForIdle()
+
+        regle.onNodeWithText(PARAGRAPHE_DU_MILIEU).assertIsDisplayed()
+        regle.onNodeWithText("Paragraph 0").assertDoesNotExist()
+    }
+
+    /**
+     * 🔴🔴 **A note too tall for one measure opens in Edit mode.** Its field, measured whole inside a
+     * scrolling column, asked Compose for Constraints it cannot represent next to a phone's width —
+     * "Can't represent a width of 1080 and height of 360096", measured on the S9 with 5 000 lines
+     * (2026-09-25): every opening of such a note crashed the app. The field now fills the space left
+     * and scrolls itself, as in 2.0.9.
+     */
+    @Test
+    fun a_note_too_tall_for_one_measure_opens_in_edit_mode() {
+        val corps = (0 until LIGNES_D_UNE_TRES_LONGUE_NOTE).joinToString("\n") { "Line $it" }
+
+        poser(noteChargee(corps = corps))
+
+        champDuCorps().assertIsDisplayed()
+        champDuTitre().assertIsDisplayed()
+    }
+
+    /**
+     * The three sweeps on the editor in preview, on a note with a heading, a task list and a table —
+     * no link: the links' own finding is measured, with the real accessibility tree, in
+     * `ApercuMarkdownTest`.
+     */
+    @Test
+    fun the_editor_in_preview_has_its_one_field_named_and_no_unnamed_actionable() {
+        poser(noteChargee(corps = "# A heading\n\n- [ ] a task\n\n| a | b |\n|---|---|\n| 1 | 2 |"), apercu = true)
+        attendre("A heading")
+
+        // One field in preview — the title — counted before saying none is mute.
+        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).hasSize(1)
+        assertThat(regle.champsDeSaisieSansNom()).isEmpty()
+        assertThat(regle.actionnablesSansNom()).isEmpty()
+        assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 
     // ------------------------------------------------------------------------- outillage
 
     private fun champDuTitre() = regle.onNode(hasSetTextAction() and hasText(texte(R.string.note_editor_title)))
 
-    private fun noteChargee(titre: String = TITRE_DE_LA_NOTE, epinglee: Boolean = false) = EditorUiState(
+    private fun champDuCorps() = regle.onNode(hasSetTextAction() and hasText(texte(R.string.note_editor_content)))
+
+    /** The preview is read off the main thread: wait for [texteAttendu] to be composed. */
+    private fun attendre(texteAttendu: String) {
+        regle.waitUntil(ATTENTE_DE_L_APERCU_MS) {
+            regle.onAllNodesWithText(texteAttendu).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun noteChargee(
+        titre: String = TITRE_DE_LA_NOTE,
+        epinglee: Boolean = false,
+        corps: String = CORPS_DE_LA_NOTE,
+    ) = EditorUiState(
         loading = false,
         title = titre,
-        content = TextFieldValue(CORPS_DE_LA_NOTE),
+        content = TextFieldValue(corps),
         note = note("a").copy(pinned = epinglee),
         folder = dossier(),
         originalTitle = titre,
-        originalContent = CORPS_DE_LA_NOTE,
+        originalContent = corps,
     )
 
     private fun liensComplets() = PanneauDeLiens(
@@ -650,5 +837,9 @@ class EditeurTest {
         const val TITRE_FANTOME = "Une note a ecrire"
         const val TITRE_MENTION = "Une note qui cite celle ci"
         const val HORODATAGE = 1_700_000_000_000L
+        const val PARAGRAPHES_D_UNE_LONGUE_NOTE = 3_000
+        const val LIGNES_D_UNE_TRES_LONGUE_NOTE = 5_000
+        const val PARAGRAPHE_DU_MILIEU = "Paragraph 1500"
+        const val ATTENTE_DE_L_APERCU_MS = 10_000L
     }
 }

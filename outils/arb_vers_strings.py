@@ -122,6 +122,17 @@ AJOUTS_EN = {
     <string name="note_info_words">Words</string>
     <string name="note_info_characters">Characters</string>
     <string name="note_info_characters_hint">Spaces included, line breaks excluded</string>
+    <!--
+      Port additions (2026-09-25): the Markdown preview (D-024). A task box is read by a screen
+      reader as its state — notes_tech 2.0.9 draws the icon with no label, so TalkBack said nothing
+      of it. And a web link that no app can open says so, instead of doing nothing when tapped.
+    -->
+    <string name="note_preview_task_done">Done</string>
+    <string name="note_preview_task_open">To do</string>
+    <string name="note_preview_link_no_app">No app on this device can open this link.</string>
+    <!-- Above a note the preview does not parse: too long, or shaped so that parsing it would
+         freeze the screen (MarkdownPreviewReader). Says why the text below is not formatted. -->
+    <string name="note_preview_as_written">Too long or too complex to preview: shown as written.</string>
 """,
     "trash": """\
     <!--
@@ -381,6 +392,10 @@ AJOUTS_FR = {
     <string name="note_info_words">Mots</string>
     <string name="note_info_characters">Caractères</string>
     <string name="note_info_characters_hint">Espaces compris, retours à la ligne exclus</string>
+    <string name="note_preview_task_done">Fait</string>
+    <string name="note_preview_task_open">À faire</string>
+    <string name="note_preview_link_no_app">Aucune application de cet appareil ne peut ouvrir ce lien.</string>
+    <string name="note_preview_as_written">Trop long ou trop complexe pour l\\'aperçu : affiché tel quel.</string>
 """,
     "trash": """\
     <plurals name="trash_emptied">

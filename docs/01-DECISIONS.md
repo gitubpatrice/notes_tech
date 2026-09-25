@@ -695,7 +695,8 @@ provoquer, et c'est le cas même où la prudence doit l'emporter.
 
 ## D-024 — Aperçu Markdown : analyseur JetBrains, rendu Compose écrit ici
 
-**2026-09-24 · parité 2.0.9 (A1/A2 de l'inventaire)** — **pas encore codé**.
+**2026-09-24 · parité 2.0.9 (A1/A2 de l'inventaire)** — décidée le 24, **réalisée le 2026-09-25**
+(cf. « Réalisation » en fin de section).
 
 **Contexte.** La 2.0.9 a ajouté un aperçu (bascule Éditer/Aperçu, `flutter_markdown_plus`, GFM,
 `[[Titre]]` cliquable, images jamais chargées). Le portage n'a aucune bibliothèque Markdown — le
@@ -713,3 +714,52 @@ assumé : la 2.0.9 fait disparaître les blocs HTML).
 **Écarté.** *`multiplatform-markdown-renderer`* : dépendances Compose Multiplatform, et le lien
 `[[…]]` à cheval sur plusieurs jetons y est difficile à intercepter. *Markwon* : vues Android,
 inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni blocs de code.
+
+**Réalisation (2026-09-25) — ce que le code a précisé ou changé.**
+
+- **Dépendance** : `org.jetbrains:markdown` **0.7.14** (publiée le 2026-09-16, Apache 2.0, une seule
+  dépendance : `kotlin-stdlib`). Seul l'**analyseur** sert : la partie HTML de la bibliothèque échappe
+  le texte pour du HTML (`04-PIEGES.md` §146), le décodage est donc écrit ici.
+- **Structure** : `domain/markdown/` (modèle `PreviewBlock`, lecteur `MarkdownPreviewReader`, masque
+  `WikiLinkMask`) testé sur la JVM ; `ui/editor/ApercuMarkdown.kt` dessine, `LectureDeLApercu.kt`
+  lit hors du fil principal. Le motif `[[…]]` est **celui de l'indexeur** (`WikiLinkParser.LINK`,
+  rendu public), posé **avant** l'analyse : c'est ce qui reproduit la priorité de la 2.0.9.
+- **Un seul chemin pour « ouvrir ou créer »** : toucher `[[Titre]]` dans l'aperçu ou un lien fantôme
+  du panneau → `NotesRepository.resolveTitle` (la **même** table que l'indexeur : un titre ambigu mène
+  à la même note dans les deux) → sinon création dans le dossier de la note → **ouverture**. Le panneau
+  créait sans ouvrir, ce que la 2.0.9 n'a jamais fait (`04-PIEGES.md` §150).
+- **Écarts assumés avec la 2.0.9, tous dans le même sens** — rien de ce que l'utilisateur a écrit ne
+  disparaît, et aucun geste n'est sans effet :
+  - HTML affiché tel quel (la 2.0.9 fait disparaître les blocs HTML) ;
+  - un lien vers autre chose que `http`, `https` ou `mailto` est du **texte**, pas un lien qui ne
+    fait rien quand on le touche ;
+  - `www.…` s'ouvre en `https://` (la 2.0.9 : `http://`) ;
+  - les cases de tâche sont **nommées** pour un lecteur d'écran (« Fait » / « À faire ») ;
+  - le code se replie à la ligne au lieu de défiler de côté ;
+  - « aucune application ne peut ouvrir ce lien » est dit, au lieu d'un appui sans effet.
+- **Borné, quelle que soit la note** (`04-PIEGES.md` §147) : balayage linéaire avant l'analyse — plus
+  de 500 000 caractères, plus de 8 marqueurs de conteneur en tête d'une ligne, plus de 300 `[` dans un
+  bloc ou 3 000 dans la note (liens `[[…]]` et cases de tâche non comptés) : la note s'affiche **telle
+  quelle**, sous un avis qui dit pourquoi. Tableaux de plus de 32 colonnes affichés tels quels ;
+  imbrication suivie sur 12 niveaux ; l'analyse s'annule quand on quitte l'aperçu (§148) ; aucune
+  exception ne remonte à l'éditeur, sauf l'annulation.
+- **Paresseux** : l'aperçu est une `LazyColumn` — un élément par bloc, par élément d'une liste de
+  premier niveau, par ligne d'un tableau de premier niveau — parcourue par UN `items(count)` sur une
+  liste à plat préparée avec la lecture, hors du fil principal ; un élément ne dessine pas plus de 500
+  blocs d'un coup (au-delà : tel quel).
+- **Mise en page de la 2.0.9, pour l'éditeur entier** (§153, §154) : en-tête fixe (titre, bascule),
+  corps qui remplit l'espace et défile lui-même, panneau des liens sous le corps — borné au tiers de
+  l'écran, masqué tant que le clavier est ouvert. Elle corrige un **plantage préexistant** : une note
+  de plus de ~3 600 lignes faisait planter l'éditeur à l'ouverture (contrainte de hauteur que Compose
+  ne sait pas représenter), depuis le 2026-08-15.
+- **Position** : l'aperçu revient où on l'a laissé après un passage en Édition sans frappe (lecture
+  conservée tant que le texte ne change pas). En Édition, pas de position gardée, comme la 2.0.9.
+- **Relecture GPT-5.6 sol** (0,39 $, §152) : 5 constats réels corrigés — liens automatiques `<mailto:…>`,
+  adresses plafonnées à 8 192 caractères, poids des éléments paresseux, liste à plat, position.
+- **Accessibilité mesurée sur l'arbre réel d'Android** (§149) : chaque lien arrive au lecteur d'écran
+  comme un `AccessibilityClickableSpan` sur ses mots.
+
+**Limites connues** : une note de coffre n'est jamais cible d'un lien — toucher `[[X]]` depuis un
+coffre crée une nouvelle « X » à chaque fois, comme dans la 2.0.9 (à trancher) ; le rendu de
+`LegalScreen` reste le rendu minimal ligne à ligne (son KDoc justifiait de ne pas embarquer de
+bibliothèque, ce qui n'est plus le cas : le passer au rendu de l'aperçu est possible, non fait).

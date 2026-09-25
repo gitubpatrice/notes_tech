@@ -4475,3 +4475,213 @@ SHA-256 vérifié. L'émulateur n'a pas refait la passe positive des quatre clas
 
 *Un témoin qui tombe sur un seul appareil n'est pas un test instable : il dit que, là, l'instrument ne
 voit plus rien. Et une égalité entre deux lectures n'a de sens que si rien ne peut bouger entre elles.*
+
+## §144 — Le renommage du dossier : trois restes, dont un qui cassait la compilation
+
+Le dossier est passé de `notes_files_tech` à `notes_tech_kotlin` (2026-09-25). Trois choses n'avaient
+pas suivi :
+
+1. **La mémoire** : le dossier `~/.claude/projects/j--applications-notes-tech-kotlin/memory` était vide.
+   Copiée (pas déplacée) depuis l'ancienne clé, empreintes SHA-256 identiques des deux côtés.
+2. **`app/.cxx`** gardait les caches CMake avec l'ancien chemin absolu. Le hachage du dossier
+   (`6m4w383q`) ne dépend pas du chemin du projet : Gradle **réutilise** le cache périmé, et `clean`
+   échouait sur `externalNativeBuildCleanDebug` (« ninja: Entering directory `…\notes_files_tech\…` »).
+   Supprimé à la main, avec `build` et `app/build`.
+3. `rm -rf` est **refusé** par une règle `deny` globale (`~/.claude/settings.json`) — même avec
+   l'accord de Patrice. Pas contourné par une autre forme de la même commande : `rm -r` sans `-f` est
+   couvert par la règle `allow`, et c'est ce qui a servi, sur accord explicite.
+
+Premier lancement du gate dans le nouveau dossier : « Gradle build daemon disappeared unexpectedly »,
+non reproduit à la relance (336 tests, 0 ignoré). Et un avertissement qui ne vient pas du renommage :
+`local.properties` pointe vers `C:\Users\Pat\AppData\Local\Android\Sdk`, qui n'existe plus ; AGP se
+rabat sur `ANDROID_HOME=J:\android-sdk`.
+
+## §145 — 🔴 Les antislashs d'une commande Bash, et les caractères invisibles dans le source
+
+Deux pièges du même jour, qui ont chacun produit un fichier faux sans erreur :
+
+1. **Dans une commande Bash, `\\` arrive comme `\`.** Mesuré : `printf '%s\n' 'x\\ny' | od -c` rend
+   **un** antislash. Un script Python écrit dans un heredoc avec `'\\n'` pour « antislash-n » reçoit
+   donc `'\n'`, un vrai saut de ligne : des chaînes Kotlin se sont retrouvées coupées sur plusieurs
+   lignes, et `patcher(…, "'\\uE000'")` a réécrit le fichier **à l'identique** — l'outil a dit
+   « écrit », la taille n'avait pas bougé. **Règle** : tout contenu qui porte un antislash passe par
+   l'outil Write ou Edit, jamais par un script dans une commande ; ou se construit avec `chr(92)`.
+2. **Des caractères invisibles tapés tels quels dans le source** : U+E000 et U+E001 (les marqueurs du
+   masque des liens), U+FFFD, une espace insécable, un `''` vide là où il fallait `'\u007F'`. Aucun ne
+   se voit à la lecture ; l'un ne compilait pas, les autres rendaient le code illisible. Tous remplacés
+   par des échappements `\uXXXX`, **vérifiés à l'octet** (`grep -c $'\xee\x80'`, `od -c`), pas à l'œil.
+
+## §146 — L'analyseur Markdown de JetBrains : ce qu'il fait de ce que la note écrit
+
+Arbre relevé sur de vrais échantillons avant d'écrire le lecteur (`MarkdownPreviewReader`), puis dans
+ses sources (`markdown-jvm-0.7.14-sources.jar`, SHA-256 conforme aux métadonnées publiées) :
+
+- **`[[Titre]]` devient un `SHORT_REFERENCE_LINK` même sans définition**, entouré de deux crochets
+  orphelins ; un titre contenant `*`, `` ` `` ou `|` est découpé en emphase, code ou cellules. D'où le
+  **masque** posé AVANT l'analyse (`WikiLinkMask`), qui reproduit la priorité de la 2.0.9, où la
+  syntaxe `[[…]]` est essayée avant les autres.
+- **`EntityConverter` produit du HTML échappé** (`&` → `&amp;`) et tronque les points de code
+  au-delà de U+FFFF ; `LinkMap.normalizeDestination` passe par lui. Inutilisables pour du texte :
+  entités et échappements sont décodés par `MarkdownPreviewReader.decode`, écrit pour ça ; seule la
+  table des entités nommées est reprise.
+- Une destination `<…>` contenant une espace est analysée comme un nœud **`AUTOLINK`** dans le lien,
+  pas comme `LINK_DESTINATION` : le HTML de la bibliothèque lui donne un `href` vide. Lue ici.
+- Le `>` d'une ligne de citation « paresseuse » reste un jeton **dans** le paragraphe ; les chevrons de
+  `<m@n.o>` sont des jetons frères de l'adresse ; les alertes GitHub (`> [!NOTE]`) sont activées par
+  défaut, alors que la 2.0.9 n'en a pas.
+
+## §147 — 🔴 Le coût du parseur : une note de 50 Ko pouvait faire planter l'aperçu, une de 40 Ko le figer
+
+Une note est une entrée non maîtrisée (import, collage) et n'a **aucune limite de taille**. Mesuré sur
+la JVM (2026-09-25) : linéaire sur du texte ordinaire (260 Ko de paragraphes : 133 ms ; 5 000 liens :
+78 ms), mais pas sur certaines formes :
+
+| Forme | n = 5 000 | n = 10 000 |
+|---|---|---|
+| `[a](` jamais fermé, dans un bloc | 1,4 s | **8,0 s** |
+| `![` | 1,1 s | 3,4 s |
+| `>` répété sur une ligne | 0,1 s | 0,3 s — et **OutOfMemoryError** à 50 000 |
+| 3 000 lignes de 64 `- ` | 2,0 s | — |
+
+Le coût des crochets dépend de leur **nombre** dans un bloc, pas du texte autour : 400 Ko de mots
+après un `[a](` coûtent 1 ms. D'où un **balayage linéaire avant l'analyse** : au-delà des seuils, la
+note s'affiche telle quelle, avec un avis qui dit pourquoi.
+
+⚠️ **Les premiers seuils étaient trop larges, et seule la mesure l'a dit** : 64 marqueurs par ligne et
+1 000 `[` par bloc passaient les tests, mais le test du plafond global prenait **0,82 s** sur la JVM
+(plusieurs secondes sur le S9), et 64 niveaux de listes sur 3 000 lignes, 2 s. Ramenés à 8 marqueurs,
+300 `[` par bloc et 3 000 au total. Deux défauts du balayage lui-même, trouvés en relisant : il
+comptait les cases de tâche (`[ ]`), donc une liste de courses de 1 000 lignes aurait été refusée ;
+et il prenait une ligne d'espaces insécables pour une ligne vide, ce que CommonMark ne fait pas — une
+note pouvait alors présenter un seul bloc de milliers de crochets comme plusieurs petits.
+
+*Un seuil se choisit sur une mesure du pire cas qu'il laisse passer, pas sur l'intuition qu'il est
+« largement suffisant ».*
+
+## §148 — Le parseur s'annule — découvert par un avertissement de dépréciation
+
+`MarkdownParser(flavour)` est **déprécié** : « Use constructor with CancellationToken ». Le parseur
+consulte ce jeton entre ses passes et entre les nœuds de l'arbre — **jamais pendant** la passe sur
+un bloc, où se dépense le coût du §147 : les seuils restent donc nécessaires. Mais quitter l'aperçu
+arrête désormais la lecture d'une longue note au lieu de la laisser finir pour rien
+(`MarkdownPreviewReader.read(source) { ensureActive() }`).
+
+🔴 Le piège posé en le branchant : la `CancellationException` des coroutines **est** une
+`RuntimeException`. Le filet de `read()` (« ne jamais planter l'éditeur ») l'aurait attrapée et rendue
+comme une note « trop complexe pour l'aperçu ». Elle est relancée, et un test le fige
+(`a cancellation goes through`).
+
+*J'avais écrit dans le KDoc « rien n'interrompt une analyse commencée ». C'était faux, et un
+avertissement du compilateur le disait depuis le début.*
+
+## §149 — 🔴 Les liens d'un texte : l'arbre de Compose et celui d'Android ne disent pas la même chose
+
+Mesuré sur le S9 (2026-09-25), sur un paragraphe portant deux liens :
+
+- **arbre de sémantique Compose** : chaque lien est un nœud enfant avec `OnClick` et **sans nom** —
+  exactement ce que `actionnablesSansNom` existe pour signaler ;
+- **arbre d'accessibilité Android** (`UiAutomation.rootInActiveWindow`, ce que reçoit TalkBack) : ces
+  nœuds **n'existent pas**. Le paragraphe est un `TextView` dont le texte porte un
+  `AccessibilityClickableSpan` par lien, sur les mots du lien — « le site » en **un** seul span,
+  bien que « site » soit en italique (les morceaux d'une même cible sont regroupés exprès).
+
+Le signalement du balayage n'est donc pas un défaut ici. L'exception vit dans le test
+(`ApercuMarkdownTest`) : les actionnables sans nom doivent être **exactement** les nœuds de lien, et
+un autre test prouve sur l'arbre réel que leurs noms arrivent au lecteur d'écran.
+
+⚠️ **Non mesuré** : le paragraphe qui porte des liens est le seul texte **sans**
+`screenReaderFocusable` (Compose lie ce drapeau à « nœud feuille », et ce paragraphe a des enfants de
+son côté). Pour TalkBack c'est une feuille avec du texte, qu'il focalise normalement — à vérifier avec
+TalkBack lui-même.
+
+## §150 — Un lien fantôme du panneau créait la note SANS l'ouvrir — depuis toujours
+
+En portant l'aperçu, la comparaison avec la 2.0.9 a montré que `_createFromDangling` — appelé par le
+panneau de liens **et** par l'aperçu — **crée puis ouvre** la note, et ce dès la 2.0.4. Le portage la
+créait et laissait l'utilisateur où il était : un geste qui semble n'avoir rien fait. La ligne
+`backlinks_panel.dart` de `05-PARITE.md` était cochée sans le dire. Les deux gestes passent désormais
+par un seul chemin (`NoteEditorViewModel.ouvrirOuCreerLaNote`).
+
+⚠️ Hérité tel quel de la 2.0.9, et à trancher : dans un **coffre**, une note n'est jamais cible d'un
+lien (la résolution écarte toute note chiffrée) — toucher `[[X]]` depuis une note de coffre crée donc
+une **nouvelle** note « X » à chaque fois.
+
+## §151 — Les contrôles négatifs du lecteur : un instrument muet, et deux gardes qui ne tombaient pas
+
+1. **Le premier passage n'a rien mesuré.** `subprocess.run(["cmd", "/c", "gradlew.bat", …], cwd=…)`
+   ne trouvait pas le script : Gradle ne tournait pas, aucun rapport XML n'était produit, et les huit
+   contrôles sortaient « ne tombe pas ». Le script refuse désormais de conclure sans rapport XML.
+2. Relancé correctement : **six sur huit tombaient**. Les deux autres disaient chacun une vérité :
+   - le drapeau « après un saut dur » était **du code mort** : une fois les sauts de ligne empêchés de
+     rogner le `\n`, le mécanisme des espaces de tête suffisait. Retiré ; le contrôle porte maintenant
+     sur la vraie garde, et il tombe ;
+   - le test du code en ligne ne regardait qu'un milieu de ligne, où la garde n'a **aucun effet** : elle
+     ne joue qu'au premier et au dernier caractère d'un paragraphe. Deux cas ajoutés ; il tombe.
+
+*Un contrôle qui ne tombe pas n'est pas un échec du contrôle : il dit que la garde est morte, ou que le
+test regarde ailleurs.*
+
+## §152 — La relecture GPT-5.6 sol de l'aperçu : neuf constats, cinq réels
+
+`gpt-5.6-sol`, effort medium, sur le diff du **seul code** (tests et chaînes générées retirés, 102 Ko) :
+**0,39 $** (26 587 jetons d'entrée, 8 454 de sortie). Rapport vérifié constat par constat AVANT tout
+correctif — le relecteur n'a que le diff :
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | `<mailto:a@b.c>` devenait `https://mailto:a@b.c` (schéma reconnu seulement suivi de `//`) | **réel**, corrigé : seul `www.` reçoit `https://` |
+| 2 | les références abrégées `[texte][]` ne seraient pas résolues | **faux pour les liens** (un test le prouvait déjà) ; test ajouté pour les images, vert |
+| 3 | l'imbrication par **indentation** échappe au balayage | **réfuté par la mesure** : linéaire (700 niveaux par espaces, 494 Ko : 56 ms ; 1 000 par tabulations : 29 ms) |
+| 4 | une note géante « telle quelle » tient dans un seul `Text` | écarté : même coût que le champ d'édition, affiché le premier ; et un `Text` de 5 000 lignes ne plante pas (§153) |
+| 5 | un tableau de dizaines de milliers de lignes, composé d'un coup | **réel** : lignes de tableau de premier niveau devenues des éléments paresseux |
+| 6 | un `item {}` par bloc, déclaré sur le fil principal | **réel** : liste à plat préparée avec la lecture, parcourue par UN `items(count)` ; plafond `MAX_BLOCKS_PER_ITEM` (500) pour ce qu'un élément dessine d'un coup |
+| 7 | deux appuis rapides créent un doublon | **faux** : `tenterUneAction` refuse une action tant qu'une autre est en cours, posé de façon synchrone |
+| 8 | basculer remet une longue note en haut | **réel** côté aperçu — et il cachait §154 |
+| 9 | une adresse de 400 Ko fait planter `startActivity` (transaction Binder) | **réel** : adresse plafonnée à 8 192 caractères ; `SecurityException` rattrapée aussi |
+
+Cinq contrôles négatifs sur les nouvelles gardes : les cinq tombent, sources restaurées au SHA-256.
+
+## §153 — 🔴🔴 Une note de plus de ~3 600 lignes faisait planter l'éditeur à l'ouverture — depuis le 08-15
+
+Trouvé par un test de l'aperçu qui **revenait en Édition** sur une note de 3 000 paragraphes, pas par une
+relecture : « Can't represent a width of 1080 and height of 432024 in Constraints », dans
+`TextFieldMeasurePolicy`. Mesuré ensuite sur le S9 (2026-09-25), 5 000 lignes :
+
+| Mise en page | Résultat |
+|---|---|
+| `TextField` dans une colonne `verticalScroll` (celle de l'éditeur depuis le 08-15) | **plantage** (hauteur 360 096 px) |
+| `TextField` qui remplit l'espace restant et défile lui-même (celle de la 2.0.9) | ✅ |
+| `Text` de 5 000 lignes dans une colonne défilante, ou un élément de `LazyColumn` | ✅ |
+
+À côté de la largeur d'un téléphone, Compose ne représente pas une contrainte de plus d'environ
+262 000 px : le champ, mesuré à sa pleine hauteur, la demandait. L'éditeur s'ouvrant en Édition,
+**chaque ouverture d'une telle note plantait l'application** — la 2.0.9 les ouvre. Corrigé en reprenant
+la mise en page de la 2.0.9 (§154) ; test : `EditeurTest.a_note_too_tall_for_one_measure_opens_in_edit_mode`.
+
+*Le test qui l'a trouvé ne le cherchait pas : il vérifiait que la bascule reste visible. Un geste
+ordinaire (revenir en Édition) sur une donnée extrême (une longue note) valait tous les raisonnements.*
+
+## §154 — La mise en page de la 2.0.9, et ce qu'elle a changé en chaîne
+
+En-tête **fixe** (titre, bascule), corps qui remplit l'espace (le champ défile lui-même ; l'aperçu est
+une `LazyColumn`), panneau des liens **sous** le corps. Quatre conséquences, chacune mesurée :
+
+1. **Le `clearFocus()` de la bascule redevient nécessaire.** Un contrôle négatif l'avait prouvé MORT
+   (§151 et KDoc) tant que tout défilait : les deux champs quittaient la composition à chaque bascule.
+   Le titre restant désormais affiché, son focus — et le clavier — resteraient par-dessus l'aperçu.
+   *Une garde morte dans une mise en page peut devenir vitale dans la suivante : le test qui la couvre
+   compte plus que la garde.*
+2. **Le panneau des liens borné au quart de l'écran coupait la mention** : deux sections de pastilles
+   de 48 dp ne tiennent pas dans 185 dp sur le S9, et `une_mention_ouvre_la_note_qui_cite_celle_ci`
+   (existant) est tombé. Borné au tiers, avec défilement ; le test fait défiler avant de toucher.
+3. **Le panneau est masqué tant que le clavier est ouvert** : fixe sous le corps, il ne laissait que
+   quelques lignes au texte pendant la frappe. Avant, il était au bout de la note, donc hors de vue
+   pendant qu'on écrit — c'est ce qui est gardé.
+4. **Remonter l'état de défilement de l'aperçu ne suffisait pas** (code mort, encore) : au retour,
+   la relecture repartait d'un élément « lecture en cours » et la liste retombait en haut. La lecture
+   est maintenant **conservée tant que le texte n'a pas changé** (`rememberLectureDeLApercu(…, actif)`),
+   et rien n'est relu pendant la frappe. Côté Édition, pas de position à garder : le champ n'expose pas
+   son défilement, et la 2.0.9 reconstruit le sien à chaque bascule.
+
+⚠️ **Non encore contrôlés négativement** (à faire à la reprise) : le plantage (remettre le champ dans
+une colonne défilante), le `clearFocus`, la lecture conservée, le masquage avec le clavier.

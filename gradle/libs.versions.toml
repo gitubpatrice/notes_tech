@@ -39,6 +39,10 @@ bouncycastle = "1.81"
 
 timber = "5.0.1"
 
+# The Markdown preview's parser (D-024): pure Kotlin, Apache 2.0, a single dependency on
+# kotlin-stdlib. Only the GFM parser is used; the rendering is written here, in Compose.
+jetbrains-markdown = "0.7.14"
+
 # Désucrage des bibliothèques de base — `java.time` n'est natif qu'à partir de l'API 26, or le
 # plancher est à 24 (cf. `app/build.gradle.kts`). Sans ça, tout formatage de date écrirait du
 # `Calendar`, ou pire, du code différent selon le palier d'API.
@@ -100,6 +104,7 @@ sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "s
 bouncycastle-provider = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
 
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
+jetbrains-markdown = { module = "org.jetbrains:markdown", version.ref = "jetbrains-markdown" }
 desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
 
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit5" }

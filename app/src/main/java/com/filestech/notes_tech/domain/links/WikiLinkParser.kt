@@ -52,8 +52,12 @@ object WikiLinkParser {
      *
      * Elle est **gourmande**, mais bornée par la classe négative : aucun retour arrière coûteux
      * n'est possible, la longueur est plafonnée et le caractère terminal est exclu de la classe.
+     *
+     * Shared with the Markdown preview (`domain/markdown/WikiLinkMask`), as notes_tech 2.0.9 shares
+     * `BacklinksService.linkPatternSource` with its preview: what the preview draws as a link and
+     * what the links panel lists must be the same thing, and one pattern is how that stays true.
      */
-    private val LINK = Regex("""\[\[([^\[\]\n]{1,200})\]\]""")
+    val LINK = Regex("""\[\[([^\[\]\n]{1,200})\]\]""")
 
     /**
      * @return les liens dans l'ordre du texte, **dédoublonnés par clé d'appariement** : deux

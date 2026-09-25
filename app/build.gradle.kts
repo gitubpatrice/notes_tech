@@ -372,6 +372,7 @@ dependencies {
     implementation(libs.bouncycastle.provider)
 
     implementation(libs.timber)
+    implementation(libs.jetbrains.markdown)
 
     testImplementation(libs.junit.jupiter.api)
     testImplementation(libs.junit.jupiter.params)

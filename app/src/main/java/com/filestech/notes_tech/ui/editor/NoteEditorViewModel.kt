@@ -143,6 +143,8 @@ data class ActionDEditeur(
     val copiee: Boolean = false,
     /** La note était vide : le presse-papiers n'a **pas** été touché. */
     val copieVide: Boolean = false,
+    /** The note to open: a `[[Title]]` resolved, or just created — see `ouvrirOuCreerLaNote`. */
+    val aOuvrir: String? = null,
     @StringRes val erreur: Int? = null,
     /**
      * ⚠️ **Quelle action a échoué**, pour que l'écran choisisse la bonne phrase.
@@ -333,16 +335,31 @@ class NoteEditorViewModel @Inject constructor(
     fun creerPuisLier(titre: String) = creerDansLeMemeDossier(titre) { insererUnLien(titre) }
 
     /**
-     * Crée la note qu'un lien **fantôme** désigne, sans toucher au texte.
+     * Opens the note a `[[title]]` names, creating it first — in the current note's folder — when
+     * no note has that title. Tapped in the Markdown preview, or on a dangling link of the panel.
      *
-     * ⚠️ Aucune insertion ici, et c'est la différence avec [creerPuisLier] : le `[[Titre]]` est déjà
-     * écrit dans la note — c'est même ce qui a produit le lien fantôme. En insérer un second
-     * dupliquerait le lien à un endroit que l'utilisateur n'a pas choisi.
+     * ## One path for both gestures, as in the published app
      *
-     * Le rattachement se fait tout seul : `resolveIncoming` accroche les liens fantômes visant ce
-     * titre au moment où la note naît. Le panneau le montrera résolu à la prochaine émission.
+     * notes_tech 2.0.9 resolves a tapped preview link and, when nothing answers, falls back on
+     * `_createFromDangling` — the very function its links panel calls — which **creates, then
+     * opens**. ⚠️ The port's panel created **without opening**: a divergence from the published app
+     * since 2.0.4 at least, unnoticed until the preview needed the same gesture (2026-09-25). A tap
+     * that creates a note and leaves the user where they were looks like a tap that did nothing.
+     *
+     * ⚠️ No text is inserted: the `[[Title]]` is already in the note — it is what was tapped. The
+     * link attaches itself when the note is born (`resolveIncoming`), and the title used is the one
+     * tapped, never read back from the created note (see [creerPuisLier], for a vault).
+     *
+     * ⚠️ Resolution follows the indexer's rule (`NotesRepository.resolveTitle`): a vault note is never
+     * a target. In a vault, a tapped link therefore creates a new note each time, as it does in 2.0.9.
      */
-    fun creerLaNoteManquante(titre: String) = creerDansLeMemeDossier(titre)
+    fun ouvrirOuCreerLaNote(titre: String) = tenterUneAction(ActionDEditeur.OrigineDErreur.CREATION) {
+        val cible = notes.resolveTitle(titre) ?: run {
+            val dossier = _state.value.note?.folderId ?: return@tenterUneAction
+            notes.create(folderId = dossier, title = titre).id
+        }
+        _action.value = ActionDEditeur(aOuvrir = cible)
+    }
 
     /**
      * ⚠️ **Le dossier est celui de la note courante, pas la boîte de réception.**
@@ -351,7 +368,7 @@ class NoteEditorViewModel @Inject constructor(
      * L'envoyer d'office dans la boîte de réception sortirait discrètement du coffre une note que
      * l'utilisateur vient de créer depuis l'intérieur.
      */
-    private fun creerDansLeMemeDossier(titre: String, ensuite: () -> Unit = {}) {
+    private fun creerDansLeMemeDossier(titre: String, ensuite: () -> Unit) {
         val dossier = _state.value.note?.folderId ?: return
         // 🔴 **`tenterUneAction` et NON `enArrierePlan`.**
         //

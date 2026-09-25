@@ -341,6 +341,59 @@ class NotesRepositoryTest {
         assertThat(liens.observeOutgoing(source.id).first().single().targetId).isNotEqualTo(recente.id)
     }
 
+    // ── A `[[Title]]` tapped in the Markdown preview (D-024) ─────────────────
+
+    @Test
+    fun resolve_title_matches_as_the_indexer_does_case_accents_and_spaces(): Unit = runBlocking {
+        val cible = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Réunion d'équipe")
+
+        assertThat(notes.resolveTitle("  reunion D'EQUIPE ")).isEqualTo(cible.id)
+        assertThat(notes.resolveTitle("Réunion")).isNull()
+        assertThat(notes.resolveTitle("   ")).isNull()
+    }
+
+    /**
+     * The preview and the links panel must name **the same** note for an ambiguous title: the panel
+     * shows what the indexer stored, the preview asks `resolveTitle` — one map for both.
+     */
+    @Test
+    fun an_ambiguous_title_resolves_where_the_indexer_resolved_it(): Unit = runBlocking {
+        val ancienne = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Doublon")
+        horloge.avance(60_000)
+        notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Doublon")
+        horloge.avance(60_000)
+        val source = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            title = "Source",
+            content = "[[Doublon]]",
+        )
+
+        val indexee = liens.observeOutgoing(source.id).first().single().targetId
+        assertThat(indexee).isEqualTo(ancienne.id)
+        assertThat(notes.resolveTitle("Doublon")).isEqualTo(indexee)
+    }
+
+    /**
+     * 🔴 A vault note is never a target — **even when its title is stored in clear** (format 1): only
+     * the query's `encrypted_content IS NULL` stands between a tapped link and the vault's existence.
+     * The control: the same title outside a vault is found.
+     */
+    @Test
+    fun resolve_title_never_names_a_vault_note_even_with_its_title_in_clear(): Unit = runBlocking {
+        scelleur = ScelleurDeTest(EncryptedFormat.CONTENT_ONLY)
+        val scellee = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT,
+            title = "Code de la carte",
+            content = "0000",
+        )
+        assertThat(notes.find(scellee.id)!!.title).isEqualTo("Code de la carte")
+
+        assertThat(notes.resolveTitle("Code de la carte")).isNull()
+
+        val claire = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Code de la carte")
+        assertThat(notes.resolveTitle("Code de la carte")).isEqualTo(claire.id)
+    }
+
     // ── Protection des notes de coffre ───────────────────────────────────────
 
     /**

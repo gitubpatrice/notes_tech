@@ -37,11 +37,14 @@ import com.filestech.notes_tech.ui.theme.Formes
  *
  * ## 🔴 Aucun défilement propre, et ce n'est pas un choix esthétique
  *
- * Ce panneau vit **à l'intérieur** de la colonne défilante de l'éditeur
- * (`NoteEditorScreen`). Y poser un `LazyColumn`, un `LazyRow` ou un second `verticalScroll` place un
- * composant défilant dans une contrainte de hauteur infinie, et Compose ne s'en tire pas par une
- * dégradation : il **plante**, avec « Vertically scrollable component was measured with an infinity
- * maximum height constraints ».
+ * ⚠️ Since 2026-09-25 this panel no longer lives inside a scrolling column: it sits under the
+ * editor's body, and `PiedDeLEditeur` (`NoteEditorScreen`) bounds its height and scrolls it. The
+ * rule below still holds for whoever places it: it scrolls through its container, never by itself.
+ *
+ * Il vivait **à l'intérieur** de la colonne défilante de l'éditeur. Y poser un `LazyColumn`, un
+ * `LazyRow` ou un second `verticalScroll` place un composant défilant dans une contrainte de hauteur
+ * infinie, et Compose ne s'en tire pas par une dégradation : il **plante**, avec « Vertically
+ * scrollable component was measured with an infinity maximum height constraints ».
  *
  * Ce n'est pas une crainte théorique. C'est exactement ce qui est arrivé à l'écran de fin du mode
  * panique le 2026-08-14, et le coût y était bien pire qu'ici : la destruction avait réussi, mais

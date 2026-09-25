@@ -253,7 +253,7 @@ modifier du code correct.
 | `vault_passphrase_sheets.dart` | 382 | `ui/vault/VaultSheets.kt` → `PassphraseSheet` | ✅ |
 | `folder_dialogs.dart` | 225 | `ui/folders/FolderDialogs.kt` | ✅ |
 | `note_card.dart` | 222 | `ui/home/NoteCard.kt` | ✅ |
-| `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ |
+| `backlinks_panel.dart` | 208 | `ui/editor/LiensDeLaNote.kt` | ✅ | ⚠️ Cochée à tort jusqu'au 2026-09-25 sur un point : un lien fantôme **créait** la note sans l'**ouvrir**, alors que la 2.0.4 déjà l'ouvre (`_createFromDangling`). Corrigé avec l'aperçu, un seul chemin pour les deux gestes ; prouvé par `ApercuDeBoutEnBoutTest` (§150) |
 | `link_autocomplete_sheet.dart` | 206 | `ui/editor/FeuilleDAutocompletion.kt` | ✅ |
 | `panic_confirm_dialog.dart` | 167 | `ui/panic/PanicScreens.kt` → `PanicConfirmDialog` | ✅ | Couvert par `PanicEcransTest` et mesuré sur le S9 : les **trois** items sont affichés sur l'écran de consentement réel. 🔴 A trouvé **un** défaut — §101, le modèle de dictée était tu |
 | `move_to_folder_sheet.dart` | 165 | `ui/editor/FeuilleDeDeplacement.kt` | ✅ | **`FeuilleDeDeplacementTest` (6 cas, S9, 2026-08-19)**. 🔴 A trouvé **un** défaut — §115 : le coffre était signalé par `note_card_locked`, donc un **dossier** se disait « Note verrouillée ». `move_to_folder_vault` dit la **conséquence**. ⚠️ Le balayage a aussi **mesuré** la poignée de material3, ce que §114 n'établissait que par lecture |
@@ -868,8 +868,8 @@ valant que pour 1.
 
 | # | Changement 2.0.9 | Statut portage | Où / preuve |
 |---|---|---|---|
-| A1 | Aperçu Markdown (bascule Éditer/Aperçu, GFM, images jamais chargées) | ⏳ **à faire** | D-024 |
-| A2 | `[[Titre]]` de l'aperçu : même motif que l'indexeur, résolu à la demande, créé **et ouvert** s'il manque | ⏳ **à faire** (briques présentes : `titlesForLinking`, `WikiLinkParser`) | D-024 |
+| A1 | Aperçu Markdown (bascule Éditer/Aperçu, GFM, images jamais chargées) | ✅ 2026-09-25 | D-024. JVM : `MarkdownPreviewReaderTest` (53 cas, 9 contrôles négatifs). S9 : `ApercuMarkdownTest` (5 cas, dont l'arbre d'accessibilité **réel** d'Android — chaque lien y est un span cliquable sur ses mots) et 8 cas de `EditeurTest` (bascule, clavier, note vide, **paresse** : le 3 000ᵉ paragraphe n'existe pas avant qu'on y défile, balayages, bascule visible au bout d'un long aperçu, position retrouvée, note de 5 000 lignes ouverte) ; émulateur API 34 : 86/86 avant les correctifs de relecture ; 8 contrôles négatifs instrumentés. Écarts assumés : D-024 « Réalisation ». 🔴 Trouvé en chemin, **préexistant** : une note de plus de ~3 600 lignes faisait planter l'éditeur à l'ouverture (§153), corrigé par la mise en page de la 2.0.9 |
+| A2 | `[[Titre]]` de l'aperçu : même motif que l'indexeur, résolu à la demande, créé **et ouvert** s'il manque | ✅ 2026-09-25 | S9 : `ApercuDeBoutEnBoutTest` (vraie app, vraie base : créé, ouvert, et un second appui rouvre **sans doublon**) ; `NotesRepositoryTest` (3 cas `resolveTitle`, dont une note de coffre au titre **en clair** jamais résolue). 🔴 Le lien fantôme du **panneau** créait sans ouvrir, depuis toujours — aligné sur la 2.0.9 (§150) |
 | A3 | Boîte de réception semée « Inbox », nom par défaut affiché dans la langue de l'app | ✅ `9d0c59f` | `Folder.isDefaultInboxName`, `FolderNames.kt` ; 11 surfaces ; renommer sans changer n'écrit rien ; `InboxDefaultNameTest` (6 cas, contrôle positif 4/6) |
 | A4 | Export : `inbox/`, libellé traduit, `untitled-folder`, README anglais | ✅ `9d0c59f` | `NoteMarkdown.folderLabel` (une règle pour l'archive ET la note seule) ; tests de parité mis à jour sur **littéral** |
 | A5 | Aucun texte d'exception à l'écran (`describeError`) | ✅ `9d0c59f` | `UserMessages.kt` ; 6 écrans ; `UserMessagesTest` (7 cas) |
