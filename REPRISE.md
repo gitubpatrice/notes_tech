@@ -42,10 +42,22 @@
      plateforme accepte désormais MGF1 en SHA-256 ; la 2.0.9 écrit SHA-1 **en dur** (source de
      `flutter_secure_storage` 10.3.1 relue), donc **la bascule n'est pas en danger** ; test réécrit ;
    - `audit-ia.py` affiche aussi le coût d'une relecture Gemini (il l'ignorait).
+6. **Plus tard le soir, sur les réponses de Patrice — commits `27f176f`, `7922a45`, `25d0f55`, `359f4e9`** :
+   - **S24 (Android 16), sur son accord** : classe de la KEK + deux classes du Keystore du coffre,
+     **27/27**, paquet `.next.debug` seulement ;
+   - **pages légales au rendu de l'aperçu**, sélectionnables comme dans la 2.0.9 (§157). Le passage a
+     révélé que le lecteur **ignorait les fins de ligne CRLF** (notes importées de Windows comprises), et
+     qu'une ligne faite d'un `\r` ouvrait une **faille dans la garde anti-notes-hostiles** : corrigé ;
+   - **message** « Impossible de créer la note liée » au lieu de « Création du coffre échouée » ;
+   - **solution B** (§158) : depuis une note de coffre, `[[X]]` trouve la note X **de ce coffre ouvert**,
+     puis les notes ordinaires ; jamais un autre coffre. Test sur un **vrai coffre** par le vrai
+     ViewModel ;
+   - **relecture GPT-5.6 sol du code du soir : 0,31 $** (total du jour **1,14 $**) : 2 réels corrigés
+     (déchiffrement du coffre sur le fil principal ; un commentaire), 3 réfutés, 2 laissés avec raison.
 
 ### Mesuré
 
-- JVM : **399 tests, 44 classes, 0 ignoré** ; ktlint, detekt, lint (0 erreur) verts.
+- JVM : **402 tests, 45 classes, 0 ignoré** ; ktlint, detekt, lint (0 erreur) verts.
 - S9, **suite complète sur l'état final** : **423 cas, 421 réussis, 2 hypothèses non tenues connues**
   (pas de modèle Whisper ; pas d'empreinte), 0 échec. La classe du test MGF1, réécrit ensuite : 14/14.
 - Émulateur API 34, suite complète : 423 cas, 409 réussis, 2 hypothèses connues, **12 échecs, tous
@@ -53,8 +65,11 @@
   MGF1 périmé (réécrit : sa classe 14/14), et **9 échecs par construction** — Keystore logiciel, que le
   coffre refuse exprès.
 - Contrôles négatifs du jour : 22 le matin ; le soir 3 (mise en page), 6 (plancher, pleine hauteur,
-  `clearFocus`, lecture, clavier, `isBlank`) et 1 (MGF1, sur l'émulateur) — chacun fait tomber **son**
-  test, motif relu dans la sortie.
+  `clearFocus`, lecture, clavier, `isBlank`) et 1 (MGF1, sur l'émulateur) ; plus tard 3 (fins de ligne,
+  lien de note dans une page légale, ancien message), 5 (solution B) et 1 (déchiffrement hors du fil
+  principal) — chacun fait tomber **son** test, motif relu dans la sortie.
+- Après la solution B : S9 **65/65** (`NotesRepositoryTest` entier, le vrai coffre, l'écran légal) ;
+  émulateur **13/13** sur les tests de B, le bout en bout de l'aperçu (clavier compris) et l'écran légal.
 
 ### 🔴 CE QUI RESTE, dans l'ordre
 
@@ -63,21 +78,18 @@
    ci-dessus). Outils : `scratchpad/controles_mise_en_page.py`, `controles_plancher.py`,
    `controle_mgf1_emulateur.py` (une mutation, construction, installation, test ciblé, **motif** de
    l'échec gardé, restauration vérifiée au SHA-256 ; les scratchpads ne survivent pas aux sessions).
-2. **`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel** — le S24 (Android 16), **sur accord
-   de Patrice**, paquet `.next.debug` seulement : la bascule se fera là, et seul l'émulateur API 34 a vu
-   cette classe au-delà d'Android 10 (§156).
+2. ✅ ~~`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel~~ — S24, Android 16 : 27/27 avec
+   les deux classes du Keystore du coffre (point 6 ci-dessus).
 3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel pourraient **s'ignorer**
    (tenter la création, puis `assume` sur `KeystoreSoftwareOnlyException`), pour une suite d'émulateur
    lisible (§156). ⚠️ **Sauf un témoin** : `la_cle_creee_est_retenue_par_le_materiel_securise` doit
    continuer d'échouer. Sans lui, un portage qui prendrait à tort le S9 pour un Keystore logiciel
    ferait s'ignorer tous les tests du coffre au lieu de les faire tomber.
-4. **À faire trancher par Patrice** :
-   - dans un **coffre**, toucher `[[X]]` crée une nouvelle « X » à chaque fois (une note de coffre n'est
-     jamais cible, comme dans la 2.0.9) — garder la parité, ou résoudre dans le même coffre ouvert ?
-   - `LegalScreen` : passer ses quatre pages au rendu de l'aperçu (son KDoc justifiait l'absence de
-     bibliothèque, qui est maintenant là) — ou laisser ;
-   - `home_vault_create_error` (« Création du coffre échouée ») sert à TOUTE création de note liée qui
-     échoue, coffre ou pas — hérité, message inexact.
+4. ✅ ~~Les trois décisions de Patrice~~ — tranchées le 25 au soir et faites : solution **B** pour les
+   liens dans un coffre, pages légales au rendu de l'aperçu, message corrigé (point 6 ci-dessus).
+   **Suites possibles de B, non demandées** (à proposer à Patrice, pas à faire d'office) : le panneau
+   des liens d'une note de coffre reste vide, et l'autocomplétion de `[[` n'y propose pas les notes du
+   coffre (§158).
 5. **TalkBack réel** sur l'aperçu (§149 : le paragraphe portant des liens n'est pas
    `screenReaderFocusable` ; TalkBack le focalise normalement — à écouter).
 6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
@@ -86,6 +98,9 @@
    `org.jetbrains:markdown`, à déclarer dans la description F-Droid s'il y a lieu), ménage de
    l'émulateur (code **1111 reposé le 25** ; l'empreinte du 24 a disparu, non reposée).
 7. Avant toute publication : `docs/12-PLAN-DE-BASCULE.md` en entier (rodage, décisions A et C, phase 3).
+   Y ajouter : avec `core.autocrlf=true`, les `.md` de `res/raw` sortent en CRLF d'une construction
+   Windows et en LF d'une construction Linux (F-Droid) — un `.gitattributes` (`*.md text eol=lf`) est à
+   envisager avant toute recherche de reproductibilité (§157).
 
 ### Pièges du jour à ne pas refaire (détail dans `04-PIEGES.md`)
 
