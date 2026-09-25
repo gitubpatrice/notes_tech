@@ -66,9 +66,11 @@
 2. **`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel** — le S24 (Android 16), **sur accord
    de Patrice**, paquet `.next.debug` seulement : la bascule se fera là, et seul l'émulateur API 34 a vu
    cette classe au-delà d'Android 10 (§156).
-3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel devraient **s'ignorer**
+3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel pourraient **s'ignorer**
    (tenter la création, puis `assume` sur `KeystoreSoftwareOnlyException`), pour une suite d'émulateur
-   lisible (§156).
+   lisible (§156). ⚠️ **Sauf un témoin** : `la_cle_creee_est_retenue_par_le_materiel_securise` doit
+   continuer d'échouer. Sans lui, un portage qui prendrait à tort le S9 pour un Keystore logiciel
+   ferait s'ignorer tous les tests du coffre au lieu de les faire tomber.
 4. **À faire trancher par Patrice** :
    - dans un **coffre**, toucher `[[X]]` crée une nouvelle « X » à chaque fois (une note de coffre n'est
      jamais cible, comme dans la 2.0.9) — garder la parité, ou résoudre dans le même coffre ouvert ?

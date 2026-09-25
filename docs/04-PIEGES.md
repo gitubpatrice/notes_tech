@@ -4774,7 +4774,10 @@ hypothèses connues**, 0 échec.
    refuse exprès une clé que rien de matériel ne retient (`KeystoreSoftwareOnlyException`, comme la
    2.0.9). Ils échouent au lieu de s'ignorer : la suite de l'émulateur ne peut pas être verte telle
    quelle. Piste : tenter la création, et s'ignorer sur `KeystoreSoftwareOnlyException`, comme
-   `AppLockKeysTest` le fait pour l'empreinte.
+   `AppLockKeysTest` le fait pour l'empreinte — **sauf un témoin**,
+   `la_cle_creee_est_retenue_par_le_materiel_securise`, qui doit continuer d'échouer : sans lui, une
+   détection « logiciel » erronée sur un appareil à TEE ferait s'ignorer tous les tests du coffre au
+   lieu de les faire tomber.
 2. **Le douzième est réel, et il touche la bascule.** `la_plateforme_impose_mgf1_en_sha1_et_refuse_sha256`
    vérifiait qu'Android **refuse** MGF1 en SHA-256 pour la clé RSA de `flutter_secure_storage`. Sur
    Android 14, il ne refuse plus — son propre KDoc l'avait prévu : « il faudrait alors vérifier ce que
