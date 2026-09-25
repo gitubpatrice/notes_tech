@@ -265,6 +265,17 @@ AJOUTS_EN = {
          formatee (« 2:00 »), exactement celle que le compteur affichait pendant la dictee. -->
     <string name="voice_limit_reached">Text inserted. Limit of %1$s reached: the rest was not recorded.</string>
 """,
+    "settings": """\
+    <!-- Port additions (2026-09-25): German, Spanish and Italian. Each language is named in itself,
+         as Français and English are, and each announcement is spoken in the language chosen: it is
+         said as the screen switches to it. The same six values in every language. -->
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+    <string name="settings_language_changed_de">Sprache auf Deutsch umgestellt</string>
+    <string name="settings_language_changed_es">Idioma cambiado a español</string>
+    <string name="settings_language_changed_it">Lingua cambiata in italiano</string>
+""",
     "applock": """\
     <!--
       Port addition (2026-09-24): the app lock, decision D-023. notes_tech never had one - the
@@ -462,6 +473,17 @@ AJOUTS_FR = {
     <string name="voice_setup_remove_confirm_body">Vous devrez le retélécharger et le réimporter pour dicter. Vos notes ne sont pas concernées.</string>
     <!-- Voir le commentaire cote EN : la borne de 2 min s'appliquait en silence (04-PIEGES.md §96). -->
     <string name="voice_limit_reached">Texte inséré. Limite de %1$s atteinte : la suite n\\'a pas été enregistrée.</string>
+""",
+    "settings": """\
+    <!-- Port additions (2026-09-25): German, Spanish and Italian. Each language is named in itself,
+         as Français and English are, and each announcement is spoken in the language chosen: it is
+         said as the screen switches to it. The same six values in every language. -->
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+    <string name="settings_language_changed_de">Sprache auf Deutsch umgestellt</string>
+    <string name="settings_language_changed_es">Idioma cambiado a español</string>
+    <string name="settings_language_changed_it">Lingua cambiata in italiano</string>
 """,
     "applock": """\
     <!-- Voir le commentaire cote EN (D-023). -->

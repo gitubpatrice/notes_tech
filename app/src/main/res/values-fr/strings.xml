@@ -287,6 +287,15 @@
     <string name="settings_panic_subtitle">Efface définitivement notes, clé, modèles et coffres.</string>
     <string name="settings_about">À propos de Notes Tech</string>
     <string name="settings_about_subtitle">Confidentialité, licences, support</string>
+    <!-- Port additions (2026-09-25): German, Spanish and Italian. Each language is named in itself,
+         as Français and English are, and each announcement is spoken in the language chosen: it is
+         said as the screen switches to it. The same six values in every language. -->
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+    <string name="settings_language_changed_de">Sprache auf Deutsch umgestellt</string>
+    <string name="settings_language_changed_es">Idioma cambiado a español</string>
+    <string name="settings_language_changed_it">Lingua cambiata in italiano</string>
 
     <!-- ── Verrouillage de l'application ───────────────────────────────── -->
     <!-- Voir le commentaire cote EN (D-023). -->

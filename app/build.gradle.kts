@@ -146,7 +146,21 @@ android {
     }
 
     androidResources {
-        localeFilters += listOf("en", "fr")
+        // ⚠️ This list FILTERS the APK: a language missing here has its `values-*` removed at build
+        // time, without an error — the app would offer it and then speak English. It must be
+        // `LocalePreference.LANGUES`, which `LanguesDeLApplicationTest` checks (Pass Tech lost its
+        // German, Spanish and Italian this way, 2026-09-20: only `aapt2` on the APK showed it).
+        localeFilters += listOf("en", "fr", "de", "es", "it")
+    }
+
+    bundle {
+        language {
+            // The app switches its own language (Settings): a bundle split by language would install
+            // the phone's language only, and choosing another would fall back to English. Notes Tech
+            // ships APKs today (GitHub, F-Droid); this keeps a future bundle honest (lint:
+            // AppBundleLocaleChanges).
+            enableSplit = false
+        }
     }
 
     signingConfigs {

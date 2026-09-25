@@ -138,6 +138,9 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
                 val annonce = when (choisie) {
                     LocalePreference.FRENCH -> R.string.settings_language_changed_fr
                     LocalePreference.ENGLISH -> R.string.settings_language_changed_en
+                    LocalePreference.GERMAN -> R.string.settings_language_changed_de
+                    LocalePreference.SPANISH -> R.string.settings_language_changed_es
+                    LocalePreference.ITALIAN -> R.string.settings_language_changed_it
                     LocalePreference.SYSTEM -> null
                 }
                 // `announceForAccessibility` est déprécié et reste le seul moyen d'annoncer un
@@ -700,6 +703,9 @@ private fun libelleDeLangue(value: LocalePreference): Int = when (value) {
     LocalePreference.SYSTEM -> R.string.settings_language_system
     LocalePreference.FRENCH -> R.string.settings_language_fr
     LocalePreference.ENGLISH -> R.string.settings_language_en
+    LocalePreference.GERMAN -> R.string.settings_language_de
+    LocalePreference.SPANISH -> R.string.settings_language_es
+    LocalePreference.ITALIAN -> R.string.settings_language_it
 }
 
 /**

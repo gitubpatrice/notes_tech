@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  German strings. Added by the Kotlin port on 2026-09-25; notes_tech 2.0.9 ships English and
+  French only, so these are written here, not generated from its ARB files.
+
+  Same names, same order, same arguments as `values/strings.xml`: LanguesDeLApplicationTest fails on a
+  missing or extra name, a different argument, or a missing plural form. Formal address (Sie), as in
+  SMS Tech; vocabulary shared with SMS Tech and Pass Tech (Tresor, Passphrase, Panikmodus).
+-->
+<resources>
+
+    <!-- Common -->
+    <string name="common_cancel">Abbrechen</string>
+    <string name="common_ok">OK</string>
+    <string name="common_close">Schließen</string>
+    <string name="common_delete">Löschen</string>
+    <string name="common_remove">Entfernen</string>
+    <string name="common_rename">Umbenennen</string>
+    <string name="common_share">Teilen</string>
+    <string name="common_error">Fehler</string>
+    <string name="common_loading">Wird geladen…</string>
+    <string name="common_validate">Bestätigen</string>
+    <string name="common_restore">Wiederherstellen</string>
+    <string name="common_back">Zurück</string>
+    <string name="common_more_options">Weitere Optionen</string>
+    <plurals name="common_retry_in_seconds">
+        <item quantity="one">Zu viele Versuche. Versuchen Sie es in %1$d Sekunde erneut.</item>
+        <item quantity="other">Zu viele Versuche. Versuchen Sie es in %1$d Sekunden erneut.</item>
+    </plurals>
+    <plurals name="common_retry_in_minutes">
+        <item quantity="one">Zu viele Versuche. Versuchen Sie es in %1$d Minute erneut.</item>
+        <item quantity="other">Zu viele Versuche. Versuchen Sie es in %1$d Minuten erneut.</item>
+    </plurals>
+
+    <!-- Splash screen -->
+    <string name="splash_tagline">Maximaler Schutz\nfür Ihre Notizen.</string>
+    <string name="splash_skip_hint">Tippen Sie auf den Bildschirm, um fortzufahren</string>
+    <string name="splash_logo_content_description">Logo von Notes Tech</string>
+    <string name="splash_semantics_label">Startbildschirm von Notes Tech</string>
+
+    <!-- Home -->
+    <string name="home_all_notes">Alle Notizen</string>
+    <string name="home_folders">Ordner</string>
+    <string name="home_new_note">Neue Notiz</string>
+    <string name="home_search_hint">Notiz suchen</string>
+    <string name="home_no_notes">Noch keine Notizen</string>
+    <string name="home_no_notes_in">Keine Notizen in diesem Ordner</string>
+    <string name="home_start_writing">Tippen Sie auf +, um Ihre erste Notiz zu erstellen.</string>
+    <string name="home_sort_mode">Sortieren</string>
+    <string name="home_sort_recent_first">Geändert – neueste zuerst</string>
+    <string name="home_sort_old_first">Geändert – älteste zuerst</string>
+    <string name="home_sort_created_recent_first">Erstellt – neueste zuerst</string>
+    <string name="home_sort_created_old_first">Erstellt – älteste zuerst</string>
+    <string name="home_sort_alpha_asc">A → Z</string>
+    <string name="home_sort_alpha_desc">Z → A</string>
+    <string name="home_folder_inbox">Eingang</string>
+    <string name="home_unpin">Nicht mehr anheften</string>
+    <string name="home_unfav">Aus Favoriten entfernen</string>
+    <plurals name="home_vault_lost_banner">
+        <item quantity="one">%1$d Tresornotiz hat ihre letzten Änderungen verloren (Tresor beim Speichern gesperrt).</item>
+        <item quantity="other">%1$d Tresornotizen haben ihre letzten Änderungen verloren (Tresor beim Speichern gesperrt).</item>
+    </plurals>
+    <string name="home_announce_vault_unlocked">Tresor entsperrt</string>
+    <string name="home_vault_create_error">Erstellen des Tresors fehlgeschlagen: %1$s</string>
+    <string name="home_note_created_in_inbox">Notiz im Eingang erstellt</string>
+    <string name="home_load_error">Beim Laden ist ein Fehler aufgetreten.</string>
+
+    <!-- Folders drawer -->
+    <string name="drawer_trash">Papierkorb</string>
+    <string name="drawer_remove_vault_protection">Schutz entfernen</string>
+    <string name="drawer_remove_vault_protection_subtitle">Ordner behalten, Notizen entschlüsseln</string>
+    <string name="drawer_header_folders">ORDNER</string>
+    <string name="drawer_new_folder">Neuer Ordner</string>
+    <string name="drawer_folder_options">Ordneroptionen</string>
+    <string name="drawer_convert_to_vault">Tresor aktivieren</string>
+    <string name="drawer_convert_to_vault_subtitle">Diesen Ordner mit einer Passphrase oder PIN sperren</string>
+    <string name="drawer_lock_now">Jetzt sperren</string>
+    <string name="drawer_lock_now_subtitle">Sperrt den entschlüsselten Tresor wieder</string>
+
+    <!-- Folders -->
+    <string name="folder_create_title">Neuer Ordner</string>
+    <string name="folder_create_field">Ordnername</string>
+    <string name="folder_rename_title">Ordner umbenennen</string>
+    <string name="folder_rename_field">Neuer Name</string>
+    <string name="folder_delete_title">Ordner löschen?</string>
+    <string name="folder_delete_choice_body">Was soll mit den Notizen aus „%1$s“ geschehen?</string>
+    <string name="folder_remove_vault_title">Tresorschutz entfernen?</string>
+    <string name="folder_remove_vault_body">Die Notizen in „%1$s“ werden entschlüsselt und unverschlüsselt in die Datenbank geschrieben. Der Ordner und sein Inhalt bleiben erhalten, sind aber nicht mehr durch eine Passphrase geschützt. Dies kann nicht rückgängig gemacht werden: Die Notizen haben dann unverschlüsselt existiert, auch wenn Sie den Ordner danach wieder schützen.</string>
+    <string name="folder_remove_vault_confirm">Entschlüsseln und entfernen</string>
+    <plurals name="folder_remove_vault_done">
+        <item quantity="one">%1$d Notiz entschlüsselt. Dieser Ordner ist kein Tresor mehr.</item>
+        <item quantity="other">%1$d Notizen entschlüsselt. Dieser Ordner ist kein Tresor mehr.</item>
+    </plurals>
+    <string name="folder_delete_vault_choice_body">„%1$s“ ist ein Tresor. Wenn Sie seine Notizen in den Eingang verschieben, wird JEDE von ihnen ENTSCHLÜSSELT und unverschlüsselt, ohne Schutz durch eine Passphrase, in die Datenbank geschrieben. Dies kann nicht rückgängig gemacht werden: Die Notizen haben dann unverschlüsselt existiert, auch wenn Sie sie danach wieder in einen Tresor legen.</string>
+    <string name="folder_delete_permanent">Endgültig löschen</string>
+    <string name="folder_delete_move_to_inbox">In den Eingang verschieben</string>
+    <string name="folder_delete_move_to_inbox_vault">Entschlüsseln und verschieben</string>
+    <string name="folder_delete_cancelled_error">Löschen abgebrochen: %1$s</string>
+    <string name="folder_convert_progress_title">Tresor wird umgewandelt…</string>
+    <string name="folder_convert_progress_body">Gesperrte Notizen werden neu verschlüsselt.</string>
+    <plurals name="folder_delete_decrypt_failed">
+        <item quantity="one">%1$d Notiz kann nicht entschlüsselt werden.</item>
+        <item quantity="other">%1$d Notizen können nicht entschlüsselt werden.</item>
+    </plurals>
+    <string name="folder_deleted">Ordner gelöscht.</string>
+    <plurals name="folder_deleted_notes_moved">
+        <item quantity="one">Ordner gelöscht, %1$d Notiz in den Eingang verschoben.</item>
+        <item quantity="other">Ordner gelöscht, %1$d Notizen in den Eingang verschoben.</item>
+    </plurals>
+    <plurals name="folder_deleted_notes_removed">
+        <item quantity="one">Ordner gelöscht, samt %1$d Notiz.</item>
+        <item quantity="other">Ordner gelöscht, samt %1$d Notizen.</item>
+    </plurals>
+
+    <!-- Note editor -->
+    <string name="note_untitled">Ohne Titel</string>
+    <string name="note_editor_title">Titel</string>
+    <string name="note_editor_content">Notiz eingeben (Markdown wird unterstützt)</string>
+    <string name="note_editor_saved">Gespeichert</string>
+    <string name="note_editor_saving">Wird gespeichert…</string>
+    <string name="note_editor_tooltip_pin">Notiz anheften</string>
+    <string name="note_editor_tooltip_fav">Als Favorit markieren</string>
+    <string name="note_editor_tooltip_insert_link">Internen Link einfügen [[Titel]]</string>
+    <string name="note_editor_tooltip_more">Weitere Aktionen</string>
+    <string name="note_editor_tooltip_dictate">Sprachdiktat</string>
+    <string name="note_editor_tooltip_done">Fertig</string>
+    <string name="note_editor_menu_export">Als Markdown exportieren</string>
+    <string name="note_editor_menu_trash">In den Papierkorb</string>
+    <string name="note_editor_backlinks">Notizen, die hierher verlinken</string>
+    <string name="note_editor_backlink_dangling">Link zu einer nicht vorhandenen Notiz: %1$s</string>
+    <string name="note_editor_announce_saved_success">Notiz gespeichert</string>
+    <string name="note_editor_outgoing_links">Links (%1$d)</string>
+    <string name="note_card_locked">🔒 Gesperrte Notiz</string>
+    <string name="note_editor_error_not_found">Notiz nicht gefunden</string>
+    <string name="note_editor_error_vault_folder_missing">Tresorordner nicht gefunden</string>
+    <string name="note_editor_error_vault_wiped">Der Tresor wurde nach zu vielen Fehlversuchen automatisch gelöscht. Die Notizen in diesem Ordner sind endgültig verloren.</string>
+    <string name="note_editor_error_vault_relocked">Tresor wieder gesperrt. Öffnen Sie die Notiz erneut, um es noch einmal zu versuchen.</string>
+    <string name="note_editor_error_load_generic">Beim Laden ist ein Fehler aufgetreten.</string>
+    <string name="note_editor_error_vault_relocked_during_edit">Tresor während der Bearbeitung wieder gesperrt. Öffnen Sie die Notiz erneut, um fortzufahren.</string>
+    <string name="note_editor_error_save_failed">Speichern fehlgeschlagen</string>
+    <string name="note_editor_copied_to_clipboard">In die Zwischenablage kopiert</string>
+    <string name="note_editor_export_failed">Export fehlgeschlagen: %1$s</string>
+    <string name="note_editor_moved">Notiz verschoben</string>
+    <string name="note_editor_move_failed">Verschieben fehlgeschlagen: %1$s</string>
+    <string name="note_editor_exit_vault_title">Notiz aus dem Tresor verschieben?</string>
+    <string name="note_editor_exit_vault_body">Der Inhalt wird entschlüsselt und unverschlüsselt, ohne Passwortschutz, in der Datenbank gespeichert. Nicht umkehrbar: Die Notiz hat dann außerhalb der Verschlüsselung existiert, auch wenn Sie sie später wieder in einen Tresor verschieben.</string>
+    <string name="note_editor_exit_vault_confirm">Tresor verlassen</string>
+    <string name="note_editor_menu_copy_markdown">Markdown kopieren</string>
+    <string name="note_editor_content_hint">In Markdown schreiben… ([[Titel]] zum Verlinken)</string>
+    <string name="note_editor_mode_edit">Bearbeiten</string>
+    <string name="note_editor_mode_preview">Vorschau</string>
+    <string name="note_editor_preview_empty">Noch nichts für die Vorschau.</string>
+    <string name="note_editor_copy_empty">Nichts zu kopieren: Diese Notiz ist leer</string>
+    <string name="move_to_folder_vault">Tresorordner: Die Notiz wird verschlüsselt</string>
+    <string name="note_editor_menu_move">In einen anderen Ordner verschieben</string>
+    <string name="move_to_folder_title">In einen anderen Ordner verschieben</string>
+    <string name="note_editor_menu_info">Info</string>
+    <string name="note_info_title">Notizinfo</string>
+    <string name="note_info_folder">Ordner</string>
+    <string name="note_info_created">Erstellt</string>
+    <string name="note_info_modified">Zuletzt geändert</string>
+    <string name="note_info_words">Wörter</string>
+    <string name="note_info_characters">Zeichen</string>
+    <string name="note_info_characters_hint">Mit Leerzeichen, ohne Zeilenumbrüche</string>
+    <string name="note_preview_task_done">Erledigt</string>
+    <string name="note_preview_task_open">Offen</string>
+    <string name="note_preview_link_no_app">Keine App auf diesem Gerät kann diesen Link öffnen.</string>
+    <string name="note_preview_as_written">Zu lang oder zu komplex für die Vorschau: wird unformatiert angezeigt.</string>
+    <string name="note_editor_link_create_failed">Die verlinkte Notiz konnte nicht erstellt werden: %1$s</string>
+    <string name="link_autocomplete_failed">Ihre Notizen konnten nicht durchsucht werden.</string>
+
+    <!-- [[Title]] links: autocompletion -->
+    <string name="link_autocomplete_title">Link einfügen</string>
+    <string name="link_autocomplete_hint">Titel der zu verlinkenden Notiz</string>
+    <string name="link_autocomplete_empty">Keine passende Notiz.</string>
+    <string name="link_autocomplete_create_new">Neue Notiz „%1$s“ erstellen</string>
+
+    <!-- Search -->
+    <string name="search_title">Suche</string>
+    <string name="search_hint">Stichwort, Titel oder Inhalt einer Notiz…</string>
+    <string name="search_empty">Keine Ergebnisse</string>
+    <string name="search_try_other">Versuchen Sie es mit einem anderen Stichwort.</string>
+    <string name="search_clear">Suche löschen</string>
+    <string name="search_empty_title">Tippen Sie, um zu suchen</string>
+    <string name="search_empty_subtitle_fts" formatted="false">Sofortige Volltextsuche, 100 % lokal.</string>
+    <string name="search_error_generic">Ein Fehler ist aufgetreten.</string>
+
+    <!-- Trash -->
+    <string name="trash_title">Papierkorb</string>
+    <string name="trash_empty_title">Der Papierkorb ist leer</string>
+    <string name="trash_empty_subtitle">Gelöschte Notizen erscheinen hier, bevor sie endgültig entfernt werden.</string>
+    <string name="trash_retention_notice">Notizen im Papierkorb werden nach %1$d Tagen automatisch gelöscht.</string>
+    <string name="trash_restored">Notiz wiederhergestellt</string>
+    <string name="trash_delete_forever">Endgültig löschen</string>
+    <string name="trash_delete_forever_title">Endgültig löschen?</string>
+    <string name="trash_delete_forever_body">Diese Notiz wird endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="trash_deleted_forever">Notiz endgültig gelöscht</string>
+    <string name="trash_empty_all">Papierkorb leeren</string>
+    <string name="trash_empty_all_confirm">Alle Notizen im Papierkorb endgültig löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <plurals name="trash_emptied">
+        <item quantity="one">%1$d Notiz endgültig gelöscht</item>
+        <item quantity="other">%1$d Notizen endgültig gelöscht</item>
+    </plurals>
+
+    <!-- Vaults: passphrase and PIN -->
+    <string name="vault_pass_create_title">Tresor erstellen</string>
+    <string name="vault_pass_create_body">Wählen Sie eine starke Passphrase für diesen Ordner. Bewahren Sie sie an einem sicheren Ort auf: Wenn Sie sie vergessen, sind die gesperrten Notizen nicht wiederherstellbar.</string>
+    <string name="vault_pass_field">Passphrase</string>
+    <string name="vault_pass_confirm_field">Passphrase bestätigen</string>
+    <string name="vault_pass_min_length">Mindestens %1$d Zeichen.</string>
+    <string name="vault_pass_mismatch">Die beiden Passphrasen stimmen nicht überein.</string>
+    <string name="vault_pass_warning_lost">Wenn Sie diese Passphrase vergessen, sind die gesperrten Notizen in diesem Ordner NICHT WIEDERHERSTELLBAR. Notes Tech speichert die Passphrase nicht und kann sie nicht neu erzeugen.</string>
+    <string name="vault_pass_create_action">Tresor erstellen</string>
+    <string name="vault_pass_unlock_title">Tresor entsperren</string>
+    <string name="vault_pass_unlock_body">Geben Sie die Passphrase für den Ordner „%1$s“ ein.</string>
+    <string name="vault_pass_wrong">Falsche Passphrase.</string>
+    <string name="vault_pass_deriving">Argon2id-Ableitung läuft…</string>
+    <string name="vault_pass_unlock_action">Entsperren</string>
+    <string name="vault_pin_create_title">PIN-Tresor erstellen</string>
+    <string name="vault_pin_confirm_field">PIN bestätigen</string>
+    <string name="vault_pin_mismatch">Die beiden PINs stimmen nicht überein.</string>
+    <string name="vault_pin_too_short">Die PIN muss %1$d bis %2$d Ziffern haben.</string>
+    <string name="vault_pin_warning_wipe">Achtung: 5 falsche PIN-Eingaben in Folge löschen die gesperrten Notizen in diesem Ordner endgültig.</string>
+    <string name="vault_pin_unlock_title">Tresor entsperren (PIN)</string>
+    <string name="vault_pin_unlock_body">PIN für den Ordner „%1$s“.</string>
+    <string name="vault_pin_wrong">Falsche PIN.</string>
+    <string name="vault_pin_attempts_left">Verbleibende Versuche: %1$d</string>
+    <string name="vault_pin_wiped">Zu viele Versuche: Der Tresor wurde gelöscht.</string>
+    <string name="vault_pin_digits_announce">%1$d von %2$d Ziffern eingegeben</string>
+    <string name="vault_pin_key_label">Taste %1$s</string>
+    <string name="vault_pin_key_delete">Letzte Ziffer löschen</string>
+    <string name="vault_mode_choose">Entsperrmethode wählen</string>
+    <string name="vault_mode_passphrase">Passphrase</string>
+    <string name="vault_mode_passphrase_desc">Empfohlen. Langsamere Ableitung, aber widerstandsfähig gegen Brute-Force-Angriffe außerhalb des Geräts.</string>
+    <string name="vault_mode_pin">PIN (4–6 Ziffern)</string>
+    <string name="vault_mode_pin_desc">Schneller. Automatisches Löschen nach 5 Fehlversuchen. An das Gerät gebundene Sicherheit (Keystore).</string>
+    <string name="vault_convert_partial_fail">%1$d von %2$d Notizen konnten nicht umgewandelt werden.</string>
+    <string name="vault_convert_success">Tresor aktiviert.</string>
+    <string name="vault_convert_success_with_count">Tresor aktiviert. %1$d Notiz(en) verschlüsselt.</string>
+    <string name="vault_convert_impossible">Umwandlung fehlgeschlagen: %1$s</string>
+    <string name="vault_convert_escaped_cancellation">Zu spät abgebrochen: Dieser Ordner ist jetzt ein Tresor. Seine Notizen werden beim ersten Öffnen verschlüsselt.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_section_appearance">Darstellung</string>
+    <string name="settings_section_security">Sicherheit</string>
+    <string name="settings_section_about">Über</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">Wie im System</string>
+    <string name="settings_language_fr">Français</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_changed_fr">Langue changée en français</string>
+    <string name="settings_language_changed_en">Language switched to English</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_theme_system">Wie im System</string>
+    <string name="settings_theme_light">Hell</string>
+    <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_secure_window">In den letzten Apps ausblenden</string>
+    <string name="settings_secure_window_subtitle">Verhindert Bildschirmfotos und blendet die Vorschau der App in der Android-Übersicht der letzten Apps aus.</string>
+    <string name="settings_vault_auto_lock">Automatische Tresorsperre</string>
+    <plurals name="settings_vault_auto_lock_minutes">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
+    <string name="settings_vault_auto_lock_never">Nie</string>
+    <string name="settings_export_all">Alle meine Notizen exportieren</string>
+    <string name="settings_export_subtitle">Erstellt ein ZIP-Archiv mit Markdown-Dateien, nach Ordnern gegliedert.</string>
+    <string name="settings_export_done">Export abgeschlossen: %1$d Notizen</string>
+    <string name="settings_export_done_partial">Export abgeschlossen: %1$d Notizen (%2$d in gesperrten Tresoren übersprungen)</string>
+    <string name="settings_export_error">Export fehlgeschlagen: %1$s</string>
+    <string name="settings_panic">Panikmodus</string>
+    <string name="settings_panic_subtitle">Löscht Notizen, Schlüssel, Modelle und Tresore endgültig.</string>
+    <string name="settings_about">Über Notes Tech</string>
+    <string name="settings_about_subtitle">Datenschutz, Lizenzen, Support</string>
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+    <string name="settings_language_changed_de">Sprache auf Deutsch umgestellt</string>
+    <string name="settings_language_changed_es">Idioma cambiado a español</string>
+    <string name="settings_language_changed_it">Lingua cambiata in italiano</string>
+
+    <!-- App lock -->
+    <string name="app_lock_prompt">Geben Sie Ihre PIN ein</string>
+    <string name="app_lock_unlock">Entsperren</string>
+    <string name="app_lock_wrong_pin">Falsche PIN.</string>
+    <string name="app_lock_use_biometric">Mit Biometrie entsperren</string>
+    <string name="app_lock_biometric_prompt_title">Notes Tech entsperren</string>
+    <string name="app_lock_biometric_prompt_use_pin">PIN verwenden</string>
+    <string name="app_lock_biometric_failed">Das biometrische Entsperren hat nicht funktioniert. Verwenden Sie Ihre PIN.</string>
+    <string name="app_lock_biometric_invalidated">Die Fingerabdrücke oder Gesichter dieses Geräts haben sich geändert, daher wurde das biometrische Entsperren deaktiviert. Entsperren Sie mit Ihrer PIN und aktivieren Sie es dann in den Einstellungen wieder.</string>
+    <string name="app_lock_keystore_unavailable">Die PIN konnte gerade nicht geprüft werden. Versuchen Sie es gleich noch einmal.</string>
+    <string name="app_lock_forgot_pin">PIN vergessen?</string>
+    <string name="app_lock_forgot_body">Die PIN kann weder wiederhergestellt noch zurückgesetzt werden: Sie verlässt dieses Gerät nie. Die einzige Möglichkeit, Notes Tech wieder zu verwenden, besteht darin, alle Ihre Notizen und Einstellungen mit dem Panikmodus zu löschen.</string>
+    <string name="app_lock_forgot_erase">Alles löschen…</string>
+    <string name="app_lock_unverifiable">Die PIN kann auf diesem Gerät nicht mehr geprüft werden: Der Schlüssel, der sie überprüft, fehlt oder ist beschädigt. Ihre Notizen wurden nicht verändert, aber der einzige Weg zurück in Notes Tech ist, mit dem Panikmodus alles zu löschen.</string>
+    <string name="app_lock_unverifiable_biometric">Die PIN kann auf diesem Gerät nicht mehr geprüft werden: Der Schlüssel, der sie überprüft, fehlt oder ist beschädigt. Ihre Notizen wurden nicht verändert. Das biometrische Entsperren funktioniert noch; ohne es ist der einzige Weg zurück in Notes Tech, mit dem Panikmodus alles zu löschen.</string>
+    <string name="app_lock_not_recorded">Dieser Versuch konnte nicht auf dem Gerät gespeichert werden, daher wurde die PIN nicht geprüft. Geben Sie Speicherplatz frei und versuchen Sie es dann erneut.</string>
+
+    <string name="app_lock_settings_title">App-Sperre</string>
+    <string name="app_lock_settings_toggle">App mit einer PIN sperren</string>
+    <string name="app_lock_settings_toggle_subtitle">Wird beim Öffnen von Notes Tech abgefragt</string>
+    <string name="app_lock_settings_change_pin">PIN ändern</string>
+    <string name="app_lock_settings_biometric">Mit Biometrie entsperren</string>
+    <string name="app_lock_settings_biometric_subtitle">Fingerabdruck, oder Gesicht, wenn das Gerät seine Gesichtsentsperrung als sicher einstuft</string>
+    <string name="app_lock_settings_biometric_not_enrolled">Fügen Sie zuerst in den Geräteeinstellungen einen Fingerabdruck hinzu.</string>
+    <string name="app_lock_settings_biometric_unavailable">Dieses Gerät hat keinen ausreichend sicheren biometrischen Sensor.</string>
+    <string name="app_lock_settings_delay">Sperren nach Verlassen der App</string>
+    <string name="app_lock_delay_immediately">Sofort</string>
+    <plurals name="app_lock_delay_seconds">
+        <item quantity="one">Nach %1$d Sekunde</item>
+        <item quantity="other">Nach %1$d Sekunden</item>
+    </plurals>
+    <plurals name="app_lock_delay_minutes">
+        <item quantity="one">Nach %1$d Minute</item>
+        <item quantity="other">Nach %1$d Minuten</item>
+    </plurals>
+    <string name="app_lock_secure_window_forced">Immer aktiv, solange die App-Sperre aktiv ist: Unter dieser Android-Version verbirgt diese Option Ihre Notizen in der Übersicht der letzten Apps.</string>
+
+    <string name="app_lock_pin_current_title">Geben Sie Ihre aktuelle PIN ein</string>
+    <string name="app_lock_pin_new_title">Wählen Sie eine PIN</string>
+    <string name="app_lock_pin_confirm_title">PIN bestätigen</string>
+    <string name="app_lock_pin_new_warning">Wenn Sie diese PIN vergessen, ist der einzige Weg zurück in Notes Tech, alle Ihre Notizen zu löschen.</string>
+
+    <string name="app_lock_enabled">App-Sperre aktiviert.</string>
+    <string name="app_lock_disabled">App-Sperre deaktiviert.</string>
+    <string name="app_lock_pin_changed">PIN geändert.</string>
+    <string name="app_lock_biometric_enabled">Biometrisches Entsperren aktiviert.</string>
+    <string name="app_lock_not_saved">Die Änderung konnte nicht gespeichert werden. Versuchen Sie es erneut.</string>
+    <string name="app_lock_proof_expired">Es ist zu viel Zeit vergangen. Geben Sie Ihre PIN erneut ein.</string>
+    <string name="app_lock_biometric_setup_failed">Das biometrische Entsperren konnte auf diesem Gerät nicht eingerichtet werden.</string>
+
+    <!-- Markdown / ZIP export -->
+    <string name="export_note_from_vault">Notiz aus einem Tresor: %1$s</string>
+    <string name="export_share_subject">Notes Tech – Export von %1$d Notizen</string>
+
+    <!-- Panic mode -->
+    <string name="panic_confirm_title">Alle Daten endgültig löschen?</string>
+    <string name="panic_confirm_keyword">LÖSCHEN</string>
+    <string name="panic_confirm_yes">Alles löschen</string>
+    <string name="panic_progress">Wird gelöscht…</string>
+    <string name="panic_progress_subtitle">Bitte warten.</string>
+    <string name="panic_announce_done">Löschen abgeschlossen</string>
+    <string name="panic_complete_title">Löschen abgeschlossen</string>
+    <string name="panic_complete_body">Alle Daten wurden gelöscht. Notes Tech startet wie beim ersten Mal.</string>
+    <string name="panic_complete_close">App schließen</string>
+    <string name="panic_complete_footer">Beim nächsten Start beginnt Notes Tech mit einem leeren Blatt.</string>
+    <string name="panic_complete_bullet_1">Hauptschlüssel im Keystore: zerstört</string>
+    <string name="panic_complete_bullet_2">Notizdatenbank: gelöscht und überschrieben</string>
+    <string name="panic_complete_bullet_3">Diktiermodell: deinstalliert</string>
+    <string name="panic_complete_bullet_4">Einstellungen: zurückgesetzt</string>
+    <string name="panic_confirm_destroy_intro">Sie sind dabei, UNWIDERRUFLICH ZU ZERSTÖREN:</string>
+    <string name="panic_confirm_item_1">Alle Ihre Notizen (Verschlüsselung zerstört + Datei überschrieben)</string>
+    <string name="panic_confirm_item_2">Das installierte Diktiermodell</string>
+    <string name="panic_confirm_item_3">Alle Einstellungen und den Verlauf</string>
+    <string name="panic_confirm_irreversible">Diese Aktion kann NICHT rückgängig gemacht werden. Keine Sicherung, kein Papierkorb, keine forensische Wiederherstellung möglich.</string>
+    <string name="panic_confirm_type_prompt">Geben Sie zur Bestätigung genau Folgendes ein: %1$s</string>
+    <string name="panic_confirm_field_label">Bestätigungswort</string>
+    <string name="panic_key_survived_title">Der Schlüssel wurde NICHT zerstört</string>
+    <string name="panic_key_survived">Ihre Notizen können auf diesem Gerät weiterhin entschlüsselt werden. %1$d Schritt(e) fehlgeschlagen. Geben Sie das Gerät nicht aus der Hand.</string>
+    <string name="panic_incomplete">Schlüssel zerstört: Ihre Notizen können nicht mehr entschlüsselt werden. Allerdings sind %1$d Bereinigungsschritt(e) fehlgeschlagen – unlesbare Dateien können auf dem Gerät verbleiben.</string>
+    <string name="panic_incomplete_plaintext">Schlüssel zerstört: Die Datenbank kann nicht mehr entschlüsselt werden. Allerdings können LESBARE Inhalte auf diesem Gerät verbleiben – ein Exportarchiv, eine Diktataufnahme oder eine in die Zwischenablage kopierte Notiz. Geben Sie das Gerät nicht aus der Hand, bevor Sie dies geprüft haben.</string>
+
+    <!-- Voice dictation -->
+    <string name="voice_mic_initializing">Mikrofon wird initialisiert…</string>
+    <string name="voice_transcribing_hint">Bitte warten…</string>
+    <string name="voice_open_system_settings">Einstellungen öffnen</string>
+    <string name="voice_setup_title">Sprachdiktat</string>
+    <string name="voice_setup_enable">Sprachdiktat aktivieren</string>
+    <string name="voice_setup_choose_model">Whisper-Modell wählen</string>
+    <string name="voice_setup_download">Auf dieses Telefon herunterladen</string>
+    <string name="voice_setup_select_file">.bin-Datei auswählen</string>
+    <string name="voice_setup_verifying">Fingerabdruck wird geprüft…</string>
+    <string name="voice_setup_install_ok">Modell installiert: %1$s</string>
+    <string name="voice_setup_install_fail">Installation fehlgeschlagen: %1$s</string>
+    <string name="voice_setup_remove">Installiertes Modell entfernen</string>
+    <string name="voice_recording_title">Aufnahme</string>
+    <string name="voice_recording_hint">Sprechen Sie. Tippen Sie auf „Stopp“, um zu transkribieren.</string>
+    <string name="voice_recording_stop">Stopp</string>
+    <string name="voice_transcribing">Wird transkribiert…</string>
+    <string name="voice_transcribed">Text eingefügt.</string>
+    <string name="voice_permission_denied">Mikrofonberechtigung verweigert.</string>
+    <string name="voice_setup_app_bar_title">Sprachdiktat</string>
+    <string name="voice_setup_how_to_title">So aktivieren Sie das Diktat</string>
+    <string name="voice_setup_step_1_title">1. Modell wählen</string>
+    <string name="voice_setup_step_1_text">Whisper Base (57 MB) empfohlen.</string>
+    <string name="voice_setup_step_2_title">2. Herunterladen</string>
+    <string name="voice_setup_step_2_text">Ihr Browser lädt die .bin-Datei in /Downloads herunter. Notes Tech hat weiterhin keine Internetberechtigung.</string>
+    <string name="voice_setup_step_3_title">3. Importieren</string>
+    <string name="voice_setup_step_3_text">Wählen Sie die heruntergeladene .bin-Datei. Die App prüft SHA-256 und kopiert sie dann in ihren privaten Speicher.</string>
+    <string name="voice_setup_copy_link_tooltip">Link kopieren</string>
+    <string name="voice_setup_link_copied">Link in die Zwischenablage kopiert</string>
+    <string name="voice_setup_path_unavailable">Dateipfad nicht verfügbar</string>
+    <string name="voice_setup_import_error_title">Import fehlgeschlagen</string>
+    <string name="voice_setup_browser_open_failed">Kein Browser verfügbar</string>
+    <string name="voice_setup_browser_open_error">Browser kann nicht geöffnet werden: %1$s</string>
+    <string name="voice_setup_copying">Wird kopiert…</string>
+    <string name="voice_setup_import_in_progress">Import läuft, bitte warten.</string>
+    <string name="voice_setup_picker_dialog_title">.bin-Datei für %1$s auswählen</string>
+    <string name="voice_model_base_name">Whisper Base (mehrsprachig, 57 MB)</string>
+    <string name="voice_model_base_notes">Empfohlen. Gute Qualität, etwa 3 s, um 5 s Audio auf einem Mittelklasse-Telefon zu transkribieren.</string>
+    <string name="voice_model_tiny_name">Whisper Tiny (mehrsprachig, 32 MB)</string>
+    <string name="voice_model_tiny_notes">Leicht und schnell, aber weniger genau. Für einfache Telefone oder schnelle Notizen.</string>
+    <string name="voice_permission_denied_permanent_body">Der Mikrofonzugriff wurde dauerhaft verweigert. Erlauben Sie ihn in den App-Einstellungen.</string>
+    <string name="voice_setup_subtitle">Whisper, auf diesem Gerät. Die Audiodaten werden gelöscht, sobald die Transkription vorliegt.</string>
+    <string name="voice_setup_offline_banner">Vollständig offline. Die Audiodaten werden gelöscht, sobald die Transkription vorliegt.</string>
+    <string name="voice_setup_security_footer_label">So werden Ihre Daten behandelt</string>
+    <string name="voice_setup_security_footer_body">Audiodaten werden gelöscht, sobald die Transkription vorliegt; Transkription lokal durch das in die App integrierte whisper.cpp; SHA-256 des Modells wird vor jedem Laden geprüft.</string>
+    <string name="voice_setup_upstream_file">Herunterzuladende Datei: %1$s</string>
+    <string name="voice_setup_model_installed">Installiert</string>
+    <string name="voice_setup_model_not_installed">Nicht installiert</string>
+    <string name="voice_setup_copying_progress">Kopieren und Prüfen: %1$d %%</string>
+    <string name="voice_setup_error_source_invalid">Diese Datei passt nicht zum ausgewählten Modell. Haben Sie die richtige .bin-Datei gewählt?</string>
+    <string name="voice_setup_error_storage_full">Nicht genug Speicherplatz auf diesem Gerät. Geben Sie Speicher frei und versuchen Sie es dann erneut.</string>
+    <string name="voice_setup_error_checksum">Der Fingerabdruck der Datei stimmt nicht. Der Download wurde vielleicht unterbrochen, oder die Datei stammt aus einer anderen Quelle. Sie wurde gelöscht.</string>
+    <string name="voice_setup_error_import_failed">Der Import ist fehlgeschlagen. Versuchen Sie es erneut.</string>
+    <string name="voice_nothing_heard">Es wurde nichts gehört, kein Text eingefügt.</string>
+    <string name="voice_permission_needed">Zum Diktieren wird die Mikrofonberechtigung benötigt. Tippen Sie erneut auf das Mikrofon, um sie zu erteilen.</string>
+    <string name="voice_system_settings_unavailable">Dieses Gerät bietet diesen Einstellungsbildschirm nicht an. Öffnen Sie die Android-Einstellungen, suchen Sie Notes Tech und erlauben Sie das Mikrofon.</string>
+    <string name="voice_setup_remove_confirm_title">Modell entfernen?</string>
+    <string name="voice_setup_remove_confirm_body">Sie müssen es erneut herunterladen und importieren, um zu diktieren. Ihre Notizen sind nicht betroffen.</string>
+    <string name="voice_limit_reached">Text eingefügt. Grenze von %1$s erreicht: Der Rest wurde nicht aufgenommen.</string>
+
+    <!-- About -->
+    <string name="about_title">Über</string>
+    <string name="about_tagline">Ihre Notizen bleiben in Ihrer Tasche. Verschlüsselt und offline.</string>
+    <string name="about_check_updates">Nach Updates suchen</string>
+    <string name="about_check_updates_hint">Öffnet die Seite der Releases auf GitHub in Ihrem Browser – die App selbst verbindet sich nie mit dem Internet.</string>
+    <string name="about_section_privacy">Datenschutz</string>
+    <string name="about_privacy_card_title" formatted="false">100 % privat – keine Überwachung</string>
+    <string name="about_privacy_1">Keine Netzwerkverbindung – im Manifest überprüfbar</string>
+    <string name="about_privacy_2">Kein Konto, keine Registrierung</string>
+    <string name="about_privacy_3">Kein Tracker, keine Werbung</string>
+    <string name="about_privacy_4">Notizen lokal verschlüsselt (SQLCipher + Android Keystore)</string>
+    <string name="about_privacy_5">Modus „In den letzten Apps ausblenden“ verfügbar</string>
+    <string name="about_section_voice">Sprachdiktat</string>
+    <string name="about_voice_1">Whisper auf dem Gerät (whisper.cpp über files_tech_voice)</string>
+    <string name="about_voice_2">SHA-256 des Modells beim Download und vor jedem Laden geprüft</string>
+    <string name="about_voice_3">Aufgenommenes Audio wird nie dauerhaft gespeichert (nach der Transkription gelöscht)</string>
+    <string name="about_notice_title">So aktivieren Sie das Diktat</string>
+    <string name="about_notice_step_1">Einstellungen → Sprachdiktat → Sprachdiktat aktivieren.</string>
+    <string name="about_notice_step_2">Wählen Sie ein Modell (Whisper Base 57 MB empfohlen).</string>
+    <string name="about_notice_step_3">Tippen Sie auf „Auf dieses Telefon herunterladen“: Der Systembrowser lädt die .bin-Datei in „Downloads“ herunter. Notes Tech hat weiterhin keine Internetberechtigung: Ihr Browser lädt herunter, nicht die App.</string>
+    <string name="about_notice_step_4">Tippen Sie auf „.bin-Datei auswählen“: Die App prüft den kryptografischen Fingerabdruck und kopiert das Modell dann in ihren privaten Bereich.</string>
+    <string name="about_notice_step_5">Tippen Sie in einer Notiz oben auf das Mikrofonsymbol 🎤. Sprechen Sie und tippen Sie dann auf „Stopp“. Der transkribierte Text wird an der Cursorposition eingefügt.</string>
+    <string name="about_section_licenses">Quellen, Lizenzen und offener Code</string>
+    <string name="about_link_repo">Notes Tech (diese App)</string>
+    <string name="about_link_voice">files_tech_voice (Whisper-Spracherkennungsmodul)</string>
+    <string name="about_link_whisper">Quelle der Whisper-Modelle (.bin)</string>
+    <string name="about_license">Apache License 2.0 – quelloffener, überprüfbarer Code</string>
+    <string name="about_free">Kostenlos – keine Premiumstufe, kein Abonnement</string>
+    <string name="about_section_contact">Autor &amp; Kontakt</string>
+    <string name="about_contact_email">E-Mail senden</string>
+    <string name="about_contact_questions">Fragen, Vorschläge, Rückmeldungen</string>
+    <string name="about_section_legal">Rechtliches</string>
+    <string name="about_legal_link">Vollständige rechtliche Hinweise anzeigen</string>
+    <string name="about_legal_subtitle">Herausgeber, erhobene Daten, Berechtigungen, Rechte, Lizenz</string>
+    <string name="about_link_copied">Link kopiert – fügen Sie ihn in Ihren Browser ein.</string>
+
+    <!-- Legal notice -->
+    <string name="legal_title">Rechtliche Hinweise</string>
+    <string name="legal_tab_privacy">Datenschutz</string>
+    <string name="legal_tab_terms">Bedingungen</string>
+
+    <!-- Miscellaneous -->
+    <string name="app_title">Notes Tech</string>
+    <string name="passphrase_show_tooltip">Passphrase anzeigen</string>
+    <string name="passphrase_hide_tooltip">Passphrase ausblenden</string>
+    <string name="move_to_folder_empty">Kein anderer Ordner verfügbar.</string>
+    <string name="ai_chat_model_loaded">Modell bereit</string>
+    <string name="error_vault_locked">Tresor gesperrt.</string>
+    <string name="error_voice_no_model_installed">Kein Transkriptionsmodell installiert.</string>
+    <string name="error_voice_start_capture_failed">Die Mikrofonaufnahme konnte nicht gestartet werden.</string>
+    <string name="error_voice_transcribe_failed">Transkription fehlgeschlagen.</string>
+    <string name="error_voice_mic_capture_error">Fehler bei der Mikrofonaufnahme.</string>
+    <string name="error_folder_name_required">Ein Ordnername ist erforderlich.</string>
+    <string name="error_inbox_not_deletable">Der Ordner „Eingang“ kann nicht gelöscht werden.</string>
+    <string name="error_note_title_too_long">Titel zu lang (höchstens 200 Zeichen).</string>
+    <string name="error_vault_already_enabled">Dieser Ordner ist bereits ein Tresor.</string>
+    <string name="error_vault_passphrase_too_short">Passphrase zu kurz (mindestens 8 Zeichen).</string>
+    <string name="error_vault_passphrase_wrong">Falsche Passphrase.</string>
+    <string name="error_vault_pin_too_short">Ungültige PIN: 4 bis 6 Ziffern.</string>
+    <string name="error_vault_pin_not_digits">Ungültige PIN: nur Ziffern.</string>
+    <string name="error_vault_pin_wrong">Falsche PIN.</string>
+    <string name="error_vault_pin_wiped">Der Tresor hat sich nach zu vielen Fehlversuchen selbst gelöscht.</string>
+    <string name="error_vault_not_pin_vault">Dieser Ordner ist kein PIN-Tresor.</string>
+    <string name="error_vault_not_avault">Dieser Ordner ist kein Tresor.</string>
+    <string name="error_vault_encrypted_content_invalid">Verschlüsselter Inhalt ungültig (zu kurz).</string>
+    <string name="error_vault_wrap_invalid">Verschlüsselte Hülle ungültig (GCM-Tag abgeschnitten).</string>
+    <string name="error_unexpected">Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.</string>
+    <string name="error_clipboard_secure_unavailable">Kopieren abgelehnt: Die sichere Zwischenablage ist nicht verfügbar.</string>
+    <string name="error_vault_pin_hardware_unavailable">PIN-Tresore benötigen einen hardwaregestützten Schlüsselspeicher, den dieses Gerät nicht bietet. Verwenden Sie stattdessen einen Passphrase-Tresor.</string>
+    <string name="error_vault_pin_needs_screen_lock">PIN-Tresore benötigen eine Displaysperre auf diesem Telefon. Richten Sie in den Android-Einstellungen eine PIN, ein Muster oder ein Passwort ein, oder verwenden Sie einen Passphrase-Tresor.</string>
+    <string name="pin_show_tooltip">PIN anzeigen</string>
+    <string name="pin_hide_tooltip">PIN ausblenden</string>
+
+    <!-- Startup failure -->
+    <string name="startup_failure_title">Ihre Notizen konnten nicht entsperrt werden</string>
+    <string name="startup_failure_notes_are_safe">Ihre Notizen befinden sich noch auf diesem Gerät und wurden nicht verändert.</string>
+    <string name="startup_failure_missing_key">Der Verschlüsselungsschlüssel dieser Datenbank wurde nicht gefunden. Deinstallieren Sie die App nicht und löschen Sie nicht ihre Daten: Ihre Notizen wären sonst endgültig verloren. Schreiben Sie an contact@files-tech.com.</string>
+    <string name="startup_failure_key_unavailable">Der Schlüsselspeicher des Geräts ist vorübergehend nicht verfügbar. Starten Sie die App neu; wenn das Problem weiter besteht, starten Sie das Gerät neu.</string>
+    <string name="startup_failure_unknown">Der Schlüssel wurde gefunden, konnte aber nicht verwendet werden. Versuchen Sie es erneut; wenn das Problem weiter besteht, melden Sie es – Ihre Notizen werden nicht verändert.</string>
+    <string name="startup_failure_retry">Erneut versuchen</string>
+
+</resources>

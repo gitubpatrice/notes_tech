@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.about
 
+import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.domain.markdown.LinkTarget
 import com.filestech.notes_tech.domain.markdown.MarkdownPreviewReader
 import com.filestech.notes_tech.domain.markdown.PreviewBlock
@@ -9,11 +10,12 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * The four legal pages, read by the note preview's reader, as `LegalScreen` draws them.
+ * The legal pages of every language of the app, read by the note preview's reader, as `LegalScreen`
+ * draws them.
  *
  * The screen does nothing with a note link — there is no note to open from a legal page — so none may
  * be there: a `[[…]]` written outside code would be a link that does nothing when tapped. The privacy
- * pages name the feature, in both languages, inside inline code, where it is text.
+ * pages name the feature, in every language, inside inline code, where it is text.
  */
 class PagesLegalesTest {
 
@@ -34,7 +36,7 @@ class PagesLegalesTest {
     @Test
     fun `the privacy pages write a note link in code, which stays text`() {
         val confidentialite = PAGES.filter { it.name == "privacy.md" }
-        assertThat(confidentialite).hasSize(2)
+        assertThat(confidentialite).hasSize(LocalePreference.LANGUES.size)
 
         for (page in confidentialite) {
             assertThat(page.readText()).contains("[[")
@@ -54,7 +56,7 @@ class PagesLegalesTest {
 
     private companion object {
         /** Gradle runs the JVM tests from the module's directory. */
-        val PAGES = listOf("raw", "raw-fr").flatMap { dossier ->
+        val PAGES = LocalePreference.LANGUES.map { if (it == "en") "raw" else "raw-$it" }.flatMap { dossier ->
             listOf("privacy.md", "terms.md").map { File("src/main/res/$dossier/$it") }
         }
     }

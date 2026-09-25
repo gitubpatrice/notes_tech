@@ -32,7 +32,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
-import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.security.applock.AppLockLifecycle
 import com.filestech.notes_tech.security.applock.AppLockManager
@@ -139,13 +138,9 @@ class MainActivity : FragmentActivity() {
      */
     override fun attachBaseContext(newBase: Context) {
         val prefs = AppSettings(LegacyPreferences(newBase))
-        val langue = when (prefs.localeNow()) {
-            LocalePreference.FRENCH -> Locale.FRENCH
-            LocalePreference.ENGLISH -> Locale.ENGLISH
-            // `SYSTEM` ne force rien : on laisse le contexte tel qu'Android l'a construit, ce qui
-            // suit le réglage de l'appareil, y compris quand il change en cours d'exécution.
-            LocalePreference.SYSTEM -> null
-        }
+        // `SYSTEM` (no code) forces nothing: the context stays as Android built it, following the
+        // device's setting, even when it changes while the app runs.
+        val langue = prefs.localeNow().code?.let(Locale::forLanguageTag)
         super.attachBaseContext(if (langue == null) newBase else newBase.avecLangue(langue))
     }
 

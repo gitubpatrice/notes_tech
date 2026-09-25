@@ -11,8 +11,31 @@ import javax.inject.Singleton
 /** Le thème demandé par l'utilisateur. Miroir de `ThemeMode` côté Flutter. */
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 
-/** La langue demandée. `SYSTEM` suit le réglage de l'appareil. */
-enum class LocalePreference { SYSTEM, FRENCH, ENGLISH }
+/**
+ * La langue demandée. `SYSTEM` suit le réglage de l'appareil.
+ *
+ * [code] is both what is persisted — in the preferences file shared with notes_tech 2.0.9, which
+ * knows "fr", "en" and "system" — and the language tag the resources are chosen by. German, Spanish
+ * and Italian are the port's (2026-09-25): 2.0.9 reads their codes as "follow the system".
+ */
+enum class LocalePreference(val code: String?) {
+    SYSTEM(null),
+    FRENCH("fr"),
+    ENGLISH("en"),
+    GERMAN("de"),
+    SPANISH("es"),
+    ITALIAN("it"),
+    ;
+
+    companion object {
+        /**
+         * Every language the app ships — the one list the others are checked against: the APK's
+         * `localeFilters`, the `values-*` and `raw-*` folders (`LanguesDeLApplicationTest`). A
+         * language missing from one of them is a language the app offers and then does not speak.
+         */
+        val LANGUES: List<String> = entries.mapNotNull { it.code }
+    }
+}
 
 /**
  * Les réglages de l'application, dans le fichier de préférences hérité.
@@ -57,22 +80,14 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
 
     // ── Langue ───────────────────────────────────────────────────────────────────────────────────
 
-    fun localeNow(): LocalePreference = when (prefs.string(KEY_LOCALE)) {
-        "fr" -> LocalePreference.FRENCH
-        "en" -> LocalePreference.ENGLISH
-        else -> LocalePreference.SYSTEM
+    fun localeNow(): LocalePreference {
+        val code = prefs.string(KEY_LOCALE)
+        return LocalePreference.entries.firstOrNull { it.code != null && it.code == code } ?: LocalePreference.SYSTEM
     }
 
     val locale: Flow<LocalePreference> = observing { localeNow() }
 
-    fun setLocale(value: LocalePreference) = prefs.putString(
-        KEY_LOCALE,
-        when (value) {
-            LocalePreference.FRENCH -> "fr"
-            LocalePreference.ENGLISH -> "en"
-            LocalePreference.SYSTEM -> "system"
-        },
-    )
+    fun setLocale(value: LocalePreference) = prefs.putString(KEY_LOCALE, value.code ?: "system")
 
     // ── Tri des notes ────────────────────────────────────────────────────────────────────────────
 
