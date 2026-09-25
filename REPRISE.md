@@ -70,6 +70,13 @@
      laissés (homonymes, troncature à 8 : §84, identiques dans la 2.0.9) ;
    - **TalkBack** : Claude ne peut pas entendre ; la note d'essai est **prête sur le S9** et les étapes
      sont ci-dessous (« CE QUI RESTE », point 5).
+8. **Le panneau Infos a ses tests** (point 4 de l'ancienne liste) : `InfosDeLaNoteTest` (JVM, 3 : les
+   comptes viennent du texte à l'écran et non de la ligne scellée d'une note de coffre ; retours à la
+   ligne exclus, espaces comptés ; rien tant que la note n'est pas lisible) et `PanneauInfosTest`
+   (S9, **5/5** : une ligne = un seul nœud libellé + valeur ; chiffres groupés dans la langue du lecteur ;
+   dernière ligne atteignable en police double ; fermer ; balayages d'accessibilité, population
+   vérifiée). **Cinq contrôles négatifs, tous tombent** (fusion retirée, `toString`, colonne non
+   défilante, comptes pris sur la ligne en base, coffre à déverrouiller non écarté).
 
 ### Mesuré
 
@@ -135,8 +142,8 @@
       ou toucher avec trois doigts) doit proposer **« Liens »**, avec « Codes » et « site web » ; choisir
       « Codes » ouvre la note « Codes » (créée au passage).
    5. Désactiver par le même chemin (lecteur actif : un toucher sélectionne, deux touchers activent).
-6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
-   bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
+6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : ✅ ~~test de
+   `NoteInfoDialog`~~ (point 8 ci-dessus), bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
    finales (`05-PARITE.md`, `12-PLAN-DE-BASCULE.md` : la 3.0.0 ajoute aussi une **dépendance**,
    `org.jetbrains:markdown`, à déclarer dans la description F-Droid s'il y a lieu), ménage de
    l'émulateur (code **1111 reposé le 25** ; l'empreinte du 24 a disparu, non reposée).
