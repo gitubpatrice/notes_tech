@@ -282,6 +282,8 @@ val rangsDAbi = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
 // ⚠️ A rank must be a single digit, otherwise two ABIs of two consecutive bases collide: rank 10 of
 // base N would equal rank 0 of base N + 1. Structural, so it cannot go stale.
 require(rangsDAbi.values.all { it in 1..9 }) { "ABI ranks must be single digits: $rangsDAbi" }
+// ⚠️ And distinct: two ABIs of the same rank would ship the same version code (GPT-5.6 review, 2026-09-25).
+require(rangsDAbi.values.toSet().size == rangsDAbi.size) { "ABI ranks must be distinct: $rangsDAbi" }
 
 // ⚠️ A FLOOR, not a proof. 407 is the base of Flutter 2.0.9, the last release published when this
 // was written (2026-09-14). It stops an accidental return to the old base 53; it cannot know about a

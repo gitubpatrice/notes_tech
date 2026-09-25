@@ -74,6 +74,23 @@ internal object VaultCrypto {
         deriveKey(secret, salt, VaultParams.PIN_ITERATIONS, VaultParams.PIN_MEMORY_KIB)
 
     /**
+     * [secret]'s UTF-8 bytes, handed to [derive], then wiped — whether it returns or throws.
+     *
+     * The String itself cannot be wiped; this copy can, and nothing else holds it. Passed as
+     * `secret.toByteArray(UTF_8)` straight into a derivation, it stayed in memory until collected, at
+     * every vault creation and every unlock (GPT-5.6 review, 2026-09-25). [deriveKey] does not wipe
+     * its input itself: its callers, tests among them, may use it again.
+     */
+    inline fun <T> withUtf8Bytes(secret: String, derive: (ByteArray) -> T): T {
+        val bytes = secret.toByteArray(Charsets.UTF_8)
+        try {
+            return derive(bytes)
+        } finally {
+            bytes.wipe()
+        }
+    }
+
+    /**
      * Chiffre en AES-256-GCM et rend `chiffré ‖ étiquette(16)`.
      *
      * Le nonce **n'est pas** dans la sortie : côté coffre il vit dans la colonne `vault_iv`, côté

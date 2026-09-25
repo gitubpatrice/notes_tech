@@ -528,6 +528,24 @@ class FolderVaultServiceTest {
         assertThat(coffres.isUnlocked(DOSSIER)).isTrue()
     }
 
+    /**
+     * 🔴 The inner seal — the folder key under a key derived from the PIN — is wiped even when the
+     * Keystore fails to seal it. Its salt is in the database: left in memory, it let a 4 to 6 digit
+     * PIN be searched offline, and gave the folder key with it (GPT-5.6 review, 2026-09-25).
+     */
+    @Test
+    fun un_scellement_refuse_ne_laisse_pas_le_scelle_interieur_en_memoire(): Unit = runBlocking {
+        keystore.scellementRefuse = true
+
+        assertThrows(KeystoreUnavailableException::class.java) {
+            runBlocking { coffres.createPinVault(DOSSIER, CODE) }
+        }
+
+        val recu = requireNotNull(keystore.clairRecuAuScellement)
+        assertThat(recu.all { it == 0.toByte() }).isTrue()
+        assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isFalse()
+    }
+
     @Test
     fun une_cle_definitivement_invalidee_detruit_le_coffre(): Unit = runBlocking {
         coffres.createPinVault(DOSSIER, CODE)
@@ -779,6 +797,10 @@ class FolderVaultServiceTest {
         var panneTransitoire = false
         var invalidationPermanente = false
 
+        /** Only `seal` fails — after the key was created — keeping the array it was handed. */
+        var scellementRefuse = false
+        var clairRecuAuScellement: ByteArray? = null
+
         override fun createKey(alias: String): Boolean {
             garde()
             if (cles.containsKey(alias)) return false
@@ -788,6 +810,10 @@ class FolderVaultServiceTest {
 
         override fun seal(alias: String, plaintext: ByteArray): SealedByKeystore {
             garde()
+            if (scellementRefuse) {
+                clairRecuAuScellement = plaintext
+                throw KeystoreUnavailableException()
+            }
             val cle = cles[alias] ?: throw KeystoreUnavailableException()
             val nonce = VaultCrypto.newNonce()
             return SealedByKeystore(VaultCrypto.seal(cle, nonce, plaintext, ByteArray(0)), nonce)

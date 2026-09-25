@@ -87,6 +87,14 @@
 10. **Suite complète du S9 sur l'état final** (avant le point 9) : **442 cas, 440 réussis, 2 hypothèses
     connues** (pas de modèle Whisper, pas d'empreinte), **0 échec** ; la note « Essai TalkBack » y a
     survécu, et aucune donnée de test n'est restée.
+11. **Patrice, à son retour : « ok lance la relecture », puis « fais relire tout ce qui est nécessaire »,
+    et la bascule depuis une vraie 2.0.9 autorisée** (« tu l'as dans le dossier notes_tech »).
+    Relecture du diff de parité (§160, **0,32 $**, total **1,84 $**) : 9 constats — 3 réels corrigés
+    (clé dérivée hors du `try`, copies UTF-8 des secrets, rangs d'ABI), 1 quatrième trouvé en corrigeant
+    (**scellé intérieur d'un coffre à code laissé en mémoire** sur un échec du Keystore), 2 réfutés, 3
+    identiques à la 2.0.9. S9 **50/50** sur les classes des coffres, 3 contrôles négatifs qui tombent.
+    **À proposer à Patrice** : un message dédié quand Android invalide la clé d'un coffre à code (l'écran
+    dit « trop de tentatives », comme la 2.0.9).
 
 ### Mesuré
 

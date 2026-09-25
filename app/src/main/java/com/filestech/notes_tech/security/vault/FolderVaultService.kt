@@ -102,31 +102,34 @@ class FolderVaultService @Inject constructor(
 
         val salt = VaultCrypto.newSalt()
         val nonce = VaultCrypto.newNonce()
-        val derived = VaultCrypto.derivePassphraseKey(passphrase.toByteArray(Charsets.UTF_8), salt)
-        // ⚠️ The folder key is drawn AFTER the derivation, and inside the `try` that wipes it.
-        // It used to be drawn first, outside: a derivation that throws — Argon2id asks for 64 MiB,
-        // which an old phone can refuse — left the key in memory with nobody to wipe it. notes_tech
-        // 2.0.9 fixed the same order (`folder_vault_service.dart:279-282`).
-        val folderKey = VaultCrypto.newFolderKey()
+        val derived = VaultCrypto.withUtf8Bytes(passphrase) { VaultCrypto.derivePassphraseKey(it, salt) }
         try {
-            val wrapped = VaultCrypto.seal(derived, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
-            val provisioned = databases.get().folderDao().provisionPassphraseVault(
-                id = folderId,
-                salt = salt,
-                kekWrapped = wrapped,
-                iv = nonce,
-                verifier = VaultCrypto.verifierFor(folderKey),
-                updatedAt = clock.millis(),
-            )
-            // La requête ne convertit que si le dossier n'était pas déjà un coffre. Zéro ligne
-            // signifie qu'il l'est devenu entre la lecture et l'écriture : ne pas ouvrir de session
-            // sur une clé que la base n'a pas retenue.
-            check(provisioned > 0) { "conversion en coffre refusee pour $folderId" }
-            sessions.open(folderId, folderKey)
-        } catch (e: Throwable) {
-            // La clé n'a pas trouvé de propriétaire : elle ne doit pas rester en mémoire.
-            folderKey.wipe()
-            throw e
+            // ⚠️ The folder key is drawn AFTER the derivation: drawn first, a derivation that throws —
+            // Argon2id asks for 64 MiB, which an old phone can refuse — left it in memory with nobody
+            // to wipe it (notes_tech 2.0.9 fixed the same order, `folder_vault_service.dart:279-282`).
+            // And INSIDE the `try` that wipes the derived key: drawn between the two, a failure to
+            // draw it left the derived key in memory (GPT-5.6 review, 2026-09-25).
+            val folderKey = VaultCrypto.newFolderKey()
+            try {
+                val wrapped = VaultCrypto.seal(derived, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
+                val provisioned = databases.get().folderDao().provisionPassphraseVault(
+                    id = folderId,
+                    salt = salt,
+                    kekWrapped = wrapped,
+                    iv = nonce,
+                    verifier = VaultCrypto.verifierFor(folderKey),
+                    updatedAt = clock.millis(),
+                )
+                // La requête ne convertit que si le dossier n'était pas déjà un coffre. Zéro ligne
+                // signifie qu'il l'est devenu entre la lecture et l'écriture : ne pas ouvrir de session
+                // sur une clé que la base n'a pas retenue.
+                check(provisioned > 0) { "conversion en coffre refusee pour $folderId" }
+                sessions.open(folderId, folderKey)
+            } catch (e: Throwable) {
+                // La clé n'a pas trouvé de propriétaire : elle ne doit pas rester en mémoire.
+                folderKey.wipe()
+                throw e
+            }
         } finally {
             derived.wipe()
         }
@@ -147,36 +150,45 @@ class FolderVaultService @Inject constructor(
         val alias = VaultParams.pinKeystoreAlias(folderId)
         val salt = VaultCrypto.newSalt()
         val nonce = VaultCrypto.newNonce()
-        val pinKey = VaultCrypto.derivePinKey(pin.toByteArray(Charsets.UTF_8), salt)
-        // ⚠️ After the derivation — same reason as in [createPassphraseVault].
-        val folderKey = VaultCrypto.newFolderKey()
+        val pinKey = VaultCrypto.withUtf8Bytes(pin) { VaultCrypto.derivePinKey(it, salt) }
         try {
-            val inner = VaultCrypto.seal(pinKey, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
-            keystore.deleteKey(alias)
-            keystore.createKey(alias)
-            val sealed = keystore.seal(alias, inner)
-            inner.wipe()
+            // ⚠️ After the derivation and inside this `try` — same reasons as in [createPassphraseVault].
+            val folderKey = VaultCrypto.newFolderKey()
+            try {
+                val inner = VaultCrypto.seal(pinKey, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
+                // ⚠️ Wiped on every path, a failing Keystore included. `inner` is the folder key
+                // under a key derived from a 4-6 digit PIN, whose salt is in the database: only
+                // the Keystore layer stops an offline search of the PIN. Left in memory, it gave
+                // the folder key to whoever read the salt (found with the GPT-5.6 review, same day).
+                val sealed = try {
+                    keystore.deleteKey(alias)
+                    keystore.createKey(alias)
+                    keystore.seal(alias, inner)
+                } finally {
+                    inner.wipe()
+                }
 
-            val provisioned = databases.get().folderDao().provisionPinVault(
-                id = folderId,
-                salt = salt,
-                iv = nonce,
-                verifier = VaultCrypto.verifierFor(folderKey),
-                pinBlob = sealed.ciphertext,
-                pinIv = sealed.nonce,
-                updatedAt = clock.millis(),
-            )
-            if (provisioned <= 0) {
-                // 🔴 La clé Keystore vient d'être créée et ne protège plus rien. La laisser en
-                // ferait un orphelin dans le matériel sécurisé, et surtout un alias occupé qui
-                // gênerait une nouvelle tentative de conversion.
-                echoue { keystore.deleteKey(alias) }
-                error("conversion en coffre a code refusee pour $folderId")
+                val provisioned = databases.get().folderDao().provisionPinVault(
+                    id = folderId,
+                    salt = salt,
+                    iv = nonce,
+                    verifier = VaultCrypto.verifierFor(folderKey),
+                    pinBlob = sealed.ciphertext,
+                    pinIv = sealed.nonce,
+                    updatedAt = clock.millis(),
+                )
+                if (provisioned <= 0) {
+                    // 🔴 La clé Keystore vient d'être créée et ne protège plus rien. La laisser en
+                    // ferait un orphelin dans le matériel sécurisé, et surtout un alias occupé qui
+                    // gênerait une nouvelle tentative de conversion.
+                    echoue { keystore.deleteKey(alias) }
+                    error("conversion en coffre a code refusee pour $folderId")
+                }
+                sessions.open(folderId, folderKey)
+            } catch (e: Throwable) {
+                folderKey.wipe()
+                throw e
             }
-            sessions.open(folderId, folderKey)
-        } catch (e: Throwable) {
-            folderKey.wipe()
-            throw e
         } finally {
             pinKey.wipe()
         }
@@ -204,7 +216,7 @@ class FolderVaultService @Inject constructor(
         val salt = requireColumn(material.salt, "vault_salt")
 
         sessions.whileUnlocking(folderId) {
-            val derived = VaultCrypto.derivePassphraseKey(passphrase.toByteArray(Charsets.UTF_8), salt)
+            val derived = VaultCrypto.withUtf8Bytes(passphrase) { VaultCrypto.derivePassphraseKey(it, salt) }
             val folderKey = try {
                 VaultCrypto.open(derived, nonce, wrapped, folderId.toByteArray(Charsets.UTF_8))
             } catch (e: WrongSecretException) {
@@ -341,13 +353,16 @@ class FolderVaultService @Inject constructor(
                 keystore.open(VaultParams.pinKeystoreAlias(folderId), SealedByKeystore(pinBlob, pinIv))
             } catch (e: KeystorePermanentlyInvalidatedException) {
                 // Le système a détruit la clé : le coffre est légitimement irrécupérable. La cause
-                // est portée jusqu'à l'interface — « votre écran de verrouillage a changé » et
-                // « cinq codes faux » sont deux histoires très différentes pour l'utilisateur.
+                // voyage dans l'exception — « votre écran de verrouillage a changé » et « cinq codes
+                // faux » sont deux histoires très différentes pour l'utilisateur. ⚠️ But the screens
+                // do not tell them apart yet: both say the vault was wiped after too many attempts,
+                // as 2.0.9 does (found by the GPT-5.6 review, 2026-09-25; a dedicated message is
+                // Patrice's call).
                 autoWipePinVault(folderId)
                 throw VaultPinWipedException(folderId, e)
             }
 
-            val pinKey = VaultCrypto.derivePinKey(pin.toByteArray(Charsets.UTF_8), salt)
+            val pinKey = VaultCrypto.withUtf8Bytes(pin) { VaultCrypto.derivePinKey(it, salt) }
             val folderKey = try {
                 VaultCrypto.open(pinKey, nonce, inner, folderId.toByteArray(Charsets.UTF_8))
             } catch (_: WrongSecretException) {

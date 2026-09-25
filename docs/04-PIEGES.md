@@ -4952,3 +4952,39 @@ de caractères, **tapée** dans la commande, a fini par contenir une espace ordi
 toutes les lignes, ce qui a trahi le défaut ; plus tôt, il a pu tout laisser passer. Refait avec les
 caractères **nommés par leur code** (`scratchpad/invisibles.py`), témoin positif compris (les deux
 U+FEFF de la sauvegarde d'avant correction) : 0 ligne douteuse dans les cinq commits du soir.
+
+## §160 — La relecture du diff de parité 2.0.9 + panneau Infos : neuf constats, trois réels, un quatrième trouvé en corrigeant
+
+Demandée par Patrice le 2026-09-25 au soir (« ok lance la relecture », puis « fais relire tout ce qui
+est nécessaire »). `5f7dcd3..f640903` — versionCode, parité 2.0.9, panneau Infos —, jamais relu :
+code seul (`app/src/main` sans les XML, plus le calcul du versionCode), 103 Ko. **GPT-5.6 sol :
+0,32 $** (27 421 jetons d'entrée, 6 042 de sortie) ; total des relectures du jour **1,84 $**.
+Vérifiés un par un dans le code **actuel** :
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | « critique » : le message « ne désinstallez pas » ne serait pas en place | **réfuté** : `startup_failure_missing_key` le dit, en anglais et en français. Artefact du diff : les XML en avaient été retirés |
+| 2 | la clé dérivée, calculée avant le `try` qui l'efface, avec le tirage de la clé de dossier entre les deux | **réel**, corrigé : le tirage passe dans le `try`. Aucun test ne peut l'atteindre sans injecter une panne de `SecureRandom` : la correction est structurelle |
+| 3 | la copie UTF-8 de la phrase ou du code n'est jamais effacée (4 appels) | **réel**, corrigé : `VaultCrypto.withUtf8Bytes`. Le verrouillage de l'application le faisait déjà (`AppLockPin.tagFor`) : **jumeau asymétrique** |
+| 4 | `NoteInfoDialog` ne compilerait pas (`weight` non importé) | **réfuté** : `weight` est un membre de `RowScope` ; construit et testé |
+| 5 | un nom choisi exactement « Inbox » est traduit | règle **identique à la 2.0.9** (`constants.dart:39-59`), limite déjà assumée ; laissé |
+| 6 | un dossier nommé « inbox » rejoint la boîte de réception à l'export | **identique à la 2.0.9** (`_disambiguate(usedNames, '$folderName/$baseName')`) ; laissé |
+| 7 | erreurs du Keystore mal classées | a) indisponible : le message générique dit déjà « Veuillez réessayer », comme la 2.0.9 ; b) clé **invalidée par Android** : le coffre est effacé et l'écran dit « trop de tentatives » — **hérité de la 2.0.9**, et un commentaire du portage affirmait le contraire : commentaire corrigé, **message dédié proposé à Patrice** |
+| 8 | l'absence de verrouillage d'écran peut masquer une autre cause d'échec | choix de conception, non destructeur (le prérequis manque bel et bien) ; laissé |
+| 9 | l'unicité des rangs d'ABI n'est pas vérifiée | **réel**, latent : garde ajoutée |
+
+🔴 **Trouvé en corrigeant le n° 2, absent du rapport** : dans la création d'un coffre à code, le
+**scellé intérieur** (la clé de dossier sous la clé dérivée du code) n'était effacé qu'en cas de
+succès du Keystore. Son sel est en base, et un code de 4 à 6 chiffres se cherche hors ligne : seule la
+couche du Keystore l'empêche. Laissé en mémoire sur un échec, il donnait la clé de dossier. Effacé
+désormais sur tous les chemins.
+
+Tests : `OctetsDuSecretTest` (JVM, 2) ; `FolderVaultServiceTest`, un cas neuf (faux Keystore qui
+refuse le scellement et garde le tableau reçu : il doit être à zéro). Mesuré : JVM **410 tests**, 47
+classes, 0 ignoré ; S9 **50/50** sur les cinq classes qui créent ou ouvrent des coffres. **Trois
+contrôles négatifs, tous tombent** : effacement retiré de l'aide (les 2 cas JVM), scellé effacé au
+seul succès (ligne 545), deux ABI au même rang (configuration refusée sur le bon message).
+
+⚠️ *Retirer les XML d'un diff pour économiser des jetons a fabriqué le seul constat « critique » :
+le relecteur a jugé absent un texte qu'on lui avait caché. Dire dans la consigne ce qui est retiré, ou
+joindre les chaînes touchées.*
