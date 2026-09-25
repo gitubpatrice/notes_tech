@@ -1,6 +1,6 @@
 # Condizioni d'uso — Notes Tech
 
-**Versione 1.0.0 — maggio 2026**
+**Versione 1.1.0 — settembre 2026**
 
 ## Licenza
 
@@ -8,7 +8,7 @@ Notes Tech è software libero pubblicato con **licenza Apache 2.0**. Può usarlo
 
 ## Uso
 
-L'app è fornita **così com'è, senza garanzie di alcun tipo**. La dettatura vocale si basa su un modello di riconoscimento automatico del parlato, che può produrre trascrizioni imperfette. Lei resta l'unico responsabile del contenuto delle sue note.
+L'app è messa a disposizione **gratuitamente** da un privato, a titolo personale e non commerciale, ed è fornita **così com'è, senza garanzie di alcun tipo** (licenza Apache 2.0, sezione 7). L'uso che ne fa è di **sua esclusiva responsabilità**, come il contenuto delle sue note. La dettatura vocale si basa su un modello di riconoscimento automatico del parlato, che può produrre trascrizioni imperfette.
 
 ## Limitazioni
 
@@ -66,11 +66,15 @@ Gli aggiornamenti sono distribuiti tramite il repository GitHub ufficiale. Nessu
 
 ## Responsabilità
 
-L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese. In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN o a una disinstallazione è di esclusiva responsabilità dell'utente**.
+L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese (licenza Apache 2.0, sezione 8). In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN o a una disinstallazione è di esclusiva responsabilità dell'utente**.
 
 ## Legge applicabile
 
 Condizioni regolate dalla **legge francese**. In caso di controversia sono competenti i tribunali francesi.
+
+## Lingua
+
+Queste condizioni sono state redatte in francese; le versioni in altre lingue ne sono traduzioni. In caso di discordanza, **prevale la versione francese**.
 
 ## Contatti
 

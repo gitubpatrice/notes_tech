@@ -1,6 +1,6 @@
 # Condiciones de uso — Notes Tech
 
-**Versión 1.0.0 — mayo de 2026**
+**Versión 1.1.0 — septiembre de 2026**
 
 ## Licencia
 
@@ -8,7 +8,7 @@ Notes Tech es software libre publicado bajo la **licencia Apache 2.0**. Puede us
 
 ## Uso
 
-La aplicación se ofrece **tal cual, sin garantía de ningún tipo**. El dictado por voz se basa en un modelo de reconocimiento automático del habla, que puede producir transcripciones imperfectas. Usted es el único responsable del contenido de sus notas.
+Un particular pone la aplicación a disposición **de forma gratuita**, a título personal y sin fines comerciales, y se ofrece **tal cual, sin garantía de ningún tipo** (licencia Apache 2.0, sección 7). El uso que haga de ella es **responsabilidad exclusiva suya**, al igual que el contenido de sus notas. El dictado por voz se basa en un modelo de reconocimiento automático del habla, que puede producir transcripciones imperfectas.
 
 ## Limitaciones
 
@@ -66,11 +66,15 @@ Las actualizaciones se distribuyen a través del repositorio oficial de GitHub. 
 
 ## Responsabilidad
 
-El editor no puede ser considerado responsable de ningún daño directo o indirecto derivado del uso de la aplicación, dentro de los límites que permite el derecho francés. En particular, **cualquier pérdida de datos derivada de un modo pánico, una frase de contraseña olvidada, un borrado automático por errores de PIN o una desinstalación es responsabilidad exclusiva del usuario**.
+El editor no puede ser considerado responsable de ningún daño directo o indirecto derivado del uso de la aplicación, dentro de los límites que permite el derecho francés (licencia Apache 2.0, sección 8). En particular, **cualquier pérdida de datos derivada de un modo pánico, una frase de contraseña olvidada, un borrado automático por errores de PIN o una desinstalación es responsabilidad exclusiva del usuario**.
 
 ## Legislación aplicable
 
 Condiciones regidas por el **derecho francés**. En caso de litigio, serán competentes los tribunales franceses.
+
+## Idioma
+
+Estas condiciones se redactaron en francés; las versiones en otros idiomas son traducciones. En caso de discrepancia, **prevalece la versión francesa**.
 
 ## Contacto
 

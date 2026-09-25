@@ -1,6 +1,6 @@
 # Informativa sulla privacy — Notes Tech
 
-**Versione 1.1.0 — settembre 2026**
+**Versione 1.2.0 — settembre 2026**
 
 ## In una frase
 
@@ -65,6 +65,10 @@ Poiché tutti i dati sono strettamente locali, il GDPR si applica tra lei e il s
 - **Whisper** (modelli `.bin` di `ggerganov/whisper.cpp`): licenza MIT.
 
 Il file che carica resta sul suo telefono. Notes Tech si limita a eseguirlo localmente con il motore `whisper.cpp` **incluso nell'app**, la cui licenza MIT è riprodotta nelle condizioni d'uso.
+
+### Lingua
+
+Questa informativa è stata redatta in francese; le versioni in altre lingue ne sono traduzioni. In caso di discordanza, **prevale la versione francese**.
 
 ### Contatti
 

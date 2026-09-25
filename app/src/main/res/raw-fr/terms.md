@@ -1,6 +1,6 @@
 # Conditions d'utilisation — Notes Tech
 
-**Version 1.0.0 — Mai 2026**
+**Version 1.1.0 — Septembre 2026**
 
 ## Licence
 
@@ -8,7 +8,7 @@ Notes Tech est un logiciel libre publié sous **licence Apache 2.0**. Vous pouve
 
 ## Usage
 
-L'application est fournie **telle quelle, sans garantie d'aucune sorte**. La dictée vocale repose sur un modèle de reconnaissance automatique de la parole, qui peut produire des transcriptions imparfaites. Vous restez seul responsable du contenu de vos notes.
+L'application est mise à disposition **gratuitement** par un particulier, à titre personnel et non commercial, et fournie **telle quelle, sans garantie d'aucune sorte** (licence Apache 2.0, section 7). L'usage que vous en faites relève de **votre seule responsabilité**, comme le contenu de vos notes. La dictée vocale repose sur un modèle de reconnaissance automatique de la parole, qui peut produire des transcriptions imparfaites.
 
 ## Limitations
 
@@ -70,11 +70,15 @@ Les mises à jour sont distribuées via le dépôt GitHub officiel. Aucune mise 
 
 ## Responsabilité
 
-L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française. En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**.
+L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française (licence Apache 2.0, section 8). En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**.
 
 ## Loi applicable
 
 Conditions soumises au **droit français**. Tribunaux français compétents en cas de litige.
+
+## Langue
+
+Ces conditions ont été rédigées en français ; les versions dans d'autres langues en sont des traductions. En cas de différence, **la version française fait foi**.
 
 ## Contact
 

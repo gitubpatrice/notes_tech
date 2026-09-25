@@ -1,6 +1,6 @@
 # Nutzungsbedingungen — Notes Tech
 
-**Version 1.0.0 — Mai 2026**
+**Version 1.1.0 — September 2026**
 
 ## Lizenz
 
@@ -8,7 +8,7 @@ Notes Tech ist freie Software, veröffentlicht unter der **Lizenz Apache 2.0**. 
 
 ## Nutzung
 
-Die App wird **so, wie sie ist, ohne jegliche Gewährleistung** bereitgestellt. Das Sprachdiktat beruht auf einem Modell zur automatischen Spracherkennung, das unvollkommene Transkriptionen liefern kann. Für den Inhalt Ihrer Notizen bleiben allein Sie verantwortlich.
+Die App wird von einer Privatperson **kostenlos**, privat und nicht kommerziell zur Verfügung gestellt, **so, wie sie ist, ohne jegliche Gewährleistung** (Apache-Lizenz 2.0, Abschnitt 7). Wie Sie sie nutzen, liegt **allein in Ihrer Verantwortung**, ebenso wie der Inhalt Ihrer Notizen. Das Sprachdiktat beruht auf einem Modell zur automatischen Spracherkennung, das unvollkommene Transkriptionen liefern kann.
 
 ## Einschränkungen
 
@@ -66,11 +66,15 @@ Updates werden über das offizielle GitHub-Repository verteilt. Keine automatisc
 
 ## Haftung
 
-Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt. Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen oder einer Deinstallation allein in der Verantwortung des Nutzers**.
+Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt (Apache-Lizenz 2.0, Abschnitt 8). Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen oder einer Deinstallation allein in der Verantwortung des Nutzers**.
 
 ## Anwendbares Recht
 
 Diese Bedingungen unterliegen **französischem Recht**. Bei Streitigkeiten sind die französischen Gerichte zuständig.
+
+## Sprache
+
+Diese Bedingungen wurden auf Französisch verfasst; die Fassungen in anderen Sprachen sind Übersetzungen. Bei Abweichungen ist **die französische Fassung maßgeblich**.
 
 ## Kontakt
 

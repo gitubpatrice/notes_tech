@@ -1,6 +1,6 @@
 # Datenschutzerklärung — Notes Tech
 
-**Version 1.1.0 — September 2026**
+**Version 1.2.0 — September 2026**
 
 ## In einem Satz
 
@@ -65,6 +65,10 @@ Da alle Daten ausschließlich lokal sind, gilt die DSGVO zwischen Ihnen und Ihre
 - **Whisper** (`.bin`-Modelle aus `ggerganov/whisper.cpp`): MIT-Lizenz.
 
 Die Datei, die Sie laden, bleibt auf Ihrem Telefon. Notes Tech führt sie lediglich lokal aus, mit der **in die App integrierten** Engine `whisper.cpp` — deren MIT-Lizenz ist in den Nutzungsbedingungen wiedergegeben.
+
+### Sprache
+
+Diese Datenschutzerklärung wurde auf Französisch verfasst; die Fassungen in anderen Sprachen sind Übersetzungen. Bei Abweichungen ist **die französische Fassung maßgeblich**.
 
 ### Kontakt
 

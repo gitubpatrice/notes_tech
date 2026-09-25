@@ -1,6 +1,6 @@
 # Terms of use — Notes Tech
 
-**Version 1.0.0 — May 2026**
+**Version 1.1.0 — September 2026**
 
 ## License
 
@@ -8,7 +8,7 @@ Notes Tech is free software published under the **Apache 2.0 license**. You may 
 
 ## Usage
 
-The app is provided **as is, without warranty of any kind**. Voice dictation relies on an automatic speech recognition model, which may produce imperfect transcriptions. You alone remain responsible for the content of your notes.
+The app is made available **free of charge** by an individual, on a personal and non-commercial basis, and is provided **as is, without warranty of any kind** (Apache 2.0 license, section 7). How you use it is **your sole responsibility**, as is the content of your notes. Voice dictation relies on an automatic speech recognition model, which may produce imperfect transcriptions.
 
 ## Limitations
 
@@ -69,11 +69,15 @@ Updates are distributed via the official GitHub repository. No auto-update: it i
 
 ## Liability
 
-The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law. In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe or an uninstall is the sole responsibility of the user**.
+The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law (Apache 2.0 license, section 8). In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe or an uninstall is the sole responsibility of the user**.
 
 ## Governing law
 
 Terms governed by **French law**. French courts have jurisdiction in case of dispute.
+
+## Language
+
+These terms were written in French; the versions in other languages are translations. Should they differ, **the French version prevails**.
 
 ## Contact
 

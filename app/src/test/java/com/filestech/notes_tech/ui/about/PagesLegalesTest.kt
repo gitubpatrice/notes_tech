@@ -6,6 +6,7 @@ import com.filestech.notes_tech.domain.markdown.MarkdownPreviewReader
 import com.filestech.notes_tech.domain.markdown.PreviewBlock
 import com.filestech.notes_tech.domain.markdown.TextRun
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -42,6 +43,29 @@ class PagesLegalesTest {
             assertThat(page.readText()).contains("[[")
         }
     }
+
+    /**
+     * The French text is the original, and the one that prevails (2026-09-25: the first legal texts,
+     * v0.7.0, were written in French; the English came two days later, and German, Spanish and Italian
+     * are translations nobody has reviewed yet). Every language keeps the outline of the French text:
+     * a section a translation loses goes unseen otherwise — its own "Language" section first of all,
+     * the one that says which version prevails.
+     */
+    @Test
+    fun `every language has the outline of the French text, which says it prevails`() {
+        for (nom in listOf("privacy.md", "terms.md")) {
+            val original = File("src/main/res/raw-fr/$nom")
+            assertThat(original.readText()).contains("**la version française fait foi**")
+
+            for (page in PAGES.filter { it.name == nom }) {
+                assertWithMessage(page.path).that(niveauxDesTitres(page)).isEqualTo(niveauxDesTitres(original))
+            }
+        }
+    }
+
+    /** The level of each heading, in order: the outline of a page, whatever its language. */
+    private fun niveauxDesTitres(page: File): List<Int> =
+        page.readLines().filter { it.startsWith("#") }.map { ligne -> ligne.takeWhile { it == '#' }.length }
 
     private fun liens(blocs: List<PreviewBlock>): List<LinkTarget> = blocs.flatMap { bloc ->
         when (bloc) {

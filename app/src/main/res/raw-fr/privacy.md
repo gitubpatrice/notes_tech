@@ -1,6 +1,6 @@
 # Politique de confidentialité — Notes Tech
 
-**Version 1.1.0 — Septembre 2026**
+**Version 1.2.0 — Septembre 2026**
 
 ## En une phrase
 
@@ -65,6 +65,10 @@ Toutes les données étant strictement locales, le règlement RGPD s'applique en
 - **Whisper** (modèles `.bin` `ggerganov/whisper.cpp`) : licence MIT.
 
 Le fichier que vous chargez reste sur votre téléphone. Notes Tech ne fait que l'exécuter localement, au moyen du moteur `whisper.cpp` **inclus dans l'application** — sa licence MIT est reproduite dans les conditions d'utilisation.
+
+### Langue
+
+Cette politique a été rédigée en français ; les versions dans d'autres langues en sont des traductions. En cas de différence, **la version française fait foi**.
 
 ### Contact
 
