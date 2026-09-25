@@ -75,9 +75,14 @@
 
 1. ✅ ~~Contrôles négatifs de la mise en page~~, ✅ ~~seconde relecture (Gemini)~~, ✅ ~~suite complète
    S9 + émulateur~~, ✅ ~~test du masquage du panneau avec le clavier~~ — faits le 25 au soir (point 5
-   ci-dessus). Outils : `scratchpad/controles_mise_en_page.py`, `controles_plancher.py`,
-   `controle_mgf1_emulateur.py` (une mutation, construction, installation, test ciblé, **motif** de
-   l'échec gardé, restauration vérifiée au SHA-256 ; les scratchpads ne survivent pas aux sessions).
+   ci-dessus). Outils : `scratchpad/controles_mise_en_page.py` (sa fonction `une` sert aux autres),
+   `controles_plancher.py`, `controle_mgf1_emulateur.py`, `controles_legal.py`, `controles_b.py` (une
+   mutation, construction, installation, test ciblé, **motif** de l'échec gardé, restauration vérifiée
+   au SHA-256 ; les scratchpads ne survivent pas aux sessions).
+   **État des appareils au compactage** : l'émulateur `emu-test-api34` tourne encore **sans fenêtre**
+   (`emulator-5554`, code 1111, sans empreinte) ; le S9 porte les APK du code final ; le **S24** porte
+   l'application de test `.next.debug` installée **avant** les pages légales et la solution B (le soir,
+   pour les classes Keystore) — sans conséquence, mais pas la dernière version.
 2. ✅ ~~`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel~~ — S24, Android 16 : 27/27 avec
    les deux classes du Keystore du coffre (point 6 ci-dessus).
 3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel pourraient **s'ignorer**
@@ -87,11 +92,13 @@
    ferait s'ignorer tous les tests du coffre au lieu de les faire tomber.
 4. ✅ ~~Les trois décisions de Patrice~~ — tranchées le 25 au soir et faites : solution **B** pour les
    liens dans un coffre, pages légales au rendu de l'aperçu, message corrigé (point 6 ci-dessus).
-   **Suites possibles de B, non demandées** (à proposer à Patrice, pas à faire d'office) : le panneau
-   des liens d'une note de coffre reste vide, et l'autocomplétion de `[[` n'y propose pas les notes du
-   coffre (§158).
+   **Suites possibles de B, non demandées** : le panneau des liens d'une note de coffre reste vide, et
+   l'autocomplétion de `[[` n'y propose pas les notes du coffre (§158). ❓ **Question posée à Patrice le
+   25 au soir, sans réponse avant le compactage** : ne rien faire d'office.
 5. **TalkBack réel** sur l'aperçu (§149 : le paragraphe portant des liens n'est pas
-   `screenReaderFocusable` ; TalkBack le focalise normalement — à écouter).
+   `screenReaderFocusable` ; TalkBack le focalise normalement — à écouter). ❓ **Proposé à Patrice le 25
+   au soir, sans réponse** : Claude ne peut pas entendre la voix — c'est à Patrice de l'écouter ; lui
+   donner les étapes (activer TalkBack, ouvrir une note à liens en Aperçu, balayer) s'il le souhaite.
 6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
    bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
    finales (`05-PARITE.md`, `12-PLAN-DE-BASCULE.md` : la 3.0.0 ajoute aussi une **dépendance**,
