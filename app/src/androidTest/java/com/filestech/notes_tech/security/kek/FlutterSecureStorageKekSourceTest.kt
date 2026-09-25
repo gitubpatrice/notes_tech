@@ -89,19 +89,35 @@ class FlutterSecureStorageKekSourceTest {
      * Le test consigne cette contrainte plutôt que de la supposer stable : si un jour une version
      * d'Android acceptait SHA-256, il échouerait, et il faudrait alors vérifier ce que la
      * bibliothèque écrit réellement sur cette version-là.
+     *
+     * ⚠️ **It happened: Android 14 accepts MGF1 in SHA-256** — measured on the API 34 emulator on
+     * 2026-09-25, where such a seal is laid without an error. What the library writes did not change:
+     * `KeyCipherImplementationRSAOAEP.java:53` passes `MGF1ParameterSpec.SHA1` on every version, so
+     * the switch-over reads the same thing everywhere. What no longer holds from Android 14 is the net
+     * "a mistake here fails loudly at init"; there, the test checks what that net was for: such a seal
+     * is unavailable, never read as absent. The branch follows what the platform does, not its version
+     * number — a precondition is tried, not asked.
      */
     @Test
-    fun la_plateforme_impose_mgf1_en_sha1_et_refuse_sha256() {
-        val refus = assertThrows(java.security.InvalidAlgorithmParameterException::class.java) {
+    fun a_seal_with_mgf1_sha256_is_refused_or_never_read_as_absent() {
+        val refus = runCatching {
             FlutterSecureStorageFixture.seed(
                 context,
                 aliasBase,
                 SecretBytes.toHex(kek),
                 mgf1 = FlutterSecureStorageFixture.Mgf1Digest.SHA256,
             )
-        }
+        }.exceptionOrNull()
 
-        assertThat(refus).hasMessageThat().contains("MGF1")
+        if (refus != null) {
+            // Up to Android 13 — measured on the S9, Android 10: refused at init.
+            assertThat(refus).isInstanceOf(java.security.InvalidAlgorithmParameterException::class.java)
+            assertThat(refus).hasMessageThat().contains("MGF1")
+        } else {
+            // From Android 14: laid. Reading it must fail as unavailable — `null` would have the next
+            // layer generate a new key over an existing database.
+            assertThrows(KekFailure.SourceUnavailable::class.java) { source.load() }
+        }
     }
 
     /**

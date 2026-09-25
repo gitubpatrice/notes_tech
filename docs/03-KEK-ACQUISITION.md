@@ -88,6 +88,14 @@ Notes Tech (`AndroidOptions(resetOnError: false)`, tout le reste par défaut) :
 > bibliothèque qu'on recopie, c'est la seule valeur que la plateforme accepte : une erreur à cet
 > endroit échoue bruyamment à l'initialisation, jamais en silence. Test :
 > `FlutterSecureStorageKekSourceTest.la_plateforme_impose_mgf1_en_sha1_et_refuse_sha256`.
+>
+> ⚠️ **Vrai jusqu'à Android 13 seulement** (2026-09-25) : sur l'émulateur **API 34**, le sceau en
+> SHA-256 se pose sans erreur — la première suite complète sur Android 14 l'a montré. Ce que la
+> bibliothèque **écrit** n'a pas changé : `MGF1ParameterSpec.SHA1` en dur, sans condition de version
+> (relu dans la source 10.3.1), donc la bascule relit la même chose partout, S24 (Android 16) compris.
+> Ce qui ne tient plus à partir d'Android 14, c'est le filet « échoue bruyamment » : le test, renommé
+> `a_seal_with_mgf1_sha256_is_refused_or_never_read_as_absent`, **tente** le sceau ; refusé, il vérifie
+> le refus ; posé, il vérifie que la lecture le classe **indisponible**, jamais absent.
 
 > 🔹 **Deux constantes de plus, découvertes en écrivant la couche** :
 >

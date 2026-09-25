@@ -4759,3 +4759,36 @@ rapporte la taille de la fenêtre (documentation du multi-fenêtre — non mesur
 *Un « critique, certain » se vérifie comme le reste : c'était le seul constat faux. Et une parité
 n'excuse pas une régression : la 2.0.9 écrase son corps en paysage, le portage ne l'écrasait pas avant
 de la copier.*
+
+## §156 — La première suite complète sur Android 14 : un test de plateforme périmé, un émulateur sans verrou
+
+Suite complète du 2026-09-25 sur l'émulateur API 34 — jusque-là, seules des classes choisies y
+passaient : **423 cas, 409 réussis, 2 hypothèses connues, 12 échecs**, tous dans les tests du
+Keystore, aucun dans ce que la journée avait touché. Le S9, même code : **421 réussis + les 2
+hypothèses connues**, 0 échec.
+
+1. **Onze échecs tiennent à l'émulateur.** Le code et l'empreinte posés le 24 avaient disparu
+   (redémarrage sur un instantané antérieur, lancé en `-no-snapshot-save`) : sans verrouillage
+   d'écran, deux tests de parité ne peuvent pas créer leur clé. Code 1111 reposé : ils passent.
+   Restent **neuf échecs par construction** — le Keystore de l'émulateur est **logiciel**, et le coffre
+   refuse exprès une clé que rien de matériel ne retient (`KeystoreSoftwareOnlyException`, comme la
+   2.0.9). Ils échouent au lieu de s'ignorer : la suite de l'émulateur ne peut pas être verte telle
+   quelle. Piste : tenter la création, et s'ignorer sur `KeystoreSoftwareOnlyException`, comme
+   `AppLockKeysTest` le fait pour l'empreinte.
+2. **Le douzième est réel, et il touche la bascule.** `la_plateforme_impose_mgf1_en_sha1_et_refuse_sha256`
+   vérifiait qu'Android **refuse** MGF1 en SHA-256 pour la clé RSA de `flutter_secure_storage`. Sur
+   Android 14, il ne refuse plus — son propre KDoc l'avait prévu : « il faudrait alors vérifier ce que
+   la bibliothèque écrit réellement sur cette version-là ». Vérifié dans la source de
+   `flutter_secure_storage` **10.3.1** (celle de la 2.0.9) : `MGF1ParameterSpec.SHA1` **codé en dur,
+   sans condition de version**. La 2.0.9 écrit donc la même chose partout, et le portage la relit
+   juste, S24 (Android 16) compris. Ce qui est tombé, c'est le filet « une erreur échouerait
+   bruyamment » (`03-KEK-ACQUISITION.md`, corrigé). Test renommé
+   `a_seal_with_mgf1_sha256_is_refused_or_never_read_as_absent` : il **tente** le sceau ; refusé
+   (Android ≤ 13), il vérifie le refus ; posé (Android ≥ 14), il vérifie que la lecture le classe
+   **indisponible**, jamais absent — une absence ferait générer une clé neuve par-dessus la base.
+   14/14 sur le S9 **et** sur l'émulateur, chacun dans sa branche ; contrôle négatif sur l'émulateur
+   (portage passé en MGF1-SHA256) : **tombe**, « SourceUnavailable attendu, rien n'a été levé ».
+
+*Un test qui mesure la plateforme se périme avec elle. Celui-ci l'avait écrit dans son commentaire ; il
+a fallu une suite complète sur une version plus récente pour que ce soit vrai. La bascule de Patrice se
+fera sur Android 16, où cette classe n'a encore jamais tourné.*
