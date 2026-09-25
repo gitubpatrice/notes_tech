@@ -80,11 +80,11 @@ Patrice : « super tout fonctionne ») → **`5466624`** (allemand, espagnol, it
 1. ✅ **Test d'appareil** `LanguesDansLApkTest` — fait, S9 vert ; contrôle négatif (`it` retiré de
    `localeFilters`) : **tombe**.
 2. ✅ **Contrôles négatifs JVM** — les cinq tombent, chacun sur son test (§161).
-3. ⏳ **Suite complète sur le S9** — lancée sur l'état courant (voir la section du haut pour le
-   résultat).
+3. ✅ **Suite complète sur le S9** (APK de `c9bad7d`) : **OK (452 tests)**, 450 + 2 hypothèses connues,
+   0 échec.
 4. ✅ **Textes codés en dur** — aucun visible : 101 littéraux relus, tous internes (§161).
-5. ⏸️ **Relecture externe des traductions** — à proposer à Patrice : le budget du jour (2,58 $) est
-   presque au plafond de 3 $, et une relecture des trois langues coûterait 0,5 à 0,7 $.
+5. ✅ **Relecture externe des traductions** — Patrice : « ok lance la relecture ». GPT, 0,40 $ (total du
+   jour **2,98 $**) : aucun contresens ; quatre retouches mineures appliquées (§161).
 6. ✅ Docs : `05-PARITE.md` (ajout hors parité), `12-PLAN-DE-BASCULE.md` (fastlane de-DE/es-ES/it-IT,
    description F-Droid).
 7. ~~**À dire à Patrice**~~ — **réglé après le compactage** (section au-dessus) : le ton de Pass Tech est

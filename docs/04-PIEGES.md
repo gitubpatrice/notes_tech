@@ -5056,7 +5056,15 @@ négatifs, suite complète S9, recherche des textes codés en dur, relecture ext
   relus — SQL, messages d'exception internes, motifs de date, format d'export anglais voulu (parité
   2.0.9), noms propres (« Whisper Base »), numéros. Aucun `.message` d'exception n'atteint l'écran
   (dictée : `IssueDeDictee` typée ; démarrage : `FailureReason` → ressource). Pass Tech en avait 24.
-- Reste : la relecture externe des traductions (budget du jour presque atteint : à proposer).
+- **Relecture externe des traductions** (Patrice : « ok lance la relecture », dépassement du plafond de
+  3 $ accepté) — GPT-5.6 sol, **0,40 $** (21 626 jetons d'entrée, 9 705 de sortie ; total du jour
+  **2,98 $**). Un tableau compact clé/EN/DE/ES/IT (83 Ko) plutôt que quatre XML commentés, avec les
+  conventions du portefeuille écrites dans la consigne. **Aucun contresens, aucun avertissement de
+  sécurité affaibli, aucun tutoiement.** Quatre retouches appliquées : « ZIP en Markdown » (es) ; une
+  virgule fautive avant « oder / o » dans la ligne de la biométrie (de, es, it — l'anglais et le
+  français la gardent, elle y porte le sens).
+- **Suite complète sur le S9** (APK de `c9bad7d`) : **OK (452 tests)** — 450 réussis, 2 hypothèses
+  connues (aucun modèle Whisper, aucune empreinte), 0 échec.
 
 ## §162 — Une clé de coffre perdue : deux mensonges, et la mesure a déplacé le problème
 

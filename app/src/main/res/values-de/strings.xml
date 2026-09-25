@@ -304,7 +304,7 @@
     <string name="app_lock_settings_toggle_subtitle">Wird beim Öffnen von Notes Tech abgefragt</string>
     <string name="app_lock_settings_change_pin">PIN ändern</string>
     <string name="app_lock_settings_biometric">Mit Biometrie entsperren</string>
-    <string name="app_lock_settings_biometric_subtitle">Fingerabdruck, oder Gesicht, wenn das Gerät seine Gesichtsentsperrung als sicher einstuft</string>
+    <string name="app_lock_settings_biometric_subtitle">Fingerabdruck oder Gesicht, wenn das Gerät seine Gesichtsentsperrung als sicher einstuft</string>
     <string name="app_lock_settings_biometric_not_enrolled">Fügen Sie zuerst in den Geräteeinstellungen einen Fingerabdruck hinzu.</string>
     <string name="app_lock_settings_biometric_unavailable">Dieses Gerät hat keinen ausreichend sicheren biometrischen Sensor.</string>
     <string name="app_lock_settings_delay">Sperren nach Verlassen der App</string>

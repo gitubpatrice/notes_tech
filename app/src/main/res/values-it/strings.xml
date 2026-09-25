@@ -314,7 +314,7 @@
     <string name="app_lock_settings_toggle_subtitle">Richiesto all\'apertura di Notes Tech</string>
     <string name="app_lock_settings_change_pin">Cambia il PIN</string>
     <string name="app_lock_settings_biometric">Sblocca con la biometria</string>
-    <string name="app_lock_settings_biometric_subtitle">Impronta digitale, o volto se il dispositivo considera sicuro il suo sblocco con il volto</string>
+    <string name="app_lock_settings_biometric_subtitle">Impronta digitale o volto se il dispositivo considera sicuro il suo sblocco con il volto</string>
     <string name="app_lock_settings_biometric_not_enrolled">Aggiunga prima un\'impronta digitale nelle impostazioni del dispositivo.</string>
     <string name="app_lock_settings_biometric_unavailable">Questo dispositivo non ha un sensore biometrico abbastanza sicuro.</string>
     <string name="app_lock_settings_delay">Blocca dopo aver lasciato l\'app</string>

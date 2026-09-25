@@ -277,7 +277,7 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Nunca</string>
     <string name="settings_export_all">Exportar todas mis notas</string>
-    <string name="settings_export_subtitle">Genera un archivo ZIP en Markdown organizado por carpetas.</string>
+    <string name="settings_export_subtitle">Genera un archivo ZIP con archivos Markdown organizados por carpetas.</string>
     <string name="settings_export_done">Exportación completada: %1$d notas</string>
     <string name="settings_export_done_partial">Exportación completada: %1$d notas (%2$d omitidas en cajas fuertes bloqueadas)</string>
     <string name="settings_export_error">No se pudo exportar: %1$s</string>
@@ -314,7 +314,7 @@
     <string name="app_lock_settings_toggle_subtitle">Se solicita al abrir Notes Tech</string>
     <string name="app_lock_settings_change_pin">Cambiar el PIN</string>
     <string name="app_lock_settings_biometric">Desbloquear con biometría</string>
-    <string name="app_lock_settings_biometric_subtitle">Huella dactilar, o rostro si el dispositivo considera seguro su desbloqueo facial</string>
+    <string name="app_lock_settings_biometric_subtitle">Huella dactilar o rostro si el dispositivo considera seguro su desbloqueo facial</string>
     <string name="app_lock_settings_biometric_not_enrolled">Primero añada una huella dactilar en los ajustes del dispositivo.</string>
     <string name="app_lock_settings_biometric_unavailable">Este dispositivo no tiene un sensor biométrico lo bastante seguro.</string>
     <string name="app_lock_settings_delay">Bloquear al salir de la aplicación</string>
