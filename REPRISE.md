@@ -1,9 +1,84 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, **puis le 2026-09-24**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-24 (nuit) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-25 (après-midi) — LIRE CECI D'ABORD
+
+> Écrit avant un `/compact` demandé par Patrice. Tout est vérifié, pas supposé. La section du 09-24
+> juste en dessous reste valable pour le contexte (consignes, verrou, contraintes).
+
+### Fait aujourd'hui
+
+1. **Renommage du dossier terminé** : `J:\applications\notes_tech_kotlin`. Mémoire copiée sous la clé
+   `j--applications-notes-tech-kotlin` (empreintes identiques), `build`/`app/build`/`app/.cxx`
+   supprimés (le `.cxx` gardait l'ancien chemin : `clean` échouait), gate vert. §144.
+2. **Aperçu Markdown (D-024, A1/A2) — commit `3a97bf4`.** Détail et écarts assumés : `docs/01-DECISIONS.md`
+   D-024 « Réalisation » ; pièges : `docs/04-PIEGES.md` §145 à §154. Points saillants :
+   - lecteur `domain/markdown/` (analyseur JetBrains 0.7.14), rendu `ui/editor/ApercuMarkdown.kt`,
+     lecture hors fil principal `ui/editor/LectureDeLApercu.kt` ;
+   - `[[Titre]]` → ouvrir **ou créer puis ouvrir**, un seul chemin avec le panneau de liens, qui
+     créait SANS ouvrir depuis toujours (§150) ;
+   - notes hostiles bornées (§147 : OOM à 50 000 `>`, 8 s pour des `[a](`) : balayage avant analyse,
+     « tel quel » avec un avis ; l'analyse s'annule quand on quitte l'aperçu (§148) ;
+   - liens annoncés au lecteur d'écran par des spans cliquables, mesuré sur l'arbre **réel** d'Android
+     (§149).
+3. 🔴🔴 **Plantage préexistant corrigé** : une note de plus de ~3 600 lignes faisait planter l'éditeur à
+   l'ouverture depuis le 08-15 (§153). Corrigé en reprenant la **mise en page de la 2.0.9** : en-tête
+   fixe, corps qui remplit l'espace et défile lui-même, panneau des liens dessous (tiers de l'écran,
+   masqué avec le clavier) (§154).
+4. **Relecture externe GPT-5.6 sol : 0,39 $** (budget de Patrice : 1 à 2 $). 9 constats, 5 réels
+   corrigés, 3 réfutés (mesure, code, test), 1 écarté avec raison (§152).
+
+### Mesuré
+
+- JVM : **398 tests, 44 classes, 0 ignoré** ; ktlint, detekt, lint verts.
+- S9 : classes de l'éditeur et de l'aperçu **52/52** (état final) ; suite complète **avant** les
+  correctifs de relecture : **418 cas, 416 réussis, 2 hypothèses non tenues connues** (pas de modèle
+  Whisper sur le S9 ; pas d'empreinte) — 0 échec.
+- Émulateur API 34 sans fenêtre (`emu-test-api34`) : classes de l'aperçu **86/86** avant les correctifs.
+- Contrôles négatifs : 9 + 5 (JVM, lecteur) et 8 (instrumentés), chacun fait tomber **son** test.
+  Deux ont révélé du code mort (§151, §154), dont un devenu vital après la nouvelle mise en page.
+
+### 🔴 CE QUI RESTE, dans l'ordre
+
+1. **Contrôles négatifs de la nouvelle mise en page** (§154, non faits) : remettre le champ dans une
+   colonne défilante → `a_note_too_tall_for_one_measure_opens_in_edit_mode` doit tomber ; retirer le
+   `clearFocus` de `BasculeEditionApercu` → `switching_closes_the_keyboard_…` doit tomber ; ne plus
+   conserver la lecture (`actif` ignoré) → `the_preview_comes_back_where_it_was_left_…` doit tomber.
+   Script prêt : `scratchpad/controles_instrumentes.py` (motifs à adapter ; les scratchpads ne
+   survivent pas aux sessions — le réécrire au besoin, modèle : une mutation, construction, installation,
+   test ciblé, restauration vérifiée au SHA-256).
+2. **Seconde relecture, sur les seuls correctifs** (Gemini 3.1 Pro, moins cher ; reste ~1,6 $ du budget) :
+   §141 a montré que le correctif d'une relecture introduit parfois le défaut suivant.
+3. **Suite complète S9 + émulateur** sur l'état final (la dernière suite complète précède les correctifs).
+4. Masquage du panneau quand le clavier est ouvert : **aucun test** (l'émulateur sans fenêtre n'affiche
+   pas toujours de clavier logiciel) — à mesurer sur le S9.
+5. **À faire trancher par Patrice** :
+   - dans un **coffre**, toucher `[[X]]` crée une nouvelle « X » à chaque fois (une note de coffre n'est
+     jamais cible, comme dans la 2.0.9) — garder la parité, ou résoudre dans le même coffre ouvert ?
+   - `LegalScreen` : passer ses quatre pages au rendu de l'aperçu (son KDoc justifiait l'absence de
+     bibliothèque, qui est maintenant là) — ou laisser ;
+   - `home_vault_create_error` (« Création du coffre échouée ») sert à TOUTE création de note liée qui
+     échoue, coffre ou pas — hérité, message inexact.
+6. **TalkBack réel** sur l'aperçu (§149 : le paragraphe portant des liens n'est pas
+   `screenReaderFocusable` ; TalkBack le focalise normalement — à écouter).
+7. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
+   bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
+   finales (`05-PARITE.md`, `12-PLAN-DE-BASCULE.md` : la 3.0.0 ajoute aussi une **dépendance**,
+   `org.jetbrains:markdown`, à déclarer dans la description F-Droid s'il y a lieu), ménage de l'émulateur.
+8. Avant toute publication : `docs/12-PLAN-DE-BASCULE.md` en entier (rodage, décisions A et C, phase 3).
+
+### Pièges du jour à ne pas refaire (détail dans `04-PIEGES.md`)
+
+- **Dans une commande Bash, `\\` arrive comme `\`** (§145) : tout contenu avec antislash par Write/Edit.
+- Des caractères invisibles tapés tels quels (U+E000, U+FFFD, espace insécable) : vérifier à l'octet.
+- `ktlintFormat` réécrit toujours les fins de ligne de `SttModelStoreTest`, `WhisperSttTest`,
+  `NoteCard` : les restaurer (`git checkout --`) quand leur diff réel est vide.
+- `rm -rf` est refusé par une règle `deny` globale : `rm -r` sans `-f`, sur accord.
+- **Parler à Patrice en français, descriptions de commandes comprises** (mémoire `tout-en-anglais`).
+
+## 🎯 ÉTAT AU 2026-09-24 (nuit) — contexte, consignes, verrou
 
 > Écrit avant un `/compact` (le 2e du jour), **mis à jour en fin de soirée** (après le 3e) avant une
 > coupure jusqu'au lendemain. Tout ce qui suit est vérifié, pas supposé. Les sections plus bas
@@ -98,8 +173,8 @@ retour** — facultatif.
    (cf. Mesuré, §142, §143). Reste, facultatif : la passe positive des 4 classes de feuilles sur
    l'émulateur, et une suite complète S9 avec les correctifs de tests, pour une mesure propre avant
    l'audit final.
-3. **Aperçu Markdown** (A1/A2) — **D-024** ; notes détaillées dans la section « Rapports d'agents »
-   ci-dessous et dans D-024. Pièges : pas de défilement imbriqué, barre d'action pleine (§80).
+3. ✅ ~~**Aperçu Markdown** (A1/A2) — D-024~~ — fait le 2026-09-25, commit `3a97bf4` (cf. section du
+   09-25 ci-dessus).
 4. **Test instrumenté de `NoteInfoDialog`** (balayages d'accessibilité).
 5. **Bascule depuis une vraie 2.0.9** sur le S9 (jamais mesurée) — procédure dans l'ancienne liste :
    APK arm64 publié (4072), notes + coffres, puis 3.0.0 signée (`apksigner`, secret lu à la volée,
