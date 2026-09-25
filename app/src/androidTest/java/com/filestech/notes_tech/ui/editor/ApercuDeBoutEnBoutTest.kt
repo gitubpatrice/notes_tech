@@ -1,8 +1,11 @@
 package com.filestech.notes_tech.ui.editor
 
+import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.filter
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -26,6 +29,7 @@ import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -39,6 +43,9 @@ import javax.inject.Inject
  * The screen tests stop at the callback: this one goes through the real `NoteEditorViewModel`, the
  * real database and the real navigation — the only place where "created, **then opened**" can be
  * seen, and where a second tap can be seen to reopen the note instead of creating another.
+ *
+ * Also the one editor behaviour only the real activity shows, being the only one edge to edge: the
+ * links panel hidden while the keyboard is up.
  *
  * ⚠️ It writes to the app's real database: two notes, with a random suffix, deleted in [tearDown].
  */
@@ -122,6 +129,50 @@ class ApercuDeBoutEnBoutTest {
         assertThat(runBlocking { notes.listAllAlive().count { it.title == titreCible } }).isEqualTo(1)
     }
 
+    /**
+     * The links panel hides while the keyboard is up, and comes back when it closes (§154): fixed
+     * under the body, it left the field a few lines to type in. Here and not in `EditeurTest`: that
+     * activity is not edge to edge, never sees the keyboard's insets, and the test would pass there
+     * with the guard removed.
+     *
+     * ⚠️ The keyboard is read from the system, not from the app's insets: a device whose insets never
+     * reported it would fail here, not skip. Where no soft keyboard shows at all, the test is skipped.
+     */
+    @Test
+    fun the_links_panel_hides_while_the_keyboard_is_up() {
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasText(titreSource), TIMEOUT_MILLIS)
+        compose.onNodeWithText(titreSource).performClick()
+        val lienFantome = hasContentDescription(
+            context.getString(R.string.note_editor_backlink_dangling, titreCible),
+        )
+        compose.waitUntilAtLeastOneExists(lienFantome, TIMEOUT_MILLIS)
+
+        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content))).performClick()
+        assumeTrue("No soft keyboard showed on this device", attendreLeClavier(affiche = true))
+        compose.waitUntilDoesNotExist(lienFantome, TIMEOUT_MILLIS)
+
+        Espresso.closeSoftKeyboard()
+        compose.waitUntilAtLeastOneExists(lienFantome, TIMEOUT_MILLIS)
+    }
+
+    /** Whether the system reaches [affiche] — a soft keyboard shown or not — within [TIMEOUT_MILLIS]. */
+    private fun attendreLeClavier(affiche: Boolean): Boolean {
+        val limite = SystemClock.uptimeMillis() + TIMEOUT_MILLIS
+        while (SystemClock.uptimeMillis() < limite) {
+            if (clavierAffiche() == affiche) return true
+            SystemClock.sleep(POLL_MILLIS)
+        }
+        return false
+    }
+
+    private fun clavierAffiche(): Boolean {
+        val automate = InstrumentationRegistry.getInstrumentation().uiAutomation
+        val sortie = automate.executeShellCommand("dumpsys input_method")
+        return ParcelFileDescriptor.AutoCloseInputStream(sortie).bufferedReader().use { it.readText() }
+            .contains("mInputShown=true")
+    }
+
     private fun ouvrirLApercu() {
         val apercu = context.getString(R.string.note_editor_mode_preview)
         compose.waitUntilAtLeastOneExists(hasText(apercu), TIMEOUT_MILLIS)
@@ -136,6 +187,7 @@ class ApercuDeBoutEnBoutTest {
 
     private companion object {
         const val TIMEOUT_MILLIS = 10_000L
+        const val POLL_MILLIS = 100L
         const val SPLASH_SHOWN_KEY = "splash_shown_v1"
     }
 }

@@ -4683,5 +4683,79 @@ une `LazyColumn`), panneau des liens **sous** le corps. Quatre conséquences, ch
    et rien n'est relu pendant la frappe. Côté Édition, pas de position à garder : le champ n'expose pas
    son défilement, et la 2.0.9 reconstruit le sien à chaque bascule.
 
-⚠️ **Non encore contrôlés négativement** (à faire à la reprise) : le plantage (remettre le champ dans
-une colonne défilante), le `clearFocus`, la lecture conservée, le masquage avec le clavier.
+✅ **Contrôlés négativement le 2026-09-25 (après-midi), sur le S9** — chacun fait tomber son test, pour
+la bonne raison (motif relu dans la sortie, pas seulement le code -2) : champ remis dans une colonne
+qui défile → le plantage exact revient (« Can't represent a width of 1080 and height of 360096 ») ;
+`clearFocus` retiré → le titre reste focalisé ; lecture déplacée dans la branche → le paragraphe 1500
+n'est plus affiché au retour. Le masquage avec le clavier a désormais son test, contrôlé lui aussi
+(§155).
+
+## §155 — La relecture Gemini des correctifs : trois constats, deux réels, dont un que la 2.0.9 partage
+
+`gemini-3.1-pro-preview`, sur le **seul delta des correctifs** : l'état relu par GPT est reconstruit à
+part (`fdd0a46` + le diff de la première relecture, qui s'applique proprement) et comparé à `3a97bf4` —
+592 lignes, 7 fichiers, fichiers entiers joints pour remonter les appelants. **0,44 $** (45 583 jetons
+d'entrée, 29 357 de sortie dont 28 171 de réflexion) ; avec GPT, **0,83 $** pour l'aperçu. `audit-ia.py`
+n'affichait l'usage que pour GPT : il lit désormais le `usageMetadata` de Gemini (tarif relevé sur la
+page officielle le jour même : 2 $ et 12 $ par million, réflexion comptée en sortie).
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | « critique, certain » : `<https://…>` et `<mailto:…>` ne seraient plus des liens, les chevrons arrivant à `webTarget` | **faux** : l'appel passe le jeton intérieur (`node.child(MarkdownTokenTypes.AUTOLINK)`), et deux tests couvraient déjà le cas — relancés, 59/59 |
+| 2 | le corps écrasé quand la hauteur manque (paysage, grande police, bannière) | **réel, et pire que décrit** — mesuré sur le S9 : 40 dp en paysage, **0 dp clavier ouvert** : on tape à l'aveugle |
+| 3 | `trim` copie la note à chaque frappe, l'appel ayant lieu en Édition depuis que la lecture est conservée | **réel**, gravité faible : `DartTextSemantics.isBlank`, même prédicat que `trim`, sans copie |
+
+Le reste de ce que je lui demandais de vérifier, il l'a jugé juste en argumentant : plafond de poids
+complet et linéaire, `aplatir`, lecture conservée, `clearFocus`, adresses plafonnées.
+
+**Le constat 2 est une régression par rapport au portage, pas par rapport à la 2.0.9** : la 2.0.9 a la
+même mise en page (`Column` et `Expanded`) et le même défaut, en pire — son panneau n'est ni borné ni
+masqué avec le clavier. L'ancienne mise en page du portage défilait d'un bloc et ne l'avait pas ; elle
+plantait sur les longues notes (§153). Correctif : `MiseEnPageDeLEditeur`, trois parties où le corps
+reçoit ce que laissent l'en-tête et le panneau, **jamais moins de 120 dp** ; si la fenêtre est trop
+courte, les trois défilent ensemble. Le corps est toujours mesuré à une hauteur **fixe** : c'est la
+condition pour que §153 ne revienne pas.
+
+Mesuré sur le S9, par la vraie `MainActivity` (même test temporaire avant et après, clavier lu dans le
+système) :
+
+| Situation | Avant | Après |
+|---|---|---|
+| portrait, clavier fermé | 261 dp | 261 dp |
+| portrait, clavier ouvert (panneau masqué) | 144 dp | 144 dp |
+| paysage, clavier fermé | 40 dp | 120 dp ; le panneau se rejoint en défilant |
+| paysage, clavier ouvert | **0 dp** | **74 dp visibles** : toute la place entre la barre d'application et le clavier, l'en-tête ayant défilé hors de vue |
+
+Tests ajoutés : `EditeurTest.in_a_short_window_the_body_keeps_room_to_type_and_the_editor_scrolls` (une
+fenêtre de 300 dp tient lieu de paysage clavier ouvert, sans clavier ni rotation à attendre) ;
+`ApercuDeBoutEnBoutTest.the_links_panel_hides_while_the_keyboard_is_up` (le masquage n'avait aucun test).
+
+Contrôles négatifs, **tous tombent** sur leur test, pour la bonne raison : J1 `isBlank` de Kotlin à la
+place du prédicat de Dart → le balayage du plan de base ; P1 plancher retiré → corps à 0 px ; P2 corps
+mesuré à pleine hauteur → le plantage exact de §153 ; P3 `clearFocus` retiré ; P4 lecture déplacée
+dans la branche ; P5 garde du clavier retirée → le lien du panneau encore là 10 s après l'ouverture du
+clavier, **sur le S9** — preuve que ce test s'y exécute, lui qui s'ignore là où aucun clavier logiciel
+ne s'affiche.
+
+Pièges de test rencontrés en chemin, chacun m'a coûté un tour :
+
+- **`boundsInRoot` est rogné par le défilement** : un corps de 120 dp dont 4 dp dépassent du bord
+  mesure 116 dp. Pour une taille de mise en page : `fetchSemanticsNode().size`.
+- **`performScrollTo` ne fait défiler que le conteneur défilant le plus proche** : pour un panneau qui
+  défile dans un éditeur qui défile, faire d'abord défiler l'éditeur (`SemanticsActions.ScrollBy` sur
+  le nœud qui contient le corps).
+- **Clavier ouvert, Compose a deux racines** (la poignée du curseur est une fenêtre à part) :
+  `onNode(isRoot())` échoue.
+- **`EditeurTest` ne voit jamais le clavier** : sa `ComponentActivity` n'est pas bord à bord,
+  `isImeVisible` y reste faux, et un test du masquage y passerait garde retirée. D'où `MainActivity`,
+  et `dumpsys input_method` (`mInputShown`) plutôt que les encarts de l'application : un appareil dont
+  les encarts ne rapporteraient pas le clavier doit faire **échouer** le test, pas l'ignorer. Mesuré au
+  passage : `isImeVisible` fonctionne sur Android 10 (S9).
+
+Lint signale `ConfigurationScreenWidthHeight` sur le plafond du panneau (`screenHeightDp`), depuis
+`3a97bf4` : laissé, le tiers de l'écran est voulu et mesuré (§154) ; en fenêtre multiple, Android y
+rapporte la taille de la fenêtre (documentation du multi-fenêtre — non mesuré ici).
+
+*Un « critique, certain » se vérifie comme le reste : c'était le seul constat faux. Et une parité
+n'excuse pas une régression : la 2.0.9 écrase son corps en paysage, le portage ne l'écrasait pas avant
+de la copier.*

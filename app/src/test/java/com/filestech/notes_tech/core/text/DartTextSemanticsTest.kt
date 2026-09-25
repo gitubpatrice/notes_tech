@@ -43,6 +43,22 @@ class DartTextSemanticsTest {
     }
 
     /**
+     * `isBlank` is `trim(…).isEmpty()` without the copy: the same answer for every character of the
+     * base plane, and for text around them — a note ending with a line break is the case it exists for.
+     */
+    @Test
+    @DisplayName("isBlank answers as trim(…).isEmpty(), on the whole base plane")
+    fun isBlankMatchesTrimOnTheWholeBasePlane() {
+        val desaccords = (0x0000..0xFFFF).map { it.toChar().toString() }
+            .filter { DartTextSemantics.isBlank(it) != DartTextSemantics.trim(it).isEmpty() }
+
+        assertThat(desaccords).isEmpty()
+        for (texte in listOf("", " \t\n\r", "\u202F\u3000\u0085", "a", " a ", "note\n", "\u200B", "\u001F")) {
+            assertThat(DartTextSemantics.isBlank(texte)).isEqualTo(DartTextSemantics.trim(texte).isEmpty())
+        }
+    }
+
+    /**
      * ⚠️ Le caractère qui a motivé tout ce fichier.
      *
      * U+202F, l'espace fine insécable, est ce que produisent les claviers et correcteurs français

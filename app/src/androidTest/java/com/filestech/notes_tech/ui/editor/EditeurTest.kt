@@ -1,16 +1,22 @@
 package com.filestech.notes_tech.ui.editor
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -22,10 +28,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.local.dao.NoteLinkRow
@@ -107,11 +116,13 @@ class EditeurTest {
 
     private var pose = false
 
+    /** @param hauteurDeFenetre the screen laid out in a window this tall; the whole activity if `null`. */
     private fun poser(
         etat: EditorUiState,
         liens: PanneauDeLiens = PanneauDeLiens(),
         dicteeActive: Boolean = false,
         apercu: Boolean = false,
+        hauteurDeFenetre: Dp? = null,
     ) {
         if (pose) {
             regle.runOnIdle {
@@ -130,32 +141,34 @@ class EditeurTest {
         pose = true
         regle.setContent {
             NotesTechTheme {
-                NoteEditorScreen(
-                    state = etatCourant.value,
-                    liens = liensCourants.value,
-                    messages = remember { SnackbarHostState() },
-                    dicteeActive = dicteeCourante.value,
-                    onQuitter = { sorties += Unit },
-                    onTitreChange = { titres += it },
-                    onContenuChange = { contenus += it.text },
-                    onDicter = { dictees += Unit },
-                    onInsererUnLien = { insertionsDeLien += Unit },
-                    onEpingler = { epingles += it },
-                    onFavori = { favoris += it },
-                    onInfos = { infos += Unit },
-                    onDeplacer = { deplacements += Unit },
-                    onExporter = { exports += Unit },
-                    onCopier = { copies += Unit },
-                    onCorbeille = { corbeilles += Unit },
-                    onOuvrirNote = { notesOuvertes += it },
-                    onLienFantome = { fantomes += it },
-                    apercu = apercuCourant.value,
-                    onApercu = {
-                        basculements += it
-                        apercuCourant.value = it
-                    },
-                    onLienDeLApercu = { liensDeLApercu += it },
-                )
+                Box(if (hauteurDeFenetre == null) Modifier else Modifier.height(hauteurDeFenetre)) {
+                    NoteEditorScreen(
+                        state = etatCourant.value,
+                        liens = liensCourants.value,
+                        messages = remember { SnackbarHostState() },
+                        dicteeActive = dicteeCourante.value,
+                        onQuitter = { sorties += Unit },
+                        onTitreChange = { titres += it },
+                        onContenuChange = { contenus += it.text },
+                        onDicter = { dictees += Unit },
+                        onInsererUnLien = { insertionsDeLien += Unit },
+                        onEpingler = { epingles += it },
+                        onFavori = { favoris += it },
+                        onInfos = { infos += Unit },
+                        onDeplacer = { deplacements += Unit },
+                        onExporter = { exports += Unit },
+                        onCopier = { copies += Unit },
+                        onCorbeille = { corbeilles += Unit },
+                        onOuvrirNote = { notesOuvertes += it },
+                        onLienFantome = { fantomes += it },
+                        apercu = apercuCourant.value,
+                        onApercu = {
+                            basculements += it
+                            apercuCourant.value = it
+                        },
+                        onLienDeLApercu = { liensDeLApercu += it },
+                    )
+                }
             }
         }
         regle.waitForIdle()
@@ -724,6 +737,28 @@ class EditeurTest {
     }
 
     /**
+     * 🔴 **In a short window, the body keeps room to type and the editor scrolls** (Gemini review,
+     * 2026-09-25). With 2.0.9's layout alone, the header took all the height the keyboard left in
+     * landscape: on the S9 the body field was 40 dp tall, and 0 dp with the keyboard up. A short
+     * window stands for both, with no keyboard or rotation to wait for. Discriminating: with the body
+     * filling only what the header and the panel leave, it gets nothing here.
+     */
+    @Test
+    fun in_a_short_window_the_body_keeps_room_to_type_and_the_editor_scrolls() {
+        poser(noteChargee(), liens = liensComplets(), hauteurDeFenetre = FENETRE_COURTE)
+
+        // Its size, not its bounds: the bounds are clipped to what is scrolled into view.
+        val hauteurDuCorps = champDuCorps().fetchSemanticsNode().size.height
+        assertThat(hauteurDuCorps).isAtLeast(with(regle.density) { HAUTEUR_MINIMALE_DU_CORPS.roundToPx() })
+        // What no longer fits, the links panel, is reached by scrolling the editor to its end — the
+        // column holding the body, not the panel's own scroll, which `performScrollTo` would pick.
+        val corps = hasSetTextAction() and hasText(texte(R.string.note_editor_content))
+        regle.onNode(hasScrollAction() and hasAnyDescendant(corps))
+            .performSemanticsAction(SemanticsActions.ScrollBy) { defiler -> defiler(0f, DEFILEMENT_JUSQU_AU_BOUT) }
+        regle.onNodeWithText(TITRE_MENTION).performScrollTo().assertIsDisplayed()
+    }
+
+    /**
      * The three sweeps on the editor in preview, on a note with a heading, a task list and a table —
      * no link: the links' own finding is measured, with the real accessibility tree, in
      * `ApercuMarkdownTest`.
@@ -841,5 +876,11 @@ class EditeurTest {
         const val LIGNES_D_UNE_TRES_LONGUE_NOTE = 5_000
         const val PARAGRAPHE_DU_MILIEU = "Paragraph 1500"
         const val ATTENTE_DE_L_APERCU_MS = 10_000L
+
+        /** The app bar and the header take most of it, as in landscape with the keyboard up. */
+        val FENETRE_COURTE = 300.dp
+
+        /** Pixels: more than the editor can scroll in [FENETRE_COURTE] — the scroll stops at its end. */
+        const val DEFILEMENT_JUSQU_AU_BOUT = 10_000f
     }
 }

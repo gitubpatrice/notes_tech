@@ -88,6 +88,13 @@ internal object DartTextSemantics {
     fun trim(value: String): String = value.trim { it.isDartTrimmable() }
 
     /**
+     * `trim(value).isEmpty()`, without copying [value]: it stops at the first character [trim] would
+     * keep. The Markdown preview asks it on every keystroke, and [trim] copies a whole note as soon
+     * as it ends with a line break (Gemini review, 2026-09-25).
+     */
+    fun isBlank(value: CharSequence): Boolean = value.all { it.isDartTrimmable() }
+
+    /**
      * Écrit en toutes lettres plutôt que dérivé de [WHITESPACE] : tester chaque caractère par
      * expression régulière allouerait une chaîne par caractère, sur un chemin parcouru à chaque
      * frappe.

@@ -67,7 +67,8 @@ fun aplatir(blocs: List<PreviewBlock>): List<ElementDApercu> {
  */
 @Composable
 fun rememberLectureDeLApercu(source: String, actif: Boolean): LectureDeLApercu {
-    val vide = DartTextSemantics.trim(source).isEmpty()
+    // Asked on every keystroke in Edit, where this is called too: no copy of the note.
+    val vide = DartTextSemantics.isBlank(source)
     val lecture = remember(source) { mutableStateOf(if (vide) LectureDeLApercu.Vide else LectureDeLApercu.EnCours) }
     LaunchedEffect(source, actif) {
         if (vide || !actif || lecture.value is LectureDeLApercu.Lue) return@LaunchedEffect

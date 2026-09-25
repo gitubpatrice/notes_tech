@@ -37,9 +37,10 @@ import com.filestech.notes_tech.ui.theme.Formes
  *
  * ## 🔴 Aucun défilement propre, et ce n'est pas un choix esthétique
  *
- * ⚠️ Since 2026-09-25 this panel no longer lives inside a scrolling column: it sits under the
- * editor's body, and `PiedDeLEditeur` (`NoteEditorScreen`) bounds its height and scrolls it. The
- * rule below still holds for whoever places it: it scrolls through its container, never by itself.
+ * ⚠️ Since 2026-09-25 this panel sits under the editor's body, and `PiedDeLEditeur`
+ * (`NoteEditorScreen`) bounds its height, then scrolls it. The editor's column around it scrolls only
+ * in a short window, and the bound keeps the panel's own scroll finite there. The rule below still
+ * holds for whoever places it: it scrolls through its container, never by itself.
  *
  * Il vivait **à l'intérieur** de la colonne défilante de l'éditeur. Y poser un `LazyColumn`, un
  * `LazyRow` ou un second `verticalScroll` place un composant défilant dans une contrainte de hauteur

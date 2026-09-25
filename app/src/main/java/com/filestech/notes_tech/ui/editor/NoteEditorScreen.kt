@@ -6,6 +6,7 @@ import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
@@ -73,6 +74,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -84,6 +86,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -600,37 +603,44 @@ fun NoteEditorScreen(
                 //    that fills its space scrolls within it and never asks for that height.
                 // 2. Leaving the preview of a long note meant scrolling back to its top to find the
                 //    switch.
-                else -> Column(Modifier.fillMaxSize().imePadding()) {
-                    EnTeteDeLEditeur(state, onTitreChange, apercu, onApercu)
+                //
+                // ⚠️ With a floor 2.0.9 lacks: in a window too short for the header, the body and
+                // the panel, the three scroll together — see `MiseEnPageDeLEditeur`.
+                else -> {
                     // ⚠️ The text on screen, not the last saved one: what the preview draws is what
                     // the user has just typed — the save is 500 ms behind. Called in both modes: a
                     // reading, and so the preview's position, survives a trip to Edit when nothing
                     // was typed (see `rememberLectureDeLApercu`).
                     val lecture = rememberLectureDeLApercu(state.content.text, actif = apercu)
-                    if (apercu) {
-                        // 🔴 Lazy in preview — see `apercuMarkdown`: a note has no size limit.
-                        LazyColumn(
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                            state = defilementDeLApercu,
-                            contentPadding = PaddingValues(bottom = 24.dp),
-                        ) {
-                            apercuMarkdown(lecture, onLienDeLApercu)
+                    MiseEnPageDeLEditeur(
+                        enTete = { EnTeteDeLEditeur(state, onTitreChange, apercu, onApercu) },
+                        pied = { PiedDeLEditeur(liens, onOuvrirNote, onLienFantome) },
+                        modifier = Modifier.fillMaxSize().imePadding(),
+                    ) {
+                        if (apercu) {
+                            // 🔴 Lazy in preview — see `apercuMarkdown`: a note has no size limit.
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                state = defilementDeLApercu,
+                                contentPadding = PaddingValues(bottom = 24.dp),
+                            ) {
+                                apercuMarkdown(lecture, onLienDeLApercu)
+                            }
+                        } else {
+                            TextField(
+                                value = state.content,
+                                onValueChange = onContenuChange,
+                                // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
+                                // part** — le publié en fait le `labelText` de ce champ exactement. Même
+                                // discriminant que §79, appliqué au même écran le même jour.
+                                label = { Text(stringResource(R.string.note_editor_content)) },
+                                placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
+                                textStyle = MaterialTheme.typography.bodyLarge,
+                                colors = champSansDecor(),
+                                modifier = Modifier.fillMaxSize(),
+                            )
                         }
-                    } else {
-                        TextField(
-                            value = state.content,
-                            onValueChange = onContenuChange,
-                            // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
-                            // part** — le publié en fait le `labelText` de ce champ exactement. Même
-                            // discriminant que §79, appliqué au même écran le même jour.
-                            label = { Text(stringResource(R.string.note_editor_content)) },
-                            placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
-                            textStyle = MaterialTheme.typography.bodyLarge,
-                            colors = champSansDecor(),
-                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                        )
                     }
-                    PiedDeLEditeur(liens, onOuvrirNote, onLienFantome)
                 }
             }
         }
@@ -638,8 +648,59 @@ fun NoteEditorScreen(
 }
 
 /**
- * What the editor shows above the note's body, in both modes, and does not scroll: the save
- * failure, the title, and the Edit / Preview switch.
+ * The editor's three parts, top to bottom: [enTete], [corps], [pied] — 2.0.9's layout, with a floor.
+ *
+ * The body fills what the header and the links panel leave, as 2.0.9's `Expanded` does, but never
+ * less than [HAUTEUR_MINIMALE_DU_CORPS]; in a window too short for that, the three parts scroll
+ * together, as in the port's first layout. Without the floor, measured on the S9 in landscape, the
+ * body field was 40 dp tall, and **0 dp with the keyboard up**: the header took all the height the
+ * keyboard left, and the user typed blind (Gemini review, 2026-09-25). 2.0.9 has the same layout,
+ * and the same defect.
+ *
+ * 🔴 The body is always measured with a **fixed** height, never at its full one: a field measured
+ * at its full height is what crashed the editor on a long note. What scrolls here is the column of
+ * the three parts; the field, or the preview, still scrolls itself inside it.
+ */
+@Composable
+private fun MiseEnPageDeLEditeur(
+    enTete: @Composable () -> Unit,
+    pied: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    corps: @Composable () -> Unit,
+) {
+    BoxWithConstraints(modifier) {
+        // The height the editor has, once `imePadding` on [modifier] has taken the keyboard off.
+        val hauteurVisible = if (constraints.hasBoundedHeight) constraints.maxHeight else 0
+        Layout(
+            contents = listOf(enTete, corps, pied),
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+        ) { (tete, milieu, bas), contraintes ->
+            val largeur = contraintes.maxWidth
+            val libres = Constraints(maxWidth = largeur)
+            val placesDeTete = tete.map { it.measure(libres) }
+            val placesDuBas = bas.map { it.measure(libres) }
+            val reste = hauteurVisible - placesDeTete.sumOf { it.height } - placesDuBas.sumOf { it.height }
+            val hauteurDuCorps = maxOf(reste, HAUTEUR_MINIMALE_DU_CORPS.roundToPx())
+            val placesDuCorps = milieu.map { it.measure(Constraints.fixed(largeur, hauteurDuCorps)) }
+            val toutes = placesDeTete + placesDuCorps + placesDuBas
+            layout(largeur, toutes.sumOf { it.height }) {
+                var y = 0
+                toutes.forEach { place ->
+                    place.placeRelative(0, y)
+                    y += place.height
+                }
+            }
+        }
+    }
+}
+
+/** About three lines of text under the body field's label. */
+internal val HAUTEUR_MINIMALE_DU_CORPS = 120.dp
+
+/**
+ * What the editor shows above the note's body, in both modes: the save failure, the title, and the
+ * Edit / Preview switch. It stays on screen whenever the window has room for the body under it —
+ * see [MiseEnPageDeLEditeur].
  */
 @Composable
 private fun EnTeteDeLEditeur(
@@ -712,9 +773,10 @@ private fun EnTeteDeLEditeur(
  * The note's links, under its body in both modes — where 2.0.9 puts its `BacklinksPanel`.
  *
  * ⚠️ **Bounded, and scrolling itself**: a third of the screen at most. 2.0.9 does not bound it, so
- * a note citing a few hundred titles pushes its body out of the screen. The panel is no longer inside
- * a scrolling parent, so its own scroll is measured with a finite height — what crashed the panic
- * mode's end screen (§ of `LiensDeLaNote`) was a scroll inside a scroll, which this is not. A quarter
+ * a note citing a few hundred titles pushes its body out of the screen. Its own scroll is measured
+ * with a finite height — `heightIn` bounds it first — even inside the column of
+ * [MiseEnPageDeLEditeur], which scrolls in a short window: what crashed the panic mode's end screen
+ * (§ of `LiensDeLaNote`) was a scroll measured with an infinite height, which this is not. A quarter
  * was tried first: two sections of 48 dp chips did not fit on the S9, and the mention was cut off.
  *
  * ⚠️ **Hidden while the keyboard is up.** Fixed under the body, it left the field a few lines to type
@@ -809,10 +871,11 @@ private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> U
  * Edit / Preview, under the title — where notes_tech 2.0.9 puts its `SegmentedButton`.
  *
  * Switching closes the keyboard, as in 2.0.9 (`FocusManager.instance.primaryFocus?.unfocus()`): it
- * would cover the preview, and reading needs no cursor. ⚠️ The title field stays on screen across
- * the switch — the header does not scroll — so its focus, and the keyboard, would stay too without
- * this `clearFocus`. (While the header scrolled with the body, both fields left the composition on
- * every switch and the call was dead code — a negative control proved it on the S9, 2026-09-25.)
+ * would cover the preview, and reading needs no cursor. ⚠️ The title field stays composed across the
+ * switch — both modes share the header — so its focus, and the keyboard, would stay too without this
+ * `clearFocus`. (While each mode laid the editor out in its own container, both fields left the
+ * composition on every switch and the call was dead code — a negative control proved it on the S9,
+ * 2026-09-25.)
  *
  * Tapping the side already shown does nothing — 2.0.9's `onSelectionChanged` does not fire either —
  * so it cannot close a keyboard the user is typing with.

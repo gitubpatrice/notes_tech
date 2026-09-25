@@ -752,10 +752,18 @@ inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni bl
   l'écran, masqué tant que le clavier est ouvert. Elle corrige un **plantage préexistant** : une note
   de plus de ~3 600 lignes faisait planter l'éditeur à l'ouverture (contrainte de hauteur que Compose
   ne sait pas représenter), depuis le 2026-08-15.
+  - **Écart assumé : un plancher** (§155, relecture Gemini). Le corps ne descend jamais sous 120 dp ;
+    si la fenêtre est trop courte, en-tête, corps et panneau défilent ensemble. Sans lui, mesuré sur
+    le S9 en paysage : corps de 40 dp, et **0 dp clavier ouvert** — la 2.0.9 a le même défaut, que
+    l'ancienne mise en page du portage n'avait pas. Avec : 120 dp, et 74 dp visibles clavier ouvert
+    (toute la place entre la barre d'application et le clavier).
 - **Position** : l'aperçu revient où on l'a laissé après un passage en Édition sans frappe (lecture
   conservée tant que le texte ne change pas). En Édition, pas de position gardée, comme la 2.0.9.
 - **Relecture GPT-5.6 sol** (0,39 $, §152) : 5 constats réels corrigés — liens automatiques `<mailto:…>`,
   adresses plafonnées à 8 192 caractères, poids des éléments paresseux, liste à plat, position.
+- **Relecture Gemini 3.1 Pro des seuls correctifs** (0,44 $, §155) : 3 constats — le « critique »
+  réfuté (code et tests), le corps écrasé en paysage (plancher ci-dessus), une copie de la note à
+  chaque frappe (`DartTextSemantics.isBlank`).
 - **Accessibilité mesurée sur l'arbre réel d'Android** (§149) : chaque lien arrive au lecteur d'écran
   comme un `AccessibilityClickableSpan` sur ses mots.
 
