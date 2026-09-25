@@ -3,7 +3,56 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-25 (nuit) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-25 (nuit, après le compactage) — LIRE CECI D'ABORD
+
+> La section « nuit » juste en dessous reste valable : sa liste « CE QUI RESTE » (les trois langues)
+> n'a pas bougé, sauf son point 7, réglé ici. Tout est commité, **rien n'est poussé**.
+
+Patrice, au retour du compactage : « il faudra passer pass_tech au vouvoiement » (**plus tard** : « on
+verra pour pass tech plus tard, on termine notes_tech_kotlin » — consigné dans la mémoire du projet Pass
+Tech, avec les fichiers à reprendre), et, sur la clé de coffre invalidée : « corrige le avec ce qu'il y
+a de mieux ».
+
+### Fait : une clé de coffre perdue n'est plus « trop de tentatives » — `346d95b` (§162, D-026)
+
+- **Mesuré sur l'émulateur API 34** (clé au même `KeyGenParameterSpec` que le coffre) : retirer le
+  verrouillage d'écran **supprime** la clé, en remettre un ne la ramène pas ; changer de code ou passer
+  à un schéma la garde. Le S9 (Android 10) la gardait : « moins urgent que prévu » était faux ailleurs.
+  Le portage disait « Veuillez réessayer » à l'infini, la 2.0.9 dit « Coffre verrouillé. ».
+- **Corrigé** : clé introuvable → dite telle (« introuvable… aucun PIN ne peut ouvrir ce coffre sans
+  elle »), ni comptée ni effacée, feuille réduite à « Fermer » ; clé invalidée → toujours effacée, mais
+  avec sa vraie cause ; le choix du mode avertit, sur l'option code, que retirer le verrouillage
+  d'écran **peut** rendre le coffre impossible à ouvrir. Cinq langues.
+- **Trouvé en testant** : l'avertissement, d'abord dans la bannière de création, faisait déborder la
+  feuille sur le S9 (le pavé bougeait entre les deux saisies) — déplacé au choix du mode.
+- **Mesuré** : JVM 417, 0 ignoré ; S9 **OK (62 tests)** sur les trois classes de coffre ; émulateur
+  56 + 5 ignorés à dessein + le témoin logiciel attendu ; lint 0 erreur, 75 avertissements ; **13
+  contrôles négatifs, tous tombent** (chaque groupe exactement ses tests) ; 0 caractère invisible.
+- **Relecture GPT-5.6 sol : 0,33 $ — total des relectures du jour 2,58 $.** Deux constats réels
+  corrigés (le message et l'avertissement affirmaient plus que le code ne sait) ; deux préexistants,
+  identiques à la 2.0.9, gardés pour l'**audit final** : deux déverrouillages concurrents (inatteignable
+  par l'interface) et un remboursement d'essai qui échouerait (double panne).
+
+### 🔴 À dire à Patrice (reste de la liste du point 7 ci-dessous)
+
+1. **À trancher** : retirer `setUnlockedDeviceRequired(true)` de la clé du coffre la ferait **survivre**
+   au retrait du verrouillage (mesuré), mais la rendrait utilisable téléphone verrouillé — recul de
+   sécurité face à un téléphone saisi. Recommandation : garder (D-026).
+2. La **2.0.9 publiée** a le même défaut : sur Android 12 et plus, un coffre à code dont le verrouillage
+   d'écran a été retiré répond « Coffre verrouillé. » à chaque essai. À lui de dire si cela vaut une
+   2.0.10 ou si la 3.0.0 suffit.
+3. Toujours ouvert : quelle version des pages légales traduites fait foi (décision juridique).
+
+### Appareils, mis à jour
+
+- **S9** : APK de debug **du commit `346d95b`** installés (`.next.debug`, note « Essai TalkBack »
+  intacte — seules les classes de coffre ont tourné) ; la 3.0.0 release et ses données de bascule
+  inchangées ; toujours aucun code d'écran.
+- **Émulateur** : code 1111 remis après les mesures ; le test de mesure a été retiré du dépôt (copie
+  à deux clés dans `scratchpad/MesureVerrouillageEcranTest.kt`, pour mesurer un jour Android 16).
+- **S24** : inchangé (exclu de la mesure : il aurait fallu retirer son verrouillage d'écran).
+
+## 🎯 ÉTAT AU 2026-09-25 (nuit) — section précédente
 
 > Écrit avant un `/compact` demandé par Patrice (« consigne tout je dois compacter »). La section du
 > 25 au soir, juste en dessous, reste valable (points 7 à 13 : ce qui a été fait depuis le compactage
@@ -34,10 +83,10 @@ Patrice : « super tout fonctionne ») → **`5466624`** (allemand, espagnol, it
    nécessaire »).
 6. Docs : `05-PARITE.md` (ajout hors parité), `12-PLAN-DE-BASCULE.md` (métadonnées fastlane
    de-DE/es-ES/it-IT et description F-Droid à la publication).
-7. **À dire à Patrice** : le ton du portefeuille n'est pas cohérent (Pass Tech tutoie en espagnol et en
-   italien, SMS Tech vouvoie ; Notes Tech vouvoie comme SMS Tech) ; les pages légales traduites ne
-   disent pas quelle version fait foi (comme Pass Tech) — décision juridique ; message dédié pour une
-   clé de coffre invalidée par Android (§160, moins urgent : retirer le code d'écran ne l'invalide pas).
+7. ~~**À dire à Patrice**~~ — **réglé après le compactage** (section au-dessus) : le ton de Pass Tech est
+   décidé (vouvoiement, plus tard) ; le message de clé de coffre est fait (`346d95b`, et « retirer le
+   code d'écran ne l'invalide pas » était faux sur Android 14 : il la **supprime**). Reste seul ouvert :
+   quelle version des pages légales traduites fait foi — décision juridique.
 
 Reste ensuite l'ancienne liste : docs finales, ménage de l'émulateur, TalkBack (Patrice), puis l'audit
 complet « à la fin ».
