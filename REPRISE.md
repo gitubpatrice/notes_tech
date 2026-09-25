@@ -99,6 +99,14 @@
     ces correctifs : 4 constats — 2 réfutés, 1 identique à la 2.0.9, 1 réel sous une autre forme
     (au déverrouillage d'un coffre à code, la dérivation tournait avant le `try` qui efface le scellé
     intérieur) : corrigé, testé (S9 29/29), contrôle négatif qui tombe.
+12. ✅ **Bascule depuis une vraie 2.0.9, mesurée sur le S9** (`05-PARITE.md`, ligne « Bascule 2.0.9 →
+    3.0.0 ») : release GitHub v2.0.9 installée, notes, coffre à phrase et coffre à code créés à la main,
+    puis la 3.0.0 signée de la clé de production posée par-dessus — tout est relu, index de liens
+    compris. Code d'écran 1111 posé puis **retiré** du S9 ; retirer le code n'invalide pas la clé du
+    coffre. APK signé **supprimé** du scratchpad. Le S9 porte désormais la **3.0.0 release**
+    (`com.filestech.notes_tech`, données de test de la bascule) à côté de l'application de
+    développement (note « Essai TalkBack »). **Patrice : « super tout fonctionne ».**
+13. **Nouvelle demande de Patrice, le 25 au soir : ajouter l'allemand, l'espagnol et l'italien.**
 
 ### Mesuré
 
@@ -163,7 +171,7 @@
       « Codes » ouvre la note « Codes » (créée au passage).
    5. Désactiver par le même chemin (lecteur actif : un toucher sélectionne, deux touchers activent).
 6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : ✅ ~~test de
-   `NoteInfoDialog`~~ (point 8 ci-dessus), bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
+   `NoteInfoDialog`~~ (point 8 ci-dessus), ✅ ~~bascule depuis une vraie 2.0.9 sur le S9~~ (point 12), ✅ ~~relecture du diff de parité 2.0.9 + panneau Infos~~ (point 11), docs
    finales (`05-PARITE.md`, `12-PLAN-DE-BASCULE.md` : la 3.0.0 ajoute aussi une **dépendance**,
    `org.jetbrains:markdown`, à déclarer dans la description F-Droid s'il y a lieu), ménage de
    l'émulateur (code **1111 reposé le 25** ; l'empreinte du 24 a disparu, non reposée).
