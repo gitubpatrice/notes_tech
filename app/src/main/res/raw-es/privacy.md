@@ -51,7 +51,7 @@ El borrado **no es atómico**, y el orden de los pasos está pensado en función
 
 ### Sus derechos
 
-Como todos los datos son estrictamente locales, el RGPD se aplica entre usted y su teléfono. En cualquier momento puede:
+Sus datos permanecen en su teléfono, bajo su exclusivo control, y el editor no tiene ningún medio de acceder a ellos: por tanto, no trata ningún dato personal suyo. Es el caso que la CNIL, la autoridad francesa de protección de datos, describe como un «simple software puesto a disposición del usuario», al que no se aplica el RGPD (recomendación sobre las aplicaciones móviles, apartado 3.3). Usted conserva el control de sus datos y en cualquier momento puede:
 - exportar sus notas en Markdown o ZIP (`Ajustes → Exportar todas mis notas`),
 - borrar todos los datos mediante el modo pánico,
 - desinstalar la aplicación: Android borrará automáticamente todos los datos privados.

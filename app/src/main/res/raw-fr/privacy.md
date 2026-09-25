@@ -51,7 +51,7 @@ L'effacement **n'est pas atomique**, et l'ordre des étapes est conçu pour cela
 
 ### Vos droits
 
-Toutes les données étant strictement locales, le règlement RGPD s'applique entre vous et votre téléphone. Vous pouvez à tout moment :
+Vos données restent sur votre téléphone, sous votre seul contrôle, et l'éditeur n'a aucun moyen d'y accéder : il ne traite donc aucune donnée personnelle vous concernant. C'est le cas que la CNIL décrit comme un « simple logiciel mis à disposition de l'utilisateur », auquel le RGPD ne s'applique pas (recommandation sur les applications mobiles, § 3.3). Vous gardez la main sur vos données et pouvez à tout moment :
 - exporter vos notes au format Markdown ou ZIP (`Réglages → Exporter`),
 - supprimer toutes les données via le mode panique,
 - désinstaller l'application — Android supprimera automatiquement toutes les données privées.

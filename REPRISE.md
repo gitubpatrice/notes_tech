@@ -40,7 +40,16 @@ a de mieux ».
    est écrit dans `AndroidVaultKeystore.specFor`, là où l'attribut est posé.
 2. **Pas de 2.0.10** (« on part sur une 3.0.0 ») : la 2.0.9 publiée garde le défaut, la 3.0.0 le
    corrige — à dire dans son changelog (`docs/12-PLAN-DE-BASCULE.md`, phase 3).
-3. Toujours ouvert : quelle version des pages légales traduites fait foi (décision juridique).
+3. ~~Quelle version des pages légales fait foi~~ — **réglé (D-027)** : Patrice publie **à titre
+   personnel et gratuit**. Vérifié : Pass Tech et SMS Tech ne tranchent pas ; les premiers textes étaient
+   en français ; modèle F-Droid (Markor : la licence Apache porte l'absence de garantie) ; CNIL,
+   recommandation sur les applications mobiles § 3.3 (lue dans le PDF) : une appli dont les données
+   restent sous le seul contrôle de l'utilisateur est un « simple logiciel », le RGPD ne s'applique pas à
+   l'éditeur. Fait (`a94ad36` + suivant) : **la version française fait foi** (section « Langue », cinq
+   langues) ; gratuit, par un particulier, tel quel (Apache 2.0 § 7-8), usage sous la responsabilité de
+   l'utilisateur ; la phrase fausse « le RGPD s'applique entre vous et votre téléphone » corrigée.
+   Conditions 1.1.0, confidentialité 1.2.0. `PagesLegalesTest` : plan de l'original exigé partout
+   (deux contrôles négatifs tombent) ; S9 : écrans À propos, légal et réglages 21/21.
 
 ### Appareils, mis à jour
 

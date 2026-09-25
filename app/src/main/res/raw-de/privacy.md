@@ -51,7 +51,7 @@ Das Löschen ist **nicht atomar**, und die Reihenfolge der Schritte ist darauf a
 
 ### Ihre Rechte
 
-Da alle Daten ausschließlich lokal sind, gilt die DSGVO zwischen Ihnen und Ihrem Telefon. Sie können jederzeit:
+Ihre Daten bleiben auf Ihrem Telefon, unter Ihrer alleinigen Kontrolle, und der Herausgeber hat keinerlei Zugriff darauf: Er verarbeitet also keine personenbezogenen Daten über Sie. Die CNIL, die französische Datenschutzbehörde, beschreibt diesen Fall als „einfache Software, die dem Nutzer zur Verfügung gestellt wird“, auf die die DSGVO nicht anwendbar ist (Empfehlung zu mobilen Apps, Abschnitt 3.3). Sie behalten die Kontrolle über Ihre Daten und können jederzeit:
 - Ihre Notizen als Markdown oder ZIP exportieren (`Einstellungen → Alle meine Notizen exportieren`),
 - alle Daten über den Panikmodus löschen,
 - die App deinstallieren — Android löscht dann automatisch alle privaten Daten.

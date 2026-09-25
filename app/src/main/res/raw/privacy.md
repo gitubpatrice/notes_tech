@@ -51,7 +51,7 @@ The wipe is **not atomic**, and the step order is designed around that: the encr
 
 ### Your rights
 
-All data being strictly local, the GDPR applies between you and your phone. You may at any time:
+Your data stays on your phone, under your sole control, and the publisher has no way to access it, and therefore processes no personal data about you. This is what the CNIL, the French data protection authority, describes as "software simply made available to the user", to which the GDPR does not apply (recommendation on mobile apps, section 3.3). You remain in control of your data and may at any time:
 - export your notes in Markdown or ZIP (`Settings → Export`),
 - delete all data via panic mode,
 - uninstall the app — Android will automatically delete all private data.

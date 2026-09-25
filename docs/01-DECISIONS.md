@@ -813,8 +813,8 @@ verrouillage (D-023) et le panneau Infos.
 - **Source des chaînes** : `values-de|es|it/strings.xml` écrits directement — pas d'ARB à transposer —
   et tenus par `LanguesDeLApplicationTest` (mêmes noms, mêmes arguments, formes de pluriel `one`/`other`,
   plus `many` en espagnol et en italien). Une chaîne ajoutée en anglais exige ses trois traductions.
-- **Pages légales** traduites (confidentialité, conditions), sans clause disant quelle version fait foi
-  — comme Pass Tech ; décision juridique laissée à Patrice. La licence MIT reste en anglais.
+- **Pages légales** traduites (confidentialité, conditions). La licence MIT reste en anglais. Quelle
+  version fait foi : **tranché le même soir, D-027** — l'original français.
 - **Magasins** : les textes fastlane (de-DE, es-ES, it-IT) viendront à la publication (phase 3 du plan
   de bascule) ; le portage n'en a pas encore.
 
@@ -846,3 +846,55 @@ clé invalidée). Détail et mesures : §162.
 - **Pas de 2.0.10 — tranché par Patrice le même jour** (« on part sur une 3.0.0 ») : la 2.0.9 publiée
   garde le défaut (« Coffre verrouillé. » à chaque essai quand la clé a été supprimée) ; c'est la 3.0.0
   qui le corrige, et son changelog doit le dire (`docs/12-PLAN-DE-BASCULE.md`, phase 3).
+
+## D-027 — Pages légales : l'original français fait foi, pour un logiciel gratuit publié par un particulier
+
+**2026-09-25 · Patrice**, en plusieurs messages : « je ne sais pas quelle version fait foi, je te laisse
+vérifier et faire le nécessaire » ; « pour les textes de loi vérifie sms-tech ou pass-tech » ; « je ne
+suis pas une société, je fais ça à titre personnel et gratuit » ; « je ne suis pas responsable de
+l'utilisation que font les gens […] regarde les textes d'une appli publiée sur F-Droid » ; « fais des
+recherches sur ce que dit la loi française » ; « voici un texte de la CNIL, lis-le » (le message n'en
+portait aucun : lu, celui qui s'applique — la recommandation sur les applications mobiles).
+
+**Vérifié, pas supposé :**
+- **Portefeuille** : Pass Tech (cinq langues) ne dit pas quelle version fait foi ; SMS Tech n'a qu'une
+  politique de confidentialité en anglais. Aucune règle à reprendre. Pass Tech écrit « droit français et
+  européen, sauf disposition impérative contraire », sans tribunal désigné.
+- **Langue d'origine** : les premiers textes légaux de Notes Tech (v0.7.0, 2026-05-06, racine du dépôt
+  Flutter) étaient en **français** ; l'anglais date du 2026-05-08 (`57afadd`).
+- **F-Droid** (Markor, Apache 2.0) : aucunes conditions à part — la licence porte l'absence de garantie
+  (§ 7, où l'utilisateur « assume les risques » de son usage) et l'exclusion de responsabilité (§ 8) ;
+  la confidentialité tient en un paragraphe, en anglais.
+- **Droit de la consommation** (Code de la consommation, Rome I art. 6, Bruxelles I bis art. 17 à 19) :
+  il suppose un **professionnel** en face du consommateur. Patrice publie à titre personnel et gratuit :
+  la clause « droit français, tribunaux français » reste. (Rome I 6 § 2 et Bruxelles I bis 18-19
+  vérifiés sur des reproductions des textes officiels, EUR-Lex refusant l'outil de lecture.)
+- **CNIL, recommandation sur les applications mobiles** (2024, modifiée en avril 2025), **§ 3.3**, lue
+  dans le PDF : si le traitement est décidé par l'utilisateur, sous son seul contrôle, et qu'aucun tiers
+  ne peut intervenir sur les données, l'application est « un simple logiciel mis à disposition de
+  l'utilisateur », l'éditeur « un simple tiers », et **le RGPD ne s'applique pas au logiciel fourni**. La
+  CNIL en fait une **bonne pratique**, et demande de tenir les versions à jour et de retirer une version
+  vulnérable. Notes Tech est dans ce cas : aucune permission réseau, sauvegarde Android coupée.
+- **Directive (UE) 2024/2853** (produits défectueux ; produits mis sur le marché à partir du 9 décembre
+  2026 ; pas encore transposée en France fin août 2026) et **Cyber Resilience Act** (règlement (UE)
+  2024/2847, 11 décembre 2027) : le logiciel libre fourni **hors activité commerciale** en est exclu —
+  tant qu'il n'est ni vendu ni monétisé (des dons au-delà des coûts compteraient, CRA considérant 15).
+- **LCEN, art. 1-1** (depuis la loi SREN de 2024) : l'identification de l'éditeur vise le **site** ; un
+  particulier non professionnel peut n'y publier que les coordonnées de son hébergeur. Rien à faire
+  dans l'application.
+
+**Décisions :**
+- **La version française fait foi** : une section « Langue » dans les deux pages, dans chaque langue.
+  L'original est français, le droit choisi aussi, et trois traductions n'ont jamais été relues.
+- **Conditions** : mises à disposition **gratuitement**, par un particulier, à titre personnel et non
+  commercial, **telles quelles** (Apache 2.0, § 7) ; l'usage relève de la **seule responsabilité** de
+  l'utilisateur ; la limite de responsabilité cite le § 8.
+- **Confidentialité** : « le RGPD s'applique entre vous et votre téléphone » — faux, un téléphone n'est
+  pas une partie — remplacé par ce que dit la CNIL.
+- Versions : conditions **1.1.0**, confidentialité **1.2.0** (septembre 2026).
+- **Non fait ici** : Pass Tech (plus tard, avec son vouvoiement — noté dans sa mémoire ; son cas diffère,
+  elle a deux usages réseau) ; le site files-tech.com, hors de ce dépôt.
+
+⚖️ Une aide à la compréhension, pas l'avis d'un avocat : pour un litige, consulter un professionnel.
+
+**Réalisation** : `a94ad36` (langue, gratuité, usage) puis le commit de la phrase sur le RGPD.

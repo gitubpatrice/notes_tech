@@ -51,7 +51,7 @@ La cancellazione **non è atomica**, e l'ordine dei passaggi è pensato di conse
 
 ### I suoi diritti
 
-Poiché tutti i dati sono strettamente locali, il GDPR si applica tra lei e il suo telefono. In qualsiasi momento può:
+I suoi dati restano sul suo telefono, sotto il suo esclusivo controllo, e l'editore non ha alcun modo di accedervi: non tratta quindi alcun dato personale che la riguardi. È il caso che la CNIL, l'autorità francese per la protezione dei dati, descrive come un «semplice software messo a disposizione dell'utente», al quale il GDPR non si applica (raccomandazione sulle applicazioni mobili, paragrafo 3.3). Mantiene il controllo dei suoi dati e in qualsiasi momento può:
 - esportare le sue note in Markdown o ZIP (`Impostazioni → Esporta tutte le mie note`),
 - cancellare tutti i dati con la modalità panico,
 - disinstallare l'app: Android cancellerà automaticamente tutti i dati privati.
