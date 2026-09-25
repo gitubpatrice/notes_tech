@@ -795,3 +795,26 @@ inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni bl
 **Limites connues**, préexistantes et identiques dans la 2.0.9 : deux notes ordinaires homonymes
 peuvent être montrées alors que le lien ouvre la moins récente ; une note exacte au-delà des huit
 suggestions n'empêche pas Entrée de créer un homonyme (§84, « au mieux »).
+
+## D-025 — Allemand, espagnol, italien : un ajout hors parité
+
+**2026-09-25 · demandé par Patrice** (« ce serait bien d'ajouter les langues allemand, espagnol et
+italien à l'appli »). La 2.0.9 ne parle qu'anglais et français : c'est un **ajout** du portage, comme le
+verrouillage (D-023) et le panneau Infos.
+
+**Décisions** :
+- **Ton** : vouvoiement dans les trois langues (Sie, usted, Lei), comme SMS Tech et comme le « vous » de
+  Notes Tech en français. ⚠️ Le portefeuille n'est pas cohérent : Pass Tech tutoie en espagnol et en
+  italien. Signalé à Patrice, rien changé ailleurs.
+- **Vocabulaire** partagé avec SMS Tech et Pass Tech : Tresor / caja fuerte / cassaforte ; Passphrase /
+  frase de contraseña / passphrase ; Panikmodus / modo pánico / modalità panico. Boîte de réception :
+  Eingang, Bandeja de entrada, In arrivo.
+- **Source des chaînes** : `values-de|es|it/strings.xml` écrits directement — pas d'ARB à transposer —
+  et tenus par `LanguesDeLApplicationTest` (mêmes noms, mêmes arguments, formes de pluriel `one`/`other`,
+  plus `many` en espagnol et en italien). Une chaîne ajoutée en anglais exige ses trois traductions.
+- **Pages légales** traduites (confidentialité, conditions), sans clause disant quelle version fait foi
+  — comme Pass Tech ; décision juridique laissée à Patrice. La licence MIT reste en anglais.
+- **Magasins** : les textes fastlane (de-DE, es-ES, it-IT) viendront à la publication (phase 3 du plan
+  de bascule) ; le portage n'en a pas encore.
+
+**Réalisation** : commit `5466624`, §161. Restes : REPRISE, section « nuit » du 25.

@@ -3,7 +3,61 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-25 (soir) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-25 (nuit) — LIRE CECI D'ABORD
+
+> Écrit avant un `/compact` demandé par Patrice (« consigne tout je dois compacter »). La section du
+> 25 au soir, juste en dessous, reste valable (points 7 à 13 : ce qui a été fait depuis le compactage
+> précédent). Tout est commité, **rien n'est poussé**.
+
+### Commits depuis le compactage précédent
+
+`be5f8e3` (feuille `[[` d'un coffre) → `d054c2c` → `d766d68` (panneau Infos testé) → `4819e52` →
+`831eed3` (coffre sur Keystore logiciel) → `a01d96a` → **`30d60a1`** (relecture du diff de parité, GPT
+0,32 $ : secrets du coffre effacés sur tous les chemins, §160) → **`2b0f8e9`** (seconde passe Gemini
+0,41 $ : scellé intérieur effacé même si la dérivation échoue, §160 ; **total des relectures du jour
+2,25 $**) → **`0bee89e`** (bascule depuis une vraie 2.0.9 mesurée sur le S9, phrase secrète ET code —
+Patrice : « super tout fonctionne ») → **`5466624`** (allemand, espagnol, italien, §161, D-025).
+
+### 🔴 CE QUI RESTE — les trois langues, dans l'ordre
+
+1. **Test d'appareil** `LanguesDansLApkTest` : pour chaque langue, une chaîne et une page légale
+   diffèrent de l'anglais **dans l'APK installé** (le filtre agit à la construction : seul l'APK le
+   prouve). Contrôle négatif : `it` retiré de `localeFilters` → le test d'appareil tombe.
+2. **Contrôles négatifs JVM** : une clé retirée de `values-de` ; un argument changé ; une forme `many`
+   retirée en `es` ; `it` retiré de `localeFilters` ; le format de date remis en « anglais sinon
+   français ».
+3. **Suite complète sur le S9** avec les APK du commit `5466624` (dont `ReglagesTest`, qui liste les
+   langues ; `EcranAProposEtLegalTest`, qui compare les pages par langue).
+4. **Textes codés en dur** : chercher les littéraux affichés hors des ressources (Pass Tech en avait 24,
+   SMS Tech des SMS d'urgence en français) — la traduction est ce qui les révèle.
+5. **Relecture externe des traductions** (~0,40 $ ; Patrice : « fais relire tout ce qui est
+   nécessaire »).
+6. Docs : `05-PARITE.md` (ajout hors parité), `12-PLAN-DE-BASCULE.md` (métadonnées fastlane
+   de-DE/es-ES/it-IT et description F-Droid à la publication).
+7. **À dire à Patrice** : le ton du portefeuille n'est pas cohérent (Pass Tech tutoie en espagnol et en
+   italien, SMS Tech vouvoie ; Notes Tech vouvoie comme SMS Tech) ; les pages légales traduites ne
+   disent pas quelle version fait foi (comme Pass Tech) — décision juridique ; message dédié pour une
+   clé de coffre invalidée par Android (§160, moins urgent : retirer le code d'écran ne l'invalide pas).
+
+Reste ensuite l'ancienne liste : docs finales, ménage de l'émulateur, TalkBack (Patrice), puis l'audit
+complet « à la fin ».
+
+### Appareils
+
+- **S9** : `com.filestech.notes_tech` **3.0.0 release** installée (données de la bascule : notes
+  « Temoin PIN 209 », coffre à code « Coffre PIN 209 », code **2468**) ; `.next.debug` avec la note
+  « Essai TalkBack » ; **aucun code d'écran** (1111 posé pour la bascule, puis retiré). Les APK de debug
+  du commit `5466624` ne sont **pas** encore installés.
+- **Émulateur** `emu-test-api34` : tourne sans fenêtre (code 1111).
+- **S24** : inchangé.
+- APK signé de la bascule **supprimé** ; `scratchpad/bascule/signer.py` (aucun secret dedans : il lit
+  `key.properties` à la volée) et l'APK 2.0.9 publié restent dans le scratchpad.
+
+**Mesuré en dernier** : JVM **416 tests**, 49 classes, 0 ignoré ; ktlint, detekt, lint (0 erreur, 75
+avertissements) ; `aapt2` : `de`, `es`, `fr`, `it` dans l'APK de debug. Suite complète S9 (avant les
+langues) : 442 cas, 440 + 2 hypothèses connues, 0 échec.
+
+## 🎯 ÉTAT AU 2026-09-25 (soir) — section précédente
 
 > Écrit avant un `/compact` demandé par Patrice, **mis à jour le soir** après la reprise (point 5 et
 > suivants). Tout est vérifié, pas supposé. La section du 09-24 juste en dessous reste valable pour le

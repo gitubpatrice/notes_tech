@@ -5010,3 +5010,34 @@ Test : `FolderVaultServiceTest`, un cas neuf — un sel vide en base passe `requ
 Keystore, puis fait échouer la dérivation : le tableau rendu par le faux Keystore doit être à zéro.
 S9 : classe entière **29/29**. Contrôle négatif (dérivation remise avant le `try`) : **tombe**,
 ligne 570.
+
+## §161 — Allemand, espagnol, italien : la langue vit à cinq endroits, et deux mentaient déjà
+
+Demandé par Patrice le 2026-09-25 au soir (commit `5466624`, D-025). La leçon de Pass Tech 2.7.0 —
+« la langue vit à quatre endroits qui s'ignorent » — s'est vérifiée ici avant même la première
+traduction :
+
+1. **`localeFilters` filtre l'APK.** Il valait `en`, `fr` : des `values-de/` auraient été **retirés à la
+   construction, sans erreur**, et l'application aurait proposé l'allemand pour parler anglais. Pass
+   Tech l'a appris par `aapt2` sur l'APK. Ici : liste unique `LocalePreference.LANGUES`, lue par les
+   réglages, l'activité, les formats de date, et vérifiée contre `localeFilters`, les `values-*`, les
+   `raw-*` par `LanguesDeLApplicationTest` ; `aapt2` sur l'APK de debug : `de`, `es`, `fr`, `it`.
+2. 🔴 **Les dates choisissaient « anglais, sinon français »** (`NoteDateFormat`, depuis le portage de
+   `note_card.dart`) : un écran allemand aurait eu des dates à la française — et, **dès aujourd'hui**,
+   un téléphone dans une langue que l'application ne parle pas (portugais) avait l'interface en anglais
+   (repli sur `values/`) mais des dates à la française avec les mois en portugais. La 2.0.9 retombe
+   entièrement sur l'anglais. Corrigé : un motif par langue, l'anglais pour une langue inconnue ;
+   `FormatDesDatesTest` vérifie la **forme** (jour à un chiffre, point allemand, 24 h, repli), pas les
+   abréviations de mois, que la JVM ne partage pas avec Android.
+3. Lint `AppBundleLocaleChanges` : l'application change de langue elle-même ; un bundle découpé par
+   langue n'installerait que celle du téléphone. `bundle { language { enableSplit = false } }` — sans
+   effet sur les APK d'aujourd'hui (GitHub, F-Droid), mais un bundle futur restera honnête.
+
+Autres points : mot de confirmation de panique traduit (« LÖSCHEN », comparé sans casse par
+`uppercase(Locale.ROOT)`) ; licence MIT de whisper.cpp laissée en anglais dans les conditions, comme son
+texte l'exige ; chemins de menu des pages légales repris des libellés **réels** de chaque langue ; tirets
+demi-cadratins dans « 4–6 » (lint `TypographyDashes`). Le contrôle rapide
+`scratchpad/parite_langue.py` reprend la logique du test JVM pour itérer sans Gradle.
+
+⚠️ **Pas encore fait** (REPRISE, « CE QUI RESTE ») : test d'appareil sur l'APK installé, contrôles
+négatifs, suite complète S9, recherche des textes codés en dur, relecture externe des traductions.
