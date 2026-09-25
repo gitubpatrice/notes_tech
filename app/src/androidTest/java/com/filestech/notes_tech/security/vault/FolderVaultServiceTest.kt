@@ -546,6 +546,31 @@ class FolderVaultServiceTest {
         assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isFalse()
     }
 
+    /**
+     * 🔴 On unlock, the inner seal the Keystore gives back is wiped even when the PIN's derivation
+     * fails — Argon2id asks for 32 MiB, which an old phone can refuse (Gemini review, 2026-09-25). An
+     * empty salt makes the derivation fail right after the Keystore answered. And the attempt is given
+     * back: a failure that proves nothing about the PIN must not bring the vault nearer its wipe.
+     */
+    @Test
+    fun une_derivation_qui_echoue_au_deverrouillage_ne_laisse_pas_le_scelle_interieur(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        provider.get().openHelper.writableDatabase.execSQL(
+            "UPDATE folders SET vault_salt = ? WHERE id = ?",
+            arrayOf<Any?>(ByteArray(0), DOSSIER),
+        )
+        keystore.clairRenduALOuverture = null
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { coffres.unlockWithPin(DOSSIER, CODE) }
+        }
+
+        val rendu = requireNotNull(keystore.clairRenduALOuverture)
+        assertThat(rendu.all { it == 0.toByte() }).isTrue()
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+    }
+
     @Test
     fun une_cle_definitivement_invalidee_detruit_le_coffre(): Unit = runBlocking {
         coffres.createPinVault(DOSSIER, CODE)
@@ -819,10 +844,14 @@ class FolderVaultServiceTest {
             return SealedByKeystore(VaultCrypto.seal(cle, nonce, plaintext, ByteArray(0)), nonce)
         }
 
+        /** The last array `open` gave back — the inner seal, which the service must wipe. */
+        var clairRenduALOuverture: ByteArray? = null
+
         override fun open(alias: String, sealed: SealedByKeystore): ByteArray {
             garde()
             val cle = cles[alias] ?: throw KeystoreUnavailableException()
             return VaultCrypto.open(cle, sealed.nonce, sealed.ciphertext, ByteArray(0))
+                .also { clairRenduALOuverture = it }
         }
 
         override fun deleteKey(alias: String) {

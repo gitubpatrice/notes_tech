@@ -95,6 +95,10 @@
     identiques à la 2.0.9. S9 **50/50** sur les classes des coffres, 3 contrôles négatifs qui tombent.
     **À proposer à Patrice** : un message dédié quand Android invalide la clé d'un coffre à code (l'écran
     dit « trop de tentatives », comme la 2.0.9).
+    **Seconde passe Gemini 3.1 Pro** (§160, **0,41 $**, total du jour **2,25 $**) sur la feuille `[[` et
+    ces correctifs : 4 constats — 2 réfutés, 1 identique à la 2.0.9, 1 réel sous une autre forme
+    (au déverrouillage d'un coffre à code, la dérivation tournait avant le `try` qui efface le scellé
+    intérieur) : corrigé, testé (S9 29/29), contrôle négatif qui tombe.
 
 ### Mesuré
 

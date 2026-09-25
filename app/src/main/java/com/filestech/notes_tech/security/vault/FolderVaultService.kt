@@ -362,15 +362,22 @@ class FolderVaultService @Inject constructor(
                 throw VaultPinWipedException(folderId, e)
             }
 
-            val pinKey = VaultCrypto.withUtf8Bytes(pin) { VaultCrypto.derivePinKey(it, salt) }
             val folderKey = try {
-                VaultCrypto.open(pinKey, nonce, inner, folderId.toByteArray(Charsets.UTF_8))
-            } catch (_: WrongSecretException) {
-                // Rien à conserver : à cette couche, une étiquette qui ne valide pas veut dire
-                // « code faux », et c'est déjà ce que porte l'exception levée par `pinFailure`.
-                throw pinFailure(folderId, attemptsAfter)
+                val pinKey = VaultCrypto.withUtf8Bytes(pin) { VaultCrypto.derivePinKey(it, salt) }
+                try {
+                    VaultCrypto.open(pinKey, nonce, inner, folderId.toByteArray(Charsets.UTF_8))
+                } catch (_: WrongSecretException) {
+                    // Rien à conserver : à cette couche, une étiquette qui ne valide pas veut dire
+                    // « code faux », et c'est déjà ce que porte l'exception levée par `pinFailure`.
+                    throw pinFailure(folderId, attemptsAfter)
+                } finally {
+                    pinKey.wipe()
+                }
             } finally {
-                pinKey.wipe()
+                // ⚠️ Even when the derivation fails — Argon2id asks for 32 MiB, which an old phone can
+                // refuse. It used to run between the Keystore's answer and the `try` wiping it: `inner`
+                // is the folder key under a key derived from a 4-6 digit PIN, whose salt is in the
+                // database (Gemini review, 2026-09-25).
                 inner.wipe()
             }
 

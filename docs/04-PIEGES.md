@@ -4988,3 +4988,25 @@ seul succès (ligne 545), deux ABI au même rang (configuration refusée sur le 
 ⚠️ *Retirer les XML d'un diff pour économiser des jetons a fabriqué le seul constat « critique » :
 le relecteur a jugé absent un texte qu'on lui avait caché. Dire dans la consigne ce qui est retiré, ou
 joindre les chaînes touchées.*
+
+**Seconde passe, Gemini 3.1 Pro** — sur la feuille `[[` (`be5f8e3`, dont la première relecture avait
+trouvé du réel) et sur les correctifs ci-dessus, XML joints cette fois et la consigne disant que les
+tests ne le sont pas : **0,41 $** (9 055 jetons d'entrée, 32 449 de sortie dont 31 453 de
+réflexion) ; total du jour **2,25 $**. Quatre constats :
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | « les titres de tous les coffres fuient dans les suggestions » | **réfuté** : le filtre est dans la requête (`encrypted_content IS NULL`), hors du diff ; deux tests le prouvent |
+| 2 | taper le titre de la note qu'on édite propose de la créer | réel, mais **identique à la 2.0.9** (`excludeId: widget.excludeNoteId`) et à toute note ordinaire ; laissé |
+| 3 | « `associateBy` garde le dernier, l'indexeur le premier » | **réfuté** : même tri et même règle des deux côtés (le dernier l'emporte, donc la moins récemment modifiée) ; un test le prouve |
+| 4 | « le scellé intérieur n'est jamais effacé au déverrouillage » | faux tel quel (un `finally` l'efface), **réel sous une autre forme** : la dérivation du code — 32 Mio pour Argon2id — tournait entre la réponse du Keystore et ce `try`. Corrigé |
+
+Le n° 4 a fait vérifier un risque plus grave, **écarté** : le compteur d'essais est incrémenté avant la
+tentative, et une dérivation refusée faute de mémoire lève une `OutOfMemoryError`, pas une
+`Exception`. `countingOneAttempt` rattrape bien `Throwable` : l'essai est rendu, le coffre ne se
+rapproche pas de son effacement. Le test le vérifie aussi (compteur à 0).
+
+Test : `FolderVaultServiceTest`, un cas neuf — un sel vide en base passe `requireColumn`, atteint le
+Keystore, puis fait échouer la dérivation : le tableau rendu par le faux Keystore doit être à zéro.
+S9 : classe entière **29/29**. Contrôle négatif (dérivation remise avant le `try`) : **tombe**,
+ligne 570.
