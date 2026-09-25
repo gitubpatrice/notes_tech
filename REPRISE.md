@@ -33,14 +33,13 @@ a de mieux ».
   identiques à la 2.0.9, gardés pour l'**audit final** : deux déverrouillages concurrents (inatteignable
   par l'interface) et un remboursement d'essai qui échouerait (double panne).
 
-### 🔴 À dire à Patrice (reste de la liste du point 7 ci-dessous)
+### ✅ Tranché par Patrice le même soir (D-026)
 
-1. **À trancher** : retirer `setUnlockedDeviceRequired(true)` de la clé du coffre la ferait **survivre**
-   au retrait du verrouillage (mesuré), mais la rendrait utilisable téléphone verrouillé — recul de
-   sécurité face à un téléphone saisi. Recommandation : garder (D-026).
-2. La **2.0.9 publiée** a le même défaut : sur Android 12 et plus, un coffre à code dont le verrouillage
-   d'écran a été retiré répond « Coffre verrouillé. » à chaque essai. À lui de dire si cela vaut une
-   2.0.10 ou si la 3.0.0 suffit.
+1. `setUnlockedDeviceRequired(true)` **gardé** (« garde l'exigence si c'est mieux ») : sans lui la clé
+   survivrait au retrait du verrouillage (mesuré), mais serait utilisable téléphone verrouillé. Le choix
+   est écrit dans `AndroidVaultKeystore.specFor`, là où l'attribut est posé.
+2. **Pas de 2.0.10** (« on part sur une 3.0.0 ») : la 2.0.9 publiée garde le défaut, la 3.0.0 le
+   corrige — à dire dans son changelog (`docs/12-PLAN-DE-BASCULE.md`, phase 3).
 3. Toujours ouvert : quelle version des pages légales traduites fait foi (décision juridique).
 
 ### Appareils, mis à jour

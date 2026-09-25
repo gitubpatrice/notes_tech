@@ -146,6 +146,10 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
   - une dépendance, `org.jetbrains:markdown` **0.7.14** (Apache 2.0, Maven Central, pur Kotlin) pour
     l'aperçu (D-024), à la place de `flutter_markdown_plus` dans la 2.0.9. À citer dans la description
     de la MR si les relecteurs y listent les dépendances.
+- **À dire dans le changelog de la 3.0.0** (ajouté le 2026-09-25, D-026) : un coffre à code dont la clé a
+  été supprimée par Android — retrait du verrouillage d'écran, Android 12 et plus — le dit enfin, au
+  lieu de « Coffre verrouillé. » à chaque essai ; et le choix du mode prévient avant. Patrice : pas de
+  2.0.10, c'est la 3.0.0 qui apporte le correctif.
 - **Fins de ligne des `.md` embarqués** (§157) : avec `core.autocrlf=true`, les pages légales de
   `res/raw*` sortent en CRLF d'une construction Windows et en LF d'une construction Linux, celle de
   F-Droid. Le lecteur lit les deux (CRLF corrigé le 25) : c'est une question d'**octets**, pas

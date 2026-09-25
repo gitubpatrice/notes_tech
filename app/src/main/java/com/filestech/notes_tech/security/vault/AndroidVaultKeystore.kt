@@ -274,6 +274,12 @@ class AndroidVaultKeystore @Inject constructor(@ApplicationContext private val c
             // Exige un appareil déverrouillé pour se servir de la clé. Empêche qu'un pont de
             // débogage branché sur un téléphone verrouillé puisse exercer la clé pour essayer des
             // codes hors bande.
+            //
+            // 🔴 Kept KNOWINGLY (Patrice, 2026-09-25, D-026): this attribute is why removing the
+            // screen lock DELETES the key (measured on API 34; without it the key survives). Removing
+            // it would stop that loss and let a seized locked phone open the Keystore layer, then
+            // search the 4-6 digit PIN offline. The mode chooser warns instead, and a passphrase vault
+            // does not depend on the screen lock.
             builder.setUnlockedDeviceRequired(true)
             if (strongBox) builder.setIsStrongBoxBacked(true)
         }

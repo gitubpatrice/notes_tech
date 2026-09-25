@@ -836,9 +836,13 @@ clé invalidée). Détail et mesures : §162.
   voyage jusqu'à l'écran, qui ne dit plus « trop de tentatives ».
 - **Prévenir au choix du mode**, sur l'option code, au conditionnel. Pas dans la feuille de création :
   elle débordait l'écran du S9, et son pavé bougeait (§162).
-- **Non fait, à trancher par Patrice** : retirer `setUnlockedDeviceRequired(true)` de la clé du coffre.
-  Mesuré sur API 34 : sans l'attribut, la clé **survit** au retrait du verrouillage. Mais c'est un recul
-  de sécurité — la clé deviendrait utilisable téléphone verrouillé, donc par qui exécute du code en tant
-  que l'application sur un téléphone saisi, qui chercherait alors le code hors ligne — et les coffres
-  existants garderaient leur clé, sauf à la resceller au prochain déverrouillage. **Recommandation :
-  garder l'attribut** ; qui veut un coffre indépendant du téléphone a la phrase secrète.
+- **`setUnlockedDeviceRequired(true)` GARDÉ — tranché par Patrice le 2026-09-25** (« garde l'exigence
+  si c'est mieux »). Mesuré sur API 34 : sans l'attribut, la clé **survit** au retrait du verrouillage.
+  Mais ce serait un recul de sécurité — la clé deviendrait utilisable téléphone verrouillé, donc par qui
+  exécute du code en tant que l'application sur un téléphone saisi, qui chercherait alors le code hors
+  ligne — et les coffres existants garderaient leur clé, sauf à la resceller au prochain
+  déverrouillage. Qui veut un coffre indépendant du téléphone a la phrase secrète. Le choix est écrit à
+  l'endroit où l'attribut est posé (`AndroidVaultKeystore.specFor`), pour qu'on ne le « répare » pas.
+- **Pas de 2.0.10 — tranché par Patrice le même jour** (« on part sur une 3.0.0 ») : la 2.0.9 publiée
+  garde le défaut (« Coffre verrouillé. » à chaque essai quand la clé a été supprimée) ; c'est la 3.0.0
+  qui le corrige, et son changelog doit le dire (`docs/12-PLAN-DE-BASCULE.md`, phase 3).

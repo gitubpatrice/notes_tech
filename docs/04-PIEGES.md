@@ -5128,7 +5128,7 @@ d'entrée, 7 853 de sortie ; total du jour **2,58 $**) — quatre constats, vér
 | 3 | « Android l'a supprimée » et « plus aucun PIN » affirment une cause que le code tient pour indiscernable d'un mauvais alias | **réel**, corrigé : un constat (« introuvable »), la cause connue donnée comme générale, « aucun PIN sans elle ». Écartée, sa proposition « ne le supprimez pas » : fausse dans le cas réel, où il n'y a rien à récupérer |
 | 4 | « Ne s'ouvre plus » est trop absolu : Android 10 garde la clé | **réel**, corrigé : « Peut ne plus s'ouvrir », dans les cinq langues |
 
-**Une option mesurée, NON appliquée — décision de Patrice (D-026).** Sur l'émulateur, une clé créée
+**Une option mesurée, ÉCARTÉE par Patrice (D-026 : « garde l'exigence si c'est mieux »).** Sur l'émulateur, une clé créée
 **sans** `setUnlockedDeviceRequired(true)` **survit** au retrait du verrouillage d'écran puis à sa
 remise ; la même clé **avec** l'attribut, celle du coffre, disparaît. Retirer l'attribut éviterait donc
 la perte — au prix de la protection qu'il donne : la clé deviendrait utilisable téléphone verrouillé,
@@ -5138,5 +5138,5 @@ existants garderaient leur clé actuelle, sauf à la resceller au prochain déve
 
 **Limites, dites telles quelles :** Android 15 et 16 ne sont pas mesurés — le S24 est exclu d'office (il
 faudrait retirer le verrouillage du téléphone de Patrice) et aucune image système 35 ou 36 n'est
-installée. La 2.0.9 publiée garde les deux défauts. Un coffre à code créé avant cette version n'a
-jamais vu l'avertissement.
+installée. La 2.0.9 publiée garde les deux défauts : pas de 2.0.10, c'est la 3.0.0 qui les corrige
+(Patrice, même jour). Un coffre à code créé avant cette version n'a jamais vu l'avertissement.
