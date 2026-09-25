@@ -41,6 +41,24 @@ class MarkdownPreviewReaderTest {
             assertThat(read(" \n\n\t\n")).isEmpty()
         }
 
+        /**
+         * 🔴 Windows and old Mac line endings are line endings, as CommonMark says. JetBrains' parser
+         * knows only `\n`: a quote's `>` lines did not split its paragraphs, blank lines did not split
+         * blocks, and the `\r` stayed in the text — the MIT licence of the terms of use came out as
+         * one paragraph (2026-09-25).
+         */
+        @Test
+        fun `CRLF and lone CR endings read as line feeds`() {
+            val lf = "> MIT License\n>\n> Copyright\n\nA paragraph\n\n- item"
+            val attendu = read(lf)
+            // The control: with line feeds, the quote holds two paragraphs, and three blocks follow.
+            assertThat((attendu.first() as PreviewBlock.Quote).blocks).hasSize(2)
+            assertThat(attendu).hasSize(3)
+
+            assertThat(read(lf.replace("\n", "\r\n"))).isEqualTo(attendu)
+            assertThat(read(lf.replace("\n", "\r"))).isEqualTo(attendu)
+        }
+
         @Test
         fun `ATX and Setext headings keep their level, not their markers`() {
             assertThat(read("# One\n\n### Three ###\n\n###### Six\n\nTitle\n=====\n\nSub\n---")).containsExactly(

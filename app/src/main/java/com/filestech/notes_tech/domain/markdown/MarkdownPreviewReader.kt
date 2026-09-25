@@ -121,12 +121,25 @@ object MarkdownPreviewReader {
 
     private fun parse(source: String, checkCancelled: () -> Unit): List<PreviewBlock> {
         if (source.length > MAX_LENGTH) return listOf(PreviewBlock.AsWritten(source))
-        val mask = WikiLinkMask.mask(source)
+        val mask = WikiLinkMask.mask(lineFeedsOnly(source))
         if (tooCostly(mask.text)) return listOf(PreviewBlock.AsWritten(source))
         val parser = MarkdownParser(GFMFlavourDescriptor(), assertionsEnabled = true, CancellationToken(checkCancelled))
         val tree = parser.buildMarkdownTreeFromString(mask.text as CharSequence)
         return Reading(mask, definitionsOf(tree, mask)).blocks(tree.children, depth = 0)
     }
+
+    /**
+     * [source] with its line endings as the parser knows them: `\r\n` and a lone `\r` become `\n`.
+     *
+     * CommonMark counts all three as line endings; JetBrains' parser only `\n`. A `\r` stayed in the
+     * text, and a line holding nothing else was not blank to it: a quote's `>` lines no longer split
+     * its paragraphs, blank lines no longer split blocks — the whole MIT licence of the terms of use
+     * came out as one paragraph, git giving the file CRLF endings on Windows (2026-09-25). A note
+     * imported from a Windows file has them too, and 2.0.9's parser handles them. No copy when there
+     * is no `\r`, which is the usual note.
+     */
+    internal fun lineFeedsOnly(source: String): String =
+        if (source.indexOf('\r') < 0) source else source.replace("\r\n", "\n").replace('\r', '\n')
 
     /**
      * Whether parsing [masked] would cost too much — see the table above. One pass, line by line:
@@ -140,10 +153,11 @@ object MarkdownPreviewReader {
             val end = masked.indexOf('\n', start).let { if (it < 0) masked.length else it }
             val (markers, afterMarkers) = containerMarkers(masked, start, end)
             if (markers > MAX_LINE_NESTING) return true
-            // ⚠️ Blank as CommonMark means it — spaces and tabs only — not as `isBlank` does: a line
+            // ⚠️ Blank as the parser means it — spaces and tabs only — not as `isBlank` does: a line
             // of no-break spaces does NOT end the parser's block, and counting it as a boundary would
-            // let one block of thousands of brackets pass as many small ones.
-            if ((start until end).all { masked[it] == ' ' || masked[it] == '\t' || masked[it] == '\r' }) {
+            // let one block of thousands of brackets pass as many small ones. Nor does a `\r`, which
+            // this counted as blank until 2026-09-25: the same gap, closed by [lineFeedsOnly] upstream.
+            if ((start until end).all { masked[it] == ' ' || masked[it] == '\t' }) {
                 inBlock = 0
             } else {
                 val from = if (markers > 0) afterTaskBox(masked, afterMarkers, end) else afterMarkers
