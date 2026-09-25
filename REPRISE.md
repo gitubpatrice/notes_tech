@@ -3,10 +3,11 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-25 (après-midi) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-25 (soir) — LIRE CECI D'ABORD
 
-> Écrit avant un `/compact` demandé par Patrice. Tout est vérifié, pas supposé. La section du 09-24
-> juste en dessous reste valable pour le contexte (consignes, verrou, contraintes).
+> Écrit avant un `/compact` demandé par Patrice, **mis à jour le soir** après la reprise (point 5 et
+> suivants). Tout est vérifié, pas supposé. La section du 09-24 juste en dessous reste valable pour le
+> contexte (consignes, verrou, contraintes).
 
 ### Fait aujourd'hui
 
@@ -29,45 +30,60 @@
    masqué avec le clavier) (§154).
 4. **Relecture externe GPT-5.6 sol : 0,39 $** (budget de Patrice : 1 à 2 $). 9 constats, 5 réels
    corrigés, 3 réfutés (mesure, code, test), 1 écarté avec raison (§152).
+5. **Le soir, après le compactage — commits `7c42746` et `49908f1`** :
+   - contrôles négatifs de la mise en page de la 2.0.9 : les trois tombent, pour la bonne raison (§154) ;
+   - **relecture Gemini 3.1 Pro des seuls correctifs : 0,44 $** (total du jour **0,83 $**) — le
+     « critique » réfuté, 2 constats réels corrigés (§155) : **plancher de 120 dp pour le corps**
+     (`MiseEnPageDeLEditeur` ; en paysage clavier ouvert le corps faisait **0 dp** sur le S9, 74 dp
+     visibles désormais ; la 2.0.9 a le même défaut) et `DartTextSemantics.isBlank` (plus de copie de
+     la note à chaque frappe) ;
+   - le masquage du panneau avec le clavier a son test, par `MainActivity` (il n'en avait aucun) ;
+   - **première suite complète sur Android 14** (émulateur) : un test de plateforme périmé (§156) — la
+     plateforme accepte désormais MGF1 en SHA-256 ; la 2.0.9 écrit SHA-1 **en dur** (source de
+     `flutter_secure_storage` 10.3.1 relue), donc **la bascule n'est pas en danger** ; test réécrit ;
+   - `audit-ia.py` affiche aussi le coût d'une relecture Gemini (il l'ignorait).
 
 ### Mesuré
 
-- JVM : **398 tests, 44 classes, 0 ignoré** ; ktlint, detekt, lint verts.
-- S9 : classes de l'éditeur et de l'aperçu **52/52** (état final) ; suite complète **avant** les
-  correctifs de relecture : **418 cas, 416 réussis, 2 hypothèses non tenues connues** (pas de modèle
-  Whisper sur le S9 ; pas d'empreinte) — 0 échec.
-- Émulateur API 34 sans fenêtre (`emu-test-api34`) : classes de l'aperçu **86/86** avant les correctifs.
-- Contrôles négatifs : 9 + 5 (JVM, lecteur) et 8 (instrumentés), chacun fait tomber **son** test.
-  Deux ont révélé du code mort (§151, §154), dont un devenu vital après la nouvelle mise en page.
+- JVM : **399 tests, 44 classes, 0 ignoré** ; ktlint, detekt, lint (0 erreur) verts.
+- S9, **suite complète sur l'état final** : **423 cas, 421 réussis, 2 hypothèses non tenues connues**
+  (pas de modèle Whisper ; pas d'empreinte), 0 échec. La classe du test MGF1, réécrit ensuite : 14/14.
+- Émulateur API 34, suite complète : 423 cas, 409 réussis, 2 hypothèses connues, **12 échecs, tous
+  Keystore et expliqués** (§156) : code de verrouillage disparu (reposé : 1111, deux passent), test
+  MGF1 périmé (réécrit : sa classe 14/14), et **9 échecs par construction** — Keystore logiciel, que le
+  coffre refuse exprès.
+- Contrôles négatifs du jour : 22 le matin ; le soir 3 (mise en page), 6 (plancher, pleine hauteur,
+  `clearFocus`, lecture, clavier, `isBlank`) et 1 (MGF1, sur l'émulateur) — chacun fait tomber **son**
+  test, motif relu dans la sortie.
 
 ### 🔴 CE QUI RESTE, dans l'ordre
 
-1. **Contrôles négatifs de la nouvelle mise en page** (§154, non faits) : remettre le champ dans une
-   colonne défilante → `a_note_too_tall_for_one_measure_opens_in_edit_mode` doit tomber ; retirer le
-   `clearFocus` de `BasculeEditionApercu` → `switching_closes_the_keyboard_…` doit tomber ; ne plus
-   conserver la lecture (`actif` ignoré) → `the_preview_comes_back_where_it_was_left_…` doit tomber.
-   Script prêt : `scratchpad/controles_instrumentes.py` (motifs à adapter ; les scratchpads ne
-   survivent pas aux sessions — le réécrire au besoin, modèle : une mutation, construction, installation,
-   test ciblé, restauration vérifiée au SHA-256).
-2. **Seconde relecture, sur les seuls correctifs** (Gemini 3.1 Pro, moins cher ; reste ~1,6 $ du budget) :
-   §141 a montré que le correctif d'une relecture introduit parfois le défaut suivant.
-3. **Suite complète S9 + émulateur** sur l'état final (la dernière suite complète précède les correctifs).
-4. Masquage du panneau quand le clavier est ouvert : **aucun test** (l'émulateur sans fenêtre n'affiche
-   pas toujours de clavier logiciel) — à mesurer sur le S9.
-5. **À faire trancher par Patrice** :
+1. ✅ ~~Contrôles négatifs de la mise en page~~, ✅ ~~seconde relecture (Gemini)~~, ✅ ~~suite complète
+   S9 + émulateur~~, ✅ ~~test du masquage du panneau avec le clavier~~ — faits le 25 au soir (point 5
+   ci-dessus). Outils : `scratchpad/controles_mise_en_page.py`, `controles_plancher.py`,
+   `controle_mgf1_emulateur.py` (une mutation, construction, installation, test ciblé, **motif** de
+   l'échec gardé, restauration vérifiée au SHA-256 ; les scratchpads ne survivent pas aux sessions).
+2. **`FlutterSecureStorageKekSourceTest` sur un Android ≥ 14 réel** — le S24 (Android 16), **sur accord
+   de Patrice**, paquet `.next.debug` seulement : la bascule se fera là, et seul l'émulateur API 34 a vu
+   cette classe au-delà d'Android 10 (§156).
+3. Facultatif : les 9 tests du coffre qui échouent sur un Keystore logiciel devraient **s'ignorer**
+   (tenter la création, puis `assume` sur `KeystoreSoftwareOnlyException`), pour une suite d'émulateur
+   lisible (§156).
+4. **À faire trancher par Patrice** :
    - dans un **coffre**, toucher `[[X]]` crée une nouvelle « X » à chaque fois (une note de coffre n'est
      jamais cible, comme dans la 2.0.9) — garder la parité, ou résoudre dans le même coffre ouvert ?
    - `LegalScreen` : passer ses quatre pages au rendu de l'aperçu (son KDoc justifiait l'absence de
      bibliothèque, qui est maintenant là) — ou laisser ;
    - `home_vault_create_error` (« Création du coffre échouée ») sert à TOUTE création de note liée qui
      échoue, coffre ou pas — hérité, message inexact.
-6. **TalkBack réel** sur l'aperçu (§149 : le paragraphe portant des liens n'est pas
+5. **TalkBack réel** sur l'aperçu (§149 : le paragraphe portant des liens n'est pas
    `screenReaderFocusable` ; TalkBack le focalise normalement — à écouter).
-7. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
+6. Suite de l'ancienne liste (section du 09-24 ci-dessous, points 4 à 8) : test de `NoteInfoDialog`,
    bascule depuis une vraie 2.0.9 sur le S9, relecture du diff de parité 2.0.9 + panneau Infos, docs
    finales (`05-PARITE.md`, `12-PLAN-DE-BASCULE.md` : la 3.0.0 ajoute aussi une **dépendance**,
-   `org.jetbrains:markdown`, à déclarer dans la description F-Droid s'il y a lieu), ménage de l'émulateur.
-8. Avant toute publication : `docs/12-PLAN-DE-BASCULE.md` en entier (rodage, décisions A et C, phase 3).
+   `org.jetbrains:markdown`, à déclarer dans la description F-Droid s'il y a lieu), ménage de
+   l'émulateur (code **1111 reposé le 25** ; l'empreinte du 24 a disparu, non reposée).
+7. Avant toute publication : `docs/12-PLAN-DE-BASCULE.md` en entier (rodage, décisions A et C, phase 3).
 
 ### Pièges du jour à ne pas refaire (détail dans `04-PIEGES.md`)
 
@@ -77,6 +93,11 @@
   `NoteCard` : les restaurer (`git checkout --`) quand leur diff réel est vide.
 - `rm -rf` est refusé par une règle `deny` globale : `rm -r` sans `-f`, sur accord.
 - **Parler à Patrice en français, descriptions de commandes comprises** (mémoire `tout-en-anglais`).
+- Tests Compose (§155) : `boundsInRoot` est **rogné** par le défilement (une taille : `.size`) ;
+  `performScrollTo` ne fait défiler que le conteneur **le plus proche** ; clavier ouvert, il y a
+  **deux racines** ; la `ComponentActivity` des tests d'écran ne voit **jamais** le clavier.
+- Un émulateur redémarré sur instantané perd ce qu'on y a posé (code, empreinte) : le vérifier avant
+  de lire une suite (§156). Et un test qui mesure la plateforme se périme avec elle.
 
 ## 🎯 ÉTAT AU 2026-09-24 (nuit) — contexte, consignes, verrou
 
