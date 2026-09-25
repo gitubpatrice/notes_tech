@@ -63,6 +63,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
+import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.ClavierNumerique
 import com.filestech.notes_tech.ui.common.PointsDeSaisie
@@ -205,7 +206,15 @@ fun ChooseVaultModeSheet(onDismiss: () -> Unit, onChosen: (VaultMode) -> Unit) {
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.vault_mode_pin)) },
-                supportingContent = { Text(stringResource(R.string.vault_mode_pin_desc)) },
+                // ⚠️ The second sentence (2026-09-25): removing the phone's screen lock deletes a PIN
+                // vault's key — measured on API 34 — and no PIN opens the vault afterwards. Said HERE,
+                // while a passphrase vault, which does not depend on it, can still be chosen.
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.vault_mode_pin_desc) + " " +
+                            stringResource(R.string.vault_mode_pin_screen_lock),
+                    )
+                },
                 leadingContent = { Icon(Icons.Outlined.Key, contentDescription = null) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 modifier = Modifier.clickableListItem { onChosen(VaultMode.PIN) },
@@ -691,6 +700,10 @@ internal fun FeuilleDeCode(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+            // ⚠️ The screen lock warning is NOT here, and was for an hour (2026-09-25): a second
+            // sentence in this banner made the sheet taller than the S9's screen, so it scrolled
+            // between the two steps and the pad moved — the 2.0.9 defect the test below guards
+            // against. It went to the mode chooser, where the choice it informs is made.
             if (creating) BanniereDAvertissement(stringResource(R.string.vault_pin_warning_wipe))
 
             // 🔴 **Les pastilles disparaissent quand il n'y a plus rien à essayer** — même raison
@@ -973,7 +986,16 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
     // déverrouillage le font, et ils aboutissent ici. Un `catch` de cette exception dans le
     // chargement de l'éditeur serait un chemin mort ; j'en avais écrit un le 2026-08-15, retiré le
     // jour même après vérification.
-    VaultAttempt.Wiped -> stringResource(R.string.vault_pin_wiped)
+    // Exhaustive on the reason: a new way to lose a vault cannot compile without its sentence. The
+    // invalidated key used to read "Too many attempts" — to someone who had typed one correct PIN.
+    is VaultAttempt.Wiped -> stringResource(
+        when (attempt.reason) {
+            VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS -> R.string.vault_pin_wiped
+            VaultPinWipedException.Reason.KEY_INVALIDATED -> R.string.vault_pin_wiped_key_invalidated
+        },
+    )
+
+    VaultAttempt.KeyMissing -> stringResource(R.string.vault_pin_key_missing)
     is VaultAttempt.WrongSecret -> if (attempt.attemptsRemaining == null) {
         stringResource(R.string.vault_pass_wrong)
     } else {
@@ -1044,8 +1066,12 @@ private fun messageDeTentative(attempt: VaultAttempt?): String? = when (attempt)
  * ⚠️ Posé sur les **deux** feuilles, bien que [VaultAttempt.Wiped] ne puisse pas naître d'une phrase
  * secrète : un garde écrit sur une seule des deux est précisément ce qui a produit les deux
  * précédents.
+ *
+ * [VaultAttempt.KeyMissing] too (2026-09-25): the vault still exists, but its key cannot be found, and
+ * no PIN opens it without the key. Leaving the pad there would invite retries that change nothing.
  */
-internal fun VaultAttempt?.plusRienAEssayer(): Boolean = coffreExiste() || this is VaultAttempt.Wiped
+internal fun VaultAttempt?.plusRienAEssayer(): Boolean =
+    coffreExiste() || this is VaultAttempt.Wiped || this == VaultAttempt.KeyMissing
 
 private fun rapporterUneConversionIncomplete(attempt: VaultAttempt?, onIncomplete: (VaultAttempt) -> Unit) {
     when {

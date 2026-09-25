@@ -158,6 +158,16 @@ AJOUTS_EN = {
          `onConversionIncomplete` a deja ferme une fois — un cadenas dont personne ne dit qu'il ne
          protege pas encore. -->
     <string name="vault_convert_escaped_cancellation">Cancelled too late: this folder is now a vault. Its notes will be encrypted the first time you open it.</string>
+    <!--
+      Port additions (2026-09-25): when a PIN vault's key is gone. Removing the screen lock deletes
+      it (measured on API 34), and 2.0.9 then says "Vault locked." for ever; if Android invalidates
+      it instead, 2.0.9 says "Too many attempts" to someone who typed one correct PIN. Each case
+      gets its own sentence, and the mode chooser warns before it happens: appended to
+      `vault_mode_pin_desc`, whose terse style it follows.
+    -->
+    <string name="vault_pin_key_missing">This vault\\'s key cannot be found on this phone. Android deletes it, for example, when the screen lock is removed. No PIN can open this vault without it.</string>
+    <string name="vault_pin_wiped_key_invalidated">Android invalidated this vault\\'s key: its notes could no longer be opened and have been wiped. Wrong PINs did not cause this.</string>
+    <string name="vault_mode_pin_screen_lock">May no longer open if the phone\\'s screen lock is removed.</string>
 """,
     "panic": """\
     <!--
@@ -425,6 +435,9 @@ AJOUTS_FR = {
 """,
     "vault": """\
     <string name="vault_convert_escaped_cancellation">Annulation trop tardive : ce dossier est devenu un coffre. Ses notes seront chiffrées à sa première ouverture.</string>
+    <string name="vault_pin_key_missing">La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par exemple, quand le verrouillage d\\'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle.</string>
+    <string name="vault_pin_wiped_key_invalidated">Android a invalidé la clé de ce coffre : ses notes ne pouvaient plus être ouvertes et ont été effacées. Ce n\\'est pas dû à des erreurs de PIN.</string>
+    <string name="vault_mode_pin_screen_lock">Peut ne plus s\\'ouvrir si le verrouillage d\\'écran du téléphone est retiré.</string>
 """,
     "panic": """\
     <!--

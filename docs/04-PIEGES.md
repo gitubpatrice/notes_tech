@@ -5041,3 +5041,102 @@ demi-cadratins dans « 4–6 » (lint `TypographyDashes`). Le contrôle rapide
 
 ⚠️ **Pas encore fait** (REPRISE, « CE QUI RESTE ») : test d'appareil sur l'APK installé, contrôles
 négatifs, suite complète S9, recherche des textes codés en dur, relecture externe des traductions.
+
+## §162 — Une clé de coffre perdue : deux mensonges, et la mesure a déplacé le problème
+
+Demandé par Patrice le 2026-09-25 au soir, sur le constat 7 b de §160 (« Message pour une clé de coffre
+invalidée par Android : l'écran dit « trop de tentatives », comme la 2.0.9 […] corrige le avec ce qu'il y
+a de mieux »). D-026.
+
+**La mesure d'abord, parce que la phrase qui rassurait ne valait que pour un téléphone.** « Retirer le
+verrouillage d'écran n'invalide pas la clé » avait été mesuré sur le S9 pendant la bascule — Android 10,
+l'ancien magasin de clés. Sur l'émulateur API 34, avec une clé créée par le **même**
+`KeyGenParameterSpec` que celle d'un coffre (test temporaire, non commité, copie dans
+`scratchpad/MesureVerrouillageEcranTest.kt`) :
+
+| Geste, API 34 | La clé du coffre |
+|---|---|
+| verrouillage en place | s'ouvre |
+| **verrouillage retiré** (`locksettings clear`) | **supprimée** : `getKey` rend `null` |
+| verrouillage remis | toujours absente |
+| code changé, puis schéma, puis retour au code | s'ouvre à chaque fois |
+
+Le cas réel n'est donc pas l'invalidation — Android la documente pour les clés à authentification, ce
+que la clé du coffre n'est pas — mais la **suppression**, et elle suivait un autre chemin :
+`requireKey` en faisait une `KeystoreUnavailableException`. Le portage affichait « Une erreur est
+survenue. Veuillez réessayer. » avec le pavé, la 2.0.9 « Coffre verrouillé. » : dans les deux cas,
+réessayer à l'infini un coffre qu'aucun code n'ouvrira plus. **Le constat de §160 visait le mauvais
+chemin** ; le corriger seul aurait rendu honnête un cas que personne ne rencontre.
+
+**Correctif :**
+- `KeystoreKeyMissingException`, levée à l'**ouverture** seulement. Au scellement, qui suit la création de
+  la clé, une absence ne dit rien d'un coffre existant : elle reste « indisponible ».
+- Rien n'est compté (l'essai est rendu par `countingOneAttempt`), rien n'est effacé, aucun freinage
+  armé : une clé absente ne se distingue pas d'une clé cherchée sous un mauvais alias — un défaut de
+  l'application, après lequel les notes seraient récupérables. Même raisonnement que
+  `DamagedVaultSheet`. Supprimer reste le geste de l'utilisateur (« Supprimer → avec ses notes » ne
+  demande pas de déverrouiller).
+- La feuille dit « La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par
+  exemple, quand le verrouillage d'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle. »,
+  et ne propose plus que « Fermer » (`plusRienAEssayer`). Un **constat**, pas un verdict sur la cause :
+  la première version affirmait « Android l'a supprimée » et « plus aucun PIN », faux dans le cas du
+  mauvais alias que le code lui-même tient pour indiscernable (relecture, ci-dessous).
+- L'invalidation garde l'effacement (liste blanche de la v1.0.3), mais `VaultPinWipedException` porte sa
+  **raison** — obligatoire, jamais par défaut : chaque site d'effacement dit la sienne — et la feuille
+  dit « Android a invalidé la clé de ce coffre […] Ce n'est pas dû à des erreurs de PIN. »
+- **Prévenir** : le choix du mode dit, sur l'option PIN seule, « Peut ne plus s'ouvrir si le
+  verrouillage d'écran du téléphone est retiré. » — là où la phrase secrète, qui n'en dépend pas, peut
+  encore être choisie. Au conditionnel : le S9 (Android 10) garde la clé.
+
+🔴 **Trouvé en testant, par un test de mise en page.** L'avertissement a d'abord été ajouté à la
+bannière de la feuille de **création**. Sur le S9, `l_avertissement_reste_affiche_aux_deux_etapes_et_le_pave_ne_bouge_pas`
+est tombé : avec deux phrases, la feuille dépassait l'écran et défilait entre la saisie et la
+confirmation. Le pavé bougeait — le défaut que la 2.0.9 a corrigé (« l'utilisateur appuyait là où la
+touche venait de ne plus être »). Aucune relecture ne l'aurait vu : il fallait les 740 dp du S9.
+Déplacé au choix du mode, qui n'a que deux options.
+
+Tests : JVM `UserMessagesTest` (+1) ; S9 `FolderVaultServiceTest` (+3 : clé supprimée → ni compte, ni
+effacement, ni freinage, même au-delà de cinq essais ; ce que la feuille apprend d'une clé absente, puis
+d'une clé invalidée — par le **vrai** ViewModel, dont le classement des exceptions n'était testé
+nulle part), `AndroidVaultKeystoreTest` (clé absente nommée à l'ouverture, pas au scellement : 8 cas),
+`FeuillesDeCoffreTest` (+3, dont le choix du mode avec son témoin). Mesuré : JVM **417**, 0 ignoré ; S9
+**OK (62 tests)** sur les trois classes ; émulateur API 34 : 56 réussis, 5 ignorés à dessein (clé
+matérielle), 1 échec, le témoin `la_cle_creee_est_retenue_par_le_materiel_securise`, qui DOIT échouer
+sur un Keystore logiciel ; lint 0 erreur, 75 avertissements, inchangé.
+
+**Treize contrôles négatifs, tous tombent** (`scratchpad/controles_cle.py`). Sur le S9, trois groupes de
+mutations indépendantes, un seul APK par groupe, les trois classes entières relancées : chaque groupe
+fait tomber **exactement** ses tests attendus, aucun de plus (4, 4 et 3 sur 62). A : ouverture qui
+redit « indisponible », feuille qui annonce l'invalidation en « trop de tentatives », choix du mode sans
+sa phrase, service qui efface sur clé absente. B : scellement qui dit « clé absente », ViewModel qui
+laisse la clé absente au `Failed` générique, ViewModel qui perd la raison, feuille qui garde le pavé.
+C : invalidation déclarée « trop de tentatives », clé absente comptée comme un essai. JVM : table des
+messages (deux mutations, une à la fois), italien privé de la phrase du choix du mode. Restaurations
+vérifiées au SHA-256.
+
+**Une clé absente, mesurée sur un vrai Keystore** : la mesure de l'émulateur, refaite avec le code
+corrigé, rend bien `KeystoreKeyMissingException` après le retrait du verrouillage — le chemin neuf
+marche sur une vraie suppression par Android, pas seulement avec le Keystore factice des tests.
+
+**Relecture GPT-5.6 sol** (code + chaînes, tests non joints et dit tel quel ; **0,33 $**, 19 595 jetons
+d'entrée, 7 853 de sortie ; total du jour **2,58 $**) — quatre constats, vérifiés dans le code :
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | deux déverrouillages concurrents : le compteur relevé à 5 par l'un fait effacer par l'autre | réel **dans le service**, **inatteignable par l'interface** (une feuille refuse une seconde tentative tant que la première court, une seule feuille à la fois) ; **préexistant, identique à la 2.0.9** ; ce changement n'y ajoute rien — une clé absente rendait déjà l'essai. Pour l'audit final |
+| 2 | le remboursement de l'essai peut échouer (base pleine), et l'essai reste compté | réel, **double panne** (écriture réussie puis ratée), **préexistant, identique à la 2.0.9**. Pour l'audit final |
+| 3 | « Android l'a supprimée » et « plus aucun PIN » affirment une cause que le code tient pour indiscernable d'un mauvais alias | **réel**, corrigé : un constat (« introuvable »), la cause connue donnée comme générale, « aucun PIN sans elle ». Écartée, sa proposition « ne le supprimez pas » : fausse dans le cas réel, où il n'y a rien à récupérer |
+| 4 | « Ne s'ouvre plus » est trop absolu : Android 10 garde la clé | **réel**, corrigé : « Peut ne plus s'ouvrir », dans les cinq langues |
+
+**Une option mesurée, NON appliquée — décision de Patrice (D-026).** Sur l'émulateur, une clé créée
+**sans** `setUnlockedDeviceRequired(true)` **survit** au retrait du verrouillage d'écran puis à sa
+remise ; la même clé **avec** l'attribut, celle du coffre, disparaît. Retirer l'attribut éviterait donc
+la perte — au prix de la protection qu'il donne : la clé deviendrait utilisable téléphone verrouillé,
+c'est-à-dire par qui exécute du code en tant que l'application sur un téléphone saisi verrouillé ; il
+ouvrirait la couche du Keystore et chercherait le code (4 à 6 chiffres) hors ligne. Les coffres
+existants garderaient leur clé actuelle, sauf à la resceller au prochain déverrouillage.
+
+**Limites, dites telles quelles :** Android 15 et 16 ne sont pas mesurés — le S24 est exclu d'office (il
+faudrait retirer le verrouillage du téléphone de Patrice) et aucune image système 35 ou 36 n'est
+installée. La 2.0.9 publiée garde les deux défauts. Un coffre à code créé avant cette version n'a
+jamais vu l'avertissement.

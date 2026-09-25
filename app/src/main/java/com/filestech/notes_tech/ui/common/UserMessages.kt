@@ -5,6 +5,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.ClipboardException
 import com.filestech.notes_tech.security.vault.KeystoreDeviceNotSecureException
+import com.filestech.notes_tech.security.vault.KeystoreKeyMissingException
 import com.filestech.notes_tech.security.vault.KeystoreSoftwareOnlyException
 import com.filestech.notes_tech.security.vault.MalformedVaultDataException
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
@@ -38,7 +39,11 @@ fun userMessageFor(error: Throwable): Int = when (error) {
     is VaultLockedException, is VaultSessionClosedException -> R.string.error_vault_locked
     is WrongPinException -> R.string.error_vault_pin_wrong
     is WrongSecretException -> R.string.error_vault_passphrase_wrong
-    is VaultPinWipedException -> R.string.error_vault_pin_wiped
+    is VaultPinWipedException -> when (error.reason) {
+        VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS -> R.string.error_vault_pin_wiped
+        VaultPinWipedException.Reason.KEY_INVALIDATED -> R.string.vault_pin_wiped_key_invalidated
+    }
+    is KeystoreKeyMissingException -> R.string.vault_pin_key_missing
     is VaultValidationException -> refusalMessageFor(error.reason)
     is MalformedVaultDataException -> R.string.error_vault_encrypted_content_invalid
     is KeystoreSoftwareOnlyException -> R.string.error_vault_pin_hardware_unavailable

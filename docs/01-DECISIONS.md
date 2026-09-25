@@ -805,7 +805,8 @@ verrouillage (D-023) et le panneau Infos.
 **Décisions** :
 - **Ton** : vouvoiement dans les trois langues (Sie, usted, Lei), comme SMS Tech et comme le « vous » de
   Notes Tech en français. ⚠️ Le portefeuille n'est pas cohérent : Pass Tech tutoie en espagnol et en
-  italien. Signalé à Patrice, rien changé ailleurs.
+  italien. Patrice, le 2026-09-25 : « il faudra passer pass_tech au vouvoiement » — plus tard, tâche
+  consignée dans la mémoire de Pass Tech ; rien changé ici.
 - **Vocabulaire** partagé avec SMS Tech et Pass Tech : Tresor / caja fuerte / cassaforte ; Passphrase /
   frase de contraseña / passphrase ; Panikmodus / modo pánico / modalità panico. Boîte de réception :
   Eingang, Bandeja de entrada, In arrivo.
@@ -818,3 +819,26 @@ verrouillage (D-023) et le panneau Infos.
   de bascule) ; le portage n'en a pas encore.
 
 **Réalisation** : commit `5466624`, §161. Restes : REPRISE, section « nuit » du 25.
+
+## D-026 — Clé de coffre perdue : dire ce qu'on sait, n'effacer que sur preuve
+
+**2026-09-25 · demandé par Patrice** (« corrige le avec ce qu'il y a de mieux », sur le message d'une
+clé invalidée). Détail et mesures : §162.
+
+**Décisions** :
+- **Clé introuvable** — le cas réel : sur API 34, retirer le verrouillage d'écran supprime la clé
+  (mesuré). On le **dit** (« introuvable », la cause connue donnée comme générale, « aucun PIN sans
+  elle »), on ne **compte** pas d'essai, on n'**efface** pas, et la feuille ne propose plus que
+  « Fermer ». Écartés : effacer comme pour l'invalidation — une absence ne prouve pas sa cause, et un
+  mauvais alias, défaut de l'application, la produirait aussi ; garder « réessayez », qui ne change
+  rien. Supprimer le dossier reste possible sans déverrouiller.
+- **Clé invalidée** : l'effacement reste (liste blanche de la v1.0.3, parité), mais sa **raison**
+  voyage jusqu'à l'écran, qui ne dit plus « trop de tentatives ».
+- **Prévenir au choix du mode**, sur l'option code, au conditionnel. Pas dans la feuille de création :
+  elle débordait l'écran du S9, et son pavé bougeait (§162).
+- **Non fait, à trancher par Patrice** : retirer `setUnlockedDeviceRequired(true)` de la clé du coffre.
+  Mesuré sur API 34 : sans l'attribut, la clé **survit** au retrait du verrouillage. Mais c'est un recul
+  de sécurité — la clé deviendrait utilisable téléphone verrouillé, donc par qui exécute du code en tant
+  que l'application sur un téléphone saisi, qui chercherait alors le code hors ligne — et les coffres
+  existants garderaient leur clé, sauf à la resceller au prochain déverrouillage. **Recommandation :
+  garder l'attribut** ; qui veut un coffre indépendant du téléphone a la phrase secrète.

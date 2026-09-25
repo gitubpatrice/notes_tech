@@ -87,16 +87,30 @@ class AndroidVaultKeystoreTest {
         assertThrows(MalformedVaultDataException::class.java) { keystore.open(alias, abime) }
     }
 
+    /**
+     * An absent key, on OPENING, is named: removing the screen lock deletes a vault key (API 34,
+     * measured 2026-09-25), and the "unavailable, retry" it used to earn changed nothing.
+     * Still neither damaged data nor a wrong PIN — the service counts nothing and wipes nothing.
+     * Needs no key of its own, so it runs on an emulator too.
+     */
     @Test
-    fun une_cle_absente_ne_conclut_rien_et_ne_compte_pas() {
-        // Une clé qui manque — purge du système, réinstallation, effacement interrompu — est un
-        // état d'où l'on ne peut rien déduire. La traiter comme une donnée abîmée serait déjà trop
-        // dire ; la traiter comme un code faux serait destructeur.
+    fun une_cle_absente_est_nommee_a_l_ouverture() {
         keystore.deleteKey(alias)
 
-        assertThrows(KeystoreUnavailableException::class.java) {
+        assertThrows(KeystoreKeyMissingException::class.java) {
             keystore.open(alias, SealedByKeystore(ByteArray(VaultParams.TAG_BYTES), ByteArray(VaultParams.NONCE_BYTES)))
         }
+    }
+
+    /**
+     * ⚠️ And NOT on sealing, on purpose: sealing follows the key's creation, so an absent key there says
+     * nothing about a vault the user already has — "Android deleted this vault's key" would be false.
+     */
+    @Test
+    fun une_cle_absente_au_scellement_reste_une_indisponibilite() {
+        keystore.deleteKey(alias)
+
+        assertThrows(KeystoreUnavailableException::class.java) { keystore.seal(alias, CLAIR_CONNU) }
     }
 
     @Test

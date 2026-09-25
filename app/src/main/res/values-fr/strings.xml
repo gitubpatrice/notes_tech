@@ -253,6 +253,9 @@
     <string name="vault_convert_success_with_count">Coffre activé. %1$d note(s) chiffrée(s).</string>
     <string name="vault_convert_impossible">Conversion impossible : %1$s</string>
     <string name="vault_convert_escaped_cancellation">Annulation trop tardive : ce dossier est devenu un coffre. Ses notes seront chiffrées à sa première ouverture.</string>
+    <string name="vault_pin_key_missing">La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par exemple, quand le verrouillage d\'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle.</string>
+    <string name="vault_pin_wiped_key_invalidated">Android a invalidé la clé de ce coffre : ses notes ne pouvaient plus être ouvertes et ont été effacées. Ce n\'est pas dû à des erreurs de PIN.</string>
+    <string name="vault_mode_pin_screen_lock">Peut ne plus s\'ouvrir si le verrouillage d\'écran du téléphone est retiré.</string>
 
     <!-- ── Réglages ────────────────────────────────────────────────────── -->
     <string name="settings_title">Réglages</string>

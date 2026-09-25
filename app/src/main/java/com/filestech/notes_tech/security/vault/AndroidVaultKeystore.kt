@@ -35,6 +35,10 @@ import javax.inject.Singleton
  * changement d'appareil, ni à une réinitialisation de l'écran de verrouillage. C'est le contrat, il
  * est assumé, et c'est pourquoi le mode phrase secrète existe à côté.
  *
+ * ⚠️ Measured on 2026-09-25, API 34 emulator: REMOVING the screen lock deletes the key, and a new
+ * lock does not bring it back; CHANGING the lock (another PIN, a pattern) keeps it. Android 10 (the
+ * S9) kept it even when removed. The vault mode chooser now says so, and [open] names the absence.
+ *
  * ⚠️ **Aucune clé de ce magasin n'est visible depuis un autre UID.** La build de portage porte un
  * `applicationId` suffixé `.next` : elle ne peut donc pas ouvrir les coffres à code de
  * l'application publiée, quoi qu'on fasse. Ce n'est pas une limite des tests, c'est une propriété
@@ -66,7 +70,10 @@ class AndroidVaultKeystore @Inject constructor(@ApplicationContext private val c
     }
 
     override fun seal(alias: String, plaintext: ByteArray): SealedByKeystore {
-        val key = requireKey(alias)
+        // ⚠️ An absent key stays "unavailable" HERE, unlike in [open]: sealing follows `createKey`,
+        // so the key was just made, and its absence says nothing about a vault the user already has.
+        val key = keyOrNull(alias)
+            ?: throw KeystoreUnavailableException(IllegalStateException("aucune cle secrete sous cet alias"))
         return try {
             val cipher = Cipher.getInstance(AES_GCM_NOPADDING)
             // Aucun paramètre : la clé exige un chiffrement randomisé, donc le Keystore tire
@@ -84,7 +91,10 @@ class AndroidVaultKeystore @Inject constructor(@ApplicationContext private val c
     }
 
     override fun open(alias: String, sealed: SealedByKeystore): ByteArray {
-        val key = requireKey(alias)
+        // 🔴 An absent key is named, not "unavailable": retrying does not bring it back. Removing
+        // the screen lock deletes it (API 34, measured 2026-09-25), and the "retry" this used to
+        // earn changed nothing. See [KeystoreKeyMissingException].
+        val key = keyOrNull(alias) ?: throw KeystoreKeyMissingException()
         return try {
             val cipher = Cipher.getInstance(AES_GCM_NOPADDING)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(VaultParams.TAG_BITS, sealed.nonce))
@@ -196,22 +206,29 @@ class AndroidVaultKeystore @Inject constructor(@ApplicationContext private val c
         throw KeystoreUnavailableException(e)
     }
 
-    private fun requireKey(alias: String): SecretKey {
+    /**
+     * The key under [alias], or `null` when the alias holds nothing — each caller says what an
+     * absent key means for it ([seal] and [open] do not agree, on purpose).
+     *
+     * ⚠️ An absent key is still not damaged data, and never a wrong PIN: nothing counts it. What
+     * changed on 2026-09-25 is only what [open] SAYS about it. `getKey` answers `null` for an alias
+     * the Keystore does not hold; anything it could not look at throws, and stays "unavailable".
+     */
+    private fun keyOrNull(alias: String): SecretKey? {
         val store = keyStore()
-        val key = try {
+        val entry = try {
             store.getKey(alias, null)
         } catch (e: KeyPermanentlyInvalidatedException) {
             throw KeystorePermanentlyInvalidatedException(e)
         } catch (e: Exception) {
             throw KeystoreUnavailableException(e)
         }
-        // ⚠️ Une clé ABSENTE n'est pas une donnée abîmée : c'est un état d'où l'on ne peut rien
-        // conclure sur le coffre. Elle peut manquer parce que le système l'a purgée, parce que
-        // l'application a été réinstallée, ou parce qu'un effacement a été interrompu à mi-course.
-        // Aucun de ces cas ne justifie de compter une tentative.
-        return key as? SecretKey ?: throw KeystoreUnavailableException(
-            IllegalStateException("aucune cle secrete sous cet alias"),
-        )
+        return when (entry) {
+            null -> null
+            is SecretKey -> entry
+            // Something else under a vault alias: nothing this app writes. Unreadable, not absent.
+            else -> throw KeystoreUnavailableException(IllegalStateException("l'alias ne porte pas une cle secrete"))
+        }
     }
 
     private fun generate(alias: String): SecretKey {

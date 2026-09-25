@@ -242,7 +242,10 @@ class FolderVaultService @Inject constructor(
      * seules l'invalidation permanente de la clé et un code effectivement faux comptent.
      *
      * @throws WrongPinException code faux, avec le nombre d'essais restants.
-     * @throws VaultPinWipedException le coffre vient d'être détruit, définitivement.
+     * @throws VaultPinWipedException le coffre vient d'être détruit, définitivement — its `reason`
+     *   tells five wrong PINs from a key Android invalidated.
+     * @throws KeystoreKeyMissingException the vault's key cannot be found in the Keystore, and no PIN
+     *   opens the vault without it. The attempt is given back and the vault is kept.
      */
     @Suppress("ThrowsCount")
     suspend fun unlockWithPin(folderId: String, pin: String) {
@@ -255,7 +258,7 @@ class FolderVaultService @Inject constructor(
             // démoli. Le cas se présente sur une base restaurée depuis une sauvegarde prise pendant
             // un effacement interrompu.
             autoWipePinVault(folderId)
-            throw VaultPinWipedException(folderId)
+            throw VaultPinWipedException(folderId, VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS)
         }
         requireNoLockout(folderId)
         requireValidPin(pin)
@@ -349,17 +352,21 @@ class FolderVaultService @Inject constructor(
         val pinIv = requireColumn(material.pinIv, "vault_pin_iv")
 
         sessions.whileUnlocking(folderId) {
+            // ⚠️ `KeystoreKeyMissingException` goes through untouched, on purpose: no PIN is involved
+            // yet, so [countingOneAttempt] gives the attempt back, and nothing is wiped — an absent
+            // key cannot be told apart from a wrong alias (see the exception). The sheet says the key
+            // cannot be found and no PIN opens the vault without it; deleting it stays the user's gesture.
             val inner = try {
                 keystore.open(VaultParams.pinKeystoreAlias(folderId), SealedByKeystore(pinBlob, pinIv))
             } catch (e: KeystorePermanentlyInvalidatedException) {
-                // Le système a détruit la clé : le coffre est légitimement irrécupérable. La cause
-                // voyage dans l'exception — « votre écran de verrouillage a changé » et « cinq codes
-                // faux » sont deux histoires très différentes pour l'utilisateur. ⚠️ But the screens
-                // do not tell them apart yet: both say the vault was wiped after too many attempts,
-                // as 2.0.9 does (found by the GPT-5.6 review, 2026-09-25; a dedicated message is
-                // Patrice's call).
+                // Le système a détruit la clé : le coffre est légitimement irrécupérable. The cause
+                // travels in the exception, because "Android invalidated the key" and "five wrong
+                // PINs" are two very different stories for the user — and since 2026-09-25 the screen
+                // tells them apart: until then both said "too many attempts", as 2.0.9 does (found by
+                // the GPT-5.6 review; Patrice: "corrige le avec ce qu'il y a de mieux"). Not a changed
+                // screen lock, whatever 2.0.9's comment says: changing it keeps the key (measured).
                 autoWipePinVault(folderId)
-                throw VaultPinWipedException(folderId, e)
+                throw VaultPinWipedException(folderId, VaultPinWipedException.Reason.KEY_INVALIDATED, e)
             }
 
             val folderKey = try {
@@ -454,7 +461,7 @@ class FolderVaultService @Inject constructor(
         val remaining = VaultParams.PIN_MAX_ATTEMPTS - attemptsAfter
         if (remaining <= 0) {
             autoWipePinVault(folderId)
-            throw VaultPinWipedException(folderId)
+            throw VaultPinWipedException(folderId, VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS)
         }
         sessions.recordFailure(folderId)
         throw WrongPinException(attemptsRemaining = remaining)

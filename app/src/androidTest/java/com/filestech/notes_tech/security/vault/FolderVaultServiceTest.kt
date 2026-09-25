@@ -17,13 +17,17 @@ import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.WritableKekSource
+import com.filestech.notes_tech.ui.vault.VaultAttempt
+import com.filestech.notes_tech.ui.vault.VaultViewModel
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Before
@@ -492,9 +496,10 @@ class FolderVaultServiceTest {
         }
 
         horlogeMonotone.avance(60_000)
-        assertThrows(VaultPinWipedException::class.java) {
+        val effacement = assertThrows(VaultPinWipedException::class.java) {
             runBlocking { coffres.unlockWithPin(DOSSIER, "999999") }
         }
+        assertThat(effacement.reason).isEqualTo(VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS)
 
         // Le coffre est démoli : clé partie, notes verrouillées supprimées, dossier redevenu
         // ordinaire — et le drapeau de reprise retiré, puisque l'effacement est allé au bout.
@@ -577,10 +582,64 @@ class FolderVaultServiceTest {
         coffres.lock(DOSSIER)
         keystore.invalidationPermanente = true
 
-        assertThrows(VaultPinWipedException::class.java) {
+        val effacement = assertThrows(VaultPinWipedException::class.java) {
             runBlocking { coffres.unlockWithPin(DOSSIER, CODE) }
         }
         assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isFalse()
+        // The CORRECT PIN was typed: the reason must not be "too many attempts".
+        assertThat(effacement.reason).isEqualTo(VaultPinWipedException.Reason.KEY_INVALIDATED)
+    }
+
+    /**
+     * 🔴 Android deleted the vault's key — removing the screen lock does, measured on API 34 on
+     * 2026-09-25. No PIN is involved at that layer: nothing may be counted, nothing wiped, no wait
+     * imposed, however many times it is tried — more than the five a wrong PIN gets. The vault and
+     * its note stay: an absent key cannot be told apart from a wrong alias, a bug of ours.
+     */
+    @Test
+    fun une_cle_supprimee_par_android_ne_compte_rien_et_n_efface_rien(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        val note = notes.create(folderId = DOSSIER, title = "Carte", content = "gardée")
+        coffres.lock(DOSSIER)
+        keystore.deleteKey(VaultParams.pinKeystoreAlias(DOSSIER))
+
+        repeat(VaultParams.PIN_MAX_ATTEMPTS + 1) {
+            assertThrows(KeystoreKeyMissingException::class.java) {
+                runBlocking { coffres.unlockWithPin(DOSSIER, CODE) }
+            }
+        }
+
+        assertThat(provider.get().folderDao().vaultAttempts(DOSSIER)).isEqualTo(0)
+        assertThat(coffres.lockoutRemainingMillis(DOSSIER)).isEqualTo(0)
+        assertThat(provider.get().folderDao().vaultMaterial(DOSSIER)!!.isVault).isTrue()
+        assertThat(notes.find(note.id)).isNotNull()
+        assertThat(journal.pendingFolderIds()).doesNotContain(DOSSIER)
+    }
+
+    /**
+     * What the unlock sheet is told about a missing key — through the REAL ViewModel. Nothing else
+     * checks the step from exception to sheet: left to the generic branch, the missing key would
+     * keep the pad and say "please try again".
+     */
+    @Test
+    fun la_feuille_apprend_que_la_cle_est_introuvable(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        keystore.deleteKey(VaultParams.pinKeystoreAlias(DOSSIER))
+
+        assertThat(ceQueLaFeuilleApprend(CODE)).isEqualTo(VaultAttempt.KeyMissing)
+    }
+
+    /** And an invalidated key reaches the sheet as such, not as five wrong PINs. */
+    @Test
+    fun la_feuille_apprend_que_la_cle_a_ete_invalidee(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        keystore.invalidationPermanente = true
+
+        val issue = ceQueLaFeuilleApprend(CODE)
+
+        assertThat(issue).isEqualTo(VaultAttempt.Wiped(VaultPinWipedException.Reason.KEY_INVALIDATED))
     }
 
     @Test
@@ -800,10 +859,20 @@ class FolderVaultServiceTest {
 
     // ── Doubles et utilitaires ───────────────────────────────────────────────────────────────────
 
+    /** Unlocks through a real [VaultViewModel] on the service under test, and returns what it shows. */
+    private suspend fun ceQueLaFeuilleApprend(code: String): VaultAttempt? {
+        val feuille = VaultViewModel(coffres)
+        feuille.unlockWithPin(DOSSIER, code)
+        return withTimeout(DELAI_DE_LA_FEUILLE_MS) { feuille.state.first { it.attempt != null } }.attempt
+    }
+
     private companion object {
         const val DOSSIER = LegacyDatabaseFixture.Fixtures.FOLDER_WORK
         const val PHRASE = "ma phrase de coffre"
         const val CODE = "482913"
+
+        /** Wide: Argon2id takes about a second on the S9, and the ViewModel runs on the main thread. */
+        const val DELAI_DE_LA_FEUILLE_MS = 20_000L
 
         /** ⚠️ Un titre ACCENTUÉ : un `pack` qui compterait des caractères et non des octets passerait sur « abc ». */
         const val TITRE_V1 = "Relevé de février"
@@ -849,7 +918,8 @@ class FolderVaultServiceTest {
 
         override fun open(alias: String, sealed: SealedByKeystore): ByteArray {
             garde()
-            val cle = cles[alias] ?: throw KeystoreUnavailableException()
+            // As the real one since 2026-09-25: an absent key is named, never "unavailable".
+            val cle = cles[alias] ?: throw KeystoreKeyMissingException()
             return VaultCrypto.open(cle, sealed.nonce, sealed.ciphertext, ByteArray(0))
                 .also { clairRenduALOuverture = it }
         }

@@ -248,6 +248,9 @@
     <string name="vault_convert_success_with_count">Cassaforte attivata. %1$d nota/e cifrata/e.</string>
     <string name="vault_convert_impossible">Conversione non riuscita: %1$s</string>
     <string name="vault_convert_escaped_cancellation">Annullato troppo tardi: questa cartella ora è una cassaforte. Le sue note verranno cifrate la prima volta che la aprirà.</string>
+    <string name="vault_pin_key_missing">La chiave di questa cassaforte non si trova su questo telefono. Android la elimina, ad esempio, quando si rimuove il blocco schermo. Senza di essa, nessun PIN può aprire questa cassaforte.</string>
+    <string name="vault_pin_wiped_key_invalidated">Android ha invalidato la chiave di questa cassaforte: le sue note non si potevano più aprire e sono state cancellate. Non è dovuto a errori nell\'inserimento del PIN.</string>
+    <string name="vault_mode_pin_screen_lock">Potrebbe non aprirsi più se si rimuove il blocco schermo del telefono.</string>
 
     <!-- Settings -->
     <string name="settings_title">Impostazioni</string>

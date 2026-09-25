@@ -4,8 +4,10 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.ClipboardException
 import com.filestech.notes_tech.security.vault.KeystoreDeviceNotSecureException
+import com.filestech.notes_tech.security.vault.KeystoreKeyMissingException
 import com.filestech.notes_tech.security.vault.KeystoreSoftwareOnlyException
 import com.filestech.notes_tech.security.vault.KeystoreUnavailableException
+import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.security.vault.VaultValidationException
 import com.filestech.notes_tech.security.vault.WrongPinException
@@ -29,6 +31,23 @@ class UserMessagesTest {
 
         assertThat(noScreenLock).isEqualTo(R.string.error_vault_pin_needs_screen_lock)
         assertThat(softwareOnly).isEqualTo(R.string.error_vault_pin_hardware_unavailable)
+    }
+
+    /**
+     * A vault whose key Android invalidated was "wiped after too many failed attempts", and one whose
+     * key Android deleted was "something went wrong, please try again" — the first a false alarm,
+     * the second a retry that can only fail (2026-09-25).
+     */
+    @Test
+    @DisplayName("a vault lost to its key is not told it had too many attempts, nor to try again")
+    fun vault_key_lost() {
+        val tooMany = userMessageFor(VaultPinWipedException("f", VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS))
+        val invalidated = userMessageFor(VaultPinWipedException("f", VaultPinWipedException.Reason.KEY_INVALIDATED))
+        val missing = userMessageFor(KeystoreKeyMissingException())
+
+        assertThat(tooMany).isEqualTo(R.string.error_vault_pin_wiped)
+        assertThat(invalidated).isEqualTo(R.string.vault_pin_wiped_key_invalidated)
+        assertThat(missing).isEqualTo(R.string.vault_pin_key_missing)
     }
 
     @Test

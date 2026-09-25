@@ -46,6 +46,9 @@ interface VaultKeystore {
      *
      * @throws KeystorePermanentlyInvalidatedException si le système a détruit la clé. Le coffre est
      *   alors légitimement irrécupérable.
+     * @throws KeystoreKeyMissingException when [alias] holds no key — removing the screen lock
+     *   deletes it, measured on API 34 — so that no PIN opens the vault. Neither counted nor
+     *   wiped — see the exception.
      * @throws MalformedVaultDataException si l'étiquette ne valide pas. ⚠️ **Ce n'est pas un
      *   mauvais code** — le code de l'utilisateur n'intervient pas à cette couche. C'est une
      *   donnée abîmée, et la compter comme une tentative ratée ferait s'auto-détruire un coffre

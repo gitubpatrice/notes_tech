@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -31,6 +32,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.security.vault.VaultParams
+import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
 import com.filestech.notes_tech.ui.actionsPerduesALaFusion
 import com.filestech.notes_tech.ui.champsDeSaisieSansNom
@@ -349,11 +351,51 @@ class FeuillesDeCoffreTest {
      */
     @Test
     fun la_destruction_du_coffre_est_annoncee() {
-        poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.Wiped))
+        val etat = VaultSheetState(attempt = VaultAttempt.Wiped(VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS))
+        poserLeCode(etat = etat)
 
         val region = regle.onNodeWithTag(EMPLACEMENT_DU_MESSAGE).fetchSemanticsNode()
         assertThat(region.config.getOrNull(SemanticsProperties.LiveRegion)).isNotNull()
         assertThat(region.nomAnnonce()).isEqualTo(texte(R.string.vault_pin_wiped))
+    }
+
+    /**
+     * 🔴 A key Android invalidated was announced "Too many attempts — the vault has been wiped", to
+     * someone who had typed ONE correct PIN (until 2026-09-25). Its own sentence now, announced the
+     * same way — and still nothing to try: the vault is gone.
+     */
+    @Test
+    fun une_cle_invalidee_est_annoncee_pour_ce_qu_elle_est() {
+        val etat = VaultSheetState(attempt = VaultAttempt.Wiped(VaultPinWipedException.Reason.KEY_INVALIDATED))
+        poserLeCode(etat = etat)
+
+        val region = regle.onNodeWithTag(EMPLACEMENT_DU_MESSAGE).fetchSemanticsNode()
+        assertThat(region.config.getOrNull(SemanticsProperties.LiveRegion)).isNotNull()
+        assertThat(region.nomAnnonce()).isEqualTo(texte(R.string.vault_pin_wiped_key_invalidated))
+        ilNeResteQueFermer()
+    }
+
+    /**
+     * 🔴 A key that cannot be found — removing the screen lock deletes it (API 34, measured
+     * 2026-09-25). The vault still exists, but no PIN opens it without the key: said as such, and the
+     * pad goes, since retrying changes nothing. It read "Something went wrong. Please try again.", pad
+     * in place.
+     *
+     * ⚠️ The witness follows: a wrong PIN brings the pad back — without it, this would pass on a sheet
+     * that never has one.
+     */
+    @Test
+    fun une_cle_introuvable_est_annoncee_et_il_ne_reste_rien_a_essayer() {
+        poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.KeyMissing))
+
+        val region = regle.onNodeWithTag(EMPLACEMENT_DU_MESSAGE).fetchSemanticsNode()
+        assertThat(region.config.getOrNull(SemanticsProperties.LiveRegion)).isNotNull()
+        assertThat(region.nomAnnonce()).isEqualTo(texte(R.string.vault_pin_key_missing))
+        ilNeResteQueFermer()
+        assertThat(fermetures).hasSize(1)
+
+        poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.WrongSecret(3)))
+        touche("5").assertIsDisplayed()
     }
 
     /** Le même défaut sur l'issue la plus fréquente — et celle qui porte le décompte qui reste. */
@@ -482,13 +524,10 @@ class FeuillesDeCoffreTest {
      */
     @Test
     fun apres_l_effacement_du_coffre_il_ne_reste_ni_pave_ni_valider() {
-        poserLeCode(etat = VaultSheetState(attempt = VaultAttempt.Wiped))
+        val etat = VaultSheetState(attempt = VaultAttempt.Wiped(VaultPinWipedException.Reason.TOO_MANY_ATTEMPTS))
+        poserLeCode(etat = etat)
 
-        regle.onAllNodesWithContentDescription(texte(R.string.vault_pin_key_label, "5")).assertCountEquals(0)
-        regle.onAllNodesWithContentDescription(texte(R.string.vault_pin_key_delete)).assertCountEquals(0)
-        regle.onAllNodesWithText(texte(R.string.vault_pass_unlock_action)).assertCountEquals(0)
-        regle.onAllNodesWithContentDescription(pastilles()).assertCountEquals(0)
-        regle.onNodeWithText(texte(R.string.common_close)).assertIsDisplayed().performClick()
+        ilNeResteQueFermer()
         assertThat(fermetures).hasSize(1)
 
         // Le témoin : sur un code faux, tout est encore là.
@@ -559,6 +598,27 @@ class FeuillesDeCoffreTest {
         regle.onNodeWithText(texte(R.string.vault_pin_unlock_body, DOSSIER)).assertIsDisplayed()
     }
 
+    /**
+     * 🔴 Removing the phone's screen lock deletes a PIN vault's key (API 34, measured 2026-09-25), and
+     * no PIN opens the vault afterwards. The mode chooser says so on the PIN option — where the choice
+     * is made — and on it alone: a passphrase vault does not depend on the screen lock.
+     *
+     * ⚠️ It was first put in the creation banner: this class's test above then failed on the S9, the
+     * sheet having outgrown the screen and scrolled between the two steps.
+     */
+    @Test
+    fun le_choix_du_mode_dit_ce_que_coute_le_retrait_du_verrouillage_d_ecran() {
+        regle.setContent { NotesTechTheme { ChooseVaultModeSheet(onDismiss = {}, onChosen = {}) } }
+        val avertissement = texte(R.string.vault_mode_pin_screen_lock)
+
+        regle.onNode(hasText(texte(R.string.vault_mode_pin)) and hasText(avertissement, substring = true))
+            .assertIsDisplayed()
+        // The witness first: the passphrase option IS found, so its absence below is not a lookup failing.
+        regle.onNode(hasText(texte(R.string.vault_mode_passphrase))).assertIsDisplayed()
+        regle.onNode(hasText(texte(R.string.vault_mode_passphrase)) and hasText(avertissement, substring = true))
+            .assertDoesNotExist()
+    }
+
     // ── Outils ──────────────────────────────────────────────────────────────────────────────────
 
     private fun SemanticsNode.nomAnnonce(): String {
@@ -569,6 +629,15 @@ class FeuillesDeCoffreTest {
 
     /** La rangée de pastilles s'annonce par son décompte : c'est son seul nom. */
     private fun pastilles(): String = texte(R.string.vault_pin_digits_announce, 0, VaultParams.PIN_MAX_LENGTH)
+
+    /** Neither pad, nor dots, nor "Unlock": only "Close" — tapped, so that it is shown to work. */
+    private fun ilNeResteQueFermer() {
+        regle.onAllNodesWithContentDescription(texte(R.string.vault_pin_key_label, "5")).assertCountEquals(0)
+        regle.onAllNodesWithContentDescription(texte(R.string.vault_pin_key_delete)).assertCountEquals(0)
+        regle.onAllNodesWithText(texte(R.string.vault_pass_unlock_action)).assertCountEquals(0)
+        regle.onAllNodesWithContentDescription(pastilles()).assertCountEquals(0)
+        regle.onNodeWithText(texte(R.string.common_close)).assertIsDisplayed().performClick()
+    }
 
     private companion object {
         const val DOSSIER = "Dossier"

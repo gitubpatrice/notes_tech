@@ -248,6 +248,9 @@
     <string name="vault_convert_success_with_count">Caja fuerte activada. %1$d nota(s) cifrada(s).</string>
     <string name="vault_convert_impossible">No se pudo convertir: %1$s</string>
     <string name="vault_convert_escaped_cancellation">Cancelado demasiado tarde: esta carpeta ya es una caja fuerte. Sus notas se cifrarán la primera vez que la abra.</string>
+    <string name="vault_pin_key_missing">No se encuentra la clave de esta caja fuerte en este teléfono. Android la elimina, por ejemplo, cuando se quita el bloqueo de pantalla. Sin ella, ningún PIN puede abrir esta caja fuerte.</string>
+    <string name="vault_pin_wiped_key_invalidated">Android invalidó la clave de esta caja fuerte: sus notas ya no se podían abrir y se han borrado. No se debe a errores al introducir el PIN.</string>
+    <string name="vault_mode_pin_screen_lock">Puede dejar de abrirse si se quita el bloqueo de pantalla del teléfono.</string>
 
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>

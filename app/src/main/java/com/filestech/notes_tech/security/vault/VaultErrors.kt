@@ -20,6 +20,7 @@ package com.filestech.notes_tech.security.vault
  * | [MalformedVaultDataException] | **ne pas** compter — la donnée est abîmée, pas le secret faux |
  * | [KeystoreUnavailableException] | **ne pas** compter, proposer de réessayer plus tard |
  * | [KeystorePermanentlyInvalidatedException] | effacer : le coffre est légitimement irrécupérable |
+ * | [KeystoreKeyMissingException] | neither count nor wipe — but say that no PIN will open it again |
  * | [VaultSessionClosedException] | redemander le secret |
  * | [VaultValidationException] | refuser la saisie, sans toucher au compteur |
  */
@@ -64,9 +65,45 @@ class KeystoreUnavailableException(cause: Throwable? = null) :
  * Le coffre est **légitimement** irrécupérable : plus aucune clé n'existe pour déballer son
  * contenu. C'est le seul cas, avec l'épuisement des tentatives, où l'effacement est la bonne
  * réponse plutôt qu'une perte de données.
+ *
+ * ⚠️ The causes above are those of 2.0.9's comment, and Android documents them for keys that
+ * require user authentication — a vault key does not. Removing the screen lock, measured on
+ * 2026-09-25 on an API 34 emulator, does not invalidate it: it DELETES it. That case is
+ * [KeystoreKeyMissingException], and it is the one users will actually meet.
  */
 class KeystorePermanentlyInvalidatedException(cause: Throwable? = null) :
     VaultException("cle keystore definitivement invalidee par le systeme", cause)
+
+/**
+ * The vault's Keystore key cannot be found: its alias holds nothing, and no PIN opens the vault
+ * without it.
+ *
+ * ## Measured, not assumed (2026-09-25, API 34 emulator)
+ *
+ * Removing the screen lock DELETES a key made with `setUnlockedDeviceRequired(true)` — the vault
+ * key is one — and setting a screen lock again does not bring it back. Changing the lock (PIN to
+ * another PIN, to a pattern, and back) keeps it. On the S9, Android 10, removing the lock left the
+ * key in place: the Keystore was rewritten in Android 12. Until now this surfaced as
+ * [KeystoreUnavailableException], whose advice is "retry" — here retrying changes nothing.
+ * notes_tech 2.0.9 says "Vault locked.", which is the same advice.
+ *
+ * ⚠️ What the screen says is a FINDING, not a verdict on the cause: "cannot be found", then that
+ * Android deletes such keys when the screen lock is removed, then that no PIN opens the vault
+ * without it — true whatever the cause, a wrong alias included (GPT-5.6 review, same day).
+ *
+ * ## ⚠️ Neither a wrong PIN nor a reason to wipe
+ *
+ * No PIN is involved at the Keystore layer: nothing is counted. And unlike an invalidated key — a
+ * positive statement from the Keystore about a key that exists — an absent key cannot be told apart
+ * from one looked for under the wrong alias, which would be a bug of this app, after which the
+ * notes could still be recovered. So the vault is kept, as a vault with damaged columns is
+ * (`DamagedVaultSheet`); deleting it stays the user's gesture ("Delete, with its notes" needs no
+ * unlock).
+ *
+ * Raised when OPENING only: [VaultKeystore.seal] runs right after the key was created, where an
+ * absent key says nothing about a vault the user already has.
+ */
+class KeystoreKeyMissingException : VaultException("cle keystore absente sous l'alias du coffre")
 
 /**
  * La clé Keystore créée n'est **pas** retenue par du matériel sécurisé.
@@ -129,9 +166,23 @@ class WrongPinException(val attemptsRemaining: Int) :
  *
  * La clé Keystore est supprimée, les notes verrouillées effacées, le dossier redevenu ordinaire.
  * C'est le contrat annoncé — cinq échecs, perte définitive — et non un incident.
+ *
+ * 🔴 **Or Android invalidated its key**: [reason] says which, and the screen says it too. Until
+ * 2026-09-25 both read "Too many attempts — the vault has been wiped", as in 2.0.9: someone who had
+ * typed ONE correct PIN was told that too many wrong ones had been tried on their vault.
  */
-class VaultPinWipedException(val folderId: String, cause: Throwable? = null) :
-    VaultException("coffre $folderId auto-detruit apres epuisement des tentatives", cause)
+class VaultPinWipedException(val folderId: String, val reason: Reason, cause: Throwable? = null) :
+    VaultException("coffre $folderId efface : $reason", cause) {
+
+    /** Why the vault was wiped. Required, never defaulted: each site states its own reason. */
+    enum class Reason {
+        /** Five wrong PINs — or a counter already at five, in a database restored mid-wipe. */
+        TOO_MANY_ATTEMPTS,
+
+        /** The Keystore reported the vault's key permanently invalidated. No PIN was involved. */
+        KEY_INVALIDATED,
+    }
+}
 
 /**
  * Une tentative est arrivée avant la fin du délai imposé par l'échec précédent.

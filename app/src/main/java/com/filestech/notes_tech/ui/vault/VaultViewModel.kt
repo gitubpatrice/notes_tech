@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.security.vault.KeystoreKeyMissingException
 import com.filestech.notes_tech.security.vault.VaultLockoutInProgressException
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultValidationException
@@ -47,7 +48,15 @@ sealed interface VaultAttempt {
         val isComplete: Boolean get() = failed == 0
     }
     data class WrongSecret(val attemptsRemaining: Int?) : VaultAttempt
-    data object Wiped : VaultAttempt
+
+    /** The vault was wiped; [reason] says why, and the sheet says it too (2026-09-25). */
+    data class Wiped(val reason: VaultPinWipedException.Reason) : VaultAttempt
+
+    /**
+     * The vault's key cannot be found in the Keystore — removing the screen lock deletes it — and no
+     * PIN opens the vault without it. Nothing was counted, nothing wiped, and nothing is left to try.
+     */
+    data object KeyMissing : VaultAttempt
     data class LockedOut(val remainingMillis: Long) : VaultAttempt
 
     /**
@@ -436,8 +445,12 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
             } catch (_: WrongSecretException) {
                 // Coffre à phrase secrète : aucun compteur, donc aucun nombre d'essais à annoncer.
                 VaultAttempt.WrongSecret(attemptsRemaining = null)
-            } catch (_: VaultPinWipedException) {
-                VaultAttempt.Wiped
+            } catch (e: VaultPinWipedException) {
+                VaultAttempt.Wiped(e.reason)
+            } catch (_: KeystoreKeyMissingException) {
+                // Classified here, not left to the generic `Failed` below: that one keeps the pad
+                // and says "please try again", and here every retry can only fail.
+                VaultAttempt.KeyMissing
             } catch (e: VaultLockoutInProgressException) {
                 // Le freinage exponentiel a parlé : ce n'est ni une réussite ni un mauvais secret,
                 // et surtout ça ne consomme rien. L'annoncer comme un échec ferait croire à
@@ -447,7 +460,7 @@ class VaultViewModel @Inject constructor(private val vaults: FolderVaultService)
                 VaultAttempt.Invalid(e.reason)
             } catch (e: Exception) {
                 // Every failure the user can act on is classified by TYPE above: wrong secret,
-                // throttling, self-destructed vault, refused input. What reaches this `catch` is, by
+                // self-destructed vault, missing key, throttling, refused input. What reaches this `catch` is, by
                 // construction, "something unexpected broke" — and its raw message used to be
                 // shown as it was, an open point of the 2026-08-15 consistency audit.
                 //
