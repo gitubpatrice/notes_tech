@@ -136,6 +136,9 @@ AJOUTS_EN = {
     <!-- A note a [[Title]] link would create, in the preview or the links panel, could not be
          created. notes_tech 2.0.9 says "Vault creation failed" here, of any note, in a vault or not. -->
     <string name="note_editor_link_create_failed">Could not create the linked note: %1$s</string>
+    <!-- In the [[ sheet, when the search itself failed (a vault locked meanwhile): nothing is
+         offered, creation included, since the search could not see whether the note exists. -->
+    <string name="link_autocomplete_failed">Could not search your notes.</string>
 """,
     "trash": """\
     <!--
@@ -400,6 +403,7 @@ AJOUTS_FR = {
     <string name="note_preview_link_no_app">Aucune application de cet appareil ne peut ouvrir ce lien.</string>
     <string name="note_preview_as_written">Trop long ou trop complexe pour l\\'aperçu : affiché tel quel.</string>
     <string name="note_editor_link_create_failed">Impossible de créer la note liée : %1$s</string>
+    <string name="link_autocomplete_failed">Impossible de chercher parmi vos notes.</string>
 """,
     "trash": """\
     <plurals name="trash_emptied">

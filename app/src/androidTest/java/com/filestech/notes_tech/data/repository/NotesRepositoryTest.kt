@@ -36,6 +36,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Les écritures de notes, exercées contre du vrai SQLCipher et le vrai schéma hérité.
@@ -491,6 +492,94 @@ class NotesRepositoryTest {
         assertThat(trouvee).isEqualTo(codes.id)
         assertThat(fils).isNotEmpty()
         assertThat(fils).doesNotContain(true)
+    }
+
+    /**
+     * 🔴 From a vault note, the link sheet names the vault's note whose title is typed **in full** —
+     * and that one only: issue #10 keeps vault titles off every list, so a title typed in part names
+     * nothing from the vault. The note being edited is left out, as outside a vault.
+     */
+    @Test
+    fun suggest_titles_from_a_vault_note_names_only_the_vault_note_typed_in_full(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val codes = notes.create(folderId = second, title = "Codes", content = "0000")
+
+        val entier = notes.suggestTitlesFrom(second, " codes ")
+        assertThat(entier.map { it.id }).containsExactly(codes.id)
+        // Its title only: the text of a vault's notes is dropped as soon as it is read.
+        assertThat(entier.single().title).isEqualTo("Codes")
+        assertThat(entier.single().content).isEmpty()
+        assertThat(notes.suggestTitlesFrom(second, "Cod").map { it.id }).doesNotContain(codes.id)
+        val sansElleMeme = notes.suggestTitlesFrom(second, "Codes", excludeId = codes.id)
+        assertThat(sansElleMeme.map { it.id }).doesNotContain(codes.id)
+    }
+
+    /**
+     * No vault is opened for nothing: not from a note outside every vault, nor for a query that
+     * normalises to nothing — U+FEFF is not blank for Kotlin, so the sheet searches it, but Dart's
+     * trim, which the normalisation follows, leaves nothing of it.
+     */
+    @Test
+    fun suggest_titles_opens_no_vault_from_outside_or_for_nothing(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val codes = notes.create(folderId = second, title = "Codes", content = "0000")
+        val ouvertes = AtomicInteger()
+        ouvreur = object : VaultOpener {
+            override suspend fun decrypt(note: Note): Note {
+                ouvertes.incrementAndGet()
+                return coffre.decrypt(note)
+            }
+        }
+
+        val depuisDehors = notes.suggestTitlesFrom(LegacyDatabaseFixture.Fixtures.FOLDER_WORK, "Codes")
+        val pourRien = notes.suggestTitlesFrom(second, "\uFEFF")
+
+        assertThat(depuisDehors.map { it.id }).doesNotContain(codes.id)
+        assertThat(pourRien).isEmpty()
+        assertThat(ouvertes.get()).isEqualTo(0)
+    }
+
+    /**
+     * From a vault note, a note outside the vault that bears one of the vault's titles is not offered:
+     * the link would open the vault's note (solution B), not the one picked. From outside, it is. A
+     * note of another vault is never named — nor even opened: the fixture's vault holds a legacy blob
+     * the fake vault would refuse.
+     */
+    @Test
+    fun from_a_vault_the_link_sheet_offers_only_what_the_link_would_open(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        val ordinaire = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Codes")
+        val codes = notes.create(folderId = second, title = "Codes", content = "0000")
+        notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_VAULT, title = "Adresses", content = "x")
+        val adresses = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Adresses")
+
+        assertThat(notes.suggestTitlesFrom(second, "Codes").map { it.id }).containsExactly(codes.id)
+        val depuisDehors = notes.suggestTitlesFrom(LegacyDatabaseFixture.Fixtures.FOLDER_WORK, "Codes")
+        assertThat(depuisDehors.map { it.id }).containsExactly(ordinaire.id)
+        assertThat(notes.suggestTitlesFrom(second, "Adresses").map { it.id }).containsExactly(adresses.id)
+    }
+
+    /** A closed session fails the call, as for a tapped link: the editor decides what a refusal shows. */
+    @Test
+    fun suggest_titles_from_a_closed_vault_fails(): Unit = runBlocking {
+        val coffre = CoffreFactice()
+        scelleur = coffre
+        ouvreur = coffre
+        val second = provisionnerUnSecondCoffre()
+        notes.create(folderId = second, title = "Codes", content = "0000")
+        ouvreur = UnavailableVaultOpener()
+
+        val echec = runCatching { notes.suggestTitlesFrom(second, "Codes") }.exceptionOrNull()
+
+        assertThat(echec).isInstanceOf(VaultLockedException::class.java)
     }
 
     // ── Protection des notes de coffre ───────────────────────────────────────

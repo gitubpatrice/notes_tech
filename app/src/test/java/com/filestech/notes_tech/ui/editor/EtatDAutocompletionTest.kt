@@ -123,15 +123,44 @@ class EtatDAutocompletionTest {
     }
 
     /**
+     * 🔴 **A failed search offers nothing, not even creation, and Enter does nothing** (GPT-5.6 review,
+     * 2026-09-25). Answered as an empty list, it offered to create the note and Enter created it: in
+     * an open vault holding "Codes" and a note it cannot read, a second "Codes". The sheet says why.
+     */
+    @Test
+    @DisplayName("une recherche en echec ne propose rien, pas meme de creer, et Entree ne fait rien")
+    fun recherche_en_echec() {
+        val etat = etatDAutocompletion("Codes", SuggestionsDeLien(pour = "Codes", echec = true))
+
+        assertThat(etat.annoncerLEchec).isTrue()
+        assertThat(etat.proposerLaCreation).isFalse()
+        assertThat(etat.annoncerAucunResultat).isFalse()
+        assertThat(etat.enAttente).isFalse()
+        assertThat(decisionDeValidation(etat)).isEqualTo(DecisionDeValidation.Rien)
+    }
+
+    /** A failure answers its own input only: typed on, the sheet waits for the next answer. */
+    @Test
+    @DisplayName("un echec pour une saisie depassee est une attente, pas un echec")
+    fun echec_pour_une_saisie_depassee() {
+        val etat = etatDAutocompletion("Codes 2", SuggestionsDeLien(pour = "Codes", echec = true))
+
+        assertThat(etat.annoncerLEchec).isFalse()
+        assertThat(etat.enAttente).isTrue()
+        assertThat(decisionDeValidation(etat)).isEqualTo(DecisionDeValidation.Attendre)
+    }
+
+    /**
      * Le balayage d'**exclusivité** : sur toutes les combinaisons, jamais deux affirmations
      * contradictoires à l'écran en même temps.
      *
      * ⚠️ Ce sont les trois branches d'affichage de la feuille, et elles doivent rester **mutuellement
      * exclusives** : l'écran s'appuie sur cette exclusivité pour les ordonner. Un état qui en porterait
      * deux ferait dépendre l'affichage de l'ordre des `when`, c'est-à-dire d'un détail d'écriture.
+     * Four since 2026-09-25: a failed search is a branch of its own.
      */
     @Test
-    @DisplayName("balayage : attente, creation et « aucun resultat » sont mutuellement exclusifs")
+    @DisplayName("balayage : attente, creation, « aucun resultat » et echec sont mutuellement exclusifs")
     fun exclusivite_des_trois_branches() {
         val saisies = listOf("", " ", "Alpha", "Alpha ", "Beta")
         val reponses = listOf(
@@ -140,12 +169,18 @@ class EtatDAutocompletionTest {
             SuggestionsDeLien(pour = "Alpha"),
             SuggestionsDeLien(pour = "Alpha", titres = listOf(note("Alpha"))),
             SuggestionsDeLien(pour = "Beta", titres = listOf(note("Alpha"))),
+            SuggestionsDeLien(pour = "Alpha", echec = true),
         )
 
         for (saisie in saisies) {
             for (reponse in reponses) {
                 val etat = etatDAutocompletion(saisie, reponse)
-                val affirmations = listOf(etat.enAttente, etat.proposerLaCreation, etat.annoncerAucunResultat)
+                val affirmations = listOf(
+                    etat.enAttente,
+                    etat.proposerLaCreation,
+                    etat.annoncerAucunResultat,
+                    etat.annoncerLEchec,
+                )
 
                 assertThat(affirmations.count { it }).isAtMost(1)
                 // Et une validation ne peut jamais créer alors qu'on attend encore : c'est le doublon.

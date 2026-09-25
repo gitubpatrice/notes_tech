@@ -4890,3 +4890,61 @@ vérifiés un par un :
 | 5 | le déchiffrement du coffre tourne sur le fil de l'appelant — le fil principal, depuis l'éditeur | **réel**, corrigé : `Dispatchers.Default`, annulation entre deux notes ; test appelé **depuis** le fil principal, contrôle négatif (`Unconfined`) : tombe |
 | 6 | « lu hors du fil principal » : faux pour le fichier légal lui-même | **réel** (commentaire), corrigé : seule l'analyse l'est ; quelques Ko lus à la composition |
 | 7 | la sélection d'une liste paresseuse ne couvre que ce qui est composé | limite réelle, **partagée avec la 2.0.9** (liste paresseuse elle aussi) ; consignée dans le KDoc |
+
+## §159 — La feuille `[[` d'une note de coffre : le titre tapé en entier, jamais une liste
+
+Tranché par Claude le 2026-09-25 au soir, sur délégation de Patrice (« pour les 2 questions, fais ce
+qui est le mieux ! »). Les deux suites de B laissées ouvertes au §158 se jugent à la même règle, celle
+de la **réponse publique à l'issue #10** : même coffre ouvert, les notes de coffre s'affichent « Note
+verrouillée » dans les listes, parce que la liste est l'écran le plus exposé et qu'un titre est souvent
+le secret à lui seul.
+
+- **Le panneau des liens d'une note de coffre reste absent**, comme dans la 2.0.9 (il ne s'affiche pas
+  quand il n'a rien à montrer : `LiensDeLaNote`, `if (liens.estVide) return`). Ses rétroliens seraient
+  justement une liste de titres du coffre.
+- **La feuille `[[` ne liste pas les titres du coffre.** Mais en examinant la question, elle s'est
+  révélée **fautive** : elle ne voyait **aucune** note de coffre. Dans un coffre contenant « Codes »,
+  taper « Codes » affichait « Créer une nouvelle note « Codes » », Entrée créait un **doublon**, et —
+  depuis B — le lien inséré ouvrait l'**ancienne** note (départage : la moins récemment modifiée). La
+  divergence délibérée du portage, « lier plutôt que créer un homonyme » (§84), était sans effet dans un
+  coffre. Mesuré sur le vrai chemin : contrôle F1, la feuille répond `[]` au titre complet.
+
+**Correctif** — `NotesRepository.suggestTitlesFrom`, câblé par `NoteEditorViewModel.chercherDesTitres` :
+depuis une note de coffre, la note de ce coffre dont le titre est tapé **en entier** (la clé normalisée
+de la résolution des liens, donc exactement la note que le lien ouvrira) vient en tête ; tapé en partie,
+rien du coffre. La feuille ne montre ainsi que ce qui vient d'être tapé. Les notes ordinaires qui portent
+un titre du coffre sont retirées (le lien ouvrirait la note du coffre, pas celle choisie) ; la note
+éditée reste exclue ; aucun coffre n'est ouvert depuis une note ordinaire, ni pour une saisie qui se
+normalise en rien (U+FEFF : non vide pour Kotlin, élagué par le `trim` de Dart). Lecture des titres
+partagée avec B (`vaultTargets`).
+
+🔴 **Un plantage évité, mesuré** : la recherche ouvre désormais les notes du coffre, et le coffre peut se
+refermer pendant que la feuille est ouverte. Sans rattrapage, l'échec sortait du flux, dont la portée
+(celle de l'éditeur) n'a pas de gestionnaire : contrôle F7, **« Process crashed »**,
+`VaultSessionClosedException` sur `Dispatchers.Main.immediate`.
+
+**Relecture GPT-5.6 sol : 0,38 $** (34 513 jetons d'entrée, 6 978 de sortie) ; total des relectures du
+jour **1,52 $**. Aucune fuite de titre trouvée ; quatre constats, vérifiés un par un :
+
+| # | Constat | Verdict |
+|---|---|---|
+| 1 | l'échec rattrapé répondait « aucune suggestion » : la feuille proposait « Créer », et dans un coffre **ouvert** contenant une note illisible, Entrée créait un doublon | **réel**, corrigé : réponse marquée `echec` dans `fluxDeSuggestions` (testé sur la JVM) ; la feuille dit « Impossible de chercher parmi vos notes », ne propose rien, et Entrée ne crée rien — la conduite de B pour un lien touché |
+| 2 | homonymes ordinaires : la feuille peut montrer la plus récente, le lien ouvre la moins récente | réel, **préexistant** (2.0.9 identique) ; le chemin du coffre montre, lui, exactement la cible ; laissé |
+| 3 | troncature à huit : une note ordinaire exacte hors des huit, Entrée crée un homonyme | réel, **préexistant**, déjà consigné (§84, « au mieux ») ; laissé |
+| 4 | tout le clair du coffre gardé en mémoire à chaque recherche, et la note entière dans l'état de la feuille | **réel**, corrigé : le texte de chaque note est jeté dès son titre lu (`vaultTargets`) — la résolution de B en profite aussi |
+
+Tests : quatre dans `NotesRepositoryTest` (titre tapé en entier et seulement lui, titre seul ; aucun
+coffre ouvert pour rien ; seulement ce que le lien ouvrira ; coffre fermé qui échoue), deux dans
+`LiensDansUnCoffreTest` (vrai coffre, vrai ViewModel : Entrée lie ; coffre refermé : échec, rien de
+proposé), un dans `AutocompletionTest` (l'écran dit l'échec), trois sur la JVM. Mesuré : JVM **405
+tests**, 45 classes, 0 ignoré ; S9 **110/110** sur les cinq classes de l'éditeur.
+
+**Contrôles négatifs, treize, tous tombent** pour la bonne raison, motif relu : F1 à F8 (ancienne
+recherche, liste par préfixe, note éditée non exclue, note ordinaire masquée proposée, coffre ouvert
+depuis un dossier ordinaire, puis pour une saisie vide, échec non rattrapé, échec avalé par le dépôt),
+G1 à G5 (échec non rattrapé dans le flux, création proposée malgré l'échec, Entrée qui l'ignore, la
+feuille qui le tait, texte du coffre gardé). F5 et F6 tombent sur la même assertion (le compteur
+d'ouvertures), chacun par son propre appel.
+
+⚠️ Piège refait : l'échappement de U+FEFF écrit dans l'outil d'édition est arrivé comme **le caractère lui-même**,
+invisible. Corrigé par script, vérifié à l'octet (le diff entier est balayé).

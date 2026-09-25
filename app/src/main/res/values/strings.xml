@@ -221,6 +221,9 @@
     <!-- A note a [[Title]] link would create, in the preview or the links panel, could not be
          created. notes_tech 2.0.9 says "Vault creation failed" here, of any note, in a vault or not. -->
     <string name="note_editor_link_create_failed">Could not create the linked note: %1$s</string>
+    <!-- In the [[ sheet, when the search itself failed (a vault locked meanwhile): nothing is
+         offered, creation included, since the search could not see whether the note exists. -->
+    <string name="link_autocomplete_failed">Could not search your notes.</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insert link</string>

@@ -2,10 +2,12 @@ package com.filestech.notes_tech.ui.editor
 
 import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.model.Note
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.transformLatest
+import timber.log.Timber
 
 /**
  * Les titres proposés pour un `[[…]]`, **et la saisie à laquelle ils répondent**.
@@ -33,8 +35,12 @@ import kotlinx.coroutines.flow.transformLatest
  * ⚠️ [pour] est **nullable**, et c'est la même raison qu'au §76 : `null` veut dire « aucune réponse,
  * pour aucune requête ». Une chaîne vide, elle, est une **vraie** réponse — celle d'une saisie vide,
  * à laquelle on répond immédiatement et sans chercher.
+ *
+ * ⚠️ [echec]: the search failed — a vault locked meanwhile, a note of it that cannot be read. It is
+ * not "nothing found": nothing is known, so nothing may be offered for creation (GPT-5.6 review,
+ * 2026-09-25).
  */
-data class SuggestionsDeLien(val pour: String? = null, val titres: List<Note> = emptyList())
+data class SuggestionsDeLien(val pour: String? = null, val titres: List<Note> = emptyList(), val echec: Boolean = false)
 
 /**
  * Le flux des suggestions : à chaque saisie, une réponse **qui porte sa question**.
@@ -66,6 +72,11 @@ data class SuggestionsDeLien(val pour: String? = null, val titres: List<Note> = 
  *
  * ⚠️ `transformLatest` et non `debounce` : c'est lui qui **annule** le travail en cours quand une
  * nouvelle saisie arrive, et qui permet à la première émission de partir avant l'attente.
+ *
+ * 🔴 **A failed search answers too, marked [SuggestionsDeLien.echec].** From a vault note the search
+ * opens the vault's notes, and the vault can lock while the sheet is open. Escaping, the failure
+ * would end this flow — whose scope, the editor's, has no handler: the app came down (measured on the
+ * S9). Answered as an empty list, it let the sheet offer to create a note it could not see.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 internal fun Flow<String>.fluxDeSuggestions(
@@ -80,7 +91,15 @@ internal fun Flow<String>.fluxDeSuggestions(
     delay(freinageMillis)
     // ⚠️ `pour = texte` — **la saisie reçue, jamais une version retravaillée**. C'est le contrat que
     // `repondALaSaisie` compare, et le test JVM le fige sur une saisie à espace final.
-    emit(SuggestionsDeLien(pour = texte, titres = chercher(texte)))
+    val reponse = try {
+        SuggestionsDeLien(pour = texte, titres = chercher(texte))
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Timber.w(e, "recherche de titres en echec")
+        SuggestionsDeLien(pour = texte, echec = true)
+    }
+    emit(reponse)
 }
 
 /**
@@ -98,6 +117,8 @@ internal data class EtatDAutocompletion(
     val proposerLaCreation: Boolean,
     /** « Aucun résultat » — une affirmation, donc réservée au cas où l'on a bien cherché. */
     val annoncerAucunResultat: Boolean,
+    /** The search for this very input failed: say so, and offer nothing. */
+    val annoncerLEchec: Boolean = false,
 )
 
 internal fun etatDAutocompletion(saisie: String, reponse: SuggestionsDeLien): EtatDAutocompletion {
@@ -107,8 +128,12 @@ internal fun etatDAutocompletion(saisie: String, reponse: SuggestionsDeLien): Et
     // croire périmée une réponse qui ne l'est pas.
     val repondALaSaisie = reponse.pour == saisie
     val enAttente = requete.isNotEmpty() && !repondALaSaisie
+    val enEchec = requete.isNotEmpty() && repondALaSaisie && reponse.echec
+    // ⚠️ `!enEchec`: a failed search saw nothing, not "no such note". Offering to create would make a
+    // second note of a title it could not see — the duplicate this sheet exists to avoid.
     val proposerLaCreation = requete.isNotEmpty() &&
         repondALaSaisie &&
+        !enEchec &&
         aucuneCorrespondanceExacte(reponse.titres, requete)
     return EtatDAutocompletion(
         requete = requete,
@@ -117,8 +142,9 @@ internal fun etatDAutocompletion(saisie: String, reponse: SuggestionsDeLien): Et
         proposerLaCreation = proposerLaCreation,
         // ⚠️ **Ni pendant l'attente, ni quand on propose de créer.** Le premier dirait « aucun » avant
         // d'avoir cherché — la faute exacte de §76 ; le second afficherait « Aucun résultat » au-dessus
-        // d'une entrée qui en est un.
-        annoncerAucunResultat = reponse.titres.isEmpty() && !proposerLaCreation && !enAttente,
+        // d'une entrée qui en est un. Nor after a failure: nothing was found because nothing was read.
+        annoncerAucunResultat = reponse.titres.isEmpty() && !proposerLaCreation && !enAttente && !enEchec,
+        annoncerLEchec = enEchec,
     )
 }
 
@@ -130,7 +156,10 @@ internal fun etatDAutocompletion(saisie: String, reponse: SuggestionsDeLien): Et
  * agir en créant serait le doublon d'origine.
  */
 internal sealed interface DecisionDeValidation {
-    /** Rien à valider : la saisie est vide. */
+    /**
+     * Rien à valider : la saisie est vide — or the search for it failed, and the sheet says so:
+     * nothing to link, and creating could duplicate a note the search could not see.
+     */
     data object Rien : DecisionDeValidation
 
     /** La réponse ne répond pas encore à cette saisie. */
@@ -173,6 +202,7 @@ internal sealed interface DecisionDeValidation {
 internal fun decisionDeValidation(etat: EtatDAutocompletion): DecisionDeValidation = when {
     etat.requete.isEmpty() -> DecisionDeValidation.Rien
     etat.enAttente -> DecisionDeValidation.Attendre
+    etat.annoncerLEchec -> DecisionDeValidation.Rien
     else -> {
         val existante = etat.titres.firstOrNull { correspondExactement(it.title, etat.requete) }
         if (existante != null) DecisionDeValidation.Lier(existante.title) else DecisionDeValidation.Creer(etat.requete)

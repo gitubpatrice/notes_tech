@@ -276,6 +276,9 @@ class NoteEditorViewModel @Inject constructor(
      * ⚠️ L'application publiée filtre, elle, **après** la requête (`suggestTitles`, `if (n.isLocked)
      * continue`). Ne pas transposer ce filtre ici : il serait redondant, et un second endroit qui
      * décide de la même chose finit par en décider autrement.
+     *
+     * ⚠️ One exception since 2026-09-25, from a vault note only: the note of that vault whose title
+     * is typed in full — never a list of the vault's titles (`NotesRepository.suggestTitlesFrom`).
      */
     // ⚠️ Pas de `distinctUntilChanged` : un `StateFlow` ne réémet déjà pas une valeur égale, et
     // l'opérateur y est déprécié pour cette raison même.
@@ -289,14 +292,22 @@ class NoteEditorViewModel @Inject constructor(
     //
     // ⚠️ Ce qui reste ici est le seul câblage : la source des saisies, la recherche, et la portée.
     val suggestionsDeLien: StateFlow<SuggestionsDeLien> = requeteDeLien
-        .fluxDeSuggestions(FREINAGE_SUGGESTIONS_MILLIS) { texte ->
-            notes.suggestTitles(texte, excludeId = noteId)
-        }
+        .fluxDeSuggestions(FREINAGE_SUGGESTIONS_MILLIS, ::chercherDesTitres)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
             initialValue = SuggestionsDeLien(),
         )
+
+    /**
+     * The titles for [texte], searched from the note's folder: from a vault note, the vault's note
+     * typed in full comes too (`NotesRepository.suggestTitlesFrom`). A failure — the vault locked
+     * meanwhile — is answered by [fluxDeSuggestions], marked as such.
+     */
+    private suspend fun chercherDesTitres(texte: String): List<Note> {
+        val dossier = _state.value.note?.folderId ?: return notes.suggestTitles(texte, excludeId = noteId)
+        return notes.suggestTitlesFrom(dossier, texte, excludeId = noteId)
+    }
 
     fun chercherUnTitre(texte: String) {
         requeteDeLien.value = texte

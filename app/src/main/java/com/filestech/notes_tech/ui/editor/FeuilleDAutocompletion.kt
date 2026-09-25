@@ -182,6 +182,13 @@ fun FeuilleDAutocompletion(
                     CircularProgressIndicator(Modifier.semantics { contentDescription = chargement })
                 }
 
+                // A failed search offers nothing, creation included: it saw nothing, so it cannot tell
+                // whether the note exists. Enter does nothing either — this line says why.
+                etat.annoncerLEchec -> Text(
+                    text = stringResource(R.string.link_autocomplete_failed),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                )
+
                 etat.annoncerAucunResultat -> Text(
                     text = stringResource(R.string.link_autocomplete_empty),
                     modifier = Modifier.fillMaxWidth().padding(16.dp),

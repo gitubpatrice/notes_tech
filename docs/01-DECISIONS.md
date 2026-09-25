@@ -779,5 +779,19 @@ inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni bl
   Depuis une note de coffre, les notes de **ce** coffre ouvert passent d'abord, puis les notes hors de
   tout coffre ; une note d'un autre coffre n'est jamais cible, ni une note de coffre depuis l'extérieur.
 
-**Limites connues** : le panneau des liens d'une note de coffre reste vide, et l'autocomplétion de `[[`
-n'y propose pas les notes du coffre — ni l'un ni l'autre ne font partie de la solution B.
+- **Suites de B, tranchées par Claude sur délégation de Patrice** (« fais ce qui est le mieux »,
+  2026-09-25 au soir ; §159), à la règle de la réponse publique à l'issue #10 — **aucune liste de titres
+  de coffre à l'écran** :
+  - le **panneau des liens** d'une note de coffre reste **absent**, comme dans la 2.0.9 : ses
+    rétroliens seraient une liste de titres du coffre ;
+  - la **feuille `[[`** d'une note de coffre reconnaît la note de ce coffre dont le titre est tapé
+    **en entier** — la note que le lien ouvrira — et Entrée la **lie** au lieu de créer un doublon
+    (défaut trouvé en examinant la question : elle ne voyait aucune note de coffre) ; tapé en partie,
+    rien du coffre ;
+  - une recherche qui **échoue** (coffre refermé pendant que la feuille est ouverte, note illisible) le
+    dit, ne propose rien et ne crée rien — elle faisait tomber l'application, puis, rattrapée en liste
+    vide, proposait de créer (relecture GPT-5.6, 0,38 $).
+
+**Limites connues**, préexistantes et identiques dans la 2.0.9 : deux notes ordinaires homonymes
+peuvent être montrées alors que le lien ouvre la moins récente ; une note exacte au-delà des huit
+suggestions n'empêche pas Entrée de créer un homonyme (§84, « au mieux »).

@@ -143,6 +143,31 @@ class FluxDeSuggestionsTest {
         collecte.cancel()
     }
 
+    /**
+     * 🔴 **A failed search answers its input, marked as failed — and the flow goes on.** Escaping, the
+     * failure ended the flow in the editor's scope, which has no handler: measured on the S9, a vault
+     * locked while the sheet was open brought the app down.
+     */
+    @Test
+    @DisplayName("une recherche en echec repond, marquee comme telle, et le flux continue")
+    fun une_recherche_en_echec_repond_et_le_flux_continue() = runTest {
+        val saisies = MutableStateFlow("Codes")
+
+        saisies.fluxDeSuggestions(FREINAGE) { requete ->
+            check(requete != "Codes") { "coffre verrouille" }
+            listOf(note(requete))
+        }.test {
+            assertThat(awaitItem()).isEqualTo(SuggestionsDeLien(pour = null))
+            assertThat(awaitItem()).isEqualTo(SuggestionsDeLien(pour = "Codes", echec = true))
+
+            saisies.value = "Adresses"
+            assertThat(awaitItem()).isEqualTo(SuggestionsDeLien(pour = null))
+            assertThat(awaitItem()).isEqualTo(SuggestionsDeLien(pour = "Adresses", titres = listOf(note("Adresses"))))
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun note(titre: String): Note = Note(
         id = titre,
         title = titre,

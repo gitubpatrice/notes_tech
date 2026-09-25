@@ -113,6 +113,30 @@ class AutocompletionTest {
     }
 
     /**
+     * 🔴 **A failed search says so, and offers nothing** — neither "Create" nor "No matching note" —
+     * and Enter creates nothing: the search could not see whether the note exists (GPT-5.6 review,
+     * 2026-09-25). The witness: the same input, answered, offers to create.
+     */
+    @Test
+    fun une_recherche_en_echec_le_dit_et_ne_propose_pas_de_creer() {
+        poser()
+        champ().performTextInput("Alpha")
+        regle.waitForIdle()
+        poser(SuggestionsDeLien(pour = "Alpha", echec = true))
+
+        regle.onNodeWithText(texte(R.string.link_autocomplete_failed)).assertIsDisplayed()
+        regle.onNodeWithText(creerTexte("Alpha")).assertDoesNotExist()
+        regle.onNodeWithText(texte(R.string.link_autocomplete_empty)).assertDoesNotExist()
+        champ().performImeAction()
+        regle.waitForIdle()
+        assertThat(creations).isEmpty()
+        assertThat(titresChoisis).isEmpty()
+
+        poser(SuggestionsDeLien(pour = "Alpha", titres = emptyList()))
+        regle.onNodeWithText(creerTexte("Alpha")).assertIsDisplayed()
+    }
+
+    /**
      * 🔴🔴 **Le cas qui coûte une note en double, mesuré de bout en bout.**
      *
      * Valider au clavier **dans** la fenêtre de freinage : l'ancienne feuille consultait une liste vide

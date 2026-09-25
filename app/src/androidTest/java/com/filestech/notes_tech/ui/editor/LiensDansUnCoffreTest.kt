@@ -117,6 +117,65 @@ class LiensDansUnCoffreTest {
         assertThat(notes.listAllAlive().count { it.folderId == dossier }).isEqualTo(2)
     }
 
+    /**
+     * 🔴 **In a vault note, the link sheet knows the vault's note whose title is typed in full**, and
+     * links it instead of offering to create a second one. Before, it saw no vault note at all: it
+     * said "Create a new note", Enter created a duplicate, and the inserted link then opened the older
+     * note, never the new one.
+     *
+     * The control is the rule of issue #10 — no list of vault titles on screen: a title typed only in
+     * part names nothing from the vault.
+     */
+    @Test
+    fun the_link_sheet_of_a_vault_note_links_the_note_typed_in_full_and_lists_none(): Unit = runBlocking {
+        val dossier = folders.create("Vault $suffixe").id.also { coffre = it }
+        vaults.createPassphraseVault(dossier, PHRASE)
+        val titreCible = "Codes $suffixe"
+        val cible = notes.create(folderId = dossier, title = titreCible, content = "0000")
+        val source = notes.create(folderId = dossier, title = "Bank $suffixe", content = "")
+        val editeur = withContext(Dispatchers.Main) { editeur(source.id) }
+        withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }
+
+        val entier = reponseA(editeur, titreCible.uppercase())
+        val etat = etatDAutocompletion(titreCible.uppercase(), entier)
+        assertThat(entier.titres.map { it.id }).containsExactly(cible.id)
+        assertThat(etat.proposerLaCreation).isFalse()
+        assertThat(decisionDeValidation(etat)).isEqualTo(DecisionDeValidation.Lier(titreCible))
+
+        val enPartie = reponseA(editeur, "Codes")
+        assertThat(enPartie.titres.map { it.id }).doesNotContain(cible.id)
+    }
+
+    /**
+     * The vault locked while the sheet is open: its notes can no longer be read. The search answers,
+     * marked as failed — escaping, its failure brought the app down (measured on the S9) — and the
+     * sheet offers nothing, creation included: it cannot tell whether the note exists.
+     */
+    @Test
+    fun the_link_sheet_of_a_vault_locked_meanwhile_answers_without_crashing(): Unit = runBlocking {
+        val dossier = folders.create("Vault $suffixe").id.also { coffre = it }
+        vaults.createPassphraseVault(dossier, PHRASE)
+        val titreCible = "Codes $suffixe"
+        notes.create(folderId = dossier, title = titreCible, content = "0000")
+        val source = notes.create(folderId = dossier, title = "Bank $suffixe", content = "")
+        val editeur = withContext(Dispatchers.Main) { editeur(source.id) }
+        withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }
+        vaults.lock(dossier)
+
+        val reponse = reponseA(editeur, titreCible)
+        val etat = etatDAutocompletion(titreCible, reponse)
+
+        assertThat(reponse.echec).isTrue()
+        assertThat(etat.proposerLaCreation).isFalse()
+        assertThat(decisionDeValidation(etat)).isEqualTo(DecisionDeValidation.Rien)
+    }
+
+    /** The sheet's answer to [saisie], as the sheet waits for it: the one that carries its question. */
+    private suspend fun reponseA(editeur: NoteEditorViewModel, saisie: String): SuggestionsDeLien {
+        editeur.chercherUnTitre(saisie)
+        return withTimeout(ATTENTE_MS) { editeur.suggestionsDeLien.first { it.pour == saisie } }
+    }
+
     /** The editor of [noteId], as the navigation would build it — cleared in [tearDown]. */
     private fun editeur(noteId: String): NoteEditorViewModel {
         val fabrique = object : ViewModelProvider.Factory {

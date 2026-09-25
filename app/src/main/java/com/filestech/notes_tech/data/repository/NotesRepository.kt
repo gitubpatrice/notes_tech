@@ -194,8 +194,40 @@ class NotesRepository @Inject constructor(
     suspend fun resolveTitleFrom(folderId: String, title: String): String? {
         val normalized = TitleNormalizer.normalize(title)
         if (normalized.isEmpty()) return null
-        if (folders.isVaultFolder(folderId)) vaultTargets(folderId)[normalized]?.let { return it }
+        if (folders.isVaultFolder(folderId)) vaultTargets(folderId)[normalized]?.let { return it.id }
         return linkTargets(databases.get())[normalized]
+    }
+
+    /**
+     * The titles to offer for a `[[…]]` typed in a note of [folderId]: [suggestTitles], and, from a
+     * vault note, the note of that vault whose title is the one typed **in full** — the note the link
+     * will open ([resolveTitleFrom]).
+     *
+     * Without it the sheet saw no vault note: in a vault holding "Codes", typing "Codes" offered to
+     * create one, Enter created a second note, and the link then opened the older one.
+     *
+     * ⚠️ **Never a list of the vault's titles.** Its notes show as "Locked note" even in an open vault
+     * — a title can be the secret itself, and a list stays on screen (answer to issue #10, 2.0.9). A
+     * title typed in part names nothing from the vault; one typed in full shows back what was typed.
+     *
+     * ⚠️ A note outside the vault that bears one of its titles is left out: the link would open the
+     * vault's note, not the one picked. Every note of the vault is opened for this, as for a tapped
+     * link; a closed session fails the call. The vault's note comes back with its title only
+     * ([vaultTargets]).
+     */
+    suspend fun suggestTitlesFrom(
+        folderId: String,
+        query: String,
+        limit: Int = SUGGESTION_LIMIT,
+        excludeId: String? = null,
+    ): List<Note> {
+        val ordinary = suggestTitles(query, limit, excludeId)
+        val needle = TitleNormalizer.normalize(query)
+        if (needle.isEmpty() || !folders.isVaultFolder(folderId)) return ordinary
+        val targets = vaultTargets(folderId)
+        val typedInFull = targets[needle]?.takeIf { it.id != excludeId }
+        val reachable = ordinary.filter { TitleNormalizer.normalize(it.title) !in targets }
+        return (listOfNotNull(typedInFull) + reachable).take(limit)
     }
 
     /**
@@ -204,18 +236,22 @@ class NotesRepository @Inject constructor(
      *
      * ⚠️ Opened on [Dispatchers.Default]: the vault service decrypts on its caller's thread, and the
      * editor calls from the main one — a large vault would freeze the screen at each tap (GPT-5.6
-     * review, 2026-09-25). A cancelled tap stops between two notes.
+     * review, 2026-09-25). A cancelled call stops between two notes.
+     *
+     * ⚠️ **Titles only**: each note's text is dropped as soon as it is read, so a lookup never holds
+     * the whole vault in clear at once, and the link sheet keeps no text (GPT-5.6 review, same day).
+     * These notes must never be written back — their text is gone.
      */
-    private suspend fun vaultTargets(folderId: String): Map<String, String> {
+    private suspend fun vaultTargets(folderId: String): Map<String, Note> {
         val lignes = databases.get().noteDao().listAliveInFolder(folderId)
         return withContext(Dispatchers.Default) {
             lignes
                 .map { ligne ->
                     ensureActive()
-                    opener.decrypt(ligne.toDomain())
+                    opener.decrypt(ligne.toDomain()).copy(content = "")
                 }
                 .filter { it.title.isNotEmpty() }
-                .associate { TitleNormalizer.normalize(it.title) to it.id }
+                .associateBy { TitleNormalizer.normalize(it.title) }
         }
     }
 

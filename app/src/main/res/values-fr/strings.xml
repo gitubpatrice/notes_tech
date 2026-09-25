@@ -180,6 +180,7 @@
     <string name="note_preview_link_no_app">Aucune application de cet appareil ne peut ouvrir ce lien.</string>
     <string name="note_preview_as_written">Trop long ou trop complexe pour l\'aperçu : affiché tel quel.</string>
     <string name="note_editor_link_create_failed">Impossible de créer la note liée : %1$s</string>
+    <string name="link_autocomplete_failed">Impossible de chercher parmi vos notes.</string>
 
     <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
     <string name="link_autocomplete_title">Insérer un lien</string>
