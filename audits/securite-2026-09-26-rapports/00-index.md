@@ -75,3 +75,16 @@ ac75fa887c64d9c74 P3 · a001fba9e2bbd50f8 P4.
 | P2 | (à lancer) | | | |
 | P3 | (à lancer) | | | |
 | P4 | (à lancer) | | | |
+
+**Relance du 2026-09-26 au soir, accord de Patrice (« tu peux lancer les agents »)**, sur Sonnet pour la
+consommation. F1 défenses, F3 impact (règle standard : avec le vote déjà reçu, 2 sur 2) ; F2, P2, P3, P4 :
+un vérificateur à trois angles chacun (règle rapide). Vérification personnelle de F1 et F3 faite avant :
+les deux chemins tiennent (`SensitiveClipboard.kt:271` seul marquage ; `MainActivity.kt:157-162`,
+`:269-271` drapeau posé à une recomposition suivante).
+ae0dbbdc14d4c8cbe F1-déf · a550b598161c36ddc F3-imp · a4f34907127b58b0d F2 · aff9e1432bbee2ef6 P2 ·
+ada708c01dfd3a71f P3 · a3bbc0a7d4e341a3d P4.
+
+**Décompte final de la relance du soir** : F1 défenses VP FAIBLE → **F1 RETENU, FAIBLE (2/2)** ; F3 impact
+**FP** (image réellement affichée non établie par lecture) → **F3 NON RETENU (1/2)**, à mesurer ; F2 VP
+FAIBLE → **RETENU, FAIBLE** (rapide) ; P2 VP FAIBLE → **RETENU** ; P3 VP FAIBLE → **RETENU** (sous-point
+`deleteKey` confirmé) ; P4 VP FAIBLE → **RETENU**.

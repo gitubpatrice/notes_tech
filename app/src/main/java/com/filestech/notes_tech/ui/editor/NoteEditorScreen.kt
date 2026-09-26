@@ -89,6 +89,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.markdown.LinkTarget
@@ -313,6 +315,12 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     DisposableEffect(Unit) {
         onDispose { viewModel.saveNow() }
     }
+
+    // 🔴 **And when the app leaves the screen**, which does not dispose it: the vaults close on the
+    // PROCESS stop (`NotesTechApplication`), and a vault that closes now drops the editor's plaintext
+    // (audit 2026-09-26, V1). The pending save must leave before, while the key still exists —
+    // otherwise the last half second of typing is reported lost at the return.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.saveNow() }
 
     // ⚠️ **Un seul geste, trois chemins** : le Retour système, la flèche de la barre et la coche
     // « Terminé ». Les trois vident puis quittent — deux chemins pour un seul geste, pas deux

@@ -588,6 +588,13 @@ class NoteEditorViewModel @Inject constructor(
      * vide qui ne se partage plus.
      */
     fun copierEnMarkdown() = tenterUneAction(ActionDEditeur.OrigineDErreur.COPIE) {
+        // 🔴 No copy of a vault note without a live session (audit 2026-09-26, V1): the collector
+        // drops the plaintext on the lock, and this says so again at the one gesture that exports it.
+        val dossier = _state.value.folder
+        if (dossier != null && dossier.isVault && !vaults.isUnlocked(dossier.id)) {
+            oublierLeClair()
+            return@tenterUneAction
+        }
         val texte = _state.value.content.text.trimEnd()
         if (texte.isEmpty()) {
             _action.value = ActionDEditeur(copieVide = true)
@@ -631,6 +638,58 @@ class NoteEditorViewModel @Inject constructor(
 
     init {
         charger()
+        oublierLeClairALaFermetureDuCoffre()
+    }
+
+    /**
+     * 🔴 **A vault that closes takes its plaintext off the editor** — security audit of 2026-09-26, V1.
+     *
+     * `lockAll()` runs when the app goes to the background, and the inactivity sweep closes a vault
+     * with the app in the foreground; both wipe the KEYS only. The editor kept the decrypted title and
+     * body in its state, on screen and copyable at the return, with no session — the promise of
+     * `NotesTechApplication.observerLeCycleDeVieDuProcessus` ("someone who sees the unlocked phone
+     * must not find an open vault") held for every screen but this one.
+     *
+     * ⚠️ Collected in `viewModelScope`, not while the screen is started: the lock happens precisely
+     * while the activity is stopped, and the plaintext must be gone before the next frame is drawn.
+     */
+    private fun oublierLeClairALaFermetureDuCoffre() {
+        viewModelScope.launch {
+            vaults.unlockedFolderIds.collect { ouverts ->
+                val dossier = _state.value.folder
+                if (dossier != null && dossier.isVault && dossier.id !in ouverts) oublierLeClair()
+            }
+        }
+    }
+
+    /**
+     * Drops the plaintext and shows the vault as locked — the sheet asks for the secret again.
+     *
+     * ⚠️ **Under [ecriture]**: a save in flight finishes first, and what it wrote is not reported lost.
+     * Text typed since the last save cannot be written any more — the key is gone — so it is reported
+     * as the relock during editing has always been (`vault_lost_drafts`, the home banner).
+     */
+    private suspend fun oublierLeClair() = ecriture.withLock {
+        sauvegardeDifferee?.cancel()
+        val etat = _state.value
+        if (etat.loading || etat.loadError != null || etat.folder?.isVault != true) return@withLock
+        val modifiee = etat.lockedVault == null &&
+            (etat.title != etat.originalTitle || etat.content.text != etat.originalContent)
+        passerALEtatVerrouille(perte = modifiee)
+    }
+
+    /** The locked state, with no plaintext left in it. */
+    private fun passerALEtatVerrouille(perte: Boolean) {
+        if (perte) settings.addVaultLostDraft(noteId)
+        _state.update { etat ->
+            EditorUiState(
+                loading = false,
+                note = etat.note,
+                folder = etat.folder,
+                lockedVault = etat.folder,
+                lostToVaultLock = perte || etat.lostToVaultLock,
+            )
+        }
     }
 
     fun onTitleChange(value: String) {
@@ -816,6 +875,13 @@ class NoteEditorViewModel @Inject constructor(
                 )
                 return@launch
             }
+            // 🔴 The vault may have closed while it was decrypting: the collector of
+            // [oublierLeClairALaFermetureDuCoffre] saw `loading` and let it be. Checked here, on the
+            // same thread as that collector, so one of the two always sees the other.
+            if (!vaults.isUnlocked(dossier.id)) {
+                _state.value = EditorUiState(loading = false, note = note, folder = dossier, lockedVault = dossier)
+                return@launch
+            }
             _state.value = EditorUiState(
                 loading = false,
                 title = claire.title,
@@ -947,10 +1013,7 @@ class NoteEditorViewModel @Inject constructor(
      * l'écran, et il disparaîtra avec lui. C'est la seule trace qui permettra à l'accueil de le
      * dire — sans elle, la perte est parfaitement silencieuse.
      */
-    private fun signalerLaPerte() {
-        settings.addVaultLostDraft(noteId)
-        _state.value = _state.value.copy(saving = false, lostToVaultLock = true, lockedVault = _state.value.folder)
-    }
+    private fun signalerLaPerte() = passerALEtatVerrouille(perte = true)
 
     private fun enArrierePlan(block: suspend () -> Unit) {
         viewModelScope.launch {
