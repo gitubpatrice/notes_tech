@@ -102,6 +102,7 @@ import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.ouvrirUnLienExterne
 import com.filestech.notes_tech.ui.common.partagerUnFichier
+import com.filestech.notes_tech.ui.secure.SaisieDeCoffre
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.SemanticColors
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
@@ -285,21 +286,23 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
 
     if (autocompletionOuverte) {
-        FeuilleDAutocompletion(
-            suggestions = suggestions,
-            onRequeteChange = viewModel::chercherUnTitre,
-            onChoisirUnTitre = { titre ->
-                apercu = false
-                viewModel.insererUnLien(titre)
-                fermerLAutocompletion()
-            },
-            onCreer = { titre ->
-                apercu = false
-                viewModel.creerPuisLier(titre)
-                fermerLAutocompletion()
-            },
-            onDismiss = fermerLAutocompletion,
-        )
+        SaisieDeCoffre(actif = state.isVaultNote, deposer = viewModel::deposerDansLePressePapiers) {
+            FeuilleDAutocompletion(
+                suggestions = suggestions,
+                onRequeteChange = viewModel::chercherUnTitre,
+                onChoisirUnTitre = { titre ->
+                    apercu = false
+                    viewModel.insererUnLien(titre)
+                    fermerLAutocompletion()
+                },
+                onCreer = { titre ->
+                    apercu = false
+                    viewModel.creerPuisLier(titre)
+                    fermerLAutocompletion()
+                },
+                onDismiss = fermerLAutocompletion,
+            )
+        }
     }
 
     // ⚠️ Le contenu déchiffré d'une note de coffre est à l'écran, en clair, pendant tout le temps
@@ -331,41 +334,43 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
     BackHandler(onBack = quitter)
 
-    NoteEditorScreen(
-        state = state,
-        liens = liens,
-        messages = messages,
-        dicteeActive = dictee.actif,
-        onQuitter = quitter,
-        onTitreChange = viewModel::onTitleChange,
-        onContenuChange = viewModel::onContentChange,
-        onDicter = dictee.demarrer,
-        onInsererUnLien = { autocompletionOuverte = true },
-        onEpingler = viewModel::setPinned,
-        onFavori = viewModel::setFavorite,
-        onInfos = { infosOuvertes = true },
-        onDeplacer = { deplacementOuvert = true },
-        onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
-        onCopier = {
-            // Retour haptique sur un geste réussi, comme l'application publiée
-            // (`note_editor_screen.dart:544`). Il part à l'appui, pas à l'issue : c'est l'accusé de
-            // réception du geste, pas celui de son résultat, que le message se charge d'annoncer.
-            retourHaptique.performHapticFeedback(HapticFeedbackType.ContextClick)
-            viewModel.copierEnMarkdown()
-        },
-        // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a REUSSI, depuis
-        // l'observation de `action` ci-dessus. Quitter tout de suite laissait croire à une note
-        // supprimée qui ne l'était pas.
-        onCorbeille = viewModel::moveToTrash,
-        onOuvrirNote = ouvrirUneAutreNote,
-        // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite : l'appuyer la crée, avec
-        // le titre du lien, **puis l'ouvre** — le même chemin qu'un `[[Titre]]` touché dans l'aperçu,
-        // comme dans l'application publiée. Le texte de la note, lui, ne bouge pas.
-        onLienFantome = viewModel::ouvrirOuCreerLaNote,
-        apercu = apercu,
-        onApercu = { apercu = it },
-        onLienDeLApercu = lienDeLApercu,
-    )
+    SaisieDeCoffre(actif = state.isVaultNote, deposer = viewModel::deposerDansLePressePapiers) {
+        NoteEditorScreen(
+            state = state,
+            liens = liens,
+            messages = messages,
+            dicteeActive = dictee.actif,
+            onQuitter = quitter,
+            onTitreChange = viewModel::onTitleChange,
+            onContenuChange = viewModel::onContentChange,
+            onDicter = dictee.demarrer,
+            onInsererUnLien = { autocompletionOuverte = true },
+            onEpingler = viewModel::setPinned,
+            onFavori = viewModel::setFavorite,
+            onInfos = { infosOuvertes = true },
+            onDeplacer = { deplacementOuvert = true },
+            onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
+            onCopier = {
+                // Retour haptique sur un geste réussi, comme l'application publiée
+                // (`note_editor_screen.dart:544`). Il part à l'appui, pas à l'issue : c'est l'accusé de
+                // réception du geste, pas celui de son résultat, que le message se charge d'annoncer.
+                retourHaptique.performHapticFeedback(HapticFeedbackType.ContextClick)
+                viewModel.copierEnMarkdown()
+            },
+            // ⚠️ Pas de `onBack()` ici : la navigation part quand la suppression a REUSSI, depuis
+            // l'observation de `action` ci-dessus. Quitter tout de suite laissait croire à une note
+            // supprimée qui ne l'était pas.
+            onCorbeille = viewModel::moveToTrash,
+            onOuvrirNote = ouvrirUneAutreNote,
+            // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite : l'appuyer la crée, avec
+            // le titre du lien, **puis l'ouvre** — le même chemin qu'un `[[Titre]]` touché dans l'aperçu,
+            // comme dans l'application publiée. Le texte de la note, lui, ne bouge pas.
+            onLienFantome = viewModel::ouvrirOuCreerLaNote,
+            apercu = apercu,
+            onApercu = { apercu = it },
+            onLienDeLApercu = lienDeLApercu,
+        )
+    }
 
     state.lockedVault?.let { dossier ->
         UnlockVaultSheet(

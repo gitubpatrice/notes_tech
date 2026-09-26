@@ -605,6 +605,13 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     /**
+     * A text copied or cut by the selection toolbar of a vault note's fields, given the protections of
+     * [copierEnMarkdown] — marked sensitive, cleared, purged by the panic (security audit of
+     * 2026-09-26, F1). Called by `SaisieDeCoffre`, which only routes here for a vault note.
+     */
+    suspend fun deposerDansLePressePapiers(texte: String) = clipboard.copier(texte)
+
+    /**
      * ⚠️ Ne PAS reprendre [enArrierePlan] ici : il journalise et se tait. Une action de menu qui
      * échoue doit se voir — c'est l'invariant « une perte, ou un geste sans effet, se signale ».
      */
