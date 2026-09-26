@@ -58,6 +58,9 @@ class AppLockLifecycle @Inject constructor(
 
     fun onResume() = policy.onResume()
 
+    /** `Activity.onUserInteraction` — see [RelockPolicy.onUserInteraction]. */
+    fun onUserInteraction() = policy.onUserInteraction()
+
     /**
      * @param changingConfigurations the activity is being recreated at once — the language change
      *   does it. Locking then would ask for the PIN in the middle of the settings.

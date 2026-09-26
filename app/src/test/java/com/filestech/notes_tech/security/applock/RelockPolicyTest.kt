@@ -40,6 +40,32 @@ class RelockPolicyTest {
     }
 
     @Test
+    @DisplayName("a return nobody touches does not push the deadline back (audit E2)")
+    fun untouched_return_keeps_the_departure() {
+        stop(delay = RelockDelay.MINUTE_1)
+        clock += 50_000
+        // Brought back by another app, before the deadline, and sent away again.
+        assertThat(policy.onStart()).isFalse()
+        stop(delay = RelockDelay.MINUTE_1)
+        clock += 20_000
+
+        assertThat(policy.onStart()).isTrue()
+    }
+
+    @Test
+    @DisplayName("the control: a return the user's hand ends starts the delay over")
+    fun touched_return_ends_the_departure() {
+        stop(delay = RelockDelay.MINUTE_1)
+        clock += 50_000
+        assertThat(policy.onStart()).isFalse()
+        policy.onUserInteraction()
+        stop(delay = RelockDelay.MINUTE_1)
+        clock += 20_000
+
+        assertThat(policy.onStart()).isFalse()
+    }
+
+    @Test
     @DisplayName("a return consumes the delay: the next start does not lock on an old departure")
     fun delay_is_consumed() {
         stop(delay = RelockDelay.SECONDS_15)

@@ -48,13 +48,15 @@ class RelockPolicy(private val now: () -> Long) {
      * screen — see [AppLockLifecycle.onStop] for why that order matters.
      */
     fun decideStop(configured: Boolean, sparedForPicker: Boolean, delay: RelockDelay): StopDecision {
+        val depart = leftAt
         leftAt = null
         return when {
             !configured -> StopDecision.NONE
             sparedForPicker -> StopDecision.SPARED_FOR_PICKER
             delay == RelockDelay.IMMEDIATELY -> StopDecision.LOCK_NOW
             else -> {
-                leftAt = now()
+                // 🔴 A departure not ended by the user's hand is still running (audit 2026-09-26, E2).
+                leftAt = depart ?: now()
                 delayMillis = delay.millis
                 StopDecision.LOCK_LATER
             }
@@ -63,14 +65,26 @@ class RelockPolicy(private val now: () -> Long) {
 
     /**
      * `onStart`: true when the app must lock before showing anything — back from a picker too late,
-     * or back after the delay. Both are consumed.
+     * or back after the delay. Both are consumed by a lock.
+     *
+     * 🔴 **A return within the delay no longer ends the departure** — security audit of 2026-09-26,
+     * E2. Every `onStart` consumed it and every `onStop` armed a new one, with no ceiling: an app
+     * that brought `MainActivity` back before each deadline — it is exported — kept the lock from
+     * ever falling, against the settings' "lock 5 min after leaving the app". The departure now
+     * ends only with a lock, or with the user's hand on the app ([onUserInteraction]), which no
+     * other app can fake; the next stop without it keeps the first departure's time.
      */
     fun onStart(): Boolean {
         val lateFromPicker = picker.locksOnReturn()
         val left = leftAt
-        leftAt = null
         val delayElapsed = left != null && now() - left >= delayMillis
+        if (lateFromPicker || delayElapsed) leftAt = null
         return lateFromPicker || delayElapsed
+    }
+
+    /** A touch or a key given to the app: the user is back, and the departure is over. */
+    fun onUserInteraction() {
+        leftAt = null
     }
 
     /**

@@ -122,6 +122,12 @@ class MainActivity : FragmentActivity() {
         appLockLifecycle.onResume()
     }
 
+    /** A touch or a key: the one sign of a return no other app can fake (audit 2026-09-26, E2). */
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        appLockLifecycle.onUserInteraction()
+    }
+
     /**
      * ⚠️ `isChangingConfigurations`: the language change recreates the activity on purpose
      * (`SettingsRoute`), and must not ask for the PIN in the middle of the settings.
