@@ -604,6 +604,50 @@ class NoteEditorViewModel @Inject constructor(
         _action.value = ActionDEditeur(copiee = true)
     }
 
+    /** The field values just before their last change — what a refused Cut is undone to. */
+    private var contenuPrecedent: TextFieldValue? = null
+    private var titrePrecedent: String? = null
+
+    /**
+     * 🔴 **The protected clipboard refused a text from the fields: a Cut is undone, and it is said**
+     * (external review of 2026-09-26).
+     *
+     * Compose removes the selection BEFORE writing the clipboard (see `SaisieDeCoffre`), so a refused
+     * write left the note without the text and the clipboard without it either. The change is undone
+     * only when it is exactly that cut — the previous value, less [texte] at its selection, is the
+     * current one — so that nothing typed since is touched; a Copy changed nothing and is only said.
+     */
+    fun copieProtegeeRefusee(texte: String) {
+        val etat = _state.value
+        val avant = contenuPrecedent
+        val titreAvant = titrePrecedent
+        when {
+            avant != null && estLaCoupe(avant.text, avant.selection.min, texte, etat.content.text) -> {
+                _state.value = etat.copy(content = avant)
+                programmerLaSauvegarde()
+            }
+            titreAvant != null && coupeDansLeTitre(titreAvant, texte, etat.title) -> {
+                _state.value = etat.copy(title = titreAvant)
+                programmerLaSauvegarde()
+            }
+        }
+        if (!_action.value.enCours) {
+            _action.value = ActionDEditeur(
+                erreur = R.string.error_clipboard_secure_unavailable,
+                origine = ActionDEditeur.OrigineDErreur.COPIE,
+            )
+        }
+    }
+
+    /** The title field reports no selection: the cut is looked for wherever [texte] fits. */
+    private fun coupeDansLeTitre(avant: String, texte: String, apres: String): Boolean =
+        (0..avant.length - texte.length).any { debut -> estLaCoupe(avant, debut, texte, apres) }
+
+    private fun estLaCoupe(avant: String, debut: Int, texte: String, apres: String): Boolean = texte.isNotEmpty() &&
+        avant.length == apres.length + texte.length &&
+        avant.regionMatches(debut, texte, 0, texte.length) &&
+        avant.removeRange(debut, debut + texte.length) == apres
+
     /**
      * A text copied or cut by the selection toolbar of a vault note's fields, given the protections of
      * [copierEnMarkdown] — marked sensitive, cleared, purged by the panic (security audit of
@@ -700,6 +744,7 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     fun onTitleChange(value: String) {
+        titrePrecedent = _state.value.title
         _state.value = _state.value.copy(title = value)
         programmerLaSauvegarde()
     }
@@ -718,6 +763,7 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun onContentChange(value: TextFieldValue) {
         val texteAChange = value.text != _state.value.content.text
+        contenuPrecedent = _state.value.content
         _state.value = _state.value.copy(content = value)
         if (texteAChange) programmerLaSauvegarde()
     }

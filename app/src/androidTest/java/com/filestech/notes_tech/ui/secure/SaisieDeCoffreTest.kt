@@ -14,7 +14,9 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.AccessibilityAction
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -46,6 +48,7 @@ class SaisieDeCoffreTest {
     val regle = createAndroidComposeRule<ComponentActivity>()
 
     private val deposes = mutableListOf<String>()
+    private val echecs = mutableListOf<String>()
 
     @Test
     fun a_vault_note_field_asks_the_keyboard_not_to_learn() {
@@ -79,6 +82,26 @@ class SaisieDeCoffreTest {
         assertThat(pressePapiersNatif().primaryClip?.getItemAt(0)?.text?.toString()).isEqualTo("Groceries")
     }
 
+    /**
+     * The protected clipboard refuses: the text is reported, never written plain. For a Cut, Compose
+     * has already removed it from the field — the report is what lets the editor put it back.
+     */
+    @Test
+    fun a_refused_protected_write_is_reported_and_never_falls_back_to_a_plain_clip() {
+        val natif = pressePapiersNatif()
+        natif.setPrimaryClip(ClipData.newPlainText("before", "before"))
+
+        copierParLaSelection(
+            actif = true,
+            texte = "PIN 4242",
+            action = SemanticsActions.CutText,
+            deposer = { error("clipboard refused") },
+        )
+
+        assertThat(echecs).containsExactly("PIN 4242")
+        assertThat(natif.primaryClip?.getItemAt(0)?.text?.toString()).isEqualTo("before")
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────────────────────────
 
     @OptIn(ExperimentalComposeUiApi::class)
@@ -93,7 +116,7 @@ class SaisieDeCoffreTest {
                     awaitCancellation()
                 },
             ) {
-                SaisieDeCoffre(actif = actif, deposer = { deposes += it }) {
+                SaisieDeCoffre(actif = actif, deposer = { deposes += it }, surEchec = { echecs += it }) {
                     var valeur by remember { mutableStateOf(TextFieldValue("")) }
                     TextField(value = valeur, onValueChange = { valeur = it }, modifier = Modifier.testTag(CHAMP))
                 }
@@ -104,16 +127,21 @@ class SaisieDeCoffreTest {
         return options!!
     }
 
-    private fun copierParLaSelection(actif: Boolean, texte: String) {
+    private fun copierParLaSelection(
+        actif: Boolean,
+        texte: String,
+        action: SemanticsPropertyKey<AccessibilityAction<() -> Boolean>> = SemanticsActions.CopyText,
+        deposer: suspend (String) -> Unit = { deposes += it },
+    ) {
         regle.setContent {
-            SaisieDeCoffre(actif = actif, deposer = { deposes += it }) {
+            SaisieDeCoffre(actif = actif, deposer = deposer, surEchec = { echecs += it }) {
                 var valeur by remember { mutableStateOf(TextFieldValue(texte)) }
                 TextField(value = valeur, onValueChange = { valeur = it }, modifier = Modifier.testTag(CHAMP))
             }
         }
         regle.onNodeWithTag(CHAMP).performClick()
         regle.onNodeWithTag(CHAMP).performTextInputSelection(TextRange(0, texte.length))
-        regle.onNodeWithTag(CHAMP).performSemanticsAction(SemanticsActions.CopyText)
+        regle.onNodeWithTag(CHAMP).performSemanticsAction(action)
         regle.waitForIdle()
     }
 

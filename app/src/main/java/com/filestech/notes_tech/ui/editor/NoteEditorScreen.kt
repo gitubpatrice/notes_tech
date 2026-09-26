@@ -286,7 +286,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
 
     if (autocompletionOuverte) {
-        SaisieDeCoffre(actif = state.isVaultNote, deposer = viewModel::deposerDansLePressePapiers) {
+        SaisieDeCoffre(
+            actif = state.isVaultNote,
+            deposer = viewModel::deposerDansLePressePapiers,
+            surEchec = viewModel::copieProtegeeRefusee,
+        ) {
             FeuilleDAutocompletion(
                 suggestions = suggestions,
                 onRequeteChange = viewModel::chercherUnTitre,
@@ -334,7 +338,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
     BackHandler(onBack = quitter)
 
-    SaisieDeCoffre(actif = state.isVaultNote, deposer = viewModel::deposerDansLePressePapiers) {
+    SaisieDeCoffre(
+        actif = state.isVaultNote,
+        deposer = viewModel::deposerDansLePressePapiers,
+        surEchec = viewModel::copieProtegeeRefusee,
+    ) {
         NoteEditorScreen(
             state = state,
             liens = liens,

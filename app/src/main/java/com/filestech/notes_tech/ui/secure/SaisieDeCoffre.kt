@@ -33,16 +33,29 @@ import timber.log.Timber
  * be in a vault would change the structure of the composition, and the fields under it would lose
  * their state — scroll, focus, selection — at the very moment the note finishes loading.
  *
- * @param deposer writes a text with the protections of the menu's Copy; its failure is kept quiet
- *   rather than falling back to a plain clip.
+ * @param deposer writes a text with the protections of the menu's Copy.
+ * @param surEchec called when [deposer] failed, with the text. ⚠️ **Compose's Cut has already removed
+ *   that text from the field** — `TextFieldSelectionManager.cut` calls `cutWithResult()` BEFORE
+ *   `setClipEntry` (bytecode of foundation 1.11.3, checked on 2026-09-26 after an external review).
+ *   Letting the failure propagate would not bring the text back and would bring the app down;
+ *   keeping it quiet lost the text. The owner of the field restores it, and says the copy failed.
+ *   Never a fallback to a plain clip: that is the leak this class closes.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun SaisieDeCoffre(actif: Boolean, deposer: suspend (String) -> Unit, contenu: @Composable () -> Unit) {
+fun SaisieDeCoffre(
+    actif: Boolean,
+    deposer: suspend (String) -> Unit,
+    surEchec: (String) -> Unit,
+    contenu: @Composable () -> Unit,
+) {
     val estActif by rememberUpdatedState(actif)
     val deposerCourant by rememberUpdatedState(deposer)
+    val surEchecCourant by rememberUpdatedState(surEchec)
     val natif = LocalClipboard.current
-    val pressePapiers = remember(natif) { PressePapiersDeCoffre(natif, { estActif }, { deposerCourant(it) }) }
+    val pressePapiers = remember(natif) {
+        PressePapiersDeCoffre(natif, { estActif }, { deposerCourant(it) }, { surEchecCourant(it) })
+    }
     CompositionLocalProvider(LocalClipboard provides pressePapiers) {
         InterceptPlatformTextInput(
             interceptor = { requete, suivant ->
@@ -68,6 +81,7 @@ internal class PressePapiersDeCoffre(
     private val natif: Clipboard,
     private val actif: () -> Boolean,
     private val deposer: suspend (String) -> Unit,
+    private val surEchec: (String) -> Unit,
 ) : Clipboard {
 
     override val nativeClipboard: NativeClipboard get() = natif.nativeClipboard
@@ -82,8 +96,9 @@ internal class PressePapiersDeCoffre(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            // ⚠️ No fallback to the plain clip: that is the leak this class closes.
+            // ⚠️ No fallback to the plain clip — see [SaisieDeCoffre]'s `surEchec`.
             Timber.w(e, "copie depuis une note de coffre refusee")
+            surEchec(texte)
         }
     }
 }

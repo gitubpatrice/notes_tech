@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.editor
 
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -7,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.repository.FoldersRepository
@@ -146,6 +148,59 @@ class FermetureDuCoffreTest {
 
         val issue = withTimeout(ATTENTE_MS) { editeur.action.first { !it.enCours } }
         assertThat(issue.copiee).isFalse()
+    }
+
+    /**
+     * 🔴 **A Cut the protected clipboard refused is undone** (external review of 2026-09-26): Compose
+     * removes the selection before writing the clipboard, so the text was in neither place.
+     */
+    @Test
+    fun a_cut_the_protected_clipboard_refused_is_undone_and_said(): Unit = runBlocking {
+        val note = noteDeCoffre(content = "abc PIN def")
+        val editeur = withContext(Dispatchers.Main) { editeur(note) }
+        withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }
+
+        withContext(Dispatchers.Main) {
+            editeur.onContentChange(TextFieldValue("abc PIN def", selection = TextRange(4, 7))) // selected
+            editeur.onContentChange(TextFieldValue("abc  def", selection = TextRange(4))) // what Cut leaves
+            editeur.copieProtegeeRefusee("PIN")
+        }
+
+        val etat = editeur.state.value
+        assertThat(etat.content.text).isEqualTo("abc PIN def")
+        assertThat(etat.content.selection).isEqualTo(TextRange(4, 7))
+        assertThat(editeur.action.value.erreur).isEqualTo(R.string.error_clipboard_secure_unavailable)
+    }
+
+    /** A refused Copy changed nothing: the text stays as it is, and the failure is said. */
+    @Test
+    fun a_copy_the_protected_clipboard_refused_changes_no_text(): Unit = runBlocking {
+        val note = noteDeCoffre(content = "abc PIN def")
+        val editeur = withContext(Dispatchers.Main) { editeur(note) }
+        withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }
+
+        withContext(Dispatchers.Main) {
+            editeur.onContentChange(TextFieldValue("abc PIN def", selection = TextRange(4, 7)))
+            editeur.copieProtegeeRefusee("PIN")
+        }
+
+        assertThat(editeur.state.value.content.text).isEqualTo("abc PIN def")
+        assertThat(editeur.action.value.erreur).isEqualTo(R.string.error_clipboard_secure_unavailable)
+    }
+
+    /** The title reports no selection: the cut is found where the text fits, and undone. */
+    @Test
+    fun a_cut_from_the_title_the_clipboard_refused_is_undone(): Unit = runBlocking {
+        val note = noteDeCoffre(content = "body")
+        val editeur = withContext(Dispatchers.Main) { editeur(note) }
+        val titre = withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }.title
+
+        withContext(Dispatchers.Main) {
+            editeur.onTitleChange(titre.removePrefix("Bank "))
+            editeur.copieProtegeeRefusee("Bank ")
+        }
+
+        assertThat(editeur.state.value.title).isEqualTo(titre)
     }
 
     /** The control: an ordinary note is not touched by a vault closing. */

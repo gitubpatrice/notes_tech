@@ -36,6 +36,9 @@ internal class WhisperNatif {
 
     external fun demanderArret(poignee: Long)
 
+    /** Clears the stop flag — before [transcrire] is launched, so that no stop asked after is erased. */
+    external fun rearmer(poignee: Long)
+
     external fun nombreDeSegments(poignee: Long): Int
 
     /**

@@ -180,7 +180,11 @@ Java_com_filestech_notes_1tech_data_voice_WhisperNatif_transcrire(
     // 🔴 L'interruption. Sans elle, une transcription annulée continue de consommer le processeur
     // pendant plusieurs secondes sur un appareil que l'utilisateur croit avoir libéré — et, en mode
     // panique, elle tiendrait le fichier audio ouvert pendant que la séquence tente de l'effacer.
-    contexte->arret.store(false, std::memory_order_relaxed);
+    //
+    // ⚠️⚠️ The flag is NOT cleared here any more (external review, 2026-09-26): cleared at the start
+    // of this call, a stop asked between the launch of the call and its arrival here was erased,
+    // and the transcription ran to its end. It is cleared by `rearmer`, which the caller runs
+    // BEFORE launching the call — so any stop asked afterwards stands.
     parametres.abort_callback           = arretDemande;
     parametres.abort_callback_user_data = contexte;
 
@@ -206,6 +210,13 @@ Java_com_filestech_notes_1tech_data_voice_WhisperNatif_transcrire(
 
     if (contexte->arret.load(std::memory_order_relaxed)) return -4;
     return resultat;
+}
+
+/** Clears the stop flag. Called before a transcription is launched, never during one. */
+JNIEXPORT void JNICALL
+Java_com_filestech_notes_1tech_data_voice_WhisperNatif_rearmer(JNIEnv *, jobject, jlong poignee) {
+    ContexteStt * contexte = depuisPoignee(poignee);
+    if (contexte != nullptr) contexte->arret.store(false, std::memory_order_relaxed);
 }
 
 /** Demande l'arrêt de la transcription en cours. Sans effet s'il n'y en a pas. */

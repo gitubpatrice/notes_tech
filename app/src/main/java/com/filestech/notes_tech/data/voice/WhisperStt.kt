@@ -145,8 +145,12 @@ class WhisperStt @Inject constructor(private val modeles: SttModelStore) : Speec
             // The stop was asked of an engine that had already stopped. Now the call runs in a child,
             // and the parent's `await` is what cancellation interrupts: the stop reaches the engine
             // while it computes. `coroutineScope` still waits for the child, so nothing returns while
-            // the engine holds the samples. A late stop is harmless: `transcrire` clears the flag
-            // at its start (`notes_stt_jni.cpp`).
+            // the engine holds the samples.
+            //
+            // ⚠️ The flag is cleared HERE, before the child exists, and no longer at the start of the
+            // native call: there it erased a stop asked between the launch and the call (external
+            // review, 2026-09-26). A stop asked from now on stands, whenever the call begins.
+            natif.rearmer(poigneeCourante)
             val calcul = async(Dispatchers.Default) {
                 natif.transcrire(poigneeCourante, echantillons, langue.orEmpty(), filsDeCalcul())
             }
