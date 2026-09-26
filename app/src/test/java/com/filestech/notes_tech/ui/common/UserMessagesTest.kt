@@ -5,6 +5,7 @@ import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.ClipboardException
 import com.filestech.notes_tech.security.vault.KeystoreDeviceNotSecureException
 import com.filestech.notes_tech.security.vault.KeystoreKeyMissingException
+import com.filestech.notes_tech.security.vault.KeystorePinBeforeAndroid9Exception
 import com.filestech.notes_tech.security.vault.KeystoreSoftwareOnlyException
 import com.filestech.notes_tech.security.vault.KeystoreUnavailableException
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
@@ -31,6 +32,9 @@ class UserMessagesTest {
 
         assertThat(noScreenLock).isEqualTo(R.string.error_vault_pin_needs_screen_lock)
         assertThat(softwareOnly).isEqualTo(R.string.error_vault_pin_hardware_unavailable)
+        // Audit 2026-09-26, K4: the refusal before Android 9 names its reason and the way out.
+        assertThat(userMessageFor(KeystorePinBeforeAndroid9Exception()))
+            .isEqualTo(R.string.error_vault_pin_needs_android_9)
     }
 
     /**

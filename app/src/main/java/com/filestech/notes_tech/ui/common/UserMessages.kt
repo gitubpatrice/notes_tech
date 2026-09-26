@@ -6,6 +6,7 @@ import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.ClipboardException
 import com.filestech.notes_tech.security.vault.KeystoreDeviceNotSecureException
 import com.filestech.notes_tech.security.vault.KeystoreKeyMissingException
+import com.filestech.notes_tech.security.vault.KeystorePinBeforeAndroid9Exception
 import com.filestech.notes_tech.security.vault.KeystoreSoftwareOnlyException
 import com.filestech.notes_tech.security.vault.MalformedVaultDataException
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
@@ -47,6 +48,7 @@ fun userMessageFor(error: Throwable): Int = when (error) {
     is VaultValidationException -> refusalMessageFor(error.reason)
     is MalformedVaultDataException -> R.string.error_vault_encrypted_content_invalid
     is KeystoreSoftwareOnlyException -> R.string.error_vault_pin_hardware_unavailable
+    is KeystorePinBeforeAndroid9Exception -> R.string.error_vault_pin_needs_android_9
     is KeystoreDeviceNotSecureException -> R.string.error_vault_pin_needs_screen_lock
     is ClipboardException -> R.string.error_clipboard_secure_unavailable
     else -> R.string.error_unexpected

@@ -256,7 +256,9 @@
     <string name="vault_pin_key_missing">La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par exemple, quand le verrouillage d\'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle.</string>
     <string name="vault_pin_wiped_key_invalidated">Android a invalidé la clé de ce coffre : ses notes ne pouvaient plus être ouvertes et ont été effacées. Ce n\'est pas dû à des erreurs de PIN.</string>
     <string name="vault_mode_pin_screen_lock">Peut ne plus s\'ouvrir si le verrouillage d\'écran du téléphone est retiré.</string>
-    <string name="vault_mode_pin_old_android">Avant Android 9, un PIN ne protège pas ce coffre sur un téléphone saisi : préférez une passphrase.</string>
+    <string name="vault_mode_pin_old_android">Demande Android 9 ou plus récent : avant, un PIN ne protège pas un coffre sur un téléphone saisi.</string>
+    <string name="error_vault_pin_needs_android_9">Les coffres PIN exigent Android 9 ou plus récent : avant, un PIN ne protège pas un coffre sur un téléphone saisi. Utilisez plutôt un coffre à passphrase.</string>
+    <string name="vault_pin_unlock_old_android">Sur cette version d\'Android, ce PIN ne protège pas le coffre sur un téléphone saisi. Pour le protéger, retirez sa protection, puis refaites du dossier un coffre à passphrase.</string>
 
     <!-- ── Réglages ────────────────────────────────────────────────────── -->
     <string name="settings_title">Réglages</string>

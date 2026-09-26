@@ -17,6 +17,8 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.ui.CHAMP_DE_SAISIE
@@ -621,24 +624,54 @@ class FeuillesDeCoffreTest {
 
     /**
      * 🔴 Before Android 9 a PIN vault's code can be searched offline on a seized phone (security audit
-     * of 2026-09-26, K4): the chooser says so, there only. Both answers, the test not being able to
-     * choose the device's version.
+     * of 2026-09-26, K4): the PIN option is shown, greyed, inert, with its reason; from Android 9 it
+     * is chosen as before. Both answers, the test not being able to choose the device's version.
      */
     @Test
-    fun the_mode_chooser_tells_the_pin_limit_before_android_9_and_only_there() {
+    fun the_pin_mode_is_not_offered_before_android_9() {
         var ancien by mutableStateOf(true)
+        val choisis = mutableListOf<VaultMode>()
         regle.setContent {
-            NotesTechTheme { ChooseVaultModeSheet(onDismiss = {}, onChosen = {}, sousAndroid9 = ancien) }
+            NotesTechTheme { ChooseVaultModeSheet(onDismiss = {}, onChosen = { choisis += it }, sousAndroid9 = ancien) }
         }
         val limite = texte(R.string.vault_mode_pin_old_android)
+        val optionPin = hasText(texte(R.string.vault_mode_pin)) and hasText(limite, substring = true)
 
-        regle.onNode(hasText(texte(R.string.vault_mode_pin)) and hasText(limite, substring = true))
-            .assertIsDisplayed()
+        regle.onNode(optionPin).assertIsDisplayed().assertIsNotEnabled()
+        regle.onNode(optionPin).performClick()
+        assertThat(choisis).isEmpty()
 
         ancien = false
         regle.waitForIdle()
-        regle.onNode(hasText(texte(R.string.vault_mode_pin))).assertIsDisplayed()
         regle.onAllNodesWithText(limite, substring = true).assertCountEquals(0)
+        regle.onNode(hasText(texte(R.string.vault_mode_pin))).assertIsEnabled().performClick()
+        assertThat(choisis).containsExactly(VaultMode.PIN)
+    }
+
+    /** A PIN vault created before that rule still opens; before Android 9 its sheet says the limit. */
+    @Test
+    fun an_existing_pin_vault_is_told_its_limit_before_android_9() {
+        var ancien by mutableStateOf(true)
+        regle.setContent {
+            NotesTechTheme {
+                FeuilleDeCode(
+                    state = VaultSheetState(),
+                    nomDuDossier = DOSSIER,
+                    creating = false,
+                    chiffrementEnCours = { false },
+                    onQuitter = {},
+                    onValider = {},
+                    onFermerSurUneIssueFinale = {},
+                    sousAndroid9 = ancien,
+                )
+            }
+        }
+        val limite = texte(R.string.vault_pin_unlock_old_android)
+
+        regle.onNodeWithText(limite).assertIsDisplayed()
+        ancien = false
+        regle.waitForIdle()
+        regle.onAllNodesWithText(limite).assertCountEquals(0)
     }
 
     // ── Outils ──────────────────────────────────────────────────────────────────────────────────

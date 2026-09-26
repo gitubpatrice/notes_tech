@@ -170,7 +170,9 @@ AJOUTS_EN = {
     <string name="vault_mode_pin_screen_lock">May no longer open if the phone\\'s screen lock is removed.</string>
     <!-- Security audit of 2026-09-26, K4: before Android 9 the PIN key cannot require an unlocked
          phone, so a seized phone lets its code be searched offline. Shown there only. -->
-    <string name="vault_mode_pin_old_android">Before Android 9, a PIN does not protect this vault on a seized phone: prefer a passphrase.</string>
+    <string name="vault_mode_pin_old_android">Needs Android 9 or later: before it, a PIN does not protect a vault on a seized phone.</string>
+    <string name="error_vault_pin_needs_android_9">PIN vaults need Android 9 or later: before it, a PIN does not protect a vault on a seized phone. Use a passphrase vault instead.</string>
+    <string name="vault_pin_unlock_old_android">On this Android version, this PIN does not protect the vault on a seized phone. To protect it, remove its protection, then make the folder a vault again with a passphrase.</string>
 """,
     "panic": """\
     <!--
@@ -444,7 +446,9 @@ AJOUTS_FR = {
     <string name="vault_pin_key_missing">La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par exemple, quand le verrouillage d\\'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle.</string>
     <string name="vault_pin_wiped_key_invalidated">Android a invalidé la clé de ce coffre : ses notes ne pouvaient plus être ouvertes et ont été effacées. Ce n\\'est pas dû à des erreurs de PIN.</string>
     <string name="vault_mode_pin_screen_lock">Peut ne plus s\\'ouvrir si le verrouillage d\\'écran du téléphone est retiré.</string>
-    <string name="vault_mode_pin_old_android">Avant Android 9, un PIN ne protège pas ce coffre sur un téléphone saisi : préférez une passphrase.</string>
+    <string name="vault_mode_pin_old_android">Demande Android 9 ou plus récent : avant, un PIN ne protège pas un coffre sur un téléphone saisi.</string>
+    <string name="error_vault_pin_needs_android_9">Les coffres PIN exigent Android 9 ou plus récent : avant, un PIN ne protège pas un coffre sur un téléphone saisi. Utilisez plutôt un coffre à passphrase.</string>
+    <string name="vault_pin_unlock_old_android">Sur cette version d\\'Android, ce PIN ne protège pas le coffre sur un téléphone saisi. Pour le protéger, retirez sa protection, puis refaites du dossier un coffre à passphrase.</string>
 """,
     "panic": """\
     <!--

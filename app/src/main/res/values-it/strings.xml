@@ -251,7 +251,9 @@
     <string name="vault_pin_key_missing">La chiave di questa cassaforte non si trova su questo telefono. Android la elimina, ad esempio, quando si rimuove il blocco schermo. Senza di essa, nessun PIN può aprire questa cassaforte.</string>
     <string name="vault_pin_wiped_key_invalidated">Android ha invalidato la chiave di questa cassaforte: le sue note non si potevano più aprire e sono state cancellate. Non è dovuto a errori nell\'inserimento del PIN.</string>
     <string name="vault_mode_pin_screen_lock">Potrebbe non aprirsi più se si rimuove il blocco schermo del telefono.</string>
-    <string name="vault_mode_pin_old_android">Prima di Android 9, un PIN non protegge questa cassaforte su un telefono sequestrato: preferisca una passphrase.</string>
+    <string name="vault_mode_pin_old_android">Richiede Android 9 o successivo: prima, un PIN non protegge una cassaforte su un telefono sequestrato.</string>
+    <string name="error_vault_pin_needs_android_9">Le casseforti con PIN richiedono Android 9 o successivo: prima, un PIN non protegge una cassaforte su un telefono sequestrato. Usi invece una cassaforte con passphrase.</string>
+    <string name="vault_pin_unlock_old_android">Su questa versione di Android, questo PIN non protegge la cassaforte su un telefono sequestrato. Per proteggerla, ne rimuova la protezione, poi rifaccia della cartella una cassaforte con passphrase.</string>
 
     <!-- Settings -->
     <string name="settings_title">Impostazioni</string>

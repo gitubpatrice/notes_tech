@@ -251,7 +251,9 @@
     <string name="vault_pin_key_missing">No se encuentra la clave de esta caja fuerte en este teléfono. Android la elimina, por ejemplo, cuando se quita el bloqueo de pantalla. Sin ella, ningún PIN puede abrir esta caja fuerte.</string>
     <string name="vault_pin_wiped_key_invalidated">Android invalidó la clave de esta caja fuerte: sus notas ya no se podían abrir y se han borrado. No se debe a errores al introducir el PIN.</string>
     <string name="vault_mode_pin_screen_lock">Puede dejar de abrirse si se quita el bloqueo de pantalla del teléfono.</string>
-    <string name="vault_mode_pin_old_android">Antes de Android 9, un PIN no protege esta caja fuerte en un teléfono incautado: es preferible una frase de contraseña.</string>
+    <string name="vault_mode_pin_old_android">Requiere Android 9 o posterior: antes, un PIN no protege una caja fuerte en un teléfono incautado.</string>
+    <string name="error_vault_pin_needs_android_9">Las cajas fuertes con PIN requieren Android 9 o posterior: antes, un PIN no protege una caja fuerte en un teléfono incautado. Use en su lugar una caja fuerte con frase de contraseña.</string>
+    <string name="vault_pin_unlock_old_android">En esta versión de Android, este PIN no protege la caja fuerte en un teléfono incautado. Para protegerla, quite su protección y vuelva a convertir la carpeta en una caja fuerte con frase de contraseña.</string>
 
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>

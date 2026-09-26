@@ -199,8 +199,8 @@ private fun etatDeFeuilleDeCoffre(bloquer: () -> Boolean = { false }) = remember
  * @param sousAndroid9 🔴 before Android 9 the PIN key cannot require an unlocked phone
  *   (`AndroidVaultKeystore`: `setUnlockedDeviceRequired` exists from API 28): on a seized phone, the
  *   code of a PIN vault can then be searched offline, its five-attempt limit never crossed (security
- *   audit of 2026-09-26, K4). Said at the choice, where a passphrase can still be taken. A parameter so
- *   that a test reaches both answers.
+ *   audit of 2026-09-26, K4). The PIN option is then not offered — the Keystore refuses the key too
+ *   (`KeystorePinBeforeAndroid9Exception`). A parameter so that a test reaches both answers.
  */
 @Composable
 fun ChooseVaultModeSheet(
@@ -238,8 +238,17 @@ fun ChooseVaultModeSheet(
                     }
                 },
                 leadingContent = { Icon(Icons.Outlined.Key, contentDescription = null) },
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                modifier = Modifier.clickableListItem { onChosen(VaultMode.PIN) },
+                // 🔴 Not offered before Android 9 (K4, 2026-09-26): shown, greyed and inert, with
+                // the reason — a missing option would leave the user wondering where it went.
+                colors = ListItemDefaults.colors(
+                    containerColor = Color.Transparent,
+                    headlineColor = if (sousAndroid9) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = ALPHA_DESACTIVE)
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                ),
+                modifier = Modifier.clickableListItem(enabled = !sousAndroid9) { onChosen(VaultMode.PIN) },
             )
         }
     }
@@ -642,6 +651,7 @@ internal fun FeuilleDeCode(
     onQuitter: () -> Unit,
     onValider: (String) -> Unit,
     onFermerSurUneIssueFinale: () -> Unit,
+    sousAndroid9: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.P,
 ) {
     var saisi by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf<String?>(null) }
@@ -723,6 +733,15 @@ internal fun FeuilleDeCode(
                     text = stringResource(R.string.vault_pin_unlock_body, nomDuDossier),
                     style = MaterialTheme.typography.bodyMedium,
                 )
+                // 🔴 A PIN vault created before the rule of K4 still opens; before Android 9, it is
+                // told what its PIN does not protect, and how to protect it (audit 2026-09-26).
+                if (sousAndroid9) {
+                    Text(
+                        text = stringResource(R.string.vault_pin_unlock_old_android),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             // ⚠️ The screen lock warning is NOT here, and was for an hour (2026-09-25): a second
             // sentence in this banner made the sheet taller than the S9's screen, so it scrolled
@@ -1168,7 +1187,11 @@ private fun BoutonDeFermeture(onDone: () -> Unit) {
     }
 }
 
-private fun Modifier.clickableListItem(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)
+private fun Modifier.clickableListItem(enabled: Boolean = true, onClick: () -> Unit): Modifier =
+    this.clickable(enabled = enabled, onClick = onClick)
+
+/** Material's alpha for disabled content. */
+private const val ALPHA_DESACTIVE = 0.38f
 
 /**
  * L'emplacement du message, nommé pour être **mesuré**. Sa hauteur est la garde de §87 : c'est elle

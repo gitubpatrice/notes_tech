@@ -242,7 +242,9 @@
     <string name="vault_pin_key_missing">Der Schlüssel dieses Tresors ist auf diesem Telefon nicht auffindbar. Android löscht ihn zum Beispiel, wenn die Displaysperre entfernt wird. Ohne ihn kann keine PIN diesen Tresor öffnen.</string>
     <string name="vault_pin_wiped_key_invalidated">Android hat den Schlüssel dieses Tresors ungültig gemacht: Seine Notizen ließen sich nicht mehr öffnen und wurden gelöscht. Falsche PIN-Eingaben sind nicht die Ursache.</string>
     <string name="vault_mode_pin_screen_lock">Lässt sich möglicherweise nicht mehr öffnen, wenn die Displaysperre des Telefons entfernt wird.</string>
-    <string name="vault_mode_pin_old_android">Vor Android 9 schützt eine PIN diesen Tresor auf einem beschlagnahmten Telefon nicht: Verwenden Sie besser eine Passphrase.</string>
+    <string name="vault_mode_pin_old_android">Erfordert Android 9 oder neuer: Davor schützt eine PIN einen Tresor auf einem beschlagnahmten Telefon nicht.</string>
+    <string name="error_vault_pin_needs_android_9">PIN-Tresore erfordern Android 9 oder neuer: Davor schützt eine PIN einen Tresor auf einem beschlagnahmten Telefon nicht. Verwenden Sie stattdessen einen Passphrase-Tresor.</string>
+    <string name="vault_pin_unlock_old_android">Auf dieser Android-Version schützt diese PIN den Tresor auf einem beschlagnahmten Telefon nicht. Um ihn zu schützen, entfernen Sie den Tresorschutz und machen Sie den Ordner dann wieder zu einem Passphrase-Tresor.</string>
 
     <!-- Settings -->
     <string name="settings_title">Einstellungen</string>

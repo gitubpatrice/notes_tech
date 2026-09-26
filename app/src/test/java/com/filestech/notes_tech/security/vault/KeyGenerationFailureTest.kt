@@ -36,6 +36,15 @@ class KeyGenerationFailureTest {
     }
 
     @Test
+    @DisplayName("no PIN vault key before Android 9, and nothing refused from it (audit K4)")
+    fun no_pin_vault_before_android_9() {
+        assertThat(refusAvantAndroid9(sdkInt = 27)).isInstanceOf(KeystorePinBeforeAndroid9Exception::class.java)
+        assertThat(refusAvantAndroid9(sdkInt = 24)).isInstanceOf(KeystorePinBeforeAndroid9Exception::class.java)
+        assertThat(refusAvantAndroid9(sdkInt = 28)).isNull()
+        assertThat(refusAvantAndroid9(sdkInt = 36)).isNull()
+    }
+
+    @Test
     @DisplayName("an unknown security state never tells the user to set a lock they may already have")
     fun unknown_security_state() {
         assertThat(classerLEchecDeGeneration(cause, sdkInt = 30, appareilSecurise = null))

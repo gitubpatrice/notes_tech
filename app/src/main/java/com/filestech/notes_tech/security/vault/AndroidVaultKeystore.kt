@@ -61,6 +61,7 @@ class AndroidVaultKeystore @Inject constructor(@ApplicationContext private val c
     }
 
     override fun createKey(alias: String): Boolean {
+        refusAvantAndroid9(Build.VERSION.SDK_INT)?.let { throw it }
         val store = keyStore()
         if (containsAlias(store, alias)) return false
 
@@ -362,3 +363,7 @@ internal fun classerLEchecDeGeneration(cause: Exception, sdkInt: Int, appareilSe
     } else {
         KeystoreUnavailableException(cause)
     }
+
+/** `null` from Android 9; below, the refusal of [KeystorePinBeforeAndroid9Exception]. Pure, for the JVM. */
+internal fun refusAvantAndroid9(sdkInt: Int): VaultException? =
+    if (sdkInt < Build.VERSION_CODES.P) KeystorePinBeforeAndroid9Exception() else null

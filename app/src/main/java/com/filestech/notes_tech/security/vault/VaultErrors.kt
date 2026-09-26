@@ -116,6 +116,17 @@ class KeystoreKeyMissingException : VaultException("cle keystore absente sous l'
 class KeystoreSoftwareOnlyException : VaultException("cle keystore non retenue par du materiel securise")
 
 /**
+ * 🔴 **No PIN vault before Android 9** — security audit of 2026-09-26, K4, decided the same evening.
+ *
+ * `setUnlockedDeviceRequired` exists from API 28 only. Below, the PIN vault's key can be used on a
+ * locked phone: whoever seized it and runs code under the app's UID opens the Keystore seal, then
+ * tries the 4-6 digits offline — the five-attempt wipe is never crossed. Same answer as
+ * [KeystoreSoftwareOnlyException]: a PIN that protects nothing is refused, and the interface offers a
+ * passphrase. Vaults created before this rule keep opening; their sheet says the limit.
+ */
+class KeystorePinBeforeAndroid9Exception : VaultException("coffre pin refuse avant android 9")
+
+/**
  * A PIN vault key cannot be created because the phone has NO screen lock.
  *
  * The key requires an unlocked device (`setUnlockedDeviceRequired`, API 28+), and Android refuses to
