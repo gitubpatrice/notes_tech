@@ -11,9 +11,10 @@ import com.filestech.notes_tech.domain.voice.SttTranscriptionFailedException
 import com.filestech.notes_tech.domain.voice.WavPcm16
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -128,7 +129,7 @@ class WhisperStt @Inject constructor(private val modeles: SttModelStore) : Speec
     ): SttTranscription {
         val duree = (echantillons.size.toLong() * 1000) / WavPcm16.FREQUENCE_HZ
 
-        val code = withContext(Dispatchers.Default) {
+        val code = coroutineScope {
             // 🔴🔴 **L'annulation est transmise au moteur natif, pas seulement attendue.**
             //
             // `whisper_full` est un appel bloquant de plusieurs secondes qui ignore les coroutines.
@@ -138,15 +139,22 @@ class WhisperStt @Inject constructor(private val modeles: SttModelStore) : Speec
             // C'est la troisième fois que ce motif se présente dans ce dépôt : `micro.read`,
             // `InputStream.read`, et maintenant ici.
             //
-            // ⚠️ Le rappel est posé sur le `Job` courant, et **retiré au retour** : un `Job` de
-            // portée longue accumulerait sinon un rappel par transcription.
-            val abonnement = currentCoroutineContext().job.invokeOnCompletion {
-                natif.demanderArret(poigneeCourante)
+            // ⚠️⚠️ **The relay never fired until 2026-09-26** (security audit, note of cell 4). It was
+            // an `invokeOnCompletion` on the job running the native call — and a cancelled job
+            // COMPLETES only once its body returns, that is once `whisper_full` had gone to its end.
+            // The stop was asked of an engine that had already stopped. Now the call runs in a child,
+            // and the parent's `await` is what cancellation interrupts: the stop reaches the engine
+            // while it computes. `coroutineScope` still waits for the child, so nothing returns while
+            // the engine holds the samples. A late stop is harmless: `transcrire` clears the flag
+            // at its start (`notes_stt_jni.cpp`).
+            val calcul = async(Dispatchers.Default) {
+                natif.transcrire(poigneeCourante, echantillons, langue.orEmpty(), filsDeCalcul())
             }
             try {
-                natif.transcrire(poigneeCourante, echantillons, langue.orEmpty(), filsDeCalcul())
-            } finally {
-                abonnement.dispose()
+                calcul.await()
+            } catch (e: CancellationException) {
+                natif.demanderArret(poigneeCourante)
+                throw e
             }
         }
 

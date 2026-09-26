@@ -98,13 +98,29 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!--
+          Security audit of 2026-09-26 (note of cell 4): EmojiCompat, pulled in by Compose, started
+          itself at launch and asked Google Play Services' font provider for an emoji font — a call to
+          another app, which may fetch it from the network, from an app that promises it contacts
+          nothing. The promise "no Internet permission" held; this is its spirit. The system's emoji
+          font is used instead.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
+        </provider>
     </application>
 
-    <queries>
-        <!-- Sélection de texte système dans l'éditeur (PROCESS_TEXT). -->
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT" />
-            <data android:mimeType="text/plain" />
-        </intent>
-    </queries>
+    <!--
+      No <queries> for PROCESS_TEXT any more (security audit of 2026-09-26, note of cell 5): inherited
+      from the Flutter template, it made every app that declares a text action — any app can, under
+      any name, "Copy" included — appear in the selection toolbar of the notes, vault notes
+      included, and receive the selected text. What is lost: third-party actions (a translator)
+      in that toolbar.
+    -->
 </manifest>

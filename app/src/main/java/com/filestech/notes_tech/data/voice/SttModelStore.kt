@@ -38,7 +38,8 @@ data class SttImportProgress(val octetsTraites: Long, val octetsAttendus: Long) 
  * Les deux répertoires existent, et ils n'ont rien à voir :
  *
  * - `files/models/` contenait l'IA embarquée des versions ≤ 1.1.6 — jusqu'à 530 Mo qu'aucun écran ne
- *   mentionne. `PanicStep.LEGACY_MODELS_WIPE` le détruit, et le démarrage le purge une fois.
+ *   mentionne. `PanicStep.LEGACY_MODELS_WIPE` le détruit — la panique seule : contrairement à ce
+ *   qu'écrivait cette ligne jusqu'au 2026-09-26, le démarrage ne le purge pas (note de l'audit).
  * - `files/stt/` est **le nôtre**, et il doit survivre à ces deux purges.
  *
  * ⚠️⚠️ **La confusion n'a rien d'abstrait : elle coûterait à l'utilisateur ce qu'il a fait de plus

@@ -1,10 +1,15 @@
 package com.filestech.notes_tech.data.voice
 
+import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.filestech.notes_tech.domain.voice.SttModel
 import com.filestech.notes_tech.domain.voice.SttModelCatalogue
+import com.filestech.notes_tech.domain.voice.WavPcm16
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -83,5 +88,67 @@ class TranscriptionSurAppareilTest {
         } finally {
             wav.delete()
         }
+    }
+
+    /**
+     * 🔴 **A cancelled transcription stops the engine, it does not run to its end** — the relay the
+     * security audit of 2026-09-26 found dead (note of cell 4): it was set on the job running the
+     * native call, and a cancelled job completes only once that call returns.
+     *
+     * Sixteen times `jfk.wav`, about three minutes of sound. Measured on the S9 with eight (88 s): the
+     * dead relay gave control back after 22.7 s — the whole transcription; the live one after 7.2 s —
+     * the engine checks its stop flag between its passes, so the pass under way finishes first. The
+     * bound, [ARRET_MAX_MS], sits between the two, and the longer sound widens the gap.
+     */
+    @Test
+    fun une_transcription_annulee_arrete_le_moteur() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val cible = instrumentation.targetContext
+        val magasin = SttModelStore(cible)
+        val modele: SttModel? = SttModelCatalogue.tous.firstOrNull { magasin.estPresent(it) }
+        assumeTrue("aucun modele installe sur cet appareil", modele != null)
+
+        val jfk = instrumentation.context.assets.open("jfk.wav").use { it.readBytes() }
+        val pcm = WavPcm16.echantillons(jfk).let { valeurs ->
+            ByteArray(valeurs.size * 2).also { octets ->
+                valeurs.forEachIndexed { i, v ->
+                    val s = (v * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                    octets[2 * i] = (s and 0xFF).toByte()
+                    octets[2 * i + 1] = ((s shr 8) and 0xFF).toByte()
+                }
+            }
+        }
+        val donnees = ByteArray(pcm.size * REPETITIONS)
+        repeat(REPETITIONS) { pcm.copyInto(donnees, it * pcm.size) }
+        val wav = File(cible.cacheDir, "long-test.wav")
+        wav.writeBytes(WavPcm16.entete(donnees.size.toLong()) + donnees)
+
+        try {
+            val moteur = WhisperStt(magasin)
+            runBlocking {
+                moteur.initialize(modele!!)
+                try {
+                    val travail = async(Dispatchers.Default) { moteur.transcribeFile(wav.absolutePath) }
+                    delay(AVANT_ANNULATION_MS)
+                    val debut = SystemClock.elapsedRealtime()
+                    travail.cancel()
+                    travail.join()
+                    val attente = SystemClock.elapsedRealtime() - debut
+
+                    assertThat(travail.isCancelled).isTrue()
+                    assertThat(attente).isLessThan(ARRET_MAX_MS)
+                } finally {
+                    moteur.dispose()
+                }
+            }
+        } finally {
+            wav.delete()
+        }
+    }
+
+    private companion object {
+        const val REPETITIONS = 16
+        const val AVANT_ANNULATION_MS = 1_500L
+        const val ARRET_MAX_MS = 12_000L
     }
 }

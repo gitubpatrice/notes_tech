@@ -47,9 +47,8 @@ class NotesTechApplication : Application() {
         // que rien ne sort de l'appareil n'a pas à écrire le contenu des notes dans `logcat`, que
         // n'importe quelle application disposant de la permission peut lire sur un appareil rooté.
         //
-        // R8 supprime de toute façon les appels Timber en release. Pour instrumenter un défaut qui
-        // ne se reproduit qu'en build signée, le seul canal qui survit est `println` — cf.
-        // `docs/04-PIEGES.md` et les notes de SMS Tech.
+        // ⚠️ Corrected on 2026-09-26 (security audit, note of cell 5): R8 does NOT remove the Timber
+        // calls — no rule does. This missing tree is the only thing that keeps release silent.
 
         autoLocker.start(applicationScope)
         observerLeCycleDeVieDuProcessus()

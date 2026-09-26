@@ -52,10 +52,10 @@
 -dontwarn **$$serializer
 
 # ── Diagnostic en release ────────────────────────────────────────────────────
-# ⚠️ R8 supprime les appels Timber ET `android.util.Log` en release. Pour instrumenter un problème
-# qui ne se reproduit qu'en build signée, le seul canal qui survit est `println` — cf. les notes
-# de SMS Tech. Ne pas ajouter de `-keep` sur Timber pour contourner ça : ce serait garder du code
-# de journalisation dans une application dont l'argument est de ne rien divulguer.
+# ⚠️ Corrected on 2026-09-26 (security audit, note of cell 5): this said R8 REMOVES the Timber and
+# `android.util.Log` calls in release. It does not — no `-assumenosideeffects` rule here. What keeps
+# release silent is that no Timber tree is planted there (`NotesTechApplication`, `LOG_ENABLED`), and
+# that the code calls `android.util.Log` nowhere. Keep it that way; do not plant a tree in release.
 
 # ── Dictée : la frontière JNI ────────────────────────────────────────────────
 # 🔴 **Le code natif cherche ces méthodes PAR LEUR NOM**, décoré depuis le nom du paquet, de la
