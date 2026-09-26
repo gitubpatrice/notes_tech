@@ -16,7 +16,7 @@
   dans le changelog et la description** de la 3.0.0, du plus visible (plus de nouveau coffre à code
   avant Android 9) au moins visible.
 - **`.gitattributes`** : `app/src/main/res/raw*/*.md text eol=lf`. Mesuré par une extraction neuve avec
-  `core.autocrlf=true` : sans la règle 10 pages `w/crlf`, avec 10 `w/lf`. ⚠️ `grep -c $''` ne voit pas
+  `core.autocrlf=true` : sans la règle 10 pages `w/crlf`, avec 10 `w/lf`. ⚠️ `grep -c $'\r'` ne voit pas
   les CR sous Git pour Windows — mesurer par `git ls-files --eol` ou `od -c`.
 - **Traductions du jour** (6 chaînes, 3 passages légaux, DE/IT/ES) relues par GPT-5.6 (~0,07 $) :
   aucun défaut. Fichiers dans `audits/securite-2026-09-26-rapports/`.
