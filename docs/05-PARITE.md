@@ -867,8 +867,34 @@ l'original français dans chaque langue), et `LanguesDansLApkTest` (appareil : c
 l'anglais **dans l'APK installé** — seul endroit où un filtre mal réglé se voit). Contrôles négatifs,
 tous tombés le 2026-09-25 : clé retirée (de, it), argument changé (es), forme `many` retirée (es),
 italien retiré du filtre (JVM **et** appareil), dates remises en « anglais, sinon français ». Aucun texte
-visible codé en dur dans le code (101 littéraux relus). **Pas encore** : relecture externe des
-traductions ; textes du store de-DE/es-ES/it-IT (`docs/12-PLAN-DE-BASCULE.md`, phase 3).
+visible codé en dur dans le code (101 littéraux relus). Traductions relues le 2026-09-25 (`7abf065`) ;
+les ajouts de l'audit de sécurité du 2026-09-26, relus à leur tour le soir même. **Pas encore** : textes
+du store de-DE/es-ES/it-IT (`docs/12-PLAN-DE-BASCULE.md`, phase 3).
+
+## Ajout hors parité : le verrouillage de l'application (2026-09-24, D-023)
+
+La 2.0.9 n'a aucun verrou d'application. Le portage en ajoute un : PIN (Argon2id + HMAC Keystore),
+biométrie de classe 3, délai de reverrouillage, protection de l'aperçu des récents. Il apporte deux
+permissions au manifeste **fusionné** (`USE_BIOMETRIC`, `USE_FINGERPRINT`), à déclarer à la publication
+(`12-PLAN-DE-BASCULE.md`, phase 3). Durci par l'audit du 2026-09-26 : V2, E2, K5 (ci-dessous).
+
+## Écarts voulus par l'audit de sécurité du 2026-09-26
+
+Ce que la 3.0.0 fait **autrement que la 2.0.9**, délibérément (rapport : `audits/securite-2026-09-26.md`,
+§9). Chaque ligne a son test et son contrôle négatif.
+
+| Comportement | 2.0.9 | 3.0.0 |
+|---|---|---|
+| Créer un coffre à code **avant Android 9** | proposé | **refusé** (option grisée, raison dite, refus au Keystore) ; un coffre existant s'ouvre toujours et dit sa limite (K4) |
+| Coffre refermé pendant qu'une note est ouverte | le clair restait affiché | l'éditeur l'efface et redemande le secret (V1) |
+| Texte supprimé ou mis au coffre | restait dans l'index de recherche | FTS5 `secure-delete` ; pages libérées remises à zéro (K1, P3) |
+| Copier/Couper par la sélection dans un coffre | presse-papiers ordinaire | presse-papiers protégé ; un Couper refusé est annulé (F1) |
+| Clavier dans une note de coffre | apprenait | `IME_FLAG_NO_PERSONALIZED_LEARNING` demandé (F4) |
+| Actions de texte d'autres apps dans la sélection | proposées (`<queries> PROCESS_TEXT`) | **retirées** |
+| Police d'émojis demandée aux services Google au démarrage | oui (EmojiCompat) | **non** — police du système |
+| Panique interrompue | notes dites « intactes » au lancement suivant | la panique reprend et s'achève |
+| Fichiers en clair laissés par la 2.x dans le cache (`share_plus/`…) | jamais purgés | purgés à chaque démarrage |
+| PIN d'app | — | la feuille demande un code utilisé nulle part ailleurs (K5) |
 
 ---
 
@@ -905,8 +931,8 @@ traductions ; textes du store de-DE/es-ES/it-IT (`docs/12-PLAN-DE-BASCULE.md`, p
 
 **Ce que ce rattrapage n'a PAS encore mesuré :**
 
-- ⚠️ **aucune bascule depuis une vraie 2.0.9** : celles du 2026-08-20 partaient de 2.0.3 et 2.0.4. Les
-  versions verrouillées de `flutter_secure_storage`, `sqflite_sqlcipher` et `shared_preferences` sont
-  identiques d'un `pubspec.lock` à l'autre — c'est un indice, pas une mesure ;
-- les lignes A3/A5/A6/A13 n'ont **aucun** test instrumenté neuf, et la suite instrumentée n'a pas
-  tourné depuis le 2026-08-20 (S9 débranché, puis sans aucune Notes Tech installée le 2026-09-24).
+- ~~aucune bascule depuis une vraie 2.0.9~~ — **mesurée le 2026-09-25 sur le S9** (`0bee89e`) : la 2.0.9
+  publiée, des notes, un coffre à phrase secrète et un coffre à code créés à la main, puis la 3.0.0
+  signée posée par-dessus ;
+- les lignes A3/A5/A6/A13 n'ont **aucun** test instrumenté neuf. ~~La suite instrumentée n'a pas tourné
+  depuis le 2026-08-20~~ — elle a tourné entière sur le S9 le 2026-09-26 : 484 tests, 0 échec.

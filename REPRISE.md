@@ -3,7 +3,37 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-26 (fin de soirée) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-26 (nuit) — LIRE CECI D'ABORD
+
+> Patrice : « ok pour le bloc 1, fait tout ce que tu peux, et pour le reste je le ferais demain ».
+> Tout est commité, **rien n'est poussé**.
+
+**Bloc 1 — fait :**
+- `docs/05-PARITE.md` : le verrou d'app déclaré **ajout hors parité** (D-023) ; tableau des **écarts voulus
+  par l'audit** (ce que la 3.0.0 fait autrement que la 2.0.9) ; deux affirmations périmées corrigées
+  (bascule 2.0.9 mesurée le 25 ; suite instrumentée tournée).
+- `docs/12-PLAN-DE-BASCULE.md` : acquis complétés (bascule 2.0.9, audit) ; phase 3 : **ce qu'il faut dire
+  dans le changelog et la description** de la 3.0.0, du plus visible (plus de nouveau coffre à code
+  avant Android 9) au moins visible.
+- **`.gitattributes`** : `app/src/main/res/raw*/*.md text eol=lf`. Mesuré par une extraction neuve avec
+  `core.autocrlf=true` : sans la règle 10 pages `w/crlf`, avec 10 `w/lf`. ⚠️ `grep -c $''` ne voit pas
+  les CR sous Git pour Windows — mesurer par `git ls-files --eol` ou `od -c`.
+- **Traductions du jour** (6 chaînes, 3 passages légaux, DE/IT/ES) relues par GPT-5.6 (~0,07 $) :
+  aucun défaut. Fichiers dans `audits/securite-2026-09-26-rapports/`.
+- **Émulateur** : code 1111 retiré, aucune empreinte, **arrêté**.
+- **S9** : note « Essai TalkBack » présente et intacte (vérifiée par l'arbre d'accessibilité).
+
+**Pour demain — à Patrice :**
+1. **TalkBack** sur l'aperçu (5 min) : procédure au point 5 de la liste du 25 plus bas (« CE QUI RESTE,
+   dans l'ordre ») ; la note est prête sur le S9.
+2. **Les décisions de publication** (`docs/12-PLAN-DE-BASCULE.md`, à relire en entier) : le **rodage**
+   (appareil, notes, durée ; piste : pré-publication GitHub) ; **A** (code poussé dans `notes_tech`,
+   branche `kotlin`) ; **C** (`!37885` laissée en 2.0.9 jusqu'à sa fusion, F-Droid en dernier).
+3. Facultatif : **F3** (non retenu) par capture image par image, réglage « Masquer dans les récents » coupé.
+
+Coût des relectures externes du jour : ~0,38 $ (correctifs) + ~0,07 $ (traductions).
+
+## 🎯 ÉTAT AU 2026-09-26 (fin de soirée) — section précédente
 
 > Patrice : « fait tout ce qui doit être fait et fais ce qu'il y a de mieux et de plus fiable et
 > cohérent », puis « corrige tout de façon définitive ! et pas de rafistolage ». Tout est commité,

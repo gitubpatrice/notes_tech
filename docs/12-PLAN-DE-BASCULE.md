@@ -32,6 +32,8 @@ irréversible arrive le plus tard possible, et sur le moins de monde possible.
 | La base SQLCipher héritée est relue | notes en clair retrouvées intactes |
 | Les coffres **PIN et passphrase** créés en Flutter s'ouvrent en Kotlin | les deux mesurés, clair affiché |
 | La signature autorise la mise à jour | `ddb385de…42e9`, vérifié contre l'**APK 2.0.4 installé** |
+| La 3.0.0 s'installe par-dessus une **vraie 2.0.9** publiée, coffres à phrase secrète et à code compris | S9, 2026-09-25, `0bee89e` |
+| L'audit de sécurité complet est fait et suivi | `audits/securite-2026-09-26.md` (§9), gate final vert sur le S9 le 2026-09-26 |
 | ~~Le `versionCode` dépasse celui des installations réelles~~ | ~~1053 / 2053 / 3053, contre 1052 / 2052 / 3052~~ — **FAUX depuis la 2.0.5** : la 2.0.9 publiée est en 4071/4072/4073. Refait le 2026-09-24 : **5001 / 5002 / 5003** (D-022, `8715023`) |
 
 ---
@@ -158,8 +160,23 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
 - **Fins de ligne des `.md` embarqués** (§157) : avec `core.autocrlf=true`, les pages légales de
   `res/raw*` sortent en CRLF d'une construction Windows et en LF d'une construction Linux, celle de
   F-Droid. Le lecteur lit les deux (CRLF corrigé le 25) : c'est une question d'**octets**, pas
-  d'affichage. Poser un `.gitattributes` (`*.md text eol=lf`, au moins pour `app/src/main/res/raw*/`)
-  **avant** toute recherche de reproductibilité, sinon l'APK diffère d'un octet par ligne.
+  d'affichage. ✅ **Fait le 2026-09-26** : `.gitattributes` à la racine, `eol=lf` pour tout
+  `app/src/main/res/raw*/*.md`. Mesuré par une extraction neuve avec `core.autocrlf=true` (`git ls-files
+  --eol`) : sans la règle, les 10 pages sortent `w/crlf` ; avec, `w/lf`. ⚠️ Ne pas le mesurer par
+  `grep -c $'
+'` : le `grep` de Git pour Windows ne voit pas le CR d'un CRLF, et rend 0 dans les deux cas.
+- **À dire dans le changelog et la description de la 3.0.0** (ajouté le 2026-09-26, audit de sécurité ;
+  détail : `05-PARITE.md`, « Écarts voulus par l'audit ») — du plus visible au moins visible :
+  - **avant Android 9, plus de nouveau coffre à code** : un coffre à code existant s'ouvre toujours et
+    dit sa limite ; c'est le seul changement qui retire une possibilité à quelqu'un ;
+  - un coffre refermé efface la note ouverte ; ce qui est supprimé l'est aussi de l'index de recherche ;
+  - la copie depuis une note de coffre passe par le presse-papiers protégé ; le clavier est prié de ne
+    rien apprendre ;
+  - plus d'actions de texte d'autres applications dans la sélection ; plus de police d'émojis demandée
+    aux services Google ;
+  - une panique interrompue s'achève au lancement suivant ;
+  - les fichiers en clair laissés par la 2.x dans le cache sont effacés au premier lancement.
+  Les CGU et la politique de confidentialité ont changé (même version 1.2.0 tant que rien n'est publié).
 
 ### Phase 4 — Publication par paliers, du moins risqué au plus risqué
 
