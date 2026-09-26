@@ -26,6 +26,14 @@
 **Pour demain — à Patrice :**
 1. ✅ ~~**TalkBack** sur l'aperçu~~ — **fait par Patrice le 2026-09-26 au soir, sur le S9** (Voice
    Assistant, Android 10) : « talkback fonctionne bien ». Le S24 n'a pas été utilisé.
+**Rodage commencé le 2026-09-26 au soir, sur le S24** (accord de Patrice, choix « appli de test à
+part ») : `com.filestech.notes_tech.next.debug` 3.0.0-alpha01 (versionCode 5002, build de debug de
+`7e80c7d`), installée seule — paquet vérifié par `aapt2` avant ; aucun réglage touché. ⚠️ Ce rodage
+exerce l'usage, **pas la bascule** : l'app est séparée, sans reprise de données. Constaté : la vraie
+Notes Tech (`com.filestech.notes_tech`) **n'est pas installée** sur le S24. **Patrice : attendre la
+fusion F-Droid de la 2.0.9 avant tout tag 3.0.0** (la recette suit les tags de `notes_tech` et lit
+`pubspec.yaml`).
+
 2. **Les décisions de publication** (`docs/12-PLAN-DE-BASCULE.md`, à relire en entier) : le **rodage**
    (appareil, notes, durée ; piste : pré-publication GitHub) ; **A** (code poussé dans `notes_tech`,
    branche `kotlin`) ; **C** (`!37885` laissée en 2.0.9 jusqu'à sa fusion, F-Droid en dernier).
