@@ -3,7 +3,25 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-26 (nuit) — LIRE CECI D'ABORD
+## 🧭 EN BREF — à la reprise (écrit le 2026-09-26 à 21 h 20, avant un compactage)
+
+- **Portage techniquement prêt** : audit de sécurité terminé et entièrement corrigé
+  (`audits/securite-2026-09-26.md`, §9), relecture externe et audit 3 axes suivis, gate final vert sur
+  le S9 (484 instrumentés, 0 échec), TalkBack validé par Patrice sur le S9, docs de parité et de bascule
+  à jour. Dernier commit : `567d703`. **Rien n'est poussé.**
+- ⚠️ **Ce résumé n'est peut-être pas commité** : le garde multi-session a bloqué les commits à cause de
+  Claude Desktop (faux positif). `git status` le dira ; le commiter en premier, Desktop fermé.
+- **En cours : le rodage**, par Patrice, sur le **S24**, avec l'app de test séparée « Notes Tech (Kotlin
+  debug) » (`.next.debug`, 3.0.0-alpha01, 5002). Attendre ses retours ; corriger ce qu'il signale.
+- **Publication : on attend la fusion F-Droid de la 2.0.9** (`!37885`). Aucun tag `v3.0.0` d'ici là : la
+  recette suit les tags de `notes_tech` et lit `pubspec.yaml`. Ensuite : décisions A (code poussé dans
+  `notes_tech`, branche `kotlin`) et C, métadonnées de la phase 3, pré-publication GitHub, release, site,
+  nouvelle recette F-Droid (Gradle) — tout est dans `docs/12-PLAN-DE-BASCULE.md`.
+- Facultatif : F3 (non retenu) par capture image par image.
+- Appareils : S9 branché, modèle de dictée réinstallé (copie `J:/tmp/claude/modeles/`) ; S24 : seul
+  `.next.debug` (+ `.next.debug.test`) du portage ; émulateur arrêté et nettoyé.
+
+## 🎯 ÉTAT AU 2026-09-26 (nuit) — détail
 
 > Patrice : « ok pour le bloc 1, fait tout ce que tu peux, et pour le reste je le ferais demain ».
 > Tout est commité, **rien n'est poussé**.
