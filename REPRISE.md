@@ -24,8 +24,8 @@
 - **S9** : note « Essai TalkBack » présente et intacte (vérifiée par l'arbre d'accessibilité).
 
 **Pour demain — à Patrice :**
-1. **TalkBack** sur l'aperçu (5 min) : procédure au point 5 de la liste du 25 plus bas (« CE QUI RESTE,
-   dans l'ordre ») ; la note est prête sur le S9.
+1. ✅ ~~**TalkBack** sur l'aperçu~~ — **fait par Patrice le 2026-09-26 au soir, sur le S9** (Voice
+   Assistant, Android 10) : « talkback fonctionne bien ». Le S24 n'a pas été utilisé.
 2. **Les décisions de publication** (`docs/12-PLAN-DE-BASCULE.md`, à relire en entier) : le **rodage**
    (appareil, notes, durée ; piste : pré-publication GitHub) ; **A** (code poussé dans `notes_tech`,
    branche `kotlin`) ; **C** (`!37885` laissée en 2.0.9 jusqu'à sa fusion, F-Droid en dernier).
