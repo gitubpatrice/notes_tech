@@ -409,7 +409,17 @@ class PanicService @Inject constructor(
         //    parcours de fichiers dont la durée dépend de ce que l'utilisateur a exporté. Placer un
         //    parcours devant la garantie qui protège le plus, ce serait refaire l'erreur qu'on
         //    corrige ici, dans l'autre sens.
-        issues += etape(PanicStep.EXPORTS_WIPE) { supprimerLeDossier(NoteExporter.repertoireDExport(context)) }
+        //
+        //    🔴 **And every other plaintext of the cache, at the same rank** (security audit of
+        //    2026-09-26, P2): what notes_tech 2.x left at its root — the `share_plus/` copies of its
+        //    last export, a note exported alone, a dictation — waited for [PanicStep.CACHE_PURGE],
+        //    the LAST step, behind the database and 530 MB of legacy models. An interruption in
+        //    between left it for good. Same definition as the final measure: [ClairDuCache].
+        issues += etape(PanicStep.EXPORTS_WIPE) {
+            supprimerLeDossier(NoteExporter.repertoireDExport(context))
+            val survivants = withContext(Dispatchers.IO) { ClairDuCache.purger(context) }
+            if (survivants.isNotEmpty()) error("clair du cache survivant : ${survivants.size}")
+        }
 
         // 7. Les enregistrements de dictée : du clair, comme les archives, donc au même rang.
         //
@@ -586,7 +596,7 @@ class PanicService @Inject constructor(
     private suspend fun viderLeCache() = withContext(Dispatchers.IO) {
         val survivantsSensibles = context.cacheDir.listFiles().orEmpty().filter { entree ->
             entree.deleteRecursively()
-            entree.exists() && estUnArtefactSensible(entree.name)
+            entree.exists() && ClairDuCache.estUnArtefactSensible(context, entree.name)
         }
         if (survivantsSensibles.isNotEmpty()) {
             error("artefacts de cache survivants : ${survivantsSensibles.size}")
@@ -599,7 +609,7 @@ class PanicService @Inject constructor(
      * ## Ce que cette fonction a corrigé, le 2026-08-19
      *
      * La mesure ne regardait que deux répertoires, `exports/` et `captures/`. Or
-     * [estUnArtefactSensible], vingt lignes plus bas, déclare que **toute** archive, tout document
+     * [ClairDuCache.estUnArtefactSensible] déclare que **toute** archive, tout document
      * Markdown et tout enregistrement du cache portent du clair — et c'est sur cette base que
      * [PanicStep.CACHE_PURGE] **échoue**. Deux définitions du même mot vivaient dans le même
      * fichier, et elles divergeaient.
@@ -633,39 +643,10 @@ class PanicService @Inject constructor(
                 // ce serait un faux négatif exactement là où le repli existe. Ne pas pouvoir
                 // regarder n'est pas une réponse. Relevé par une relecture externe (GPT-5.2).
                 .onFail { _, e -> throw e }
-                .any { it.isFile && estUnArtefactSensible(it.name) }
+                .any { it.isFile && ClairDuCache.estUnArtefactSensible(context, it.name) }
     } catch (e: Exception) {
         Timber.w(e, "panique : etat du clair sur le disque illisible")
         true
-    }
-
-    /**
-     * Ce qui, dans le cache, peut porter le contenu d'une note. Le reste ne nous appartient pas.
-     *
-     * ⚠️⚠️ **Ce prédicat est la définition UNIQUE du clair**, depuis le 2026-08-19 : il sert
-     * l'effacement ([viderLeCache]) *et* la mesure ([clairSurLeDisque]). Lui en écrire une seconde
-     * ailleurs, c'est le défaut qu'on vient de corriger.
-     */
-    private fun estUnArtefactSensible(nom: String): Boolean {
-        val n = nom.lowercase()
-        // ⚠️⚠️ `captures` manquait, et c'était un **jumeau asymétrique** : `exports` faisait échouer
-        // l'étape en survivant, son voisin non. Or les deux répertoires portent du clair — le texte
-        // des notes d'un côté, la voix qui les dicte de l'autre — et rien ne justifiait de croire le
-        // second effacé sur la foi d'un balayage qui ne le regardait pas. La liste n'avait pas suivi
-        // l'arrivée de la capture. Relevé par une relecture externe (Gemini, 2026-08-16).
-        //
-        // ⚠️ Le test `.wav` ne couvrait pas le cas : `listFiles` ne rend que le premier niveau, donc
-        // le nom examiné est celui du **répertoire**, jamais celui des enregistrements qu'il contient.
-        //
-        // ⚠️⚠️ Les deux noms sont **demandés à ceux qui écrivent ces répertoires**, jamais recopiés.
-        // C'est la règle déjà posée pour l'effacement — deux définitions, et la panique surveillerait
-        // un dossier que l'export n'utilise plus. Elle vaut ici pour la même raison : ce contrôle est
-        // le dernier à regarder ce que les étapes ont laissé.
-        return n == NoteExporter.repertoireDExport(context).name.lowercase() ||
-            n == VoiceCapture.repertoireDeCapture(context).name.lowercase() ||
-            n.endsWith(".zip") ||
-            n.endsWith(".md") ||
-            n.endsWith(".wav")
     }
 
     private companion object {

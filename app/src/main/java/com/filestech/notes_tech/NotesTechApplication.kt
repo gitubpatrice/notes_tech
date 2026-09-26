@@ -7,6 +7,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.voice.VoiceCapture
 import com.filestech.notes_tech.di.ApplicationScope
+import com.filestech.notes_tech.security.panic.ClairDuCache
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.VaultAutoLocker
 import dagger.hilt.android.HiltAndroidApp
@@ -65,6 +66,14 @@ class NotesTechApplication : Application() {
         // disparaître dès la transcription obtenue ; ce geste-ci rattrape le cas où l'application a
         // été tuée entre les deux, où il n'y a personne pour effacer.
         VoiceCapture.purgerLesCaptures(this)
+
+        // 🔴 And what the app replaced here left in the same cache (security audit of 2026-09-26,
+        // P1): the `share_plus/` copy of the last export of 2.x — every note, the open vaults'
+        // included — a note exported alone, a dictation. 3.x never purged it outside a panic, and
+        // never shares through share_plus: nothing else would ever have emptied it. The definition
+        // is the panic's own, so the two cannot disagree on what plaintext is.
+        // ⚠️ A count, never a name: a file name here can be a note title.
+        ClairDuCache.purger(this).size.takeIf { it > 0 }?.let { Timber.w("cache : %d clair(s) survivant(s)", it) }
 
         // 🔴 Reprise des effacements de coffre interrompus, **au démarrage et une seule fois**.
         //
