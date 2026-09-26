@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.vault
 
+import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -192,9 +193,21 @@ private fun etatDeFeuilleDeCoffre(bloquer: () -> Boolean = { false }) = remember
     confirmValueChange = { cible -> !(cible == SheetValue.Hidden && bloquer()) },
 )
 
-/** Le choix du mode, à la création d'un coffre. */
+/**
+ * Le choix du mode, à la création d'un coffre.
+ *
+ * @param sousAndroid9 🔴 before Android 9 the PIN key cannot require an unlocked phone
+ *   (`AndroidVaultKeystore`: `setUnlockedDeviceRequired` exists from API 28): on a seized phone, the
+ *   code of a PIN vault can then be searched offline, its five-attempt limit never crossed (security
+ *   audit of 2026-09-26, K4). Said at the choice, where a passphrase can still be taken. A parameter so
+ *   that a test reaches both answers.
+ */
 @Composable
-fun ChooseVaultModeSheet(onDismiss: () -> Unit, onChosen: (VaultMode) -> Unit) {
+fun ChooseVaultModeSheet(
+    onDismiss: () -> Unit,
+    onChosen: (VaultMode) -> Unit,
+    sousAndroid9: Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.P,
+) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp).navigationBarsPadding()) {
             TitreDeFeuille(stringResource(R.string.vault_mode_choose))
@@ -211,10 +224,18 @@ fun ChooseVaultModeSheet(onDismiss: () -> Unit, onChosen: (VaultMode) -> Unit) {
                 // vault's key — measured on API 34 — and no PIN opens the vault afterwards. Said HERE,
                 // while a passphrase vault, which does not depend on it, can still be chosen.
                 supportingContent = {
-                    Text(
-                        stringResource(R.string.vault_mode_pin_desc) + " " +
-                            stringResource(R.string.vault_mode_pin_screen_lock),
-                    )
+                    Column {
+                        Text(
+                            stringResource(R.string.vault_mode_pin_desc) + " " +
+                                stringResource(R.string.vault_mode_pin_screen_lock),
+                        )
+                        if (sousAndroid9) {
+                            Text(
+                                text = stringResource(R.string.vault_mode_pin_old_android),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 },
                 leadingContent = { Icon(Icons.Outlined.Key, contentDescription = null) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),

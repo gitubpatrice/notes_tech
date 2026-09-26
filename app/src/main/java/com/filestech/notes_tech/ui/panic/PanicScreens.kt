@@ -266,6 +266,14 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                     // Relevé par une relecture externe (GPT-5.2, 2026-08-19).
                     if (!report.clairPeutSubsister) {
                         Text(stringResource(R.string.panic_complete_body))
+                        Spacer(Modifier.height(8.dp))
+                        // 🔴 What "all data" cannot include (security audit of 2026-09-26, P4): a
+                        // keyboard's own clipboard history keeps a copied note, out of any app's
+                        // reach, and the confirmation had promised "no forensic recovery".
+                        Text(
+                            text = stringResource(R.string.panic_complete_keyboard_history),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                         Spacer(Modifier.height(16.dp))
                     }
                     // ⚠️ La troisième puce — « modèle de dictée vocale : désinstallé » — a été

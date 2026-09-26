@@ -619,6 +619,28 @@ class FeuillesDeCoffreTest {
             .assertDoesNotExist()
     }
 
+    /**
+     * 🔴 Before Android 9 a PIN vault's code can be searched offline on a seized phone (security audit
+     * of 2026-09-26, K4): the chooser says so, there only. Both answers, the test not being able to
+     * choose the device's version.
+     */
+    @Test
+    fun the_mode_chooser_tells_the_pin_limit_before_android_9_and_only_there() {
+        var ancien by mutableStateOf(true)
+        regle.setContent {
+            NotesTechTheme { ChooseVaultModeSheet(onDismiss = {}, onChosen = {}, sousAndroid9 = ancien) }
+        }
+        val limite = texte(R.string.vault_mode_pin_old_android)
+
+        regle.onNode(hasText(texte(R.string.vault_mode_pin)) and hasText(limite, substring = true))
+            .assertIsDisplayed()
+
+        ancien = false
+        regle.waitForIdle()
+        regle.onNode(hasText(texte(R.string.vault_mode_pin))).assertIsDisplayed()
+        regle.onAllNodesWithText(limite, substring = true).assertCountEquals(0)
+    }
+
     // ── Outils ──────────────────────────────────────────────────────────────────────────────────
 
     private fun SemanticsNode.nomAnnonce(): String {

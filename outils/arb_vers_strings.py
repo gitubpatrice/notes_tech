@@ -168,6 +168,9 @@ AJOUTS_EN = {
     <string name="vault_pin_key_missing">This vault\\'s key cannot be found on this phone. Android deletes it, for example, when the screen lock is removed. No PIN can open this vault without it.</string>
     <string name="vault_pin_wiped_key_invalidated">Android invalidated this vault\\'s key: its notes could no longer be opened and have been wiped. Wrong PINs did not cause this.</string>
     <string name="vault_mode_pin_screen_lock">May no longer open if the phone\\'s screen lock is removed.</string>
+    <!-- Security audit of 2026-09-26, K4: before Android 9 the PIN key cannot require an unlocked
+         phone, so a seized phone lets its code be searched offline. Shown there only. -->
+    <string name="vault_mode_pin_old_android">Before Android 9, a PIN does not protect this vault on a seized phone: prefer a passphrase.</string>
 """,
     "panic": """\
     <!--
@@ -202,6 +205,9 @@ AJOUTS_EN = {
             « 0 etape(s) de nettoyage ont echoue » juste avant d'avertir qu'il reste du clair. Une
             phrase qui se contredit elle-meme ne sera pas crue, au moment ou elle doit l'etre. -->
     <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However READABLE content may remain on this device — an export archive, a dictation recording, or a note copied to the clipboard. Do not part with it before checking.</string>
+    <!-- Security audit of 2026-09-26, P4: "All data has been wiped" said nothing of the keyboard\\'s
+         own clipboard history, which keeps a copied note and which no app can reach. -->
+    <string name="panic_complete_keyboard_history">A note you copied may still be in your keyboard\\'s clipboard history, which the app cannot reach: clear it from the keyboard.</string>
 """,
     "voice": """\
     <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Les trois chaines d'origine affirmaient que l'audio
@@ -438,6 +444,7 @@ AJOUTS_FR = {
     <string name="vault_pin_key_missing">La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par exemple, quand le verrouillage d\\'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle.</string>
     <string name="vault_pin_wiped_key_invalidated">Android a invalidé la clé de ce coffre : ses notes ne pouvaient plus être ouvertes et ont été effacées. Ce n\\'est pas dû à des erreurs de PIN.</string>
     <string name="vault_mode_pin_screen_lock">Peut ne plus s\\'ouvrir si le verrouillage d\\'écran du téléphone est retiré.</string>
+    <string name="vault_mode_pin_old_android">Avant Android 9, un PIN ne protège pas ce coffre sur un téléphone saisi : préférez une passphrase.</string>
 """,
     "panic": """\
     <!--
@@ -453,6 +460,7 @@ AJOUTS_FR = {
          nommait qu'une source de clair sur trois, et son compteur d'etapes pouvait afficher zero
          dans la phrase meme qui avertit. -->
     <string name="panic_incomplete_plaintext">Clé détruite : la base n\\'est plus déchiffrable. En revanche, du contenu LISIBLE peut subsister sur cet appareil — archive d\\'export, enregistrement de dictée, ou note copiée dans le presse-papiers. Ne vous en séparez pas sans vérifier.</string>
+    <string name="panic_complete_keyboard_history">Une note copiée peut rester dans l\\'historique du presse-papiers de votre clavier, hors de portée de l\\'application : videz-le depuis le clavier.</string>
 """,
     "voice": """\
     <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Voir le commentaire de la version anglaise : « jamais

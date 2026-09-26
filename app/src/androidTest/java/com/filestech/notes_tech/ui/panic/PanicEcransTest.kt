@@ -190,6 +190,18 @@ class PanicEcransTest {
         }
     }
 
+    /**
+     * 🔴 **"All data has been wiped" says what it cannot include** (security audit of 2026-09-26,
+     * P4): a copied note may stay in the keyboard's own clipboard history, out of the app's reach.
+     */
+    @Test
+    fun the_end_screen_names_the_keyboard_clipboard_history() {
+        poser(report = rapport())
+
+        regle.onNodeWithText(texte(R.string.panic_complete_body)).assertIsDisplayed()
+        regle.onNodeWithText(texte(R.string.panic_complete_keyboard_history)).assertIsDisplayed()
+    }
+
     // ── Ce que l'écran annonce APRÈS, et qui décide d'un geste réel ─────────
 
     /**

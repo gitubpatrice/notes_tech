@@ -256,6 +256,7 @@
     <string name="vault_pin_key_missing">La clé de ce coffre est introuvable sur ce téléphone. Android la supprime, par exemple, quand le verrouillage d\'écran est retiré. Aucun PIN ne peut ouvrir ce coffre sans elle.</string>
     <string name="vault_pin_wiped_key_invalidated">Android a invalidé la clé de ce coffre : ses notes ne pouvaient plus être ouvertes et ont été effacées. Ce n\'est pas dû à des erreurs de PIN.</string>
     <string name="vault_mode_pin_screen_lock">Peut ne plus s\'ouvrir si le verrouillage d\'écran du téléphone est retiré.</string>
+    <string name="vault_mode_pin_old_android">Avant Android 9, un PIN ne protège pas ce coffre sur un téléphone saisi : préférez une passphrase.</string>
 
     <!-- ── Réglages ────────────────────────────────────────────────────── -->
     <string name="settings_title">Réglages</string>
@@ -392,6 +393,7 @@
          nommait qu'une source de clair sur trois, et son compteur d'etapes pouvait afficher zero
          dans la phrase meme qui avertit. -->
     <string name="panic_incomplete_plaintext">Clé détruite : la base n\'est plus déchiffrable. En revanche, du contenu LISIBLE peut subsister sur cet appareil — archive d\'export, enregistrement de dictée, ou note copiée dans le presse-papiers. Ne vous en séparez pas sans vérifier.</string>
+    <string name="panic_complete_keyboard_history">Une note copiée peut rester dans l\'historique du presse-papiers de votre clavier, hors de portée de l\'application : videz-le depuis le clavier.</string>
 
     <!-- ── Dictée vocale ───────────────────────────────────────────────── -->
     <string name="voice_mic_initializing">Initialisation du micro…</string>

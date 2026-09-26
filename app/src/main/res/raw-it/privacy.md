@@ -11,7 +11,7 @@ Notes Tech non raccoglie, non trasmette e non conserva alcun dato su server remo
 ### Dati trattati
 
 - **Le sue note Markdown**: create e conservate esclusivamente sul suo telefono, in un database SQLite cifrato con **SQLCipher** tramite una chiave unica generata localmente (KEK di 32 byte) conservata nell'**Android Keystore**.
-- **Casseforti per cartella**: ogni cassaforte che attiva usa una propria **passphrase** o un proprio **PIN**, derivati tramite **Argon2id RFC 9106** (m=64MB, t=3 per la passphrase; più leggero per il PIN, compensato da una sigillatura nel Keystore legata al dispositivo). Il contenuto delle note bloccate è cifrato con **AES-256-GCM**, con AAD legato a `note_id`.
+- **Casseforti per cartella**: ogni cassaforte che attiva usa una propria **passphrase** o un proprio **PIN**, derivati tramite **Argon2id RFC 9106** (m=64MB, t=3 per la passphrase; più leggero per il PIN, compensato da una sigillatura nel Keystore legata al dispositivo). Il contenuto delle note bloccate è cifrato con **AES-256-GCM**, con AAD legato a `note_id`. Prima di Android 9, Android non può legare questo sigillo allo sblocco del telefono: su un telefono sequestrato, una cassaforte con PIN non resiste più a una ricerca del suo codice — lì preferisca una passphrase.
 - **Blocco dell'app (facoltativo)**: il PIN non viene mai memorizzato. Viene conservato un valore derivato da esso con **Argon2id** e legato tramite **HMAC-SHA256** a una chiave dell'**Android Keystore** che non lascia mai il telefono, quindi non può essere verificato altrove. Dopo cinque PIN errati, ogni nuovo tentativo attende più a lungo (30 secondi, raddoppiando fino a un'ora); i tentativi errati non cancellano mai nulla. Lo **sblocco con impronta digitale o volto** è gestito interamente da Android: Notes Tech non riceve alcun dato biometrico, solo la conferma che l'uso di una chiave del Keystore è stato consentito, e viene accettata solo la biometria forte (classe 3).
 - **Collegamenti inversi `[[Titolo]]`**: indice invertito locale, mai trasmesso.
 - **Modello di dettatura vocale (Whisper `.bin`)**: se lo procura lei stesso — l'app mostra il nome del file e la sua origine — e poi lo importa tramite il selettore di documenti di Android. Notes Tech non ha l'autorizzazione di accesso a Internet e **non offre alcun modo di scaricare nulla**. Il suo SHA-256 viene verificato all'importazione e prima di ogni caricamento.
@@ -42,7 +42,7 @@ Il menu **Impostazioni → Modalità panico** cancella in blocco:
 - le chiavi del Keystore associate alle casseforti con PIN,
 - le chiavi del Keystore del blocco dell'app (verifica del PIN e sblocco biometrico),
 - le casseforti per cartella (passphrase e PIN),
-- gli appunti, dove una nota copiata è in chiaro,
+- gli appunti, dove una nota copiata è in chiaro — ma non la cronologia che una tastiera può conservarne, fuori dalla portata di qualsiasi app,
 - gli archivi di esportazione e le registrazioni di dettatura, gli unici file in chiaro dell'app,
 - il modello Whisper installato nella sandbox,
 - le preferenze (tranne `db_encrypted_v1` e `secure_window_enabled`, conservate per un riavvio coerente).

@@ -251,6 +251,7 @@
     <string name="vault_pin_key_missing">No se encuentra la clave de esta caja fuerte en este teléfono. Android la elimina, por ejemplo, cuando se quita el bloqueo de pantalla. Sin ella, ningún PIN puede abrir esta caja fuerte.</string>
     <string name="vault_pin_wiped_key_invalidated">Android invalidó la clave de esta caja fuerte: sus notas ya no se podían abrir y se han borrado. No se debe a errores al introducir el PIN.</string>
     <string name="vault_mode_pin_screen_lock">Puede dejar de abrirse si se quita el bloqueo de pantalla del teléfono.</string>
+    <string name="vault_mode_pin_old_android">Antes de Android 9, un PIN no protege esta caja fuerte en un teléfono incautado: es preferible una frase de contraseña.</string>
 
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>
@@ -374,6 +375,7 @@
     <string name="panic_key_survived">Sus notas aún se pueden descifrar en este dispositivo. %1$d paso(s) fallido(s). No se separe del dispositivo.</string>
     <string name="panic_incomplete">Clave destruida: sus notas ya no se pueden descifrar. Sin embargo, %1$d paso(s) de limpieza han fallado: pueden quedar archivos ilegibles en el dispositivo.</string>
     <string name="panic_incomplete_plaintext">Clave destruida: la base de datos ya no se puede descifrar. Sin embargo, puede quedar contenido LEGIBLE en este dispositivo: un archivo de exportación, una grabación de dictado o una nota copiada al portapapeles. No se separe del dispositivo antes de comprobarlo.</string>
+    <string name="panic_complete_keyboard_history">Una nota copiada puede quedar en el historial del portapapeles de su teclado, fuera del alcance de la aplicación: bórrelo desde el teclado.</string>
 
     <!-- Voice dictation -->
     <string name="voice_mic_initializing">Iniciando el micrófono…</string>

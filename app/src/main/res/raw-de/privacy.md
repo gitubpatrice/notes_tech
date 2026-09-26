@@ -11,7 +11,7 @@ Notes Tech erhebt, überträgt und speichert keinerlei Daten auf entfernten Serv
 ### Verarbeitete Daten
 
 - **Ihre Markdown-Notizen**: ausschließlich auf Ihrem Telefon erstellt und gespeichert, in einer SQLite-Datenbank, die mit **SQLCipher** verschlüsselt ist — mit einem eindeutigen, lokal erzeugten Schlüssel (32-Byte-KEK), der im **Android Keystore** aufbewahrt wird.
-- **Tresore pro Ordner**: Jeder Tresor, den Sie aktivieren, verwendet eine eigene **Passphrase** oder **PIN**, abgeleitet über **Argon2id RFC 9106** (m=64MB, t=3 für die Passphrase; leichter für die PIN, ausgeglichen durch eine an das Gerät gebundene Versiegelung im Keystore). Der Inhalt gesperrter Notizen wird mit **AES-256-GCM** verschlüsselt, AAD an `note_id` gebunden.
+- **Tresore pro Ordner**: Jeder Tresor, den Sie aktivieren, verwendet eine eigene **Passphrase** oder **PIN**, abgeleitet über **Argon2id RFC 9106** (m=64MB, t=3 für die Passphrase; leichter für die PIN, ausgeglichen durch eine an das Gerät gebundene Versiegelung im Keystore). Der Inhalt gesperrter Notizen wird mit **AES-256-GCM** verschlüsselt, AAD an `note_id` gebunden. Vor Android 9 kann Android diese Versiegelung nicht an das Entsperren des Telefons binden: Auf einem beschlagnahmten Telefon hält ein PIN-Tresor dann einer Suche nach seinem Code nicht mehr stand – verwenden Sie dort besser eine Passphrase.
 - **App-Sperre (optional)**: Die PIN selbst wird nie gespeichert. Aufbewahrt wird ein mit **Argon2id** daraus abgeleiteter Wert, der per **HMAC-SHA256** an einen Schlüssel des **Android Keystore** gebunden ist, der das Telefon nie verlässt — er kann also nirgendwo anders geprüft werden. Nach fünf falschen PINs wartet jeder neue Versuch länger (30 Sekunden, verdoppelt bis zu einer Stunde); falsche Versuche löschen nie etwas. **Entsperren per Fingerabdruck oder Gesicht** wird vollständig von Android übernommen: Notes Tech erhält keine biometrischen Daten, nur die Bestätigung, dass ein Keystore-Schlüssel verwendet werden durfte, und nur starke Biometrie (Klasse 3) wird akzeptiert.
 - **Rückverweise `[[Titel]]`**: lokaler invertierter Index, nie übertragen.
 - **Diktiermodell (Whisper `.bin`)**: Sie beschaffen es selbst — die App zeigt den Dateinamen und seine Quelle an — und importieren es dann über die Android-Dokumentauswahl. Notes Tech hat keine Internetberechtigung und **bietet keine Möglichkeit, etwas herunterzuladen**. Sein SHA-256 wird beim Import und vor jedem Laden geprüft.
@@ -42,7 +42,7 @@ Das Menü **Einstellungen → Panikmodus** löscht in einem Durchgang:
 - die Keystore-Schlüssel der PIN-Tresore,
 - die Keystore-Schlüssel der App-Sperre (PIN-Prüfung und biometrisches Entsperren),
 - die Tresore pro Ordner (Passphrasen und PINs),
-- die Zwischenablage, in der eine kopierte Notiz unverschlüsselt liegt,
+- die Zwischenablage, in der eine kopierte Notiz unverschlüsselt liegt – nicht aber den Verlauf, den eine Tastatur davon führen kann und auf den keine App Zugriff hat,
 - Exportarchive und Diktataufnahmen, die einzigen unverschlüsselten Dateien der App,
 - das in der Sandbox installierte Whisper-Modell,
 - die Einstellungen (außer `db_encrypted_v1` und `secure_window_enabled`, die für einen konsistenten Neustart erhalten bleiben).

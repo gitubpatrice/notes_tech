@@ -242,6 +242,7 @@
     <string name="vault_pin_key_missing">Der Schlüssel dieses Tresors ist auf diesem Telefon nicht auffindbar. Android löscht ihn zum Beispiel, wenn die Displaysperre entfernt wird. Ohne ihn kann keine PIN diesen Tresor öffnen.</string>
     <string name="vault_pin_wiped_key_invalidated">Android hat den Schlüssel dieses Tresors ungültig gemacht: Seine Notizen ließen sich nicht mehr öffnen und wurden gelöscht. Falsche PIN-Eingaben sind nicht die Ursache.</string>
     <string name="vault_mode_pin_screen_lock">Lässt sich möglicherweise nicht mehr öffnen, wenn die Displaysperre des Telefons entfernt wird.</string>
+    <string name="vault_mode_pin_old_android">Vor Android 9 schützt eine PIN diesen Tresor auf einem beschlagnahmten Telefon nicht: Verwenden Sie besser eine Passphrase.</string>
 
     <!-- Settings -->
     <string name="settings_title">Einstellungen</string>
@@ -362,6 +363,7 @@
     <string name="panic_key_survived">Ihre Notizen können auf diesem Gerät weiterhin entschlüsselt werden. %1$d Schritt(e) fehlgeschlagen. Geben Sie das Gerät nicht aus der Hand.</string>
     <string name="panic_incomplete">Schlüssel zerstört: Ihre Notizen können nicht mehr entschlüsselt werden. Allerdings sind %1$d Bereinigungsschritt(e) fehlgeschlagen – unlesbare Dateien können auf dem Gerät verbleiben.</string>
     <string name="panic_incomplete_plaintext">Schlüssel zerstört: Die Datenbank kann nicht mehr entschlüsselt werden. Allerdings können LESBARE Inhalte auf diesem Gerät verbleiben – ein Exportarchiv, eine Diktataufnahme oder eine in die Zwischenablage kopierte Notiz. Geben Sie das Gerät nicht aus der Hand, bevor Sie dies geprüft haben.</string>
+    <string name="panic_complete_keyboard_history">Eine kopierte Notiz kann im Zwischenablageverlauf Ihrer Tastatur verbleiben, auf den die App keinen Zugriff hat: Löschen Sie ihn in der Tastatur.</string>
 
     <!-- Voice dictation -->
     <string name="voice_mic_initializing">Mikrofon wird initialisiert…</string>

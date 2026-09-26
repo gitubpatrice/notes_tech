@@ -251,6 +251,7 @@
     <string name="vault_pin_key_missing">La chiave di questa cassaforte non si trova su questo telefono. Android la elimina, ad esempio, quando si rimuove il blocco schermo. Senza di essa, nessun PIN può aprire questa cassaforte.</string>
     <string name="vault_pin_wiped_key_invalidated">Android ha invalidato la chiave di questa cassaforte: le sue note non si potevano più aprire e sono state cancellate. Non è dovuto a errori nell\'inserimento del PIN.</string>
     <string name="vault_mode_pin_screen_lock">Potrebbe non aprirsi più se si rimuove il blocco schermo del telefono.</string>
+    <string name="vault_mode_pin_old_android">Prima di Android 9, un PIN non protegge questa cassaforte su un telefono sequestrato: preferisca una passphrase.</string>
 
     <!-- Settings -->
     <string name="settings_title">Impostazioni</string>
@@ -374,6 +375,7 @@
     <string name="panic_key_survived">Le sue note possono ancora essere decifrate su questo dispositivo. %1$d passaggio/i non riuscito/i. Non si separi dal dispositivo.</string>
     <string name="panic_incomplete">Chiave distrutta: le sue note non possono più essere decifrate. Tuttavia %1$d passaggio/i di pulizia non sono riusciti: sul dispositivo potrebbero restare file illeggibili.</string>
     <string name="panic_incomplete_plaintext">Chiave distrutta: il database non può più essere decifrato. Tuttavia su questo dispositivo potrebbe restare contenuto LEGGIBILE: un archivio di esportazione, una registrazione di dettatura o una nota copiata negli appunti. Non si separi dal dispositivo prima di aver controllato.</string>
+    <string name="panic_complete_keyboard_history">Una nota copiata può restare nella cronologia degli appunti della tastiera, che l\'app non può raggiungere: la cancelli dalla tastiera.</string>
 
     <!-- Voice dictation -->
     <string name="voice_mic_initializing">Inizializzazione del microfono…</string>
