@@ -174,6 +174,25 @@ Notes Tech n'en a aucun aujourd'hui. **Si la phase 6 en introduit un** — rappe
 planifiée — il faudra soit y renoncer, soit revoir ce drapeau, ce qui demanderait de re-sceller
 toutes les clés existantes. À décider avant d'écrire un tel travail, pas après.
 
+> 🔴 **Ce paragraphe est faux deux fois — audit de sécurité du 2026-09-26, K3** (vérification
+> personnelle : `audits/securite-2026-09-26-rapports/k3-perte-verification-personnelle.md`).
+>
+> 1. « Toute ouverture de base sur un appareil verrouillé échouera » : non. La couche ① échoue, et
+>    la copie `flutter_secure_storage` (clé RSA **sans** l'attribut) ouvre la base. L'attribut ne
+>    protège donc rien tant que cette copie existe.
+> 2. « Sans rien détruire » : non. Depuis Android 12 au moins (mesuré API 34, D-026), **retirer** le
+>    verrouillage d'écran **supprime** une clé qui porte `setUnlockedDeviceRequired`. La base n'est
+>    pas perdue pour autant : `KeystoreSealedKekSource.load` répond « rien », la copie Flutter rend
+>    la clé, et `KekRepository.promoteToPrimary` la rescelle sous une clé du portage, **sans**
+>    l'attribut. **À une condition : que la copie Flutter existe encore.** D'où la règle, écrite dans
+>    `FlutterSecureStorageKekSource` : ne jamais la retirer hors panique.
+>
+> La 3.x ne pose pas l'attribut, délibérément (KDoc de `KeystoreSealedKekSource`) : il ferait perdre
+> la base au retrait du verrouillage d'écran. ⚠️ Reste à écrire : un test instrumenté du
+> chemin « clé de la passerelle disparue → copie Flutter → rescellé ». Il ne peut pas tourner sur
+> l'alias réel de l'application de test sans en détruire la base : il demande que la source accepte
+> un alias et un fichier de préférences propres au test.
+
 ## 6. Procédure de vérification, sur le S9 uniquement
 
 ⚠️ Le S9 portait `com.filestech.notes_tech` en **2.0.3** (versionCode 2051) au 2026-08-18 — et non

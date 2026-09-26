@@ -693,6 +693,16 @@ vérifiable — et le verrouillage suivant ne laisse que l'effacement. Relâcher
 cas a été écarté : il ne se produit qu'avec la perte d'une clé que l'utilisateur ne peut pas
 provoquer, et c'est le cas même où la prudence doit l'emporter.
 
+**Seconde limite, écrite après l'audit de sécurité du 2026-09-26 (K5).** La clé HMAC n'exigeant pas
+d'appareil déverrouillé, du code qui tourne sous l'UID de l'application (téléphone saisi, attaquant
+C) peut s'en servir comme **oracle** : Argon2id se précalcule hors de l'appareil, et chaque candidat ne
+coûte ensuite qu'un HMAC Keystore — le PIN d'app, 4 à 6 chiffres, tombe. Le panel a **réfuté** le gain
+« coffre » (le scellé d'un coffre à code s'ouvre avant son code, et exige un appareil déverrouillé) :
+reste la valeur du PIN, utile seulement si c'est aussi le code de l'écran. **On ne lie pas la clé** :
+Android la supprimerait au retrait du verrouillage d'écran (D-026), et l'utilisateur serait enfermé
+dehors — même raison que la clé de la base (K3). Aucun écran ne le dit encore ; le dire (« un PIN
+d'app n'est pas un code à réutiliser ailleurs ») est une décision de Patrice, pas un correctif.
+
 ## D-024 — Aperçu Markdown : analyseur JetBrains, rendu Compose écrit ici
 
 **2026-09-24 · parité 2.0.9 (A1/A2 de l'inventaire)** — décidée le 24, **réalisée le 2026-09-25**

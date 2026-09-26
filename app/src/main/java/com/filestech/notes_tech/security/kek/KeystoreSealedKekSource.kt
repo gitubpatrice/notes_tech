@@ -43,6 +43,18 @@ import javax.crypto.spec.GCMParameterSpec
  * interaction. Exiger une authentification ici imposerait une invite biométrique au lancement,
  * alors que le facteur d'authentification du produit est le verrouillage de coffre, pas l'ouverture
  * de l'application.
+ *
+ * 🔴 **No `setUnlockedDeviceRequired` either, and deliberately** (security audit of 2026-09-26, K3).
+ * It would make this key usable only on an unlocked phone — and Android DELETES such a key when the
+ * screen lock is removed (measured on API 34, D-026): the whole database would be lost with it. The
+ * price is written here so that nobody "hardens" this spec: on a locked phone, code running under the
+ * app's UID can use the key; the vaults keep their own secret, and the notes it exposes are those the
+ * app declares without a password.
+ *
+ * ⚠️ The 2.0.4-2.0.9 bridge DID set it (`KeystoreBridge.kt:241-242` at v2.0.9). When Android deletes
+ * that key, [load] answers "nothing here", the `flutter_secure_storage` copy gives the key, and
+ * `KekRepository.promoteToPrimary` reseals it under a key created HERE, without the attribute: the
+ * database is saved by that copy — see `FlutterSecureStorageKekSource`, which must therefore stay.
  */
 class KeystoreSealedKekSource(private val context: Context) : WritableKekSource {
 
@@ -54,8 +66,10 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
     override fun load(): ByteArray? {
         val scelle = readSealedValue() ?: return null
 
-        // Un scellé présent sans sa clé Keystore signifie que l'OS a détruit la clé — changement
-        // d'écran de verrouillage, restauration partielle. Le scellé est alors définitivement
+        // Un scellé présent sans sa clé Keystore signifie que l'OS a détruit la clé — RETRAIT du
+        // verrouillage d'écran pour une clé qui exigeait un appareil déverrouillé (celle de la
+        // passerelle 2.0.4 ; un simple changement de code la garde, mesuré le 2026-09-25, D-026),
+        // restauration partielle. Le scellé est alors définitivement
         // indéchiffrable, mais ce n'est PAS à cette classe de conclure : elle répond « je n'ai
         // rien », et c'est [KekRepository] qui décide, en fonction de l'existence de la base, si
         // c'est bénin ou fatal.

@@ -14,6 +14,11 @@ import javax.inject.Singleton
  *
  * No user authentication, no unlocked-device requirement, no hardware requirement — see
  * [AppLockKeystore] for why each of the three would lock out the users who need the lock most.
+ *
+ * ⚠️ The price of the second one (security audit of 2026-09-26, K5): on a seized phone, code running
+ * under the app's UID can use this key as an oracle — Argon2id precomputed elsewhere, one HMAC per
+ * candidate — and find the app PIN. It opens no vault; it matters only if the PIN is reused as the
+ * screen lock's. Written in D-023, not "fixed": Android would delete a bound key with the screen lock.
  */
 @Singleton
 class AndroidAppLockKeystore @Inject constructor() : AppLockKeystore {

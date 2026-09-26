@@ -28,6 +28,18 @@ import javax.crypto.spec.PSource
  * garantit qu'une version future de la bibliothèque garde ce format. La couche ① existe précisément
  * pour que ce code ne soit presque jamais exécuté.
  *
+ * ## 🔴🔴 This copy must never be removed outside a panic — security audit of 2026-09-26, K3
+ *
+ * The reason written until then — "a user going back to the Flutter version" — no longer holds: 3.x
+ * replaces it under the same identity, there is no going back without uninstalling. The real reason
+ * is worse, and current: the 2.0.4-2.0.9 bridge sealed the database key under a Keystore key with
+ * `setUnlockedDeviceRequired`, and Android DELETES such a key when the screen lock is removed. For
+ * every user who ran a 2.0.4+ on Android 9 or later, this copy is then the only way the database
+ * opens again — `KekRepository` reads it and reseals under the port's key, which does not carry the
+ * attribute. A "clean-up" of this storage after the migration would lose their notes the day they
+ * remove their screen lock.
+ *
+
  * ## ⚠️ Le piège que la lecture des sources a évité
  *
  * L'enveloppe RSA-OAEP utilise **SHA-256 comme condensat principal et SHA-1 pour MGF1**
