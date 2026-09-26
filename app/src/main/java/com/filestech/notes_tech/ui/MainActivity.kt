@@ -59,6 +59,20 @@ import javax.inject.Inject
  * A [FragmentActivity] since the app lock (D-023): `androidx.biometric` attaches its prompt as a
  * fragment. The lifecycle callbacks below feed [AppLockLifecycle], synchronously — see its KDoc.
  */
+/**
+ * 🔴 **The launch intent, without what could steer the navigation** — security audit of 2026-09-26, E1.
+ *
+ * `MainActivity` is exported, and Navigation 2.9.8 honours the extras
+ * `android-support-nav:controller:deepLinkIds` / `deepLinkExtras` of any caller: another app chose
+ * the opening screen, and opening the editor without a note id brought the process down
+ * (`NoteEditorViewModel`'s `checkNotNull`). Nothing here reads an extra or a data URI — no deep link,
+ * no shortcut, no widget — so the intent keeps its action and categories and loses the rest.
+ */
+internal fun sansNavigationImposee(recu: Intent): Intent = Intent(recu).apply {
+    replaceExtras(null as Bundle?)
+    data = null
+}
+
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
@@ -82,6 +96,8 @@ class MainActivity : FragmentActivity() {
         // main. Après, la fenêtre est déjà créée et l'appel n'a plus d'effet.
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // 🔴 Before `setContent`, where Navigation reads it (security audit of 2026-09-26, E1).
+        intent = sansNavigationImposee(intent)
         // Before anything is composed, and synchronously: the first frame must already be the lock
         // screen when a lock is configured. Once per process — a recreated activity keeps the state.
         appLock.resolveAtLaunch()
@@ -115,6 +131,10 @@ class MainActivity : FragmentActivity() {
         appLockLifecycle.onStop(changingConfigurations = isChangingConfigurations)
     }
 
+    /**
+     * ⚠️ The new intent is not handed to Navigation, and is not made the activity's own
+     * (`setIntent`): nothing a caller puts in it can steer the app — cf. [sansNavigationImposee].
+     */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         appLockLifecycle.onNewIntent()
