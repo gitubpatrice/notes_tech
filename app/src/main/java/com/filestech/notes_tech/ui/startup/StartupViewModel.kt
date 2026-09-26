@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.security.kek.KekFailure
+import com.filestech.notes_tech.security.panic.PanicJournal
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,12 @@ sealed interface StartupState {
     data object Opening : StartupState
 
     data object Ready : StartupState
+
+    /**
+     * A panic was cut before its end (`PanicJournal`): the database is NOT opened, and the activity
+     * runs the sequence again, with its progress and report — audit 2026-09-26, P2.
+     */
+    data object ResumingPanic : StartupState
 
     /**
      * L'ouverture a échoué. **Rien n'a été détruit** — c'est la promesse que porte l'écran affiché
@@ -48,7 +55,10 @@ enum class FailureReason {
 }
 
 @HiltViewModel
-class StartupViewModel @Inject constructor(private val databaseProvider: DatabaseProvider) : ViewModel() {
+class StartupViewModel @Inject constructor(
+    private val databaseProvider: DatabaseProvider,
+    private val panicJournal: PanicJournal,
+) : ViewModel() {
 
     private val _state = MutableStateFlow<StartupState>(StartupState.Opening)
     val state: StateFlow<StartupState> = _state.asStateFlow()
@@ -72,6 +82,12 @@ class StartupViewModel @Inject constructor(private val databaseProvider: Databas
     }
 
     private fun open() {
+        // 🔴 Opening the database now would meet a key already destroyed and show a screen saying
+        // the notes are intact. The wipe the user confirmed is finished first.
+        if (panicJournal.isPending()) {
+            _state.value = StartupState.ResumingPanic
+            return
+        }
         _state.value = StartupState.Opening
         viewModelScope.launch {
             try {

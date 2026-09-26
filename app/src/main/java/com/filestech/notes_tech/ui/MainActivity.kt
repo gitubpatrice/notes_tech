@@ -17,6 +17,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -261,6 +262,13 @@ private fun ContenuPrincipal(settings: AppSettings, appLock: AppLockManager, ver
                     locked = verrouille != null && (verrouConfigure || paniqueDeclenchee),
                     lockScreen = { AppLockRoute(epoch = verrouille?.epoch ?: 0) },
                 ) { navController -> NotesTechNavHost(navController = navController) }
+            }
+
+            // 🔴 A panic cut before its end is finished before anything is opened (audit 2026-09-26,
+            // P2): the same sequence, shown by the same overlay, ending on the same "Close the app".
+            StartupState.ResumingPanic -> {
+                LaunchedEffect(Unit) { panique.trigger() }
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding))
             }
 
             is StartupState.Failed -> StartupFailureScreen(

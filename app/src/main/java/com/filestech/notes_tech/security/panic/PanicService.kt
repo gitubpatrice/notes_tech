@@ -288,6 +288,7 @@ class PanicService @Inject constructor(
     private val voiceCapture: VoiceCapture,
     private val appLockKeystore: AppLockKeystore,
     private val biometricUnlockKey: BiometricUnlockKey,
+    private val journal: PanicJournal,
 ) {
 
     private val verrou = Any()
@@ -320,6 +321,10 @@ class PanicService @Inject constructor(
 
     private suspend fun executer(): PanicReport {
         val issues = mutableListOf<PanicOutcome>()
+
+        // 🔴 Before anything: a sequence cut from here on is finished at the next launch (audit
+        // 2026-09-26, P2). Written with `commit`; a refusal is logged, never a reason to stop.
+        if (!journal.markStarted()) Timber.w("panique : journal de reprise non ecrit")
 
         // 0. Le drapeau d'abord : ce qui suit ne doit pas se retrouver dans l'aperçu des
         //    applications récentes, où il survivrait jusqu'au redémarrage de l'appareil.
@@ -465,6 +470,9 @@ class PanicService @Inject constructor(
         // que la purge du cache a pu emporter en plus.
         val clairRestant = clairSurLeDisque()
         val bilan = PanicReport(issues, clairSurLeDisque = clairRestant)
+        // The sequence has run to its end: nothing left to resume, whatever its failures — running
+        // it again would meet them again.
+        if (!journal.clear()) Timber.w("panique : journal de reprise non retire")
         Timber.w(
             "panique terminée — garantie minimale : %s, étapes en échec : %s",
             bilan.minimalGuarantee,
@@ -649,7 +657,7 @@ class PanicService @Inject constructor(
         true
     }
 
-    private companion object {
+    internal companion object {
         /** `files/models/` — cf. `services/legacy_model_files.dart`. ⚠️ `stt/` ne doit PAS y passer. */
         const val MODELS_DIR = "models"
 
@@ -680,6 +688,6 @@ class PanicService @Inject constructor(
          * ⚠️ `vault_wipe_pending_*` doit rester **effacé** : ce sont des reprises d'effacement de
          * coffre après incident, qui n'ont plus d'objet une fois la base détruite.
          */
-        val PREFERENCES_CONSERVEES = setOf("secure_window_enabled", "db_encrypted_v1")
+        val PREFERENCES_CONSERVEES = setOf("secure_window_enabled", "db_encrypted_v1", PanicJournal.KEY)
     }
 }
