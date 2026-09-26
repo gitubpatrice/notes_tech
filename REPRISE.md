@@ -3,7 +3,37 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-26 (soir) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-26 (fin de soirée) — LIRE CECI D'ABORD
+
+> Patrice : « fait tout ce qui doit être fait et fais ce qu'il y a de mieux et de plus fiable et
+> cohérent », puis « corrige tout de façon définitive ! et pas de rafistolage ». Tout est commité,
+> **rien n'est poussé**. S9 branché dans la soirée.
+
+**Tout ce qui restait est fait** (tableau « seconde série » au §9 de `audits/securite-2026-09-26.md`) :
+- **K4 tranché** `28ff696` : plus aucun coffre PIN créé avant Android 9 (refus au Keystore, option
+  grisée) ; les coffres existants s'ouvrent et disent leur limite ; politique ET CGU en 5 langues.
+- **K5 tranché** `0dd5f18` : la feuille du nouveau PIN d'app demande un code utilisé nulle part ailleurs.
+- **K3** `a512f96` : test de la clé de passerelle supprimée → copie Flutter → rescellé (alias de test).
+- **P2 second volet** `76c206c` : une panique coupée reprend au lancement suivant (mesuré de bout en bout).
+- **Notes §6** `4197a9b` : relais d'annulation de la dictée réparé (63 s → < 12 s sur le S9),
+  EmojiCompat et `PROCESS_TEXT` retirés, commentaires faux corrigés.
+- **Relecture externe GPT-5.6** (~0,38 $) `3fa7402` : Couper refusé → texte restauré (Compose retire la
+  sélection AVANT d'écrire le presse-papiers) ; arrêt de dictée qui ne peut plus être effacé (`rearmer`).
+- **Audit 3 axes** `a64e303` : CGU corrigées, refus nommé pour un effacement en attente, **titre de
+  l'éditeur en `TextFieldValue`** comme le contenu.
+
+**Gate final sur le S9** : 484 tests instrumentés, 0 échec, 0 ignoré (1 hypothèse voulue : pas
+d'empreinte) ; JVM 425, 0 ignoré ; lint 0 erreur / 75 avertissements ; release construite ; manifeste OK.
+
+**Le modèle de dictée du S9 avait disparu** (depuis le 25 au soir, et sa copie sous `J:/tmp`) :
+retéléchargé depuis `huggingface.co/ggerganov/whisper.cpp`, SHA-256 identique, réinstallé. Copie de
+secours : `J:/tmp/claude/modeles/ggml-base-q5_1.bin`.
+
+**Reste** : F3 (non retenu, à mesurer par capture image par image) ; TalkBack (Patrice) ; le S24 n'a pas
+été touché. L'émulateur `emu-test-api34` tourne sans fenêtre (code 1111), ses données de test ont été
+effacées par la mesure de la reprise de panique.
+
+## 🎯 ÉTAT AU 2026-09-26 (soir) — section précédente
 
 > Patrice : « tu peux lancer les agents », « je reviens dans 2 heures », « corrige tout ce qui doit être
 > corrigé ! ». Tout est commité, **rien n'est poussé**. S9 non branché : mesures sur l'émulateur
