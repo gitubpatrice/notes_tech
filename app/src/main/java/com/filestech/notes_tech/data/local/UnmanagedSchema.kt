@@ -138,6 +138,57 @@ internal object UnmanagedSchema {
     }
 
     /**
+     * 🔴 **A deleted text leaves the full-text index for good** — security audit of 2026-09-26, K1 and
+     * P3. Called at every opening; does its work once.
+     *
+     * The triggers pass `'delete'` with the old values, and FTS5 then only writes a delete marker:
+     * the terms and their positions (enough to rebuild the text) stayed in `notes_fts_data` until a
+     * merge that nothing ever asks for. That kept the plaintext of every note put in a vault — the
+     * triggers index `''` from then on — and of every note deleted "permanently", readable by whoever
+     * opens the database with its key. The FTS5 option `secure-delete` (SQLite 3.42) removes the
+     * entries themselves; it is stored in `notes_fts_config`, so it is set once, and one `optimize`
+     * then merges away what the markers had left.
+     *
+     * ⚠️ **Never `rebuild`**: it rereads the raw columns of `notes` and would index the format 1
+     * titles and the tags of locked notes, which the triggers mask.
+     *
+     * ⚠️ The table then needs FTS5 3.42 or later to be written — no older build opens this database.
+     */
+    fun ensureSecureDeleteInFullTextIndex(db: SupportSQLiteDatabase) {
+        val dejaPose = db.query("SELECT v FROM notes_fts_config WHERE k = 'secure-delete'").use { curseur ->
+            curseur.moveToFirst() && curseur.getInt(0) == 1
+        }
+        if (dejaPose) return
+        db.beginTransaction()
+        try {
+            db.execSQL("INSERT INTO notes_fts(notes_fts, rank) VALUES ('secure-delete', 1)")
+            db.execSQL("INSERT INTO notes_fts(notes_fts) VALUES ('optimize')")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        // The old segments are now free pages (zeroed by `secure_delete`, cf. `NotesDatabase`), but
+        // their frames are still in the write-ahead log: truncate it once.
+        db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+    }
+
+    /**
+     * No link leaves a sealed note, and none resolves to one — the rule of `NoteLinkWriter.
+     * detachSealedNote`, applied to what the vault's bulk gestures wrote before they followed it
+     * (audit 2026-09-26, K1 and K2). Idempotent; with nothing to repair it writes nothing.
+     */
+    fun detachSealedNotesFromLinks(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "DELETE FROM note_links " +
+                "WHERE source_id IN (SELECT id FROM notes WHERE encrypted_content IS NOT NULL)",
+        )
+        db.execSQL(
+            "UPDATE note_links SET target_id = NULL " +
+                "WHERE target_id IN (SELECT id FROM notes WHERE encrypted_content IS NOT NULL)",
+        )
+    }
+
+    /**
      * Garantit l'existence du dossier racine, à **chaque** ouverture.
      *
      * `INSERT OR IGNORE`, donc idempotent, et surtout non destructif : un utilisateur qui a

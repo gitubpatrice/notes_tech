@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.security.vault
 
+import androidx.room.withTransaction
 import com.filestech.notes_tech.core.crypto.wipe
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.dao.FolderDao
@@ -97,6 +98,7 @@ class FolderVaultService @Inject constructor(
      */
     suspend fun createPassphraseVault(folderId: String, passphrase: String) {
         requireValidPassphrase(passphrase)
+        finirLEffacementEnAttente(folderId)
         val material = requireMaterial(folderId)
         if (material.isVault) throw VaultValidationException(VaultValidationException.Reason.ALREADY_A_VAULT)
 
@@ -144,6 +146,7 @@ class FolderVaultService @Inject constructor(
      */
     suspend fun createPinVault(folderId: String, pin: String) {
         requireValidPin(pin)
+        finirLEffacementEnAttente(folderId)
         val material = requireMaterial(folderId)
         if (material.isVault) throw VaultValidationException(VaultValidationException.Reason.ALREADY_A_VAULT)
 
@@ -573,17 +576,22 @@ class FolderVaultService @Inject constructor(
             val scellee = runOrNull { seal(note) } ?: return@surChaqueNote false
             val blob = scellee.encrypted?.toByteArray() ?: return@surChaqueNote false
             !echoue {
-                database.noteWriteDao().lockNote(
-                    id = note.id,
-                    encryptedContent = blob,
-                    encVersion = scellee.encVersion,
-                    plainTitle = "",
-                    tags = null,
-                    // ⚠️ `null` : convertir un dossier en coffre ne modifie pas les notes du point
-                    // de vue de l'utilisateur. Écrire l'instant courant ferait remonter tout le
-                    // dossier en tête de la liste « modifiées récemment », d'un coup.
-                    updatedAt = null,
-                )
+                // 🔴 The note and its links in ONE transaction (audit 2026-09-26, K1/K2): the links
+                // are derived from the note, and `NoteLinkWriter` requires it for the reactivity.
+                database.withTransaction {
+                    database.noteWriteDao().lockNote(
+                        id = note.id,
+                        encryptedContent = blob,
+                        encVersion = scellee.encVersion,
+                        plainTitle = "",
+                        tags = null,
+                        // ⚠️ `null` : convertir un dossier en coffre ne modifie pas les notes du point
+                        // de vue de l'utilisateur. Écrire l'instant courant ferait remonter tout le
+                        // dossier en tête de la liste « modifiées récemment », d'un coup.
+                        updatedAt = null,
+                    )
+                    database.linkWriter.detachSealedNote(note.id)
+                }
             }
         }
     }
@@ -714,14 +722,18 @@ class FolderVaultService @Inject constructor(
             val scellee = if (note.encrypted != null) note else runOrNull { seal(note) }
             val blob = scellee?.encrypted?.toByteArray() ?: return@surChaqueNote false
             !echoue {
-                database.noteWriteDao().lockNote(
-                    id = note.id,
-                    encryptedContent = blob,
-                    encVersion = scellee.encVersion,
-                    plainTitle = if (scellee.encVersion == EncryptedFormat.TITLE_AND_CONTENT) "" else scellee.title,
-                    tags = null,
-                    updatedAt = null,
-                )
+                // Same rule as [encryptAllNotesInFolder]: sealed, and detached from the links.
+                database.withTransaction {
+                    database.noteWriteDao().lockNote(
+                        id = note.id,
+                        encryptedContent = blob,
+                        encVersion = scellee.encVersion,
+                        plainTitle = if (scellee.encVersion == EncryptedFormat.TITLE_AND_CONTENT) "" else scellee.title,
+                        tags = null,
+                        updatedAt = null,
+                    )
+                    database.linkWriter.detachSealedNote(note.id)
+                }
             }
         }.done
     }
@@ -832,7 +844,7 @@ class FolderVaultService @Inject constructor(
         if (!wiping.add(folderId)) return
         try {
             wipeJournal.markPending(folderId)
-            echoue { keystore.deleteKey(VaultParams.pinKeystoreAlias(folderId)) }
+            val cleDetruite = detruireLaCleDuCode(folderId)
 
             val database = databases.get()
             // ⚠️ Les échecs de suppression sont COMPTÉS, pas ignorés.
@@ -852,10 +864,37 @@ class FolderVaultService @Inject constructor(
             // Le drapeau ne tombe que si l'effacement est allé au bout. Sinon il reste, et la
             // reprise du prochain démarrage finira le travail — c'est précisément ce pour quoi il
             // existe.
-            if (restantes == 0) wipeJournal.clearPending(folderId)
+            //
+            // 🔴 **And only once the PIN key is gone** (security audit of 2026-09-26, P3). Its
+            // deletion was not checked: a Keystore that refused left the key, the flag fell anyway,
+            // and "the vault has been wiped" was said over a key that still opened the salt and seal
+            // left in the free pages. The flag stays; the next startup — or a vault created in this
+            // folder, cf. [finirLEffacementEnAttente] — tries again.
+            if (restantes == 0 && cleDetruite) wipeJournal.clearPending(folderId)
         } finally {
             wiping.remove(folderId)
         }
+    }
+
+    /** Deletes the PIN key of [folderId] and checks it is gone — `deleteKey` does not say. */
+    private suspend fun detruireLaCleDuCode(folderId: String): Boolean {
+        val alias = VaultParams.pinKeystoreAlias(folderId)
+        echoue { keystore.deleteKey(alias) }
+        return runOrNull { keystore.hasKey(alias) } == false
+    }
+
+    /**
+     * Finishes the wipe of a PIN vault that did not go to its end in [folderId], or refuses.
+     *
+     * ⚠️ A pending wipe is resumed at every startup, and it deletes the LOCKED notes of the folder:
+     * left pending under a new vault created in the same folder, it would delete that vault's notes
+     * at the next startup. Finishing it first costs nothing — the old vault's material is already
+     * gone, its remaining notes can no longer be read.
+     */
+    private suspend fun finirLEffacementEnAttente(folderId: String) {
+        if (folderId !in wipeJournal.pendingFolderIds()) return
+        autoWipePinVault(folderId)
+        if (folderId in wipeJournal.pendingFolderIds()) throw KeystoreUnavailableException()
     }
 
     /**

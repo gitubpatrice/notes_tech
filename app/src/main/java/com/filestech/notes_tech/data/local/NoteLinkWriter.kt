@@ -139,6 +139,22 @@ class NoteLinkWriter(private val database: NotesDatabase) {
             )
         }
     }
+
+    /**
+     * A note that has just been sealed: no link leaves it, none resolves to it.
+     *
+     * The rule `NotesRepository.reindexLinks` and `resolveIncoming` apply to a locked note, in one
+     * call for the vault's bulk gestures, which seal without going through the repository. They did
+     * not apply it (security audit of 2026-09-26, K1 and K2): the `[[…]]` titles of a converted note
+     * stayed in clear in `note_links`, and a link from an ordinary note still resolved to it —
+     * telling that a vault holds a note of that title.
+     */
+    suspend fun detachSealedNote(noteId: String) {
+        database.withTransaction {
+            deleteLinksOf(noteId)
+            unresolveByMismatch(noteId, newTitleNorm = "")
+        }
+    }
 }
 
 /**

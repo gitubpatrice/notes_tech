@@ -110,6 +110,8 @@ abstract class NotesDatabase : RoomDatabase() {
                 // À chaque ouverture, pas seulement à la création : le dossier racine est
                 // indélébile côté produit, et une base restaurée ou réparée doit le retrouver.
                 UnmanagedSchema.ensureInboxFolder(db, nowMillis())
+                UnmanagedSchema.ensureSecureDeleteInFullTextIndex(db)
+                UnmanagedSchema.detachSealedNotesFromLinks(db)
             }
         }
 
@@ -139,6 +141,11 @@ abstract class NotesDatabase : RoomDatabase() {
             // Négatif = kibioctets. 32 Mo, soit moins de 1 % de la mémoire des appareils visés,
             // pour réduire les relectures disque sur les parcours FTS et les listes longues.
             db.execSQL("PRAGMA cache_size = -32000")
+            // 🔴 A deleted row does not stay in a free page (security audit of 2026-09-26, P3),
+            // whatever the library's compiled default: a note emptied from the trash could stay
+            // readable, to whoever holds the key, until SQLite happened to reuse its page. Read
+            // with `query`: this pragma answers with a row, which `execSQL` refuses.
+            db.query("PRAGMA secure_delete = ON").use { it.moveToFirst() }
         }
     }
 }

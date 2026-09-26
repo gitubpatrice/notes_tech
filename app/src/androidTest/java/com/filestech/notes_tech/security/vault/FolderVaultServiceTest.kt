@@ -826,6 +826,55 @@ class FolderVaultServiceTest {
         assertThat(journal.pendingFolderIds()).doesNotContain("dossier-qui-nexiste-plus")
     }
 
+    /**
+     * 🔴 **A PIN key that survives the wipe keeps the flag** (security audit of 2026-09-26, P3). The
+     * deletion was not checked: the flag fell over a key that still opened the vault's seal.
+     */
+    @Test
+    fun a_pin_key_that_survives_the_wipe_keeps_the_flag_and_the_resume_deletes_it(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        keystore.suppressionIgnoree = true
+
+        coffres.autoWipePinVault(DOSSIER)
+
+        assertThat(keystore.hasKey(VaultParams.pinKeystoreAlias(DOSSIER))).isTrue()
+        assertThat(journal.pendingFolderIds()).contains(DOSSIER)
+
+        keystore.suppressionIgnoree = false
+        coffres.resumePendingWipes()
+
+        assertThat(keystore.hasKey(VaultParams.pinKeystoreAlias(DOSSIER))).isFalse()
+        assertThat(journal.pendingFolderIds()).doesNotContain(DOSSIER)
+    }
+
+    /**
+     * A vault created in a folder whose wipe is pending finishes that wipe first — left pending, it
+     * would delete the NEW vault's notes at the next startup — or is refused.
+     */
+    @Test
+    fun a_vault_created_over_a_pending_wipe_finishes_it_first(): Unit = runBlocking {
+        coffres.createPinVault(DOSSIER, CODE)
+        coffres.lock(DOSSIER)
+        keystore.suppressionIgnoree = true
+        coffres.autoWipePinVault(DOSSIER)
+        assertThat(journal.pendingFolderIds()).contains(DOSSIER)
+
+        // Still refused: no new vault over a wipe that cannot finish.
+        assertThrows(KeystoreUnavailableException::class.java) {
+            runBlocking { coffres.createPassphraseVault(DOSSIER, PHRASE) }
+        }
+
+        keystore.suppressionIgnoree = false
+        coffres.createPassphraseVault(DOSSIER, PHRASE)
+        assertThat(journal.pendingFolderIds()).doesNotContain(DOSSIER)
+        val note = notes.create(folderId = DOSSIER, title = "New", content = "kept")
+
+        coffres.resumePendingWipes()
+
+        assertThat(notes.find(note.id)).isNotNull()
+    }
+
     // ── Constat après annulation ─────────────────────────────────────────────────────────────────
 
     /**
@@ -924,8 +973,11 @@ class FolderVaultServiceTest {
                 .also { clairRenduALOuverture = it }
         }
 
+        /** `deleteKey` returns without deleting — a Keystore that refused in silence (audit P3). */
+        var suppressionIgnoree = false
+
         override fun deleteKey(alias: String) {
-            cles.remove(alias)
+            if (!suppressionIgnoree) cles.remove(alias)
         }
 
         override fun deleteKeysWithPrefix(prefix: String): Int {
