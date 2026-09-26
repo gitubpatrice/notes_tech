@@ -56,7 +56,11 @@ import javax.crypto.spec.GCMParameterSpec
  * `KekRepository.promoteToPrimary` reseals it under a key created HERE, without the attribute: the
  * database is saved by that copy — see `FlutterSecureStorageKekSource`, which must therefore stay.
  */
-class KeystoreSealedKekSource(private val context: Context) : WritableKekSource {
+class KeystoreSealedKekSource(
+    private val context: Context,
+    /** [KEY_ALIAS] in the app; another only in a test, which must never touch the real key. */
+    private val keyAlias: String = KEY_ALIAS,
+) : WritableKekSource {
 
     override val name: String get() = "keystore"
 
@@ -204,9 +208,9 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
                 )
             }
             val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            if (ks.containsAlias(KEY_ALIAS)) {
+            if (ks.containsAlias(keyAlias)) {
                 Timber.w("clé de scellage préexistante supprimée — aucune base à protéger")
-                ks.deleteEntry(KEY_ALIAS)
+                ks.deleteEntry(keyAlias)
             }
         } catch (e: Exception) {
             throw KekFailure.SourceUnavailable(name, e)
@@ -239,7 +243,7 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
             // d'annoncer qu'il ne restait rien.
             supprimerLeFichierDePreferences(context, PREFS_NAME)
             val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-            if (ks.containsAlias(KEY_ALIAS)) ks.deleteEntry(KEY_ALIAS)
+            if (ks.containsAlias(keyAlias)) ks.deleteEntry(keyAlias)
         } catch (e: Exception) {
             throw KekFailure.SourceUnavailable(name, e)
         }
@@ -247,7 +251,7 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
 
     private fun existingKey(): SecretKey? = try {
         val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        ks.getKey(KEY_ALIAS, null) as? SecretKey
+        ks.getKey(keyAlias, null) as? SecretKey
     } catch (e: Exception) {
         throw KekFailure.SourceUnavailable(name, e)
     }
@@ -255,7 +259,7 @@ class KeystoreSealedKekSource(private val context: Context) : WritableKekSource 
     private fun createKey(): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         val spec = KeyGenParameterSpec.Builder(
-            KEY_ALIAS,
+            keyAlias,
             KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)

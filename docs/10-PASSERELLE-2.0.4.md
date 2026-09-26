@@ -188,10 +188,12 @@ toutes les clés existantes. À décider avant d'écrire un tel travail, pas apr
 >    `FlutterSecureStorageKekSource` : ne jamais la retirer hors panique.
 >
 > La 3.x ne pose pas l'attribut, délibérément (KDoc de `KeystoreSealedKekSource`) : il ferait perdre
-> la base au retrait du verrouillage d'écran. ⚠️ Reste à écrire : un test instrumenté du
-> chemin « clé de la passerelle disparue → copie Flutter → rescellé ». Il ne peut pas tourner sur
-> l'alias réel de l'application de test sans en détruire la base : il demande que la source accepte
-> un alias et un fichier de préférences propres au test.
+> la base au retrait du verrouillage d'écran. ✅ **Mesuré le 2026-09-26 au soir** :
+> `PasserelleCleDisparueTest` crée une clé à la spécification de la passerelle (attribut compris),
+> scelle, la supprime comme Android le fait, puis passe par le vrai `KekRepository` : la source ①
+> répond « rien », la copie Flutter rend la clé, la source ① la tient de nouveau. Alias et
+> préférences propres au test (`KeystoreSealedKekSource` accepte désormais un alias). Contrôles
+> négatifs : une clé absente lue comme un échec, ou la promotion neutralisée, font tomber le test.
 
 ## 6. Procédure de vérification, sur le S9 uniquement
 

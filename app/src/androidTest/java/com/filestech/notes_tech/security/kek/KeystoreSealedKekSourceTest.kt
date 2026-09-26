@@ -45,8 +45,9 @@ import javax.crypto.SecretKey
  * Les préférences sont détournées vers un fichier de test par un [ContextWrapper] : sans cela, la
  * suite écraserait le scellé réel de la build sous test et rendrait sa propre base illisible.
  *
- * ⚠️⚠️ **L'alias Keystore, lui, ne peut pas être isolé** — c'est une constante de la classe. Les cas
- * ci-dessous s'en servent donc **sans jamais le détruire** : `store()` réutilise la clé existante
+ * ⚠️⚠️ **L'alias Keystore, ici, n'est pas isolé** — la classe accepte un alias depuis le 2026-09-26
+ * (`PasserelleCleDisparueTest` s'en sert, lui, pour supprimer une clé). Les cas
+ * ci-dessous se servent de l'alias réel **sans jamais le détruire** : `store()` réutilise la clé existante
  * (`existingKey() ?: createKey()`). `replaceKeyAndStore`, qui supprime l'alias, n'est
  * **volontairement pas** exercé ici : il effacerait la clé de la build sous test. *Le dire vaut
  * mieux que de laisser croire que tout est couvert.*
