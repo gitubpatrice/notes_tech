@@ -188,7 +188,7 @@ class FermetureDuCoffreTest {
         assertThat(editeur.action.value.erreur).isEqualTo(R.string.error_clipboard_secure_unavailable)
     }
 
-    /** The title reports no selection: the cut is found where the text fits, and undone. */
+    /** The title carries its selection like the content: a refused cut from it is undone, selection too. */
     @Test
     fun a_cut_from_the_title_the_clipboard_refused_is_undone(): Unit = runBlocking {
         val note = noteDeCoffre(content = "body")
@@ -196,11 +196,50 @@ class FermetureDuCoffreTest {
         val titre = withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }.title
 
         withContext(Dispatchers.Main) {
-            editeur.onTitleChange(titre.removePrefix("Bank "))
+            editeur.onTitleChange(TextFieldValue(titre, selection = TextRange(0, 5))) // "Bank " selected
+            editeur.onTitleChange(TextFieldValue(titre.removePrefix("Bank "), selection = TextRange(0)))
             editeur.copieProtegeeRefusee("Bank ")
         }
 
         assertThat(editeur.state.value.title).isEqualTo(titre)
+        assertThat(editeur.state.value.titre.selection).isEqualTo(TextRange(0, 5))
+    }
+
+    /**
+     * The case the 3-axes audit raised: a text deleted by hand, then ANOTHER selection copied, the copy
+     * refused. Nothing is put back — the change before the copy was a selection, not that deletion.
+     */
+    @Test
+    fun a_refused_copy_after_a_manual_deletion_puts_nothing_back(): Unit = runBlocking {
+        val note = noteDeCoffre(content = "PIN and PIN")
+        val editeur = withContext(Dispatchers.Main) { editeur(note) }
+        withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }
+
+        withContext(Dispatchers.Main) {
+            editeur.onContentChange(TextFieldValue("PIN and PIN", selection = TextRange(0, 3))) // "PIN" selected
+            editeur.onContentChange(TextFieldValue(" and PIN", selection = TextRange(0))) // deleted by hand
+            editeur.onContentChange(TextFieldValue(" and PIN", selection = TextRange(5, 8))) // the other "PIN"
+            editeur.copieProtegeeRefusee("PIN") // copied, refused
+        }
+
+        assertThat(editeur.state.value.content.text).isEqualTo(" and PIN")
+    }
+
+    /** The same case in the title — the one the 3-axes audit found reachable, the title keeping no selection. */
+    @Test
+    fun a_refused_copy_after_a_manual_deletion_in_the_title_puts_nothing_back(): Unit = runBlocking {
+        val note = noteDeCoffre(content = "body")
+        val editeur = withContext(Dispatchers.Main) { editeur(note) }
+        withTimeout(ATTENTE_MS) { editeur.state.first { !it.loading } }
+
+        withContext(Dispatchers.Main) {
+            editeur.onTitleChange(TextFieldValue("PIN and PIN", selection = TextRange(0, 3)))
+            editeur.onTitleChange(TextFieldValue(" and PIN", selection = TextRange(0)))
+            editeur.onTitleChange(TextFieldValue(" and PIN", selection = TextRange(5, 8)))
+            editeur.copieProtegeeRefusee("PIN")
+        }
+
+        assertThat(editeur.state.value.title).isEqualTo(" and PIN")
     }
 
     /** The control: an ordinary note is not touched by a vault closing. */

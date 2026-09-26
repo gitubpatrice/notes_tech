@@ -22,7 +22,7 @@ La **modalità panico** cancella in modo definitivo e irreversibile le sue note,
 
 Allo stesso modo, **dimenticare la passphrase di una cassaforte rende le sue note illeggibili per sempre**: la passphrase non viene mai memorizzata, serve solo a derivare la chiave tramite Argon2id. Non esiste alcuna procedura di recupero.
 
-Per le casseforti con **PIN**, **5 errori consecutivi attivano una cancellazione automatica** (eliminazione della chiave del Keystore). È lo stesso comportamento del normale blocco schermo di Android.
+Per le casseforti con **PIN**, **5 errori consecutivi attivano una cancellazione automatica** (eliminazione della chiave del Keystore). È lo stesso comportamento del normale blocco schermo di Android, ma solo da Android 9: prima, Android non può legare questa chiave allo sblocco del telefono, l'app non vi crea casseforti con PIN, e una cassaforte con PIN creata in precedenza non rispetta questo limite di cinque tentativi su un telefono sequestrato.
 
 ## Modello di dettatura vocale
 

@@ -11,6 +11,7 @@ import com.filestech.notes_tech.security.vault.KeystoreUnavailableException
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.security.vault.VaultValidationException
+import com.filestech.notes_tech.security.vault.VaultWipePendingException
 import com.filestech.notes_tech.security.vault.WrongPinException
 import com.filestech.notes_tech.security.vault.WrongSecretException
 import com.google.common.truth.Truth.assertThat
@@ -35,6 +36,8 @@ class UserMessagesTest {
         // Audit 2026-09-26, K4: the refusal before Android 9 names its reason and the way out.
         assertThat(userMessageFor(KeystorePinBeforeAndroid9Exception()))
             .isEqualTo(R.string.error_vault_pin_needs_android_9)
+        // 3-axes audit of 2026-09-26: a pending wipe is named, not taken for an unavailable Keystore.
+        assertThat(userMessageFor(VaultWipePendingException())).isEqualTo(R.string.error_vault_wipe_pending)
     }
 
     /**

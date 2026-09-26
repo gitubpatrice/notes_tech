@@ -254,6 +254,7 @@
     <string name="vault_mode_pin_old_android">Requiere Android 9 o posterior: antes, un PIN no protege una caja fuerte en un teléfono incautado.</string>
     <string name="error_vault_pin_needs_android_9">Las cajas fuertes con PIN requieren Android 9 o posterior: antes, un PIN no protege una caja fuerte en un teléfono incautado. Use en su lugar una caja fuerte con frase de contraseña.</string>
     <string name="vault_pin_unlock_old_android">En esta versión de Android, este PIN no protege la caja fuerte en un teléfono incautado. Para protegerla, quite su protección y vuelva a convertir la carpeta en una caja fuerte con frase de contraseña.</string>
+    <string name="error_vault_wipe_pending">El borrado anterior de la caja fuerte de esta carpeta no pudo completarse: su clave sigue en este teléfono. Vuelva a intentarlo más tarde; reiniciar el teléfono puede ayudar.</string>
 
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>

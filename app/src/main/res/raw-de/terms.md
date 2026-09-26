@@ -22,7 +22,7 @@ Der **Panikmodus** löscht Ihre Notizen, Ihren Verschlüsselungsschlüssel und I
 
 Ebenso **macht eine vergessene Tresor-Passphrase dessen Notizen für immer unlesbar**: Die Passphrase wird nie gespeichert, sie dient nur dazu, den Schlüssel über Argon2id abzuleiten. Es gibt kein Wiederherstellungsverfahren.
 
-Bei **PIN**-Tresoren **lösen 5 aufeinanderfolgende Fehlversuche ein automatisches Löschen aus** (Löschen des Keystore-Schlüssels). Dies entspricht dem Verhalten der üblichen Android-Displaysperre.
+Bei **PIN**-Tresoren **lösen 5 aufeinanderfolgende Fehlversuche ein automatisches Löschen aus** (Löschen des Keystore-Schlüssels). Dies entspricht dem Verhalten der üblichen Android-Displaysperre – erst ab Android 9: Davor kann Android diesen Schlüssel nicht an das Entsperren des Telefons binden, die App erstellt dort keinen PIN-Tresor, und ein zuvor erstellter PIN-Tresor hält diese Grenze von fünf Versuchen auf einem beschlagnahmten Telefon nicht ein.
 
 ## Diktiermodell
 

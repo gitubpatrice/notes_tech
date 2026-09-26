@@ -254,6 +254,7 @@
     <string name="vault_mode_pin_old_android">Richiede Android 9 o successivo: prima, un PIN non protegge una cassaforte su un telefono sequestrato.</string>
     <string name="error_vault_pin_needs_android_9">Le casseforti con PIN richiedono Android 9 o successivo: prima, un PIN non protegge una cassaforte su un telefono sequestrato. Usi invece una cassaforte con passphrase.</string>
     <string name="vault_pin_unlock_old_android">Su questa versione di Android, questo PIN non protegge la cassaforte su un telefono sequestrato. Per proteggerla, ne rimuova la protezione, poi rifaccia della cartella una cassaforte con passphrase.</string>
+    <string name="error_vault_wipe_pending">La cancellazione precedente della cassaforte di questa cartella non è stata completata: la sua chiave è ancora su questo telefono. Riprovi più tardi; riavviare il telefono può aiutare.</string>
 
     <!-- Settings -->
     <string name="settings_title">Impostazioni</string>

@@ -22,7 +22,7 @@ El **modo pánico** borra de forma definitiva e irreversible sus notas, su clave
 
 Del mismo modo, **olvidar la frase de contraseña de una caja fuerte hace que sus notas sean ilegibles para siempre**: la frase de contraseña nunca se guarda, solo sirve para derivar la clave mediante Argon2id. No existe ningún procedimiento de recuperación.
 
-En las cajas fuertes con **PIN**, **5 errores seguidos provocan un borrado automático** (eliminación de la clave del Keystore). Es el mismo comportamiento que el del bloqueo de pantalla habitual de Android.
+En las cajas fuertes con **PIN**, **5 errores seguidos provocan un borrado automático** (eliminación de la clave del Keystore). Es el mismo comportamiento que el del bloqueo de pantalla habitual de Android, pero solo desde Android 9: antes, Android no puede vincular esta clave al desbloqueo del teléfono, la aplicación no crea allí cajas fuertes con PIN, y una caja fuerte con PIN creada antes no respeta ese límite de cinco intentos en un teléfono incautado.
 
 ## Modelo de dictado por voz
 

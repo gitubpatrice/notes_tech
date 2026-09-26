@@ -245,6 +245,7 @@
     <string name="vault_mode_pin_old_android">Erfordert Android 9 oder neuer: Davor schützt eine PIN einen Tresor auf einem beschlagnahmten Telefon nicht.</string>
     <string name="error_vault_pin_needs_android_9">PIN-Tresore erfordern Android 9 oder neuer: Davor schützt eine PIN einen Tresor auf einem beschlagnahmten Telefon nicht. Verwenden Sie stattdessen einen Passphrase-Tresor.</string>
     <string name="vault_pin_unlock_old_android">Auf dieser Android-Version schützt diese PIN den Tresor auf einem beschlagnahmten Telefon nicht. Um ihn zu schützen, entfernen Sie den Tresorschutz und machen Sie den Ordner dann wieder zu einem Passphrase-Tresor.</string>
+    <string name="error_vault_wipe_pending">Das frühere Löschen des Tresors dieses Ordners konnte nicht abgeschlossen werden: Sein Schlüssel ist noch auf diesem Telefon. Versuchen Sie es später erneut; ein Neustart des Telefons kann helfen.</string>
 
     <!-- Settings -->
     <string name="settings_title">Einstellungen</string>

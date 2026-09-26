@@ -22,7 +22,7 @@ Le **mode panique** efface définitivement et irréversiblement vos notes, votre
 
 De même, **oublier la passphrase d'un coffre rend ses notes illisibles à jamais** : la passphrase n'est jamais stockée, elle ne sert qu'à dériver la clé via Argon2id. Aucune procédure de récupération n'existe.
 
-Pour les coffres en mode **PIN**, **5 échecs successifs déclenchent un auto-wipe** (suppression de la clé Keystore). Aligné sur le comportement standard d'un écran de verrouillage Android.
+Pour les coffres en mode **PIN**, **5 échecs successifs déclenchent un auto-wipe** (suppression de la clé Keystore). Aligné sur le comportement standard d'un écran de verrouillage Android — à partir d'Android 9 seulement : avant, Android ne sait pas lier cette clé au déverrouillage du téléphone, l'application n'y crée aucun coffre PIN, et un coffre PIN créé auparavant ne tient pas cette limite de cinq essais sur un téléphone saisi.
 
 ## Modèle de dictée vocale
 

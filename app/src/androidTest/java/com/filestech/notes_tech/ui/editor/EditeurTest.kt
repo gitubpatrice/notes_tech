@@ -155,7 +155,7 @@ class EditeurTest {
                         messages = remember { SnackbarHostState() },
                         dicteeActive = dicteeCourante.value,
                         onQuitter = { sorties += Unit },
-                        onTitreChange = { titres += it },
+                        onTitreChange = { titres += it.text },
                         onContenuChange = { contenus += it.text },
                         onDicter = { dictees += Unit },
                         onInsererUnLien = { insertionsDeLien += Unit },
@@ -841,7 +841,7 @@ class EditeurTest {
         corps: String = CORPS_DE_LA_NOTE,
     ) = EditorUiState(
         loading = false,
-        title = titre,
+        titre = TextFieldValue(titre),
         content = TextFieldValue(corps),
         note = note("a").copy(pinned = epinglee),
         folder = dossier(),

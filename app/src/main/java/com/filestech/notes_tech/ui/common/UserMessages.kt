@@ -12,6 +12,7 @@ import com.filestech.notes_tech.security.vault.MalformedVaultDataException
 import com.filestech.notes_tech.security.vault.VaultPinWipedException
 import com.filestech.notes_tech.security.vault.VaultSessionClosedException
 import com.filestech.notes_tech.security.vault.VaultValidationException
+import com.filestech.notes_tech.security.vault.VaultWipePendingException
 import com.filestech.notes_tech.security.vault.WrongPinException
 import com.filestech.notes_tech.security.vault.WrongSecretException
 
@@ -49,6 +50,7 @@ fun userMessageFor(error: Throwable): Int = when (error) {
     is MalformedVaultDataException -> R.string.error_vault_encrypted_content_invalid
     is KeystoreSoftwareOnlyException -> R.string.error_vault_pin_hardware_unavailable
     is KeystorePinBeforeAndroid9Exception -> R.string.error_vault_pin_needs_android_9
+    is VaultWipePendingException -> R.string.error_vault_wipe_pending
     is KeystoreDeviceNotSecureException -> R.string.error_vault_pin_needs_screen_lock
     is ClipboardException -> R.string.error_clipboard_secure_unavailable
     else -> R.string.error_unexpected

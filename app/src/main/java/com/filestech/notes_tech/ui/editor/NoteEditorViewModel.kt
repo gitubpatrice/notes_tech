@@ -64,7 +64,13 @@ data class EditorUiState(
      * Les trois chaînes existaient des deux côtés et n'étaient lues nulle part.
      */
     @StringRes val loadError: Int? = null,
-    val title: String = "",
+    /**
+     * The title **with its selection and the keyboard's composition**, like [content] — since
+     * 2026-09-26. It was a `String`, the field keeping its selection to itself: a Cut the protected
+     * clipboard refused then had to be looked for "wherever the text fits" in the title, and a text
+     * deleted by hand just before could be put back by mistake (3-axes audit, 2026-09-26).
+     */
+    val titre: TextFieldValue = TextFieldValue(),
     /**
      * Le contenu **et la position du curseur**, dans un seul porteur.
      *
@@ -109,6 +115,9 @@ data class EditorUiState(
     val originalContent: String = "",
 ) {
     val isVaultNote: Boolean get() = folder?.isVault == true
+
+    /** The title's text — what is saved and compared. */
+    val title: String get() = titre.text
 }
 
 /**
@@ -606,7 +615,7 @@ class NoteEditorViewModel @Inject constructor(
 
     /** The field values just before their last change — what a refused Cut is undone to. */
     private var contenuPrecedent: TextFieldValue? = null
-    private var titrePrecedent: String? = null
+    private var titrePrecedent: TextFieldValue? = null
 
     /**
      * 🔴 **The protected clipboard refused a text from the fields: a Cut is undone, and it is said**
@@ -614,8 +623,10 @@ class NoteEditorViewModel @Inject constructor(
      *
      * Compose removes the selection BEFORE writing the clipboard (see `SaisieDeCoffre`), so a refused
      * write left the note without the text and the clipboard without it either. The change is undone
-     * only when it is exactly that cut — the previous value, less [texte] at its selection, is the
-     * current one — so that nothing typed since is touched; a Copy changed nothing and is only said.
+     * only when it is exactly that cut — the previous value, less [texte] at ITS selection, is the
+     * current one. Every change reaches here, a mere selection change included, for both fields: a
+     * text deleted by hand, then another selection copied, leaves a previous value whose selection
+     * is the copied one — nothing is put back. A Copy changed nothing and is only said.
      */
     fun copieProtegeeRefusee(texte: String) {
         val etat = _state.value
@@ -626,8 +637,8 @@ class NoteEditorViewModel @Inject constructor(
                 _state.value = etat.copy(content = avant)
                 programmerLaSauvegarde()
             }
-            titreAvant != null && coupeDansLeTitre(titreAvant, texte, etat.title) -> {
-                _state.value = etat.copy(title = titreAvant)
+            titreAvant != null && estLaCoupe(titreAvant.text, titreAvant.selection.min, texte, etat.title) -> {
+                _state.value = etat.copy(titre = titreAvant)
                 programmerLaSauvegarde()
             }
         }
@@ -638,10 +649,6 @@ class NoteEditorViewModel @Inject constructor(
             )
         }
     }
-
-    /** The title field reports no selection: the cut is looked for wherever [texte] fits. */
-    private fun coupeDansLeTitre(avant: String, texte: String, apres: String): Boolean =
-        (0..avant.length - texte.length).any { debut -> estLaCoupe(avant, debut, texte, apres) }
 
     private fun estLaCoupe(avant: String, debut: Int, texte: String, apres: String): Boolean = texte.isNotEmpty() &&
         avant.length == apres.length + texte.length &&
@@ -743,10 +750,12 @@ class NoteEditorViewModel @Inject constructor(
         }
     }
 
-    fun onTitleChange(value: String) {
-        titrePrecedent = _state.value.title
-        _state.value = _state.value.copy(title = value)
-        programmerLaSauvegarde()
+    /** Same rule as [onContentChange]: a selection change arrives here too, and saves nothing. */
+    fun onTitleChange(value: TextFieldValue) {
+        val texteAChange = value.text != _state.value.title
+        titrePrecedent = _state.value.titre
+        _state.value = _state.value.copy(titre = value)
+        if (texteAChange) programmerLaSauvegarde()
     }
 
     /**
@@ -877,7 +886,7 @@ class NoteEditorViewModel @Inject constructor(
             if (!note.isLocked) {
                 _state.value = EditorUiState(
                     loading = false,
-                    title = note.title,
+                    titre = TextFieldValue(note.title),
                     content = TextFieldValue(note.content),
                     note = note,
                     folder = dossier,
@@ -937,7 +946,7 @@ class NoteEditorViewModel @Inject constructor(
             }
             _state.value = EditorUiState(
                 loading = false,
-                title = claire.title,
+                titre = TextFieldValue(claire.title),
                 content = TextFieldValue(claire.content),
                 note = note,
                 folder = dossier,

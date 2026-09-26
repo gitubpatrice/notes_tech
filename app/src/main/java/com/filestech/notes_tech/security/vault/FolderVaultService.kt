@@ -894,7 +894,7 @@ class FolderVaultService @Inject constructor(
     private suspend fun finirLEffacementEnAttente(folderId: String) {
         if (folderId !in wipeJournal.pendingFolderIds()) return
         autoWipePinVault(folderId)
-        if (folderId in wipeJournal.pendingFolderIds()) throw KeystoreUnavailableException()
+        if (folderId in wipeJournal.pendingFolderIds()) throw VaultWipePendingException()
     }
 
     /**

@@ -84,6 +84,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -414,7 +415,7 @@ fun NoteEditorScreen(
     messages: SnackbarHostState,
     dicteeActive: Boolean,
     onQuitter: () -> Unit,
-    onTitreChange: (String) -> Unit,
+    onTitreChange: (TextFieldValue) -> Unit,
     onContenuChange: (TextFieldValue) -> Unit,
     onDicter: () -> Unit,
     onInsererUnLien: () -> Unit,
@@ -726,7 +727,7 @@ internal val HAUTEUR_MINIMALE_DU_CORPS = 120.dp
 @Composable
 private fun EnTeteDeLEditeur(
     state: EditorUiState,
-    onTitreChange: (String) -> Unit,
+    onTitreChange: (TextFieldValue) -> Unit,
     apercu: Boolean,
     onApercu: (Boolean) -> Unit,
 ) {
@@ -757,7 +758,7 @@ private fun EnTeteDeLEditeur(
         // focalisé. Le contenu, lui, garde le sien — `note_editor_content_hint` dit
         // `[[Titre]] pour lier`, ce que son libellé ne dit pas.
         TextField(
-            value = state.title,
+            value = state.titre,
             // 🔴 **Le titre est plafonné À LA SAISIE, comme dans l'application publiée**
             // (`LengthLimitingTextInputFormatter(AppConstants.noteTitleMaxLength)`).
             //
@@ -774,7 +775,14 @@ private fun EnTeteDeLEditeur(
             // ignorer — un titre déjà au plafond n'accepte plus rien, plutôt que de se
             // faire manger la fin à chaque frappe.
             onValueChange = { nouveau ->
-                PlafondDuTitre.applique(state.title, nouveau)?.let(onTitreChange)
+                val texte = PlafondDuTitre.applique(state.title, nouveau.text)
+                when {
+                    texte == null -> Unit
+                    // Accepted as typed: the value goes whole — selection and composition with it.
+                    texte == nouveau.text -> onTitreChange(nouveau)
+                    // Cut down to the ceiling: the cursor goes to its end.
+                    else -> onTitreChange(TextFieldValue(texte, TextRange(texte.length)))
+                }
             },
             label = { Text(stringResource(R.string.note_editor_title)) },
             textStyle = MaterialTheme.typography.headlineSmall,

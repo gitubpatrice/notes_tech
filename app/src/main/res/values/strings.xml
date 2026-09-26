@@ -320,6 +320,7 @@
     <string name="vault_mode_pin_old_android">Needs Android 9 or later: before it, a PIN does not protect a vault on a seized phone.</string>
     <string name="error_vault_pin_needs_android_9">PIN vaults need Android 9 or later: before it, a PIN does not protect a vault on a seized phone. Use a passphrase vault instead.</string>
     <string name="vault_pin_unlock_old_android">On this Android version, this PIN does not protect the vault on a seized phone. To protect it, remove its protection, then make the folder a vault again with a passphrase.</string>
+    <string name="error_vault_wipe_pending">An earlier wipe of this folder\'s vault could not finish: its key is still on this phone. Try again later; restarting the phone may help.</string>
 
     <!-- ── Réglages ────────────────────────────────────────────────────── -->
     <string name="settings_title">Settings</string>

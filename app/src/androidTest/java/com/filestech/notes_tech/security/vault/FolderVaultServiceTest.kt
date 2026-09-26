@@ -861,7 +861,7 @@ class FolderVaultServiceTest {
         assertThat(journal.pendingFolderIds()).contains(DOSSIER)
 
         // Still refused: no new vault over a wipe that cannot finish.
-        assertThrows(KeystoreUnavailableException::class.java) {
+        assertThrows(VaultWipePendingException::class.java) {
             runBlocking { coffres.createPassphraseVault(DOSSIER, PHRASE) }
         }
 

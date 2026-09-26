@@ -22,7 +22,7 @@ The **panic mode** permanently and irreversibly wipes your notes, encryption key
 
 Likewise, **forgetting a vault passphrase makes its notes unreadable forever**: the passphrase is never stored, it only derives the key via Argon2id. No recovery procedure exists.
 
-For **PIN** vaults, **5 successive failures trigger an auto-wipe** (Keystore key deletion). Aligned with the standard Android lock screen behaviour.
+For **PIN** vaults, **5 successive failures trigger an auto-wipe** (Keystore key deletion). Aligned with the standard Android lock screen behaviour — from Android 9 only: before it, Android cannot tie that key to the phone being unlocked, the app creates no PIN vault there, and a PIN vault created earlier does not hold that five-attempt limit on a seized phone.
 
 ## Voice dictation model
 

@@ -127,6 +127,13 @@ class KeystoreSoftwareOnlyException : VaultException("cle keystore non retenue p
 class KeystorePinBeforeAndroid9Exception : VaultException("coffre pin refuse avant android 9")
 
 /**
+ * A vault cannot be created in a folder whose previous PIN vault wipe did not finish — its Keystore
+ * key resisted (`FolderVaultService.finirLEffacementEnAttente`). Its own type since the 3-axes audit of
+ * 2026-09-26: it was reported as "Keystore unavailable", which named neither the cause nor the wait.
+ */
+class VaultWipePendingException : VaultException("effacement de coffre en attente")
+
+/**
  * A PIN vault key cannot be created because the phone has NO screen lock.
  *
  * The key requires an unlocked device (`setUnlockedDeviceRequired`, API 28+), and Android refuses to
