@@ -70,6 +70,7 @@ import com.filestech.notes_tech.ui.common.PointsDeSaisie
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.refusalMessageFor
 import com.filestech.notes_tech.ui.common.retryWaitMessage
+import com.filestech.notes_tech.ui.secure.ProprietesDeFeuilleSecrete
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
 
@@ -409,6 +410,7 @@ internal fun FeuilleDePhraseSecrete(
             onQuitter()
         },
         sheetState = etatDeFeuilleDeCoffre(bloquer = chiffrementEnCours),
+        properties = ProprietesDeFeuilleSecrete,
     ) {
         Column(
             modifier = Modifier
@@ -676,6 +678,7 @@ internal fun FeuilleDeCode(
             onQuitter()
         },
         sheetState = etatDeFeuilleDeCoffre(bloquer = chiffrementEnCours),
+        properties = ProprietesDeFeuilleSecrete,
     ) {
         Column(
             modifier = Modifier

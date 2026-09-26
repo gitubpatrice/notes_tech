@@ -62,6 +62,7 @@ import com.filestech.notes_tech.ui.common.CarteFilesTech
 import com.filestech.notes_tech.ui.common.ClavierNumerique
 import com.filestech.notes_tech.ui.common.PointsDeSaisie
 import com.filestech.notes_tech.ui.common.TitreDeSection
+import com.filestech.notes_tech.ui.secure.ProprietesDeFeuilleSecrete
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.settings.DialogueDeChoix
 import com.filestech.notes_tech.ui.theme.Formes
@@ -248,7 +249,11 @@ internal fun AppLockPinSheet(sheet: PinSheetState, onPin: (String) -> Unit, onDi
     val waiting = sheet.waitMillis > 0
     val canType = !sheet.busy && !waiting && sheet.message != PinSheetMessage.UNVERIFIABLE
 
-    ModalBottomSheet(onDismissRequest = { if (!sheet.busy) onDismiss() }, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = { if (!sheet.busy) onDismiss() },
+        sheetState = sheetState,
+        properties = ProprietesDeFeuilleSecrete,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
