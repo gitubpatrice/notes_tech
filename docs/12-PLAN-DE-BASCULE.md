@@ -177,6 +177,10 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
   - une panique interrompue s'achève au lancement suivant ;
   - les fichiers en clair laissés par la 2.x dans le cache sont effacés au premier lancement.
   Les CGU et la politique de confidentialité ont changé (même version 1.2.0 tant que rien n'est publié).
+- **`THIRD_PARTY_NOTICES.md` à refaire** (ajouté le 2026-09-26, relecture juridique du portefeuille) :
+  celui de `notes_tech` décrit les paquets Flutter. Le refaire depuis le `releaseRuntimeClasspath` du
+  portage, licences lues dans les POM publiés, avec le texte BSD de SQLCipher et celui de Protocol
+  Buffers si DataStore l'embarque — comme SMS Tech (PR #47) et Agenda Tech (PR #27) le même jour.
 
 ### Phase 4 — Publication par paliers, du moins risqué au plus risqué
 
