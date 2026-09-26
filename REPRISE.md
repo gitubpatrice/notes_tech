@@ -3,7 +3,42 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-26 (fin d'après-midi) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-26 (soir) — LIRE CECI D'ABORD
+
+> Patrice : « tu peux lancer les agents », « je reviens dans 2 heures », « corrige tout ce qui doit être
+> corrigé ! ». Tout est commité, **rien n'est poussé**. S9 non branché : mesures sur l'émulateur
+> `emu-test-api34` (lancé sans fenêtre, `J:\android-sdk\emulator\emulator.exe -avd emu-test-api34
+> -no-window`).
+
+**L'audit de sécurité est terminé** — rapport définitif **`audits/securite-2026-09-26.md`**. Les 6
+derniers candidats ont eu leur panel réduit (6 agents Sonnet, accord de Patrice) : F1, F2, P2, P3, P4
+retenus FAIBLE ; F3 non retenu (1 vote sur 2, à mesurer). Total : **3 MOYEN, 13 FAIBLE**.
+
+**Tout ce qui devait être corrigé l'est**, un commit par groupe, chacun avec test et contrôle négatif
+(tableau au §9 du rapport) : V1 `30717c4`, K1+K2+P3 `872661c`, P1+P2 `0de0aca`, F2 `3c2bc14`, F1+F4
+`64abe5f`, V2 `0d38ca7`, E1 `ad9315c`, E2 `06172ee`, K4+P4 `ab93bb5` (dire la limite ; chaînes 5
+langues, politique 5 langues), K3+K5 `a3f5733` (documentation).
+
+**Gate du soir** (après le dernier commit) : JVM **421 tests, 49 classes, 0 ignoré, 0 échec** ; lint 0
+erreur (75 avertissements, inchangé) ; ktlint et detekt verts. Suite instrumentée complète sur
+l'émulateur API 34 : **475 tests, 462 réussis, 2 échecs d'hypothèse, 0 ignoré, 11 échecs — tous
+d'environnement** : l'émulateur avait perdu son verrouillage d'écran (redémarré sur instantané), donc
+aucune clé de coffre PIN n'était créable. Code 1111 reposé, les deux classes Keystore rejouées :
+14 tests, 8 échecs d'hypothèse voulus (« software-only Keystore »), 1 échec = le témoin matériel
+`la_cle_creee_est_retenue_par_le_materiel_securise`, attendu sur un émulateur (§156). **À rejouer sur
+le S9**, seul appareil qui exerce le Keystore matériel.
+
+**Reste — des décisions de Patrice, ou du travail identifié :**
+1. **K4** : retirer le mode code sous Android 9 ? (aujourd'hui : la limite est dite au choix du mode et
+   dans la politique.)
+2. **K5** : dire à l'écran qu'un PIN d'app ne se réutilise pas ailleurs ?
+3. Test instrumenté K3 (source Keystore à rendre paramétrable par alias de test).
+4. P2 second volet : panique interrompue entre clé et base → écran d'échec qui dit les notes intactes.
+5. F3 à mesurer ; notes hors constat du §6 du rapport (commentaire R8/Timber, relais d'annulation de
+   `WhisperStt`, `EmojiCompatInitializer`, `<queries> PROCESS_TEXT`, KDoc `SttModelStore`).
+6. Rejouer la suite complète **sur le S9** (seul l'émulateur a tourné ce soir), puis l'audit 3 axes.
+
+## 🎯 ÉTAT AU 2026-09-26 (fin d'après-midi) — section précédente
 
 > Patrice : « consigne tout » (avant un compactage). Tout est commité, **rien n'est poussé**. Il a dit
 > aussi « attention que ça consomme pas trop » : **ne relancer aucun agent sans son accord du moment**
