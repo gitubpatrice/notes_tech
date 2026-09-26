@@ -51,6 +51,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.security.applock.AppLockParams
@@ -83,6 +85,9 @@ fun AppLockSection(snackbars: SnackbarHostState) {
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var delayChooserOpen by rememberSaveable { mutableStateOf(false) }
+
+    // Leaving the app ends a PIN sheet and forgets its proof (audit 2026-09-26, V2).
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onLeftTheApp() }
 
     // Consumed, then shown from the composition's scope: consuming changes this effect's key and
     // cancels it, so a snackbar shown from inside would never appear (SettingsScreen, LigneDExport).

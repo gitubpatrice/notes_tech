@@ -129,6 +129,26 @@ class AppLockSettingsViewModelTest {
     }
 
     @Test
+    @DisplayName("leaving the app at the NEW step closes the sheet and forgets the proof (audit V2)")
+    fun leaving_the_app_forgets_the_proof() = runBlocking {
+        configure()
+        viewModel.onChangePin()
+        type(PIN)
+        assertThat(state.sheet?.step).isEqualTo(PinStep.NEW)
+
+        viewModel.onLeftTheApp()
+
+        assertThat(state.sheet).isNull()
+        // Back in the app, the change starts over from the current PIN.
+        viewModel.onChangePin()
+        assertThat(state.sheet?.step).isEqualTo(PinStep.CURRENT)
+        // A new PIN typed now is checked as the current one — and refused.
+        type("1357")
+        assertThat(state.sheet?.message).isEqualTo(PinSheetMessage.WRONG_PIN)
+        assertThat(state.sheet?.step).isEqualTo(PinStep.CURRENT)
+    }
+
+    @Test
     @DisplayName("a shorter delay is set at once, a longer one only after the PIN")
     fun delay_flow() {
         configure()

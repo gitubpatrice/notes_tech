@@ -125,6 +125,22 @@ class AppLockSettingsViewModel @Inject constructor(
 
     fun onChangePin() = openSheet(PinPurpose.CHANGE_PIN, PinStep.CURRENT)
 
+    /**
+     * 🔴 **The app left the screen: an open sheet closes, and its PIN proof goes with it** — security
+     * audit of 2026-09-26, V2.
+     *
+     * The proof of the current PIN was kept at the NEW step until the sheet itself opened or closed.
+     * With a relock delay, leaving and coming back within it does not lock the app, so whoever picked
+     * up the phone found the sheet asking for a NEW PIN — and changed it without the old one, the
+     * biometric unlock letting the owner in unaware.
+     *
+     * ⚠️ Only when a sheet is open: during the biometric prompt the sheet is already closed, and the
+     * enrolment still needs the proof it was granted.
+     */
+    fun onLeftTheApp() {
+        if (local.value.sheet != null) close(notice = null)
+    }
+
     /** Off needs nothing — it raises protection. On needs the PIN, then a real prompt. */
     fun onToggleBiometric() {
         if (appLock.isBiometricEnabled()) {
