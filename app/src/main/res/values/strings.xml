@@ -414,6 +414,9 @@
     <string name="app_lock_pin_new_title">Choose a PIN</string>
     <string name="app_lock_pin_confirm_title">Confirm the PIN</string>
     <string name="app_lock_pin_new_warning">If you forget this PIN, the only way back into Notes Tech will be to erase all your notes.</string>
+    <!-- Security audit of 2026-09-26, K5: on a seized phone the app PIN can be searched offline; it
+         opens no vault, but a PIN reused as the screen lock's or a card's would fall with it. -->
+    <string name="app_lock_pin_new_not_reused">Choose a PIN you use nowhere else — not your phone\'s, not a card\'s.</string>
 
     <string name="app_lock_enabled">App lock on.</string>
     <string name="app_lock_disabled">App lock off.</string>

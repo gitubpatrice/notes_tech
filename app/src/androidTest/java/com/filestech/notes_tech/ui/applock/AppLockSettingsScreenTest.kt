@@ -160,6 +160,8 @@ class AppLockSettingsScreenTest {
         showSheet()
         rule.onNodeWithText(text(R.string.app_lock_pin_new_title)).assertIsDisplayed()
         rule.onNodeWithText(text(R.string.app_lock_pin_new_warning)).assertIsDisplayed()
+        // Security audit of 2026-09-26, K5: a PIN that can be searched on a seized phone is not reused.
+        rule.onNodeWithText(text(R.string.app_lock_pin_new_not_reused)).assertIsDisplayed()
 
         type("1357")
         rule.onNodeWithText(text(R.string.common_validate)).performClick()

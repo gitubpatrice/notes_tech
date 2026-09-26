@@ -338,6 +338,7 @@
     <string name="app_lock_pin_new_title">Elija un PIN</string>
     <string name="app_lock_pin_confirm_title">Confirme el PIN</string>
     <string name="app_lock_pin_new_warning">Si olvida este PIN, la única forma de volver a Notes Tech será borrar todas sus notas.</string>
+    <string name="app_lock_pin_new_not_reused">Elija un PIN que no use en ningún otro sitio: ni el del teléfono ni el de una tarjeta.</string>
 
     <string name="app_lock_enabled">Bloqueo de la aplicación activado.</string>
     <string name="app_lock_disabled">Bloqueo de la aplicación desactivado.</string>

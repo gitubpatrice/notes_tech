@@ -286,6 +286,12 @@ internal fun AppLockPinSheet(sheet: PinSheetState, onPin: (String) -> Unit, onDi
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
+                // 🔴 Security audit of 2026-09-26, K5: on a seized phone the app PIN can be searched
+                // offline (D-023). It opens no vault; reused elsewhere, it would open that too.
+                Text(
+                    text = stringResource(R.string.app_lock_pin_new_not_reused),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             PointsDeSaisie(
                 saisi = typed,

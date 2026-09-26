@@ -347,6 +347,7 @@
     <string name="app_lock_pin_new_title">Choisissez un PIN</string>
     <string name="app_lock_pin_confirm_title">Confirmez le PIN</string>
     <string name="app_lock_pin_new_warning">Si vous oubliez ce PIN, la seule façon de revenir dans Notes Tech sera d\'effacer toutes vos notes.</string>
+    <string name="app_lock_pin_new_not_reused">Choisissez un PIN que vous n\'utilisez nulle part ailleurs — ni celui du téléphone, ni celui d\'une carte.</string>
 
     <string name="app_lock_enabled">Verrouillage activé.</string>
     <string name="app_lock_disabled">Verrouillage désactivé.</string>

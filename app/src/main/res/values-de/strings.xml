@@ -326,6 +326,7 @@
     <string name="app_lock_pin_new_title">Wählen Sie eine PIN</string>
     <string name="app_lock_pin_confirm_title">PIN bestätigen</string>
     <string name="app_lock_pin_new_warning">Wenn Sie diese PIN vergessen, ist der einzige Weg zurück in Notes Tech, alle Ihre Notizen zu löschen.</string>
+    <string name="app_lock_pin_new_not_reused">Wählen Sie eine PIN, die Sie nirgendwo sonst verwenden – weder die des Telefons noch die einer Karte.</string>
 
     <string name="app_lock_enabled">App-Sperre aktiviert.</string>
     <string name="app_lock_disabled">App-Sperre deaktiviert.</string>

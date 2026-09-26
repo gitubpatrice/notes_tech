@@ -700,8 +700,8 @@ coûte ensuite qu'un HMAC Keystore — le PIN d'app, 4 à 6 chiffres, tombe. Le 
 « coffre » (le scellé d'un coffre à code s'ouvre avant son code, et exige un appareil déverrouillé) :
 reste la valeur du PIN, utile seulement si c'est aussi le code de l'écran. **On ne lie pas la clé** :
 Android la supprimerait au retrait du verrouillage d'écran (D-026), et l'utilisateur serait enfermé
-dehors — même raison que la clé de la base (K3). Aucun écran ne le dit encore ; le dire (« un PIN
-d'app n'est pas un code à réutiliser ailleurs ») est une décision de Patrice, pas un correctif.
+dehors — même raison que la clé de la base (K3). **Dit à l'écran depuis le 2026-09-26 au soir** (Patrice :
+« fais ce qu'il y a de mieux ») : la feuille du nouveau PIN demande un code utilisé nulle part ailleurs.
 
 ## D-024 — Aperçu Markdown : analyseur JetBrains, rendu Compose écrit ici
 

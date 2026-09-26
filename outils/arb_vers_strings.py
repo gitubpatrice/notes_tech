@@ -345,6 +345,9 @@ AJOUTS_EN = {
     <string name="app_lock_pin_new_title">Choose a PIN</string>
     <string name="app_lock_pin_confirm_title">Confirm the PIN</string>
     <string name="app_lock_pin_new_warning">If you forget this PIN, the only way back into Notes Tech will be to erase all your notes.</string>
+    <!-- Security audit of 2026-09-26, K5: on a seized phone the app PIN can be searched offline; it
+         opens no vault, but a PIN reused as the screen lock's or a card's would fall with it. -->
+    <string name="app_lock_pin_new_not_reused">Choose a PIN you use nowhere else — not your phone\\'s, not a card\\'s.</string>
 
     <string name="app_lock_enabled">App lock on.</string>
     <string name="app_lock_disabled">App lock off.</string>
@@ -554,6 +557,7 @@ AJOUTS_FR = {
     <string name="app_lock_pin_new_title">Choisissez un PIN</string>
     <string name="app_lock_pin_confirm_title">Confirmez le PIN</string>
     <string name="app_lock_pin_new_warning">Si vous oubliez ce PIN, la seule façon de revenir dans Notes Tech sera d\\'effacer toutes vos notes.</string>
+    <string name="app_lock_pin_new_not_reused">Choisissez un PIN que vous n\\'utilisez nulle part ailleurs — ni celui du téléphone, ni celui d\\'une carte.</string>
 
     <string name="app_lock_enabled">Verrouillage activé.</string>
     <string name="app_lock_disabled">Verrouillage désactivé.</string>
