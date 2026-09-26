@@ -3,7 +3,34 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🎯 ÉTAT AU 2026-09-25 (fin de soirée) — LIRE CECI D'ABORD
+## 🎯 ÉTAT AU 2026-09-26 (fin d'après-midi) — LIRE CECI D'ABORD
+
+> Patrice : « consigne tout » (avant un compactage). Tout est commité, **rien n'est poussé**. Il a dit
+> aussi « attention que ça consomme pas trop » : **ne relancer aucun agent sans son accord du moment**
+> (il a refusé deux relances de suite ce jour-là).
+
+**L'audit de sécurité est presque fini** : rapport **`audits/securite-2026-09-26.md`** (brouillon
+complet), rapports bruts de chaque agent dans **`audits/securite-2026-09-26-rapports/`** (index et
+décompte des votes : `00-index.md`). Les 5 chercheurs ont rendu ; **11 constats retenus** : MOYEN V1
+(éditeur qui garde le clair après fermeture du coffre), K1 (ancien clair dans l'index FTS5), K4 (coffre à
+code sous Android 7-8.1) ; FAIBLE P1, V2, K2, K3, K5, E1, E2, F4. K3, risque de perte : **écarté**
+(la 3.0.0 rescelle depuis la copie Flutter ; ne JAMAIS retirer cette copie).
+
+**Reste de l'audit** : 6 candidats FAIBLE sans panel complet, à vérifier (une coupure de quota a tué
+leurs vérificateurs, puis Patrice a refusé la relance pour la consommation) : **F1** (copier par la barre
+de sélection : 1 vote vrai FAIBLE), **F3** (première image avant FLAG_SECURE : 1 vote vrai FAIBLE),
+**F2** (feuilles de secret sans FLAG_SECURE), **P2** (ordre de la panique), **P3** (corbeille/suppression :
+FTS5 et pages libres ; SQLCipher compilé sans SECURE_DELETE), **P4** (historique du presse-papiers du
+clavier après panique). Consignes prêtes : `audits/securite-2026-09-26-rapports/01-file-attente.md` et
+les rapports des cellules 3 et 5. Options : un vérificateur économe par candidat (modèle Sonnet
+proposé), ou les vérifier soi-même en lisant les lignes, en le disant dans le rapport. Puis retirer les
+marqueurs `EN ATTENTE` du rapport et le commiter.
+
+**Ensuite** : les correctifs (ordre du §8 du rapport : V1, K1+P3, P1, puis les FAIBLE ; **K4 attend une
+décision de Patrice** : retirer le mode code sous l'API 28 ou dire sa limite, pages légales comprises) ;
+puis l'audit 3 axes, en dernier.
+
+## 🎯 ÉTAT AU 2026-09-25 (fin de soirée) — section précédente
 
 > Patrice : « consigne tout et on reprend demain ». Tout est commité, **rien n'est poussé**.
 

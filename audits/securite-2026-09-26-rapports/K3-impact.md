@@ -1,0 +1,19 @@
+# K3 — angle IMPACT — verdict : FAUX POSITIF (au plus FAIBLE) (reçu 2026-09-26)
+
+**VERDICT : FAUX POSITIF** (angle IMPACT). Si l'orchestrateur retient quelque chose : au plus FAIBLE (durcissement + défaut de documentation), pas MOYEN.
+
+**Exact dans le constat** : clé de la base sans `setUnlockedDeviceRequired` (`KeystoreSealedKekSource.kt:243-251`) ; utilisée à la première installation (`KekRepository.kt:339`) et à la promotion (`:156` → `:227` → `KeystoreSealedKekSource.kt:147`) ; copie `flutter_secure_storage` en place (`DatabaseModule.kt:69`) et relais (`KekRepository.kt:118-133`). « Tous les chemins » non établi : sur le chemin passerelle, la couche ① est liée au déverrouillage (`PariteKeystoreAvecFlutterTest.kt:88`) ; la suite dépend de la clé RSA de la bibliothèque, absente de la copie.
+
+**L'attaquant** : C, code sous l'UID, AFU. Release non débogable (`build.gradle.kts:199`), sauvegarde coupée (`AndroidManifest.xml:47-49`) : seule une compromission de l'OS y mène (prémisse extérieure au dépôt).
+
+**Le gain réel, pas « toute la base »**
+1. Les coffres tiennent : coffre à code lié au déverrouillage (`AndroidVaultKeystore.kt:283`), ouvert avant toute dérivation (`FolderVaultService.kt:360` puis `:373`) ; phrase secrète Argon2id t=3, 64 Mio (`VaultParams.kt:23,26`, `VaultCrypto.kt:69-70`), 8 caractères minimum (`VaultParams.kt:78`) ; titre et contenu dans le blob (`NoteEnvelope.kt:7-14`) ; seuls les titres au format 1 d'un coffre jamais rouvert restent en clair.
+2. C obtient : notes hors coffre, noms de dossiers, matériel enveloppé des coffres à phrase secrète (attaque Argon2id hors ligne que ce mode est conçu pour encaisser, `docs/01-DECISIONS.md:844`).
+3. Ces notes sont celles que le produit déclare sans secret : code (« le facteur d'authentification du produit est le verrouillage de coffre, pas l'ouverture de l'application », `KeystoreSealedKekSource.kt:42-45`) ; utilisateur (« écrites en clair dans la base, sans protection par mot de passe », `values-fr/strings.xml:94,101,159`) ; promesse publique « chiffrée at-rest » seulement (`raw-fr/privacy.md:7,13`), qui reste vraie.
+4. C les a déjà dans une large part des cas : base ouverte tant que le processus vit (`close()` pour les tests seulement, `DatabaseProvider.kt:127-133` ; seule la panique scelle, `PanicService.kt:512`) → clé SQLCipher en mémoire pour un C root ; archives d'export en clair dans `cache/exports` jusqu'au démarrage suivant (`NoteExporter.kt:381-382`) ; la 2.0.x publiée a la même propriété (FSS).
+
+**Pas une garde oubliée** : une clé liée au déverrouillage ne peut pas être créée sans verrouillage d'écran (`VaultErrors.kt:118-125`) et est supprimée quand on le retire (`VaultErrors.kt:83-85`, `docs/04-PIEGES.md:5131-5133`, API 34). Pour une base sans sauvegarde : pas de démarrage sans verrouillage, et toutes les notes perdues sur un geste courant — l'inverse de `KekRepository.kt:13-21` (D-006). Le projet écarte ce même attribut pour le verrou d'app, pour cette raison (`AppLockKeystore.kt:21-27`). D-026 (`docs/01-DECISIONS.md:839-845`) applique la menace C là où la liaison protège un secret court (code 4-6 chiffres) ; la base n'a aucun secret à protéger.
+
+**Documentation — défaut de documentation, pas de sécurité** : `docs/10-PASSERELLE-2.0.4.md:169-170` faux pour la version Kotlin (clé neuve sans l'attribut ; repli FSS) ; aucun code ni promesse publique ne s'y appuie. Le choix n'est pas documenté pour la clé de la base (`KeystoreSealedKekSource.kt:40-45` ne justifie que l'absence de `setUserAuthenticationRequired`). À faire : écrire ce choix, corriger le §5 de `docs/10`. **Ne pas lier la clé.**
+
+**Reliquat assumé** : processus mort, attaquant forensique root AFU lit les notes hors coffre — socle de la plateforme pour des données sans secret, pas une faille du code.

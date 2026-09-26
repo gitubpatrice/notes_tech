@@ -1,5 +1,8 @@
 # Audit de sécurité — état au 2026-09-25, interrompu (à reprendre)
 
+> ✅ **Repris le 2026-09-26** : la suite est dans `audits/securite-2026-09-26.md` (les sept candidats
+> ci-dessous ont été vérifiés et sont tous retenus, K3 ramené à FAIBLE). Ce fichier reste comme trace.
+
 > Lancé le 2026-09-25 au soir (Patrice : « tu peux lancer l'audit sécurité […] si c'est le bon moment »),
 > méthode du skill `audit-securite-mobile`, **palier profond** : 5 chercheurs (un composant × un angle
 > chacun), puis 3 vérificateurs par candidat (ACCESSIBILITÉ / IMPACT / DÉFENSES), un candidat gardé si

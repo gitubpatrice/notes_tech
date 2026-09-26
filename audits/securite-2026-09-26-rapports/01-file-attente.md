@@ -1,0 +1,14 @@
+# File d'attente des vérificateurs (à lancer dès qu'une place se libère, 20 simultanés au plus)
+
+En-tête commun : « Vérification ADVERSE (lecture pure) d'un constat candidat — Notes Tech, portage Kotlin 3.0.0. Par défaut FAUX POSITIF : détruis-le. Tu peux baisser la gravité, jamais la monter. DÉPÔT (copie figée ebee629, lis UNIQUEMENT ici) : ...\scratchpad\audit-ebee629 — code : app\src\main\java\com\filestech\notes_tech\ » ; pied commun : RÈGLES lecture seule / RENDS VERDICT.
+
+- [x] P1 défenses : purge du cache entier au premier lancement ou à la bascule (docs/12-PLAN-DE-BASCULE.md, code de migration, StartupViewModel), `cacheDir` purgé ailleurs, `share_plus/` ou racine du cache visés, `estUnArtefactSensible` hors panique, tâche planifiée.
+- [x] P2 accessibilité : ordre réel des étapes (PanicService.executer ~400-460), portée d'`estUnArtefactSensible` (649-669) vs étapes 6-7 (412, 423-427), comportement au démarrage après interruption à chaque rang (KekRepository, StartupViewModel MISSING_KEY, StartupFailureScreen, strings 545-546), marqueur de panique en cours.
+- [x] P2 impact : qui interrompt et comment (NonCancellable ; arrêt forcé, extinction) ; gain de C = clair hérité (P1) ; message trompeur de l'écran d'échec après panique interrompue.
+- [x] P2 défenses : journal de panique repris au démarrage, purge de la racine du cache au démarrage, ordre garanti (256-267), étapes 6-7 couvrant la racine.
+- [x] P3 accessibilité : `notes_ad`, absence de purge FTS, `PRAGMA secure_delete` absent, options de compilation de libsqlcipher 4.16.0 (cache Gradle, lecture), sous-point `deleteKey` ignoré (FolderVaultService.kt:835, :855 ; AndroidVaultKeystore.kt:124-131 vs :178-197).
+- [x] P3 impact : ce que le détenteur de la clé de la base a déjà (notes vivantes hors coffre) ; gain = texte de notes supprimées « définitivement » ; promesses « effacée définitivement », « irréversible » ; sous-point : clé de coffre survivante + sel/scellé dans les pages libres.
+- [x] P3 défenses : VACUUM, auto_vacuum, secure_delete, optimize/merge FTS, réglages SQLCipher par défaut, troncature du WAL ; reprise de `deleteKey` au démarrage (resumePendingWipes).
+- [x] P4 accessibilité : deux voies de copie (menu : IS_SENSITIVE seulement API 33+ ; barre de sélection : aucune), panique qui ne vide que le clip principal (SensitiveClipboard.kt:330), écran de fin (PanicScreens.kt:267-269, values-fr:368), confirmation (:379), `clairPeutSubsister` (PanicService.kt:228-230) ; historiques des claviers = comportement documenté, à étiqueter.
+- [x] P4 impact : copie faite par l'utilisateur ; historique tenu par un clavier choisi par lui ; ce que A lit après la panique ; défaut de sécurité ou de formulation ?
+- [x] P4 défenses : mention de la limite presse-papiers/clavier dans la confirmation, l'écran de fin, privacy.md, terms.md ; marquage sensible avant l'API 33 ; condition `clairPeutSubsister` couvrant le presse-papiers.
