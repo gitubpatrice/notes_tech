@@ -321,8 +321,8 @@ AJOUTS_EN = {
     <string name="app_lock_not_recorded">This attempt could not be recorded on the device, so the PIN was not checked. Free up some storage space, then try again.</string>
 
     <string name="app_lock_settings_title">App lock</string>
-    <string name="app_lock_settings_toggle">Lock the app with a PIN</string>
-    <string name="app_lock_settings_toggle_subtitle">Asked when you open Notes Tech</string>
+    <string name="app_lock_settings_toggle">Lock the app</string>
+    <string name="app_lock_settings_toggle_subtitle">When Notes Tech opens: a PIN, plus biometrics if you wish</string>
     <string name="app_lock_settings_change_pin">Change PIN</string>
     <string name="app_lock_settings_biometric">Unlock with biometrics</string>
     <string name="app_lock_settings_biometric_subtitle">Fingerprint, or face where the device rates its face unlock as secure</string>
@@ -534,8 +534,8 @@ AJOUTS_FR = {
     <string name="app_lock_not_recorded">Cet essai n\\'a pas pu être enregistré sur l\\'appareil : le PIN n\\'a donc pas été vérifié. Libérez de l\\'espace de stockage, puis réessayez.</string>
 
     <string name="app_lock_settings_title">Verrouillage de l\\'application</string>
-    <string name="app_lock_settings_toggle">Verrouiller l\\'application par PIN</string>
-    <string name="app_lock_settings_toggle_subtitle">Demandé à l\\'ouverture de Notes Tech</string>
+    <string name="app_lock_settings_toggle">Verrouiller l\\'application</string>
+    <string name="app_lock_settings_toggle_subtitle">À l\\'ouverture de Notes Tech : un code PIN, et la biométrie si vous le souhaitez</string>
     <string name="app_lock_settings_change_pin">Changer le PIN</string>
     <string name="app_lock_settings_biometric">Déverrouiller par biométrie</string>
     <string name="app_lock_settings_biometric_subtitle">Empreinte, ou visage si l\\'appareil juge son déverrouillage facial sûr</string>

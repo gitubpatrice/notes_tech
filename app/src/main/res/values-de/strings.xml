@@ -304,8 +304,8 @@
     <string name="app_lock_not_recorded">Dieser Versuch konnte nicht auf dem Gerät gespeichert werden, daher wurde die PIN nicht geprüft. Geben Sie Speicherplatz frei und versuchen Sie es dann erneut.</string>
 
     <string name="app_lock_settings_title">App-Sperre</string>
-    <string name="app_lock_settings_toggle">App mit einer PIN sperren</string>
-    <string name="app_lock_settings_toggle_subtitle">Wird beim Öffnen von Notes Tech abgefragt</string>
+    <string name="app_lock_settings_toggle">App sperren</string>
+    <string name="app_lock_settings_toggle_subtitle">Beim Öffnen von Notes Tech: eine PIN, auf Wunsch auch Biometrie</string>
     <string name="app_lock_settings_change_pin">PIN ändern</string>
     <string name="app_lock_settings_biometric">Mit Biometrie entsperren</string>
     <string name="app_lock_settings_biometric_subtitle">Fingerabdruck oder Gesicht, wenn das Gerät seine Gesichtsentsperrung als sicher einstuft</string>

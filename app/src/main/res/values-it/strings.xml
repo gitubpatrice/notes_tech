@@ -314,8 +314,8 @@
     <string name="app_lock_not_recorded">Non è stato possibile registrare questo tentativo sul dispositivo, quindi il PIN non è stato verificato. Liberi spazio di archiviazione, poi riprovi.</string>
 
     <string name="app_lock_settings_title">Blocco dell\'app</string>
-    <string name="app_lock_settings_toggle">Blocca l\'app con un PIN</string>
-    <string name="app_lock_settings_toggle_subtitle">Richiesto all\'apertura di Notes Tech</string>
+    <string name="app_lock_settings_toggle">Blocca l\'app</string>
+    <string name="app_lock_settings_toggle_subtitle">All\'apertura di Notes Tech: un PIN e, se lo desidera, la biometria</string>
     <string name="app_lock_settings_change_pin">Cambia il PIN</string>
     <string name="app_lock_settings_biometric">Sblocca con la biometria</string>
     <string name="app_lock_settings_biometric_subtitle">Impronta digitale o volto se il dispositivo considera sicuro il suo sblocco con il volto</string>
