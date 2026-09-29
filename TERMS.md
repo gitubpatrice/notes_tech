@@ -6,4 +6,4 @@ The terms of use are the ones displayed in the app (About Notes Tech):
 - Français : [assets/legal/TERMS.fr.md](assets/legal/TERMS.fr.md)
 
 Only that version is maintained, so the repository and the app cannot say
-different things.
+different things. In case of discrepancy, the French version prevails.

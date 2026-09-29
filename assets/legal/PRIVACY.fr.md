@@ -1,6 +1,9 @@
 # Politique de confidentialité — Notes Tech
 
-**Version 1.0.0 — Mai 2026**
+**Version 1.1.0 — Septembre 2026**
+
+> **Version de référence.** En cas de divergence avec la traduction anglaise, c'est cette
+> version française qui fait foi.
 
 ## En une phrase
 

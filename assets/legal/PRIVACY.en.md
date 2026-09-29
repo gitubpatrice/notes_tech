@@ -1,6 +1,9 @@
 # Privacy policy — Notes Tech
 
-**Version 1.0.0 — May 2026**
+**Version 1.1.0 — September 2026**
+
+> This is a translation. **In case of discrepancy, the French version prevails**: the
+> publisher is based in France and the French text is the one he writes and answers for.
 
 ## In one sentence
 
