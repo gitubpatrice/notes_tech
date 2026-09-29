@@ -1,6 +1,9 @@
 # Conditions d'utilisation — Notes Tech
 
-**Version 1.0.0 — Mai 2026**
+**Version 1.1.0 — Septembre 2026**
+
+> **Version de référence.** En cas de divergence avec la traduction anglaise, c'est cette
+> version française qui fait foi.
 
 ## Licence
 
@@ -37,15 +40,15 @@ Toutes vos notes sont stockées **localement et chiffrées** sur votre télépho
 
 ## Mises à jour
 
-Les mises à jour sont distribuées via le dépôt GitHub officiel. Aucune mise à jour automatique : c'est à vous d'installer la nouvelle version.
+Les mises à jour sont publiées sur le dépôt GitHub officiel et sur F-Droid. L'application ne se met jamais à jour d'elle-même et ne vérifie jamais l'existence d'une mise à jour : installer une nouvelle version vous revient, ou revient à votre client F-Droid si vous l'y autorisez.
 
 ## Responsabilité
 
-L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française. En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**.
+L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française. En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**. Rien dans ces conditions ne limite une responsabilité que la loi interdit de limiter.
 
 ## Loi applicable
 
-Conditions soumises au **droit français**. Tribunaux français compétents en cas de litige.
+Conditions soumises au **droit français**, sans préjudice des règles impératives de protection des consommateurs de votre pays de résidence. Lorsque la loi le permet, les tribunaux français sont compétents en cas de litige.
 
 ## Contact
 

@@ -313,10 +313,18 @@ Notes Tech v1.0 introduit plusieurs durcissements sécurité :
   sqflite. Les règles MediaPipe / ONNX / flutter_gemma sont devenues
   sans objet avec le retrait de l'IA embarquée (v2.0.0).
 
+## Versions prises en charge
+
+Seule la **dernière version publiée** reçoit les correctifs de sécurité : l'application n'a
+aucun accès réseau et ne se met jamais à jour seule, un correctif n'est donc livré que dans une
+nouvelle version.
+
 ## Signaler une vulnérabilité
 
 Si vous pensez avoir trouvé un problème de sécurité dans Notes Tech,
-merci de **ne pas ouvrir d'issue GitHub publique**. Écrivez plutôt à :
+merci de **ne pas ouvrir d'issue GitHub publique**. Utilisez le signalement privé de
+GitHub — onglet *Security* du dépôt, puis *Report a vulnerability*
+(https://github.com/gitubpatrice/notes_tech/security/advisories/new) — ou écrivez à :
 
 📧 **contact@files-tech.com**
 

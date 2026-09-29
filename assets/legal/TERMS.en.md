@@ -1,6 +1,9 @@
 # Terms of use — Notes Tech
 
-**Version 1.0.0 — May 2026**
+**Version 1.1.0 — September 2026**
+
+> This is a translation. **In case of discrepancy, the French version prevails**: the
+> publisher is based in France and these terms are governed by French law.
 
 ## License
 
@@ -37,15 +40,15 @@ All your notes are stored **locally and encrypted** on your phone (see the **Pri
 
 ## Updates
 
-Updates are distributed via the official GitHub repository. No auto-update: it is up to you to install the new version.
+Updates are published on the official GitHub repository and on F-Droid. The app never updates itself and never checks for updates: installing a new version is up to you, or to your F-Droid client if you let it.
 
 ## Liability
 
-The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law. In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe or an uninstall is the sole responsibility of the user**.
+The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law. In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe or an uninstall is the sole responsibility of the user**. Nothing in these terms limits a liability that the law does not allow to be limited.
 
 ## Governing law
 
-Terms governed by **French law**. French courts have jurisdiction in case of dispute.
+Terms governed by **French law**, without prejudice to the mandatory consumer-protection rules of your country of residence. Where the law allows it, French courts have jurisdiction in case of dispute.
 
 ## Contact
 
