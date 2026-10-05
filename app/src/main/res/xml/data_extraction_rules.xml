@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rien ne sort de l'appareil, ni par sauvegarde cloud, ni par transfert d'appareil à appareil.
+
+  Ce n'est pas de la prudence excessive : la base est chiffrée par une clé scellée dans le Keystore
+  de l'appareil, qui n'est pas exportable par construction. Un fichier restauré ailleurs serait
+  illisible — donc une sauvegarde autorisée produirait une promesse fausse, ce qui est pire que
+  pas de sauvegarde du tout.
+
+  La sortie de secours de l'utilisateur est l'export Markdown / ZIP, qu'il déclenche lui-même et
+  dont il choisit la destination.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

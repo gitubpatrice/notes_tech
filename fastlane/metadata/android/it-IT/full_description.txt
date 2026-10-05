@@ -1,0 +1,39 @@
+Notes Tech: note Markdown 100% locali, cifrate a riposo. Scritta in Kotlin.
+
+<b>Privacy radicale</b>
+• Nessun permesso INTERNET — verificabile con <code>aapt dump permissions app.apk</code>
+• Nessun account, nessuna telemetria, nessun tracker, nessuna pubblicità
+• Database SQLCipher AES-256, chiave sigillata dal Keystore Android
+• Modalità panico in più fasi: cancella chiavi, database e modello di dettatura in pochi secondi
+• Blocco dell'app facoltativo: un PIN, e la biometria forte se lo desidera
+
+<b>Casseforti per cartella</b>
+• Passphrase Argon2id (m=64MB, t=3) o PIN legato al Keystore (Android 9 e successivi)
+• AES-256-GCM per nota, legata alla sua nota (anti-scambio)
+• Cancellazione automatica dopo 5 PIN errati
+• Blocco automatico regolabile (da 5 min a mai)
+
+<b>Dettatura vocale sul dispositivo</b>
+• whisper.cpp integrato nell'app; modello Whisper importato a mano
+• SHA-256 verificato all'importazione e prima del caricamento
+• Registrazioni eliminate dopo la trascrizione
+
+<b>Modifica</b>
+• Markdown con interruttore Modifica / Anteprima (titoli, elenchi, link), salvataggio automatico
+• Collegamenti inversi <code>[[Titolo]]</code> con completamento automatico e pannello «note che rimandano qui»
+• Ricerca FTS5 istantanea, ordinamento regolabile
+• Esportazione Markdown, di una nota o in ZIP (frontmatter YAML compatibile con Obsidian/Logseq)
+
+<b>Cinque lingue</b>
+• Inglese, francese, tedesco, italiano, spagnolo — a scelta nelle Impostazioni
+• Tema chiaro / scuro / di sistema
+• Informativa sulla privacy e condizioni nelle cinque lingue
+
+<b>Permessi</b>
+• Microfono: solo per la dettatura, richiesto quando la attiva
+• Biometria: solo per il blocco dell'app, non dà accesso ad alcun dato
+
+<b>Open source Apache 2.0</b>
+Codice sorgente completo e verificabile su GitHub: gitubpatrice/notes_tech
+
+Per pensatori, terapeuti, studenti, ricercatori, scrittori e giornalisti che vogliono prendere note sensibili o dense senza che lascino mai il loro telefono.

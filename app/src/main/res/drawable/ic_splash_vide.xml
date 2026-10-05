@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icône VIDE, et c'est tout son objet.
+
+  L'écran de démarrage rétroporté par `androidx.core:core-splashscreen` affiche l'icône de
+  l'application par défaut. Sur un appareil antérieur à Android 12, cela produisait DEUX écrans de
+  présentation à la suite : l'icône du système, puis l'écran de marque Files Tech avec le même logo
+  qui rejoue son animation. Relevé par Patrice sur le S9 le 2026-08-15.
+
+  L'application publiée n'a rien de tel : son `launch_background.xml` est un aplat, le bitmap y est
+  commenté. Sur Android 10, elle ne montre donc qu'un seul écran de présentation, celui de la marque.
+
+  Pointer l'icône animée sur ce vecteur transparent rend la fenêtre d'amorçage à ce qu'elle doit
+  être — un aplat qui couvre l'ouverture de la base — et laisse l'animation de marque être la seule
+  qu'on voie.
+
+  ⚠️ À partir d'Android 12, le système impose son écran de démarrage et l'application publiée en
+  reçoit un aussi. L'écart ne portait que sur les API 24 à 30, celles que le rétroportage couvre.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1dp"
+    android:height="1dp"
+    android:viewportWidth="1"
+    android:viewportHeight="1">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M0,0h1v1h-1z" />
+</vector>

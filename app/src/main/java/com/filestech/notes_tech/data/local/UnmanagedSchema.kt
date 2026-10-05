@@ -1,0 +1,224 @@
+package com.filestech.notes_tech.data.local
+
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.filestech.notes_tech.domain.model.Folder
+
+/**
+ * Tout ce que Room **ne gère pas** dans la base héritée, en un seul endroit.
+ *
+ * Room possède `folders` et `notes` — deux tables ordinaires, avec clé primaire, qu'il sait
+ * décrire et valider. Le reste du schéma lui échappe pour des raisons **structurelles**, pas par
+ * commodité :
+ *
+ * ### `notes_fts` — table virtuelle FTS5
+ *
+ * Room ne sait annoter que du FTS**4** (`@Fts4`). Déclarer cette table comme entité produirait une
+ * table FTS4, incompatible avec l'index existant. Elle est donc créée en SQL brut et interrogée
+ * par `@RawQuery`.
+ *
+ * ### Les trois triggers
+ *
+ * Room n'a aucune notion de trigger. Ceux-ci maintiennent l'index FTS5 en phase avec `notes`, et
+ * masquent titre/contenu/étiquettes des notes verrouillées.
+ *
+ * ### `note_links` — **pas de clé primaire**
+ *
+ * La table héritée n'en déclare aucune (`docs/02-SCHEMA-HERITE.md` §3). Or `@Entity` en exige une,
+ * et la validation de schéma de Room compare les clés primaires : déclarer une clé qui n'existe
+ * pas dans la base ferait échouer l'ouverture chez tous les utilisateurs.
+ *
+ * Les deux échappatoires ont été écartées :
+ *
+ * - *Ajouter la clé primaire par migration.* Ce serait modifier le schéma d'une base en
+ *   production pour le confort de l'outillage. Surtout, ça casserait une propriété qu'on veut
+ *   garder pendant toute la transition : **une base ouverte par cette application reste lisible
+ *   par la version Flutter.** Room n'incrémente pas `user_version` et se contente d'ajouter sa
+ *   `room_master_table`, que sqflite ignore. Un utilisateur peut donc revenir en arrière. Une
+ *   table recréée retirerait ce filet.
+ * - *Mapper le `rowid` implicite.* `PRAGMA table_info` ne le renvoie pas, donc la validation
+ *   verrait une colonne attendue de plus que trouvée.
+ *
+ * Conséquence assumée : les lectures de `note_links` passent par `@RawQuery` avec
+ * `observedEntities = [NoteEntity::class]`. Ce n'est pas un contournement de la réactivité mais sa
+ * description exacte — les liens sont **dérivés** du contenu des notes et ne changent jamais sans
+ * qu'une note change.
+ */
+internal object UnmanagedSchema {
+
+    // ── Table des liens ──────────────────────────────────────────────────────
+
+    private const val CREATE_NOTE_LINKS = """
+        CREATE TABLE IF NOT EXISTS note_links (
+          source_id          TEXT NOT NULL,
+          target_id          TEXT,
+          target_title       TEXT NOT NULL,
+          target_title_norm  TEXT NOT NULL,
+          position           INTEGER NOT NULL,
+          FOREIGN KEY (source_id) REFERENCES notes(id) ON DELETE CASCADE,
+          FOREIGN KEY (target_id) REFERENCES notes(id) ON DELETE SET NULL
+        )
+    """
+
+    private val CREATE_NOTE_LINKS_INDICES = listOf(
+        "CREATE INDEX IF NOT EXISTS idx_links_source ON note_links(source_id)",
+        "CREATE INDEX IF NOT EXISTS idx_links_target ON note_links(target_id)",
+        "CREATE INDEX IF NOT EXISTS idx_links_target_norm ON note_links(target_title_norm)",
+    )
+
+    // ── Index plein texte ────────────────────────────────────────────────────
+
+    /**
+     * `content='notes'` + `content_rowid='rowid'` : index à **contenu externe**. FTS5 ne stocke
+     * pas une copie du texte, il pointe vers `notes` par `rowid` — d'où la règle absolue de ne
+     * jamais changer un `rowid` (`docs/04-PIEGES.md` §1).
+     *
+     * `remove_diacritics 2` est la variante qui traite correctement les caractères composés :
+     * indispensable pour du français, et **non négociable** — la changer invaliderait
+     * silencieusement l'index existant, qui continuerait de répondre, mais faux.
+     */
+    private const val CREATE_FTS = """
+        CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
+          title,
+          content,
+          tags,
+          content='notes',
+          content_rowid='rowid',
+          tokenize='unicode61 remove_diacritics 2'
+        )
+    """
+
+    /**
+     * Expression réutilisée par les trois triggers : une note verrouillée n'expose **rien** à
+     * l'index.
+     *
+     * Avant la v1.0.3 côté Flutter, seul `content` était vidé au verrouillage — une recherche sur
+     * le **titre** ressortait quand même la note. Le masquage porte donc sur les trois colonnes.
+     */
+    private fun masked(alias: String, column: String) =
+        "CASE WHEN $alias.encrypted_content IS NOT NULL THEN '' ELSE $alias.$column END"
+
+    private fun ftsRow(alias: String) =
+        "${masked(alias, "title")}, ${masked(alias, "content")}, ${masked(alias, "tags")}"
+
+    private val CREATE_TRIGGERS = listOf(
+        """
+        CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+          INSERT INTO notes_fts(rowid, title, content, tags)
+          VALUES (new.rowid, ${ftsRow("new")});
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+          INSERT INTO notes_fts(notes_fts, rowid, title, content, tags)
+          VALUES ('delete', old.rowid, ${ftsRow("old")});
+        END
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+          INSERT INTO notes_fts(notes_fts, rowid, title, content, tags)
+          VALUES ('delete', old.rowid, ${ftsRow("old")});
+          INSERT INTO notes_fts(rowid, title, content, tags)
+          VALUES (new.rowid, ${ftsRow("new")});
+        END
+        """,
+    )
+
+    /**
+     * Crée ce que Room ne crée pas. Appelé **uniquement** sur une base neuve
+     * (`RoomDatabase.Callback.onCreate`).
+     *
+     * Les `IF NOT EXISTS` ne sont pas de la superstition : ils rendent l'appel rejouable, ce qui
+     * compte si la création est interrompue entre deux instructions.
+     */
+    fun createOnFreshDatabase(db: SupportSQLiteDatabase) {
+        db.execSQL(CREATE_NOTE_LINKS)
+        CREATE_NOTE_LINKS_INDICES.forEach(db::execSQL)
+        db.execSQL(CREATE_FTS)
+        CREATE_TRIGGERS.forEach(db::execSQL)
+    }
+
+    /**
+     * 🔴 **A deleted text leaves the full-text index for good** — security audit of 2026-09-26, K1 and
+     * P3. Called at every opening; does its work once.
+     *
+     * The triggers pass `'delete'` with the old values, and FTS5 then only writes a delete marker:
+     * the terms and their positions (enough to rebuild the text) stayed in `notes_fts_data` until a
+     * merge that nothing ever asks for. That kept the plaintext of every note put in a vault — the
+     * triggers index `''` from then on — and of every note deleted "permanently", readable by whoever
+     * opens the database with its key. The FTS5 option `secure-delete` (SQLite 3.42) removes the
+     * entries themselves; it is stored in `notes_fts_config`, so it is set once, and one `optimize`
+     * then merges away what the markers had left.
+     *
+     * ⚠️ **Never `rebuild`**: it rereads the raw columns of `notes` and would index the format 1
+     * titles and the tags of locked notes, which the triggers mask.
+     *
+     * ⚠️ The table then needs FTS5 3.42 or later to be written — no older build opens this database.
+     */
+    fun ensureSecureDeleteInFullTextIndex(db: SupportSQLiteDatabase) {
+        val dejaPose = db.query("SELECT v FROM notes_fts_config WHERE k = 'secure-delete'").use { curseur ->
+            curseur.moveToFirst() && curseur.getInt(0) == 1
+        }
+        if (dejaPose) return
+        db.beginTransaction()
+        try {
+            db.execSQL("INSERT INTO notes_fts(notes_fts, rank) VALUES ('secure-delete', 1)")
+            db.execSQL("INSERT INTO notes_fts(notes_fts) VALUES ('optimize')")
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        // The old segments are now free pages (zeroed by `secure_delete`, cf. `NotesDatabase`), but
+        // their frames are still in the write-ahead log: truncate it once.
+        db.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
+    }
+
+    /**
+     * No link leaves a sealed note, and none resolves to one — the rule of `NoteLinkWriter.
+     * detachSealedNote`, applied to what the vault's bulk gestures wrote before they followed it
+     * (audit 2026-09-26, K1 and K2). Idempotent; with nothing to repair it writes nothing.
+     */
+    fun detachSealedNotesFromLinks(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "DELETE FROM note_links " +
+                "WHERE source_id IN (SELECT id FROM notes WHERE encrypted_content IS NOT NULL)",
+        )
+        db.execSQL(
+            "UPDATE note_links SET target_id = NULL " +
+                "WHERE target_id IN (SELECT id FROM notes WHERE encrypted_content IS NOT NULL)",
+        )
+    }
+
+    /**
+     * Garantit l'existence du dossier racine, à **chaque** ouverture.
+     *
+     * `INSERT OR IGNORE`, donc idempotent, et surtout non destructif : un utilisateur qui a
+     * renommé sa boîte de réception garde son libellé. Le nom posé ici n'est utilisé qu'à la
+     * toute première création.
+     *
+     * Since 2026-09-24 it is "Inbox", like notes_tech 2.0.9 (`database.dart:895`), which stopped
+     * seeding "Boîte de réception" on English phones. The name on disk is never shown as such: the
+     * interface translates a default inbox name at display time (`Folder.isDefaultInboxName`).
+     *
+     * ⚠️ `INSERT OR IGNORE` et non `INSERT OR REPLACE` : `REPLACE` remplacerait la ligne, donc
+     * changerait son `rowid`, donc supprimerait en cascade toutes les notes de la boîte de
+     * réception. Cf. `docs/04-PIEGES.md` §1.
+     */
+    fun ensureInboxFolder(db: SupportSQLiteDatabase, nowMillis: Long) {
+        db.execSQL(
+            """
+            INSERT OR IGNORE INTO folders
+              (id, name, parent_id, color, icon, created_at, updated_at, vault_attempts)
+            VALUES (?, ?, NULL, NULL, ?, ?, ?, 0)
+            """,
+            // `arrayOf<Any?>` explicite : sans le paramètre de type, Kotlin infère le supertype
+            // commun de String et Long — une intersection réifiée que le compilateur refuse.
+            arrayOf<Any?>(INBOX_ID, INBOX_DEFAULT_NAME, INBOX_ICON, nowMillis, nowMillis),
+        )
+    }
+
+    private const val INBOX_ID = "inbox"
+    private const val INBOX_ICON = "inbox"
+
+    /** The seed — shared with the domain rule, so the name written is one the rule recognises. */
+    private const val INBOX_DEFAULT_NAME = Folder.INBOX_DEFAULT_NAME
+}

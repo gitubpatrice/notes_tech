@@ -1,0 +1,29 @@
+# Vecteurs de parite des coffres -- produits en EXECUTANT le vrai code Dart de
+# Notes Tech 2.0.3 (paquet `cryptography` 2.9.0), puis recoupes contre une
+# troisieme implantation independante (argon2-cffi = C de reference, et
+# `cryptography` Python = OpenSSL). 37 concordances, 0 divergence.
+# Procedure et limites : docs/09-VECTEURS-DE-PARITE.md.
+# NE PAS EDITER A LA MAIN. Tout champ textuel est en hexadecimal UTF-8.
+# 
+# Parallelisme 1 et longueur de sortie 32 octets dans TOUS les cas -- ils ne sont
+# donc pas en colonne. Version Argon2 = 0x13 (19).
+# Les cas `accents_precomposes` et `accents_decomposes` portent la MEME chaine
+# percue, ecrite en NFC puis en NFD : leurs cles different, et c'est la preuve
+# qu'aucune normalisation Unicode ne doit s'immiscer cote Kotlin.
+# variante	cas	motDePasseUtf8Hex	selHex	iterations	memoireKio	kekHex
+passphrase	ascii/incremental	636f727265637420686f727365206261747465727920737461706c65	000102030405060708090a0b0c0d0e0f	3	65536	0d1a3c6523c8f06e4e0af9c515aa5b5448cfebd6838f2d52c3d8b6ef8ddc3c2e
+passphrase	ascii/tout_a_ff	636f727265637420686f727365206261747465727920737461706c65	ffffffffffffffffffffffffffffffff	3	65536	168aa26f89b656d51fcf05126d4d15fe48939848244ebc5636ab7732f94fb479
+passphrase	accents_precomposes/incremental	636166c3a92070617373c3a920c3a974c3a9	000102030405060708090a0b0c0d0e0f	3	65536	912657ef68589ef49eea0e497ad61f05f659986cddf0ad1bd254707e402ede44
+passphrase	accents_precomposes/tout_a_ff	636166c3a92070617373c3a920c3a974c3a9	ffffffffffffffffffffffffffffffff	3	65536	33e675d43a7eb4cd17b2fde505662b968aa37b86e49c7684ef0057f3f6575ba6
+passphrase	accents_decomposes/incremental	63616665cc81207061737365cc812065cc817465cc81	000102030405060708090a0b0c0d0e0f	3	65536	f6b5e03777bd8ee7b88a8ca3cccce81b343f6e8a201d18e12ed58cf2842d3128
+passphrase	accents_decomposes/tout_a_ff	63616665cc81207061737365cc812065cc817465cc81	ffffffffffffffffffffffffffffffff	3	65536	f6bc63a2c1b88fd1aa2c8720ad30ec9178c1ca437c10854a8e17bd607d690b4e
+passphrase	hors_bmp/incremental	636cc3a920f09f949020e697a5e69cace8aa9e	000102030405060708090a0b0c0d0e0f	3	65536	6b65010b29dd58e9b655f5044aa6dde6abf3ebdd8a9e9182c363a1f376b5deb1
+passphrase	hors_bmp/tout_a_ff	636cc3a920f09f949020e697a5e69cace8aa9e	ffffffffffffffffffffffffffffffff	3	65536	ab7c2ebbeb0a464ad9302f4d41e4bc9d6b7ab4391e8fb20a31d9184c1942bd03
+passphrase	longueur_minimale/incremental	3132333435363738	000102030405060708090a0b0c0d0e0f	3	65536	8eb2dab3a7817da77e16287fe1465231dc344c34127bbc57eb5dffaa8ab39d32
+passphrase	longueur_minimale/tout_a_ff	3132333435363738	ffffffffffffffffffffffffffffffff	3	65536	89bdaf95c3c8de752cf513b60868e56715727b10be16130754009dd0fd903379
+passphrase	espaces_aux_bords/incremental	2020657370616365732020	000102030405060708090a0b0c0d0e0f	3	65536	c0523534c6b7ebef59ea9ee057d83355a80c20724093524c25dcbe73f2929b15
+passphrase	espaces_aux_bords/tout_a_ff	2020657370616365732020	ffffffffffffffffffffffffffffffff	3	65536	b3d7d1a68f6d1d4a1783a1fb49b6353542994d246c8fabcbda49b1d30849d0ff
+pin	pin_0000	30303030	000102030405060708090a0b0c0d0e0f	2	32768	4b9444b80b965d73a846a536a54808bf80f275a23c8ec110c9fcec8e91c1ee2f
+pin	pin_123456	313233343536	000102030405060708090a0b0c0d0e0f	2	32768	61cf051d92b016deb44e68004478746d27b6b08eacd41832608490f2bd5010e9
+pin	pin_9182	39313832	000102030405060708090a0b0c0d0e0f	2	32768	cf221e976e503ca87408b7516414906850f32e1b9c27b7a6880117ca67cf96b9
+pin	pin_4444	34343434	000102030405060708090a0b0c0d0e0f	2	32768	969ed70a2c904ecb413454014e73443cc4ff0b8f9426606dbeae73774d1850a6

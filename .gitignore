@@ -1,71 +1,31 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
 *.iml
-*.ipr
-*.iws
-.idea/
+.gradle/
+.kotlin/
+/.idea/
+.DS_Store
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# `build/` et non `/build` : la barre en tête n'ancrerait la règle qu'à la racine, laissant
+# `app/build/` suivi. Ce n'est pas cosmétique — le premier commit a été refusé par Git sur un
+# chemin de classe généré trop long pour Windows, et les artefacts de build n'ont de toute façon
+# rien à faire dans l'historique.
+build/
+captures/
+.externalNativeBuild
+.cxx
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
+# Chemin du SDK Android, propre au poste.
+local.properties
 
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Signing — ne JAMAIS committer
-android/key.properties
-android/app/keystore.jks
-android/app/*.jks
-android/app/*.keystore
-build/symbols/
+# ⚠️ Secrets de signature — ne JAMAIS committer. Signer avec une autre clé que celle de
+# `notes_tech` romprait le chemin de mise à jour de toutes les installations existantes, et une
+# clé publiée est une clé compromise, sans recours.
+keystore.properties
+*.jks
+*.keystore
 *.p12
+*.pem
 
-# OS
-Thumbs.db
-
-# Modèles IA externes (trop volumineux pour Git)
-*.task
-*.tflite
-assets/models/gemma*
-assets/models/*.task
-
-
-# Variables d'environnement (jamais commiter)
-.env
-.env.local
-
-# Artefacts de build Gradle — commites par erreur le 2026-08-07
-# (un `git add -A android/` les avait embarques).
-android/build/
+# ℹ️ `app/schemas/` est VOLONTAIREMENT suivi. C'est le schéma que Room attend, exporté par KSP :
+# il sert de témoin, et `audits/verifier-schema-room-vs-flutter.py` le compare au DDL hérité à
+# chaque passage de CI. L'ignorer priverait la revue du seul artefact qui prouve que les entités
+# décrivent encore la base des utilisateurs.

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Fond de l'icône adaptative — repris à l'identique de la version Flutter
+      (`notes_tech/android/app/src/main/res/values/colors.xml`). L'icône est copiée telle quelle :
+      un portage change l'implémentation, pas l'identité visuelle du produit.
+    -->
+    <color name="ic_launcher_background">#262660</color>
+
+    <!--
+      Fond de la fenêtre d'amorçage — **le fond de l'application, pas celui de l'icône**.
+
+      🔴 Il valait la teinte de l'icône (#262660). Enchaîné avec l'écran de présentation de la
+      marque, qui est posé sur `surface`, cela donnait une rupture franche : un aplat bleu, puis un
+      fond clair. Patrice l'a décrit le 2026-08-15 — « le 1er sur fond bleu avec le logo, ensuite le
+      mien sur fond blanc ».
+
+      L'application publiée n'a pas ce défaut : sa fenêtre d'amorçage est un aplat blanc
+      (`launch_background.xml`), de la même couleur que l'écran qui suit. La transition ne se voit
+      pas, ce qui est tout l'objet d'une fenêtre d'amorçage.
+
+      ⚠️ Écart assumé avec la version Flutter, et dans le bon sens : elle affiche du **blanc même en
+      thème sombre**, son `values-night/styles.xml` pointant sur le même dessin blanc. Ici, le fond
+      sombre est déclaré dans `values-night` — un éclair blanc à l'ouverture, sur une application
+      qu'on ouvre la nuit, n'est pas une identité de marque à reproduire.
+    -->
+    <color name="splash_background">#FFFFFF</color>
+</resources>

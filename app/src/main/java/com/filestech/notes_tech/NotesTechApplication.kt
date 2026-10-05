@@ -1,0 +1,122 @@
+package com.filestech.notes_tech
+
+import android.app.Application
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
+import com.filestech.notes_tech.data.export.NoteExporter
+import com.filestech.notes_tech.data.voice.VoiceCapture
+import com.filestech.notes_tech.di.ApplicationScope
+import com.filestech.notes_tech.security.panic.ClairDuCache
+import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.security.vault.VaultAutoLocker
+import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import javax.inject.Inject
+
+@HiltAndroidApp
+class NotesTechApplication : Application() {
+
+    @Inject
+    lateinit var autoLocker: VaultAutoLocker
+
+    @Inject
+    lateinit var vaults: FolderVaultService
+
+    /**
+     * La portée du processus, **injectée**.
+     *
+     * ⚠️ Elle était construite ici, en local. L'éditeur en a désormais besoin pour que son
+     * enregistrement final survive à la fermeture de l'écran : deux portées applicatives auraient
+     * fait deux durées de vie pour une même notion, et personne n'aurait su laquelle protège quoi.
+     * Cf. `di/ApplicationScope.kt`.
+     */
+    @Inject
+    @ApplicationScope
+    lateinit var applicationScope: CoroutineScope
+
+    override fun onCreate() {
+        super.onCreate()
+        if (BuildConfig.LOG_ENABLED) {
+            Timber.plant(Timber.DebugTree())
+        }
+        // Aucun arbre planté en release, et c'est délibéré : une application dont l'argument est
+        // que rien ne sort de l'appareil n'a pas à écrire le contenu des notes dans `logcat`, que
+        // n'importe quelle application disposant de la permission peut lire sur un appareil rooté.
+        //
+        // ⚠️ Corrected on 2026-09-26 (security audit, note of cell 5): R8 does NOT remove the Timber
+        // calls — no rule does. This missing tree is the only thing that keeps release silent.
+
+        autoLocker.start(applicationScope)
+        observerLeCycleDeVieDuProcessus()
+
+        // 🔴 Les archives d'export sont du CLAIR sur le disque, coffres ouverts compris. Elles ne
+        // doivent pas survivre à la session qui les a produites : rien dans le partage Android ne
+        // dit quand le destinataire a fini de lire, donc le seul moment sûr pour effacer est le
+        // démarrage suivant. Geste synchrone et minuscule — une suppression de répertoire — pour
+        // qu'il soit fait avant que quoi que ce soit puisse ouvrir l'écran des réglages.
+        NoteExporter.purgerLesArchives(this)
+
+        // 🔴 Et les enregistrements de dictée, pour la MÊME raison et par le MÊME genre de chemin :
+        // un fichier WAV porte la voix de l'utilisateur, donc le contenu de sa note. Il devrait
+        // disparaître dès la transcription obtenue ; ce geste-ci rattrape le cas où l'application a
+        // été tuée entre les deux, où il n'y a personne pour effacer.
+        VoiceCapture.purgerLesCaptures(this)
+
+        // 🔴 And what the app replaced here left in the same cache (security audit of 2026-09-26,
+        // P1): the `share_plus/` copy of the last export of 2.x — every note, the open vaults'
+        // included — a note exported alone, a dictation. 3.x never purged it outside a panic, and
+        // never shares through share_plus: nothing else would ever have emptied it. The definition
+        // is the panic's own, so the two cannot disagree on what plaintext is.
+        // ⚠️ A count, never a name: a file name here can be a note title.
+        ClairDuCache.purger(this).size.takeIf { it > 0 }?.let { Timber.w("cache : %d clair(s) survivant(s)", it) }
+
+        // 🔴 Reprise des effacements de coffre interrompus, **au démarrage et une seule fois**.
+        //
+        // Un effacement déclenché par cinq codes faux touche le Keystore, la base et les
+        // préférences : aucune transaction ne couvre les trois. Si l'application est tuée en cours
+        // de route, le dossier reste un coffre dont plus aucune clé n'ouvre les notes, et rien ne
+        // le signale. Le drapeau posé avant le premier geste est la seule trace, et c'est ici qu'on
+        // la relit.
+        //
+        // Lancé sans bloquer le démarrage : la reprise est du rattrapage, pas un préalable à
+        // l'affichage. Un échec n'empêche aucun lancement — le drapeau, lui, est conservé et la
+        // reprise sera retentée au démarrage suivant.
+        //
+        // ⚠️ **Pas de `runCatching` ici**, qui attraperait aussi l'annulation et la transformerait
+        // en « ça a raté » — cf. `docs/04-PIEGES.md` §8. La portée n'est jamais annulée
+        // aujourd'hui, mais une règle qui ne tient que tant que personne ne touche à la portée
+        // n'est pas une règle.
+        applicationScope.launch {
+            try {
+                vaults.resumePendingWipes()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "reprise des effacements de coffre interrompue")
+            }
+        }
+    }
+
+    /**
+     * Verrouille tous les coffres dès que l'application passe en arrière-plan.
+     *
+     * ⚠️ **C'est la protection principale, pas le délai d'inactivité.** Le verrouillage automatique
+     * couvre l'utilisateur qui laisse l'application ouverte ; celui-ci couvre l'aperçu des
+     * applications récentes, le prêt du téléphone, et la fouille. Les deux sont nécessaires, et
+     * c'est celui-ci qui répond au modèle de menace annoncé — quelqu'un qui voit l'appareil
+     * déverrouillé ne doit pas trouver un coffre ouvert.
+     */
+    private fun observerLeCycleDeVieDuProcessus() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStop(owner: LifecycleOwner) {
+                    vaults.lockAll()
+                }
+            },
+        )
+    }
+}
