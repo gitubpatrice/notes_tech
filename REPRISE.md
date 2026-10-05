@@ -21,10 +21,8 @@ La 3.0.0 est publiée et vérifiée (section suivante). Ce qui restait en cours 
   **ENTIÈREMENT VERT sur `167d8a6`** (build, 425/0/0, lint, detekt, ktlint, compilation androidTest, schéma Room) ; reste la CI GitHub, pour la forme. Pour le gate, si besoin
   (`./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
   :app:compileDebugAndroidTestKotlin`, puis `python audits/verifier-schema-room-vs-flutter.py`).
-- **`THIRD_PARTY_NOTICES.md` est périmé** depuis ces fusions : il cite Room 2.8.4, Kotlin 2.3.20, Bouncy
-  Castle 1.81. Le refaire depuis `:app:dependencies --configuration releaseRuntimeClasspath` (versions
-  ET liste : splashscreen est passé en 1.2.0) ; vérifier aussi l'écran des avis tiers de l'app s'il
-  cite des versions.
+- ✅ **`THIRD_PARTY_NOTICES.md` remis à jour** le soir même (Room 2.8.5, Kotlin 2.3.21, Bouncy Castle 1.86, relu
+  dans le classpath release ; licence BC inchangée) ; l'app ne cite aucune version.
 - **Dependabot** : #21 (JUnit 5.14.4) et #22 (truth 1.4.5) — « @dependabot rebase » demandé ; les fusionner
   quand leur CI est verte, sur un « fusionne » de Patrice (le classifieur l'exige, PR par PR).
 - **F-Droid `!51297`** : pipeline 12/12 vert, attend la revue de linsui. Après fusion par F-Droid,
