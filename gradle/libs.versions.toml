@@ -51,7 +51,7 @@ desugar = "2.1.5"
 # Tests
 junit5 = "5.11.3"
 mockk = "1.14.11"
-turbine = "1.2.0"
+turbine = "1.2.1"
 truth = "1.4.4"
 androidx-test-ext = "1.2.1"
 androidx-test-runner = "1.6.2"
