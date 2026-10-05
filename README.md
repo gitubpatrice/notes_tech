@@ -101,7 +101,7 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 
 ### Whisper voice dictation
 - **whisper.cpp 1.8.3**, compiled into the app from source and run on the device.
-- Whisper Base q5_1 (about 60 MB) or Tiny q5_1 (about 32 MB), downloaded by your browser from the official source
+- Whisper Base q5_1 (57 MB) or Tiny q5_1 (32 MB), downloaded by your browser from the official source
   and imported; checked by SHA-256 before use.
 - Recordings are deleted once transcribed.
 

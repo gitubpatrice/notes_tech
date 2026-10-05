@@ -358,6 +358,13 @@ AJOUTS_EN = {
     <string name="app_lock_proof_expired">Too much time has passed. Enter your PIN again.</string>
     <string name="app_lock_biometric_setup_failed">Biometric unlock could not be set up on this device.</string>
 """,
+    "about": """\
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
+    <string name="about_voice_1">On-device Whisper (whisper.cpp, built into the app)</string>
+    <string name="about_voice_2">Model SHA-256 verified at import and before each load</string>
+    <string name="about_voice_3">Recordings deleted once transcribed</string>
+    <string name="about_link_voice">whisper.cpp (speech recognition engine)</string>
+""",
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Show PIN</string>
@@ -569,6 +576,13 @@ AJOUTS_FR = {
     <string name="app_lock_proof_expired">Trop de temps s\\'est écoulé. Saisissez de nouveau votre PIN.</string>
     <string name="app_lock_biometric_setup_failed">Le déverrouillage biométrique n\\'a pas pu être configuré sur cet appareil.</string>
 """,
+    "about": """\
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
+    <string name="about_voice_3">Enregistrements supprimés une fois transcrits</string>
+    <string name="about_voice_1">Whisper sur l\\'appareil (whisper.cpp, intégré à l\\'application)</string>
+    <string name="about_voice_2">Modèle vérifié par SHA-256 à l\\'import et avant chaque chargement</string>
+    <string name="about_link_voice">whisper.cpp (moteur de reconnaissance vocale)</string>
+""",
     "app": """\
     <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
     <string name="pin_show_tooltip">Afficher le code</string>
@@ -648,6 +662,17 @@ REMPLACEES = {
     # est deja garde par une confirmation dediee, pas par le libelle du menu.
     "noteEditorMenuMove",
     "moveToFolderTitle",
+    # `aboutVoice1` and `aboutLinkVoice` named `files_tech_voice`, the Flutter package the 2.x used
+    # for dictation; 3.0.0 calls whisper.cpp itself through JNI, so the About screen named, and linked
+    # to, a component the app does not contain. `aboutVoice2` said the model is verified "at
+    # download": the app downloads nothing, the user's browser does, and the app verifies at import.
+    "aboutVoice1",
+    "aboutVoice2",
+    # `aboutVoice3` said captured audio is "never persisted (wiped after transcription)": it is a
+    # file until transcribed, then deleted — the very wording voiceSetupSubtitle & co. were
+    # corrected for above, missed here because this screen was not reread against it.
+    "aboutVoice3",
+    "aboutLinkVoice",
 }
 
 # ⚠️ ARB keys the port deliberately does NOT transpose (2026-09-24), each with its reason.

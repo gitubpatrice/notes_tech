@@ -454,9 +454,9 @@
     <string name="about_privacy_4">Notas cifradas localmente (SQLCipher + Android Keystore)</string>
     <string name="about_privacy_5">Modo «Ocultar en aplicaciones recientes» disponible</string>
     <string name="about_section_voice">Dictado por voz</string>
-    <string name="about_voice_1">Whisper en el dispositivo (whisper.cpp mediante files_tech_voice)</string>
-    <string name="about_voice_2">SHA-256 del modelo comprobado al descargarlo y antes de cada carga</string>
-    <string name="about_voice_3">El audio captado nunca se conserva (se borra tras la transcripción)</string>
+    <string name="about_voice_1">Whisper en el dispositivo (whisper.cpp, integrado en la aplicación)</string>
+    <string name="about_voice_2">SHA-256 del modelo comprobado al importarlo y antes de cada carga</string>
+    <string name="about_voice_3">Grabaciones eliminadas tras la transcripción</string>
     <string name="about_notice_title">Cómo activar el dictado</string>
     <string name="about_notice_step_1">Ajustes → Dictado por voz → Activar el dictado por voz.</string>
     <string name="about_notice_step_2">Elija un modelo (se recomienda Whisper Base, 57 MB).</string>
@@ -465,7 +465,7 @@
     <string name="about_notice_step_5">En una nota, toque el icono del micrófono 🎤 de la barra superior. Hable y luego toque «Detener». El texto transcrito se inserta en la posición del cursor.</string>
     <string name="about_section_licenses">Fuentes, licencias y código abierto</string>
     <string name="about_link_repo">Notes Tech (esta aplicación)</string>
-    <string name="about_link_voice">files_tech_voice (módulo de reconocimiento de voz Whisper)</string>
+    <string name="about_link_voice">whisper.cpp (motor de reconocimiento de voz)</string>
     <string name="about_link_whisper">Origen de los modelos Whisper (.bin)</string>
     <string name="about_license">Apache License 2.0: código abierto y verificable</string>
     <string name="about_free">Gratuita: sin versión premium ni suscripción</string>

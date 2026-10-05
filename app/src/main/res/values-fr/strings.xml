@@ -485,9 +485,6 @@
     <string name="about_privacy_4">Notes chiffrées localement (SQLCipher + Android Keystore)</string>
     <string name="about_privacy_5">Mode « masquer dans les apps récentes » disponible</string>
     <string name="about_section_voice">Dictée vocale</string>
-    <string name="about_voice_1">Whisper on-device (whisper.cpp via files_tech_voice)</string>
-    <string name="about_voice_2">Modèle vérifié SHA-256 au DL et avant chaque chargement</string>
-    <string name="about_voice_3">Audio capturé jamais persisté (effacé après transcription)</string>
     <string name="about_notice_title">Notice d\'emploi — activer la dictée</string>
     <string name="about_notice_step_1">Réglages → Dictée vocale → Activer la dictée vocale.</string>
     <string name="about_notice_step_2">Choisissez un modèle (Whisper Base 57 Mo recommandé).</string>
@@ -496,7 +493,6 @@
     <string name="about_notice_step_5">Dans une note, tapez l\'icône micro 🎤 dans la barre du haut. Parlez, puis tapez « Arrêter ». Le texte transcrit s\'insère au curseur.</string>
     <string name="about_section_licenses">Sources, licences et code ouvert</string>
     <string name="about_link_repo">Notes Tech (cette app)</string>
-    <string name="about_link_voice">files_tech_voice (module Whisper STT)</string>
     <string name="about_link_whisper">Source des modèles Whisper (.bin)</string>
     <string name="about_license">Apache License 2.0 — code source ouvert, vérifiable</string>
     <string name="about_free">Gratuit — pas de version premium, pas d\'abonnement</string>
@@ -507,6 +503,11 @@
     <string name="about_legal_link">Voir les mentions légales complètes</string>
     <string name="about_legal_subtitle">Éditeur, données collectées, permissions, droits, licence</string>
     <string name="about_link_copied">Lien copié — collez-le dans votre navigateur.</string>
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
+    <string name="about_voice_3">Enregistrements supprimés une fois transcrits</string>
+    <string name="about_voice_1">Whisper sur l\'appareil (whisper.cpp, intégré à l\'application)</string>
+    <string name="about_voice_2">Modèle vérifié par SHA-256 à l\'import et avant chaque chargement</string>
+    <string name="about_link_voice">whisper.cpp (moteur de reconnaissance vocale)</string>
 
     <!-- ── Mentions légales ────────────────────────────────────────────── -->
     <string name="legal_title">Mentions légales</string>

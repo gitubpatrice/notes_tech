@@ -106,7 +106,7 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 
 ### Dictée Whisper
 - **whisper.cpp 1.8.3**, compilé dans l'application à partir de ses sources et exécuté sur l'appareil.
-- Whisper Base q5_1 (environ 60 Mo) ou Tiny q5_1 (environ 32 Mo), téléchargé par votre navigateur
+- Whisper Base q5_1 (57 Mo) ou Tiny q5_1 (32 Mo), téléchargé par votre navigateur
   depuis la source officielle puis importé ; contrôlé par SHA-256 avant usage.
 - Les enregistrements sont supprimés une fois transcrits.
 

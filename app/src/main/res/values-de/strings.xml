@@ -442,9 +442,9 @@
     <string name="about_privacy_4">Notizen lokal verschlüsselt (SQLCipher + Android Keystore)</string>
     <string name="about_privacy_5">Modus „In den letzten Apps ausblenden“ verfügbar</string>
     <string name="about_section_voice">Sprachdiktat</string>
-    <string name="about_voice_1">Whisper auf dem Gerät (whisper.cpp über files_tech_voice)</string>
-    <string name="about_voice_2">SHA-256 des Modells beim Download und vor jedem Laden geprüft</string>
-    <string name="about_voice_3">Aufgenommenes Audio wird nie dauerhaft gespeichert (nach der Transkription gelöscht)</string>
+    <string name="about_voice_1">Whisper auf dem Gerät (whisper.cpp, in die App eingebaut)</string>
+    <string name="about_voice_2">SHA-256 des Modells beim Import und vor jedem Laden geprüft</string>
+    <string name="about_voice_3">Aufnahmen werden nach der Transkription gelöscht</string>
     <string name="about_notice_title">So aktivieren Sie das Diktat</string>
     <string name="about_notice_step_1">Einstellungen → Sprachdiktat → Sprachdiktat aktivieren.</string>
     <string name="about_notice_step_2">Wählen Sie ein Modell (Whisper Base 57 MB empfohlen).</string>
@@ -453,7 +453,7 @@
     <string name="about_notice_step_5">Tippen Sie in einer Notiz oben auf das Mikrofonsymbol 🎤. Sprechen Sie und tippen Sie dann auf „Stopp“. Der transkribierte Text wird an der Cursorposition eingefügt.</string>
     <string name="about_section_licenses">Quellen, Lizenzen und offener Code</string>
     <string name="about_link_repo">Notes Tech (diese App)</string>
-    <string name="about_link_voice">files_tech_voice (Whisper-Spracherkennungsmodul)</string>
+    <string name="about_link_voice">whisper.cpp (Spracherkennungs-Engine)</string>
     <string name="about_link_whisper">Quelle der Whisper-Modelle (.bin)</string>
     <string name="about_license">Apache License 2.0 – quelloffener, überprüfbarer Code</string>
     <string name="about_free">Kostenlos – keine Premiumstufe, kein Abonnement</string>

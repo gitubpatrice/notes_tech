@@ -614,9 +614,6 @@
     <string name="about_privacy_4">Notes encrypted locally (SQLCipher + Android Keystore)</string>
     <string name="about_privacy_5">“Hide in recent apps” mode available</string>
     <string name="about_section_voice">Voice dictation</string>
-    <string name="about_voice_1">On-device Whisper (whisper.cpp via files_tech_voice)</string>
-    <string name="about_voice_2">Model SHA-256 verified at download and before each load</string>
-    <string name="about_voice_3">Captured audio never persisted (wiped after transcription)</string>
     <string name="about_notice_title">How to enable dictation</string>
     <string name="about_notice_step_1">Settings → Voice dictation → Enable voice dictation.</string>
     <string name="about_notice_step_2">Choose a model (Whisper Base 57 MB recommended).</string>
@@ -625,7 +622,6 @@
     <string name="about_notice_step_5">In a note, tap the mic icon 🎤 in the top bar. Speak, then tap “Stop”. The transcribed text is inserted at the cursor.</string>
     <string name="about_section_licenses">Sources, licenses and open code</string>
     <string name="about_link_repo">Notes Tech (this app)</string>
-    <string name="about_link_voice">files_tech_voice (Whisper STT module)</string>
     <string name="about_link_whisper">Source of Whisper models (.bin)</string>
     <string name="about_license">Apache License 2.0 — open source code, verifiable</string>
     <string name="about_free">Free — no premium tier, no subscription</string>
@@ -636,6 +632,11 @@
     <string name="about_legal_link">View full legal notice</string>
     <string name="about_legal_subtitle">Publisher, data collected, permissions, rights, license</string>
     <string name="about_link_copied">Link copied — paste it in your browser.</string>
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
+    <string name="about_voice_1">On-device Whisper (whisper.cpp, built into the app)</string>
+    <string name="about_voice_2">Model SHA-256 verified at import and before each load</string>
+    <string name="about_voice_3">Recordings deleted once transcribed</string>
+    <string name="about_link_voice">whisper.cpp (speech recognition engine)</string>
 
     <!-- ── Mentions légales ────────────────────────────────────────────── -->
     <string name="legal_title">Legal notice</string>

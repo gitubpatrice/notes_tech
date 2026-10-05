@@ -454,9 +454,9 @@
     <string name="about_privacy_4">Note cifrate localmente (SQLCipher + Android Keystore)</string>
     <string name="about_privacy_5">Modalità «Nascondi nelle app recenti» disponibile</string>
     <string name="about_section_voice">Dettatura vocale</string>
-    <string name="about_voice_1">Whisper sul dispositivo (whisper.cpp tramite files_tech_voice)</string>
-    <string name="about_voice_2">SHA-256 del modello verificato al download e prima di ogni caricamento</string>
-    <string name="about_voice_3">L\'audio registrato non viene mai conservato (cancellato dopo la trascrizione)</string>
+    <string name="about_voice_1">Whisper sul dispositivo (whisper.cpp, integrato nell\'app)</string>
+    <string name="about_voice_2">SHA-256 del modello verificato all\'importazione e prima di ogni caricamento</string>
+    <string name="about_voice_3">Registrazioni eliminate dopo la trascrizione</string>
     <string name="about_notice_title">Come attivare la dettatura</string>
     <string name="about_notice_step_1">Impostazioni → Dettatura vocale → Attiva la dettatura vocale.</string>
     <string name="about_notice_step_2">Scelga un modello (consigliato Whisper Base, 57 MB).</string>
@@ -465,7 +465,7 @@
     <string name="about_notice_step_5">In una nota, tocchi l\'icona del microfono 🎤 nella barra in alto. Parli, poi tocchi «Stop». Il testo trascritto viene inserito nella posizione del cursore.</string>
     <string name="about_section_licenses">Sorgenti, licenze e codice aperto</string>
     <string name="about_link_repo">Notes Tech (questa app)</string>
-    <string name="about_link_voice">files_tech_voice (modulo di riconoscimento vocale Whisper)</string>
+    <string name="about_link_voice">whisper.cpp (motore di riconoscimento vocale)</string>
     <string name="about_link_whisper">Origine dei modelli Whisper (.bin)</string>
     <string name="about_license">Apache License 2.0: codice open source e verificabile</string>
     <string name="about_free">Gratuita: nessuna versione premium, nessun abbonamento</string>

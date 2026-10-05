@@ -329,7 +329,7 @@ private fun SectionLicences(ouvrir: (String) -> Unit) {
     CarteFilesTech {
         Column {
             LigneDeLien(R.string.about_link_repo, URL_DEPOT, ouvrir)
-            LigneDeLien(R.string.about_link_voice, URL_DEPOT_VOIX, ouvrir)
+            LigneDeLien(R.string.about_link_voice, URL_WHISPER_CPP, ouvrir)
             LigneDeLien(R.string.about_link_whisper, URL_WHISPER, ouvrir)
         }
     }
@@ -513,7 +513,9 @@ private object CouleursDeBadge {
 /** Les adresses de la référence, littérales des deux côtés (`about_screen.dart:126-183`, `:342`). */
 private const val URL_DEPOT = "https://github.com/gitubpatrice/notes_tech"
 private const val URL_DERNIERE_VERSION = "$URL_DEPOT/releases/latest"
-private const val URL_DEPOT_VOIX = "https://github.com/gitubpatrice/files_tech_voice"
+// The engine itself: 3.0.0 builds whisper.cpp from source (app/src/main/cpp/vendor/whisper/).
+// The 2.x linked to files_tech_voice, the Flutter package it used, which 3.0.0 does not contain.
+private const val URL_WHISPER_CPP = "https://github.com/ggml-org/whisper.cpp"
 private const val URL_WHISPER = "https://huggingface.co/ggerganov/whisper.cpp"
 private const val URL_SITE = "https://www.files-tech.com"
 private const val MAILTO_CONTACT = "mailto:contact@files-tech.com"
