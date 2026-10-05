@@ -108,7 +108,7 @@ Three adversary classes are considered.
 
 ## Panic mode — ordered, multi-step
 
-Settings → Panic mode, confirmed by typing `WIPE`. The sequence is deterministic and best-effort: a
+Settings → Panic mode, confirmed by typing the word it asks for (`WIPE` in English). The sequence is deterministic and best-effort: a
 failing step does not stop the next ones, it is recorded, and the final screen reports an incomplete
 wipe. A journal written before the first step makes an interrupted sequence **resume at the next
 launch**.

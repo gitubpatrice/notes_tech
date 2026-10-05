@@ -114,7 +114,7 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 - Everything as a ZIP: one folder per notes folder, plus a README.
 
 ### Panic mode
-- Settings → Panic mode, confirmed by typing `WIPE`.
+- Settings → Panic mode, confirmed by typing the word it asks for (`WIPE` in English).
 - An ordered sequence, where a failing step does not stop the next ones: secure window, dictation
   stopped and forbidden, clipboard cleared, vaults locked, vault PIN keys and app lock keys deleted,
   **database key destroyed**, exports and recordings erased, database header overwritten and files

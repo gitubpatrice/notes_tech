@@ -119,7 +119,7 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 - Tout en ZIP : un dossier par dossier de notes, plus un README.
 
 ### Mode panique
-- Réglages → Mode panique, confirmé en tapant `WIPE`.
+- Réglages → Mode panique, confirmé en tapant le mot demandé (`EFFACER` en français, `WIPE` en anglais).
 - Une séquence ordonnée, où une étape en échec n'arrête pas les suivantes : fenêtre protégée, dictée
   arrêtée et interdite, presse-papiers vidé, coffres verrouillés, clés des coffres à code et du
   verrouillage supprimées, **clé de la base détruite**, exports et enregistrements effacés, en-tête de

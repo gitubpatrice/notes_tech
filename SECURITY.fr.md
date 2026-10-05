@@ -122,7 +122,7 @@ cryptographiques. Trois classes d'adversaires sont prises en compte.
 
 ## Mode panique — ordonné, en plusieurs étapes
 
-Réglages → Mode panique, confirmé en tapant `WIPE`. La séquence est déterministe et au mieux : une
+Réglages → Mode panique, confirmé en tapant le mot demandé (`EFFACER` en français, `WIPE` en anglais). La séquence est déterministe et au mieux : une
 étape en échec n'arrête pas les suivantes, elle est consignée, et l'écran final signale un effacement
 incomplet. Un journal écrit avant la première étape fait **reprendre au lancement suivant** une
 séquence interrompue.
