@@ -1,0 +1,39 @@
+Notes Tech: Markdown-Notizen, 100 % lokal und im Ruhezustand verschlüsselt. In Kotlin geschrieben.
+
+<b>Radikaler Datenschutz</b>
+• Keine INTERNET-Berechtigung — überprüfbar mit <code>aapt dump permissions app.apk</code>
+• Kein Konto, keine Telemetrie, kein Tracker, keine Werbung
+• SQLCipher-Datenbank (AES-256), Schlüssel vom Android-Keystore versiegelt
+• Mehrstufiger Panikmodus: löscht Schlüssel, Datenbank und Diktiermodell in Sekunden
+• Optionale App-Sperre: eine PIN, auf Wunsch auch starke Biometrie
+
+<b>Tresore pro Ordner</b>
+• Passphrase mit Argon2id (m=64MB, t=3) oder an den Keystore gebundene PIN (ab Android 9)
+• AES-256-GCM pro Notiz, an ihre Notiz gebunden (gegen Vertauschen)
+• Automatisches Löschen nach 5 falschen PINs
+• Einstellbare automatische Sperre (5 Min. bis nie)
+
+<b>Sprachdiktat auf dem Gerät</b>
+• whisper.cpp in die App eingebaut; Whisper-Modell von Hand importiert
+• SHA-256 beim Import und vor dem Laden geprüft
+• Aufnahmen werden nach der Transkription gelöscht
+
+<b>Bearbeiten</b>
+• Markdown mit Umschalter Bearbeiten / Vorschau (Überschriften, Listen, Links), automatisches Speichern
+• Rückverweise <code>[[Titel]]</code> mit Autovervollständigung und Bereich „Notizen, die hierher verlinken“
+• Sofortige FTS5-Suche, einstellbare Sortierung
+• Markdown-Export, eine Notiz oder als ZIP (YAML-Frontmatter, kompatibel mit Obsidian/Logseq)
+
+<b>Fünf Sprachen</b>
+• Englisch, Französisch, Deutsch, Italienisch, Spanisch — in den Einstellungen wählbar
+• Helles / dunkles / System-Design
+• Datenschutzerklärung und Nutzungsbedingungen in den fünf Sprachen
+
+<b>Berechtigungen</b>
+• Mikrofon: nur für das Diktat, angefragt, wenn Sie es einschalten
+• Biometrie: nur für die App-Sperre, gibt Zugriff auf keine Daten
+
+<b>Open Source, Apache 2.0</b>
+Vollständiger und überprüfbarer Quellcode auf GitHub: gitubpatrice/notes_tech
+
+Für Denkende, Therapeutinnen und Therapeuten, Studierende, Forschende, Schreibende und Journalistinnen und Journalisten, die sensible oder dichte Notizen machen wollen, ohne dass diese je ihr Telefon verlassen.

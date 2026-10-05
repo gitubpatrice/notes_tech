@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Notes Tech — 100 % local, zéro réseau.
+
+      Aucune permission INTERNET n'est déclarée, intentionnellement. C'est une promesse publique
+      affichée sur files-tech.com et dans les métadonnées F-Droid, donc une contrainte de build,
+      pas une intention.
+
+      Les `tools:node="remove"` ci-dessous neutralisent les permissions qu'une dépendance
+      transitive tenterait d'injecter. Ils sont conservés depuis la version Flutter : le portage
+      natif a bien moins de dépendances, mais une déclaration qui ne coûte rien et documente
+      l'intention se garde.
+
+      ⚠️ Le contrôle qui compte se fait sur le manifeste FUSIONNÉ, jamais sur celui-ci. La CI
+      échoue si une permission réseau y apparaît — c'est le seul garde-fou mécanique.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
+
+    <!--
+      RECORD_AUDIO — déclarée le 2026-08-15 avec la capture audio de la phase 7, et pas avant.
+
+      La note précédente disait qu'une permission qu'aucun code n'exerce s'expose à l'utilisateur
+      sans contrepartie. Le code qui l'exerce existe désormais (`data/voice/VoiceCapture.kt`), donc
+      la contrepartie aussi.
+
+      ⚠️ Elle ne remet pas en cause la promesse publique. Celle-ci n'a jamais été « aucune
+      permission » mais **aucune permission réseau** : l'application publiée déclare déjà
+      RECORD_AUDIO, et la table de `res/raw*/privacy.md` la documente dans les deux langues. Cet
+      appariement est exigé par `tools/check-manifest-permissions.py`, qui refuse toute permission
+      qu'il ne connaît pas — cf. décision D-018.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+
+    <application
+        android:name=".NotesTechApplication"
+        android:label="${appLabel}"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:usesCleartextTraffic="false"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NotesTech.Splash">
+
+        <!--
+          `allowBackup=false` + `dataExtractionRules` : la base est chiffrée par une clé scellée
+          dans le Keystore de l'appareil, qui n'est pas sauvegardable. Une sauvegarde produirait
+          donc un fichier restauré illisible — pire qu'aucune sauvegarde, parce qu'elle laisserait
+          croire que les notes sont récupérables. La sortie de secours est l'export Markdown.
+        -->
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NotesTech.Splash"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Le seul moyen par lequel un fichier de cette application sort vers une autre.
+
+          `exported="false"` + `grantUriPermissions="true"` : aucune application ne peut interroger
+          ce fournisseur de sa propre initiative. Seule une permission ponctuelle, attachée à
+          l'intention de partage et révoquée avec elle, donne accès au fichier nommé — et à lui
+          seul.
+
+          ⚠️ L'autorité est dérivée de `applicationId`, donc suffixée `.next` pendant le chantier
+          (cf. docs/06-ISOLATION-PENDANT-LE-CHANTIER.md). C'est ce qui permet aux deux versions de
+          cohabiter : deux fournisseurs qui partageraient une autorité feraient échouer
+          l'installation de la seconde.
+
+          ⚠️ Le code construit cette autorité par `"${'$'}{context.packageName}.exports"`. Les deux
+          doivent rester alignées ; une divergence ne se voit qu'au premier partage, par une
+          exception au visage peu parlant.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.exports"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!--
+          Security audit of 2026-09-26 (note of cell 4): EmojiCompat, pulled in by Compose, started
+          itself at launch and asked Google Play Services' font provider for an emoji font — a call to
+          another app, which may fetch it from the network, from an app that promises it contacts
+          nothing. The promise "no Internet permission" held; this is its spirit. The system's emoji
+          font is used instead.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
+        </provider>
+    </application>
+
+    <!--
+      No <queries> for PROCESS_TEXT any more (security audit of 2026-09-26, note of cell 5): inherited
+      from the Flutter template, it made every app that declares a text action — any app can, under
+      any name, "Copy" included — appear in the selection toolbar of the notes, vault notes
+      included, and receive the selected text. What is lost: third-party actions (a translator)
+      in that toolbar.
+    -->
+</manifest>

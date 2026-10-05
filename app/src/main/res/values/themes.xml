@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Thème d'amorçage. L'interface est en Compose : ce thème ne sert qu'entre le moment où le
+      système ouvre la fenêtre et celui où Compose prend la main.
+
+      `Theme.SplashScreen` vient de `androidx.core:core-splashscreen`, qui rétroporte l'écran de
+      démarrage d'Android 12 jusqu'à l'API 24 — le plancher de cette application. Sans lui, les
+      appareils antérieurs afficheraient une fenêtre blanche ou noire pendant l'acquisition de la
+      clé et l'ouverture de la base, ce qui est précisément le moment le plus lent du démarrage.
+    -->
+    <style name="Theme.NotesTech.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!--
+          🔴 Icône VIDE — voir `drawable/ic_splash_vide.xml`.
+
+          Avec l'icône de l'application ici, le premier lancement montrait DEUX écrans de
+          présentation à la suite : celui du système, puis celui de la marque, avec le même logo
+          rejouant son animation. L'application publiée n'a qu'un aplat sur sa fenêtre d'amorçage.
+        -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_vide</item>
+        <item name="postSplashScreenTheme">@style/Theme.NotesTech</item>
+    </style>
+
+    <!--
+      Thème de l'application une fois Compose actif. Volontairement minimal : les couleurs, la
+      typographie et les formes sont définies en Compose (`ui/theme/`), pas ici. Deux sources de
+      vérité pour un même thème finissent toujours par diverger.
+
+      `tools:targetApi` documente que l'attribut n'existe qu'à partir de l'API 27 ; en dessous il
+      est simplement ignoré.
+    -->
+    <style name="Theme.NotesTech" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
+    </style>
+</resources>

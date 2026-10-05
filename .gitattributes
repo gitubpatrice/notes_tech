@@ -1,0 +1,4 @@
+# The pages copied verbatim into the APK (res/raw*): LF on every machine. With core.autocrlf=true a
+# Windows checkout wrote them in CRLF and a Linux one (F-Droid's build server) in LF, so the APK
+# differed by one byte per line depending on where it was built. docs/12-PLAN-DE-BASCULE.md, phase 3.
+app/src/main/res/raw*/*.md text eol=lf

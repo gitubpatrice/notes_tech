@@ -1,0 +1,694 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Chaînes anglaises (locale par défaut).
+
+  ⚠️ FICHIER GÉNÉRÉ. Transposé depuis `notes_tech/lib/l10n/app_en.arb` par
+  `outils/arb_vers_strings.py`. Une correction faite ici et pas dans l'ARB sera écrasée au
+  prochain passage — corriger la source, puis regénérer.
+
+  Les placeholders sont **positionnels** (`%1$s`, `%2$d`) et leur numéro vient de l'ordre de
+  déclaration `@clé.placeholders` de l'ARB, pas de leur ordre d'apparition dans le texte. C'est ce
+  qui permet à une traduction de les réordonner sans que les deux langues remplissent le mauvais
+  trou.
+-->
+<resources>
+
+    <!-- ── Commun — boutons et libellés partagés ───────────────────────── -->
+    <string name="common_cancel">Cancel</string>
+    <string name="common_ok">OK</string>
+    <string name="common_close">Close</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_remove">Remove</string>
+    <string name="common_rename">Rename</string>
+    <string name="common_share">Share</string>
+    <string name="common_error">Error</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_validate">Confirm</string>
+    <string name="common_restore">Restore</string>
+    <!-- Ajout du portage : Compose pose une fleche de retour la ou Flutter s'appuie sur le
+         retour implicite de l'AppBar. « Fermer » decrivait mal ce geste. -->
+    <string name="common_back">Back</string>
+    <!--
+      Ajout du portage, et REPARATION d'une divergence : le bouton ⋮ de l'accueil portait
+      « Reglages » comme description, c'est-a-dire le nom d'UNE des deux entrees de son menu. Un
+      lecteur d'ecran annoncait donc « Reglages, bouton » pour un bouton qui ouvre un menu.
+      L'application publiee y met « moreButtonTooltip », la chaine de la plateforme
+      (home_screen.dart:361). Compose n'expose pas d'equivalent public : d'ou cette chaine.
+      Cf. 04-PIEGES.md §73.
+    -->
+    <string name="common_more_options">More options</string>
+    <!--
+      Port addition (2026-09-24): the wait imposed after too many wrong attempts, for a vault and
+      for the app lock. notes_tech 2.0.9 removed `common_error_with`, through which the vault
+      sheets showed "Error: 12 s"; it shows "Vault locked." instead, which drops how long to wait.
+    -->
+    <plurals name="common_retry_in_seconds">
+        <item quantity="one">Too many attempts. Try again in %1$d second.</item>
+        <item quantity="other">Too many attempts. Try again in %1$d seconds.</item>
+    </plurals>
+    <plurals name="common_retry_in_minutes">
+        <item quantity="one">Too many attempts. Try again in %1$d minute.</item>
+        <item quantity="other">Too many attempts. Try again in %1$d minutes.</item>
+    </plurals>
+
+    <!-- ── Écran de démarrage ──────────────────────────────────────────── -->
+    <string name="splash_tagline">Maximum protection\nfor your notes.</string>
+    <string name="splash_skip_hint">Tap the screen to continue</string>
+    <string name="splash_logo_content_description">Notes Tech logo</string>
+    <string name="splash_semantics_label">Notes Tech splash screen</string>
+
+    <!-- ── Accueil — liste des notes ───────────────────────────────────── -->
+    <string name="home_all_notes">All notes</string>
+    <string name="home_folders">Folders</string>
+    <string name="home_new_note">New note</string>
+    <string name="home_search_hint">Search a note</string>
+    <string name="home_no_notes">No notes yet</string>
+    <string name="home_no_notes_in">No notes in this folder</string>
+    <string name="home_start_writing">Tap the + button to create your first note.</string>
+    <string name="home_sort_mode">Sort</string>
+    <string name="home_sort_recent_first">Modified — newest first</string>
+    <string name="home_sort_old_first">Modified — oldest first</string>
+    <string name="home_sort_created_recent_first">Created — newest first</string>
+    <string name="home_sort_created_old_first">Created — oldest first</string>
+    <string name="home_sort_alpha_asc">A → Z</string>
+    <string name="home_sort_alpha_desc">Z → A</string>
+    <string name="home_folder_inbox">Inbox</string>
+    <string name="home_unpin">Unpin</string>
+    <string name="home_unfav">Remove from favorites</string>
+    <plurals name="home_vault_lost_banner">
+        <item quantity="one">%1$d vault note lost its latest changes (vault locked during save).</item>
+        <item quantity="other">%1$d vault notes lost their latest changes (vault locked during save).</item>
+    </plurals>
+    <string name="home_announce_vault_unlocked">Vault unlocked</string>
+    <string name="home_vault_create_error">Vault creation failed: %1$s</string>
+    <string name="home_note_created_in_inbox">Note created in Inbox</string>
+    <string name="home_load_error">An error occurred while loading.</string>
+
+    <!-- ── Tiroir des dossiers ─────────────────────────────────────────── -->
+    <string name="drawer_trash">Trash</string>
+    <string name="drawer_remove_vault_protection">Remove protection</string>
+    <string name="drawer_remove_vault_protection_subtitle">Keep the folder, decrypt its notes</string>
+    <string name="drawer_header_folders">FOLDERS</string>
+    <string name="drawer_new_folder">New folder</string>
+    <string name="drawer_folder_options">Folder options</string>
+    <string name="drawer_convert_to_vault">Enable vault</string>
+    <string name="drawer_convert_to_vault_subtitle">Lock this folder with a passphrase or PIN</string>
+    <string name="drawer_lock_now">Lock now</string>
+    <string name="drawer_lock_now_subtitle">Re-locks the decrypted vault</string>
+
+    <!-- ── Dossiers — création, renommage, suppression, protection ─────── -->
+    <string name="folder_create_title">New folder</string>
+    <string name="folder_create_field">Folder name</string>
+    <string name="folder_rename_title">Rename folder</string>
+    <string name="folder_rename_field">New name</string>
+    <string name="folder_delete_title">Delete folder?</string>
+    <string name="folder_delete_choice_body">What to do with notes from “%1$s”?</string>
+    <string name="folder_remove_vault_title">Remove vault protection?</string>
+    <string name="folder_remove_vault_body">The notes in \"%1$s\" will be decrypted and written to the database in the clear. The folder and its contents are kept, but they will no longer be protected by a passphrase. This cannot be undone: the notes will have existed unencrypted, even if you protect the folder again afterwards.</string>
+    <string name="folder_remove_vault_confirm">Decrypt and remove</string>
+    <plurals name="folder_remove_vault_done">
+        <item quantity="one">%1$d note decrypted. This folder is no longer a vault.</item>
+        <item quantity="other">%1$d notes decrypted. This folder is no longer a vault.</item>
+    </plurals>
+    <string name="folder_delete_vault_choice_body">\"%1$s\" is a vault. Moving its notes to the Inbox DECRYPTS every one of them and writes them to the database in the clear, with no passphrase protection. This cannot be undone: they will have existed unencrypted, even if you put them back into a vault afterwards.</string>
+    <string name="folder_delete_permanent">Delete permanently</string>
+    <string name="folder_delete_move_to_inbox">Move to Inbox</string>
+    <string name="folder_delete_move_to_inbox_vault">Decrypt and move</string>
+    <string name="folder_delete_cancelled_error">Deletion cancelled: %1$s</string>
+    <string name="folder_convert_progress_title">Converting vault…</string>
+    <string name="folder_convert_progress_body">Re-encrypting locked notes.</string>
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES. La version Flutter ecrit « {n} note(s) »,
+         le contournement qu'on emploie quand on n'a pas de pluriel — et Android en a un. -->
+    <plurals name="folder_delete_decrypt_failed">
+        <item quantity="one">Cannot decrypt %1$d note.</item>
+        <item quantity="other">Cannot decrypt %1$d notes.</item>
+    </plurals>
+
+    <!-- Ajouts du portage : SUPPRIMER un dossier a une consequence qu'on ne VOIT pas.
+         Renommer ou creer se lit dans le tiroir, sous les yeux de l'utilisateur, et n'a donc
+         besoin d'aucun message — c'est le choix de l'application publiee, et il se tient.
+         Supprimer, non : le dossier disparait de l'ecran, mais le sort de ses notes — deplacees
+         vers la boite de reception, ou detruites avec lui — n'apparait nulle part. Le publie se
+         taisait sur les deux. Cf. 04-PIEGES.md §97. -->
+    <string name="folder_deleted">Folder deleted.</string>
+    <plurals name="folder_deleted_notes_moved">
+        <item quantity="one">Folder deleted, %1$d note moved to the Inbox.</item>
+        <item quantity="other">Folder deleted, %1$d notes moved to the Inbox.</item>
+    </plurals>
+    <plurals name="folder_deleted_notes_removed">
+        <item quantity="one">Folder deleted, along with %1$d note.</item>
+        <item quantity="other">Folder deleted, along with %1$d notes.</item>
+    </plurals>
+
+    <!-- ── Éditeur de note ─────────────────────────────────────────────── -->
+    <string name="note_untitled">Untitled</string>
+    <string name="note_editor_title">Title</string>
+    <string name="note_editor_content">Type your note (Markdown supported)</string>
+    <string name="note_editor_saved">Saved</string>
+    <string name="note_editor_saving">Saving…</string>
+    <string name="note_editor_tooltip_pin">Pin note</string>
+    <string name="note_editor_tooltip_fav">Mark as favorite</string>
+    <string name="note_editor_tooltip_insert_link">Insert internal link [[Title]]</string>
+    <string name="note_editor_tooltip_more">More actions</string>
+    <string name="note_editor_tooltip_dictate">Voice dictation</string>
+    <string name="note_editor_tooltip_done">Done</string>
+    <string name="note_editor_menu_export">Export to Markdown</string>
+    <string name="note_editor_menu_trash">Move to trash</string>
+    <string name="note_editor_backlinks">Notes linking here</string>
+    <string name="note_editor_backlink_dangling">Link to non-existing note: %1$s</string>
+    <string name="note_editor_announce_saved_success">Note saved</string>
+    <string name="note_editor_outgoing_links">Links (%1$d)</string>
+    <string name="note_card_locked">🔒 Locked note</string>
+    <string name="note_editor_error_not_found">Note not found</string>
+    <string name="note_editor_error_vault_folder_missing">Vault folder not found</string>
+    <string name="note_editor_error_vault_wiped">Vault auto-wiped after too many failed attempts. Notes in this folder are permanently lost.</string>
+    <string name="note_editor_error_vault_relocked">Vault re-locked. Reopen the note to retry.</string>
+    <string name="note_editor_error_load_generic">An error occurred while loading.</string>
+    <string name="note_editor_error_vault_relocked_during_edit">Vault re-locked while editing. Reopen the note to resume.</string>
+    <string name="note_editor_error_save_failed">Save failed</string>
+    <string name="note_editor_copied_to_clipboard">Copied to clipboard</string>
+    <string name="note_editor_export_failed">Export failed: %1$s</string>
+    <string name="note_editor_moved">Note moved</string>
+    <string name="note_editor_move_failed">Move failed: %1$s</string>
+    <string name="note_editor_exit_vault_title">Move note out of vault?</string>
+    <string name="note_editor_exit_vault_body">The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.</string>
+    <string name="note_editor_exit_vault_confirm">Leave vault</string>
+    <string name="note_editor_menu_copy_markdown">Copy Markdown</string>
+    <string name="note_editor_content_hint">Write in Markdown… ([[Title]] to link)</string>
+    <string name="note_editor_mode_edit">Edit</string>
+    <string name="note_editor_mode_preview">Preview</string>
+    <string name="note_editor_preview_empty">Nothing to preview yet.</string>
+    <!--
+      Ajout du portage : la note publiee copiait une chaine vide, ce qui EFFACE ce que
+      l'utilisateur avait dans son presse-papiers. Meme decision que l'archive vide qui ne se
+      partage plus.
+    -->
+    <string name="note_editor_copy_empty">Nothing to copy: this note is empty</string>
+    <!--
+      Ajout du portage. La feuille de deplacement reutilisait `note_card_locked` pour signaler
+      un dossier coffre : elle disait donc « Note verrouillee » a propos d un DOSSIER, sur
+      l ecran ou l on choisit ou envoyer une note. L application publiee, elle, ne signale le
+      coffre que par une icone — invisible a un lecteur d ecran. Cette chaine dit la bonne
+      chose et dit la CONSEQUENCE, qui est la raison d etre du signal.
+    -->
+    <string name="move_to_folder_vault">Vault folder: the note will be encrypted</string>
+    <string name="note_editor_menu_move">Move to another folder</string>
+    <string name="move_to_folder_title">Move to another folder</string>
+    <!--
+      Port addition (2026-09-24): the note info panel. Planned for notes_tech after issue #10
+      (dates of creation and modification), never shipped there. Read-only; the counts are taken
+      from the text on screen, so a vault note is counted as the user reads it.
+    -->
+    <string name="note_editor_menu_info">Info</string>
+    <string name="note_info_title">Note info</string>
+    <string name="note_info_folder">Folder</string>
+    <string name="note_info_created">Created</string>
+    <string name="note_info_modified">Last modified</string>
+    <string name="note_info_words">Words</string>
+    <string name="note_info_characters">Characters</string>
+    <string name="note_info_characters_hint">Spaces included, line breaks excluded</string>
+    <!--
+      Port additions (2026-09-25): the Markdown preview (D-024). A task box is read by a screen
+      reader as its state — notes_tech 2.0.9 draws the icon with no label, so TalkBack said nothing
+      of it. And a web link that no app can open says so, instead of doing nothing when tapped.
+    -->
+    <string name="note_preview_task_done">Done</string>
+    <string name="note_preview_task_open">To do</string>
+    <string name="note_preview_link_no_app">No app on this device can open this link.</string>
+    <!-- Above a note the preview does not parse: too long, or shaped so that parsing it would
+         freeze the screen (MarkdownPreviewReader). Says why the text below is not formatted. -->
+    <string name="note_preview_as_written">Too long or too complex to preview: shown as written.</string>
+    <!-- A note a [[Title]] link would create, in the preview or the links panel, could not be
+         created. notes_tech 2.0.9 says "Vault creation failed" here, of any note, in a vault or not. -->
+    <string name="note_editor_link_create_failed">Could not create the linked note: %1$s</string>
+    <!-- In the [[ sheet, when the search itself failed (a vault locked meanwhile): nothing is
+         offered, creation included, since the search could not see whether the note exists. -->
+    <string name="link_autocomplete_failed">Could not search your notes.</string>
+
+    <!-- ── Liens [[titre]] — autocomplétion ────────────────────────────── -->
+    <string name="link_autocomplete_title">Insert link</string>
+    <string name="link_autocomplete_hint">Title of the note to link</string>
+    <string name="link_autocomplete_empty">No matching note.</string>
+    <string name="link_autocomplete_create_new">Create a new note “%1$s”</string>
+
+    <!-- ── Recherche ───────────────────────────────────────────────────── -->
+    <string name="search_title">Search</string>
+    <string name="search_hint">Keyword, title, or note content…</string>
+    <string name="search_empty">No results</string>
+    <string name="search_try_other">Try another keyword.</string>
+    <string name="search_clear">Clear search</string>
+    <string name="search_empty_title">Type to search</string>
+    <string name="search_empty_subtitle_fts" formatted="false">Instant 100% local full-text search.</string>
+    <string name="search_error_generic">An error occurred.</string>
+
+    <!-- ── Corbeille ───────────────────────────────────────────────────── -->
+    <string name="trash_title">Trash</string>
+    <string name="trash_empty_title">Trash is empty</string>
+    <string name="trash_empty_subtitle">Deleted notes appear here before permanent removal.</string>
+    <string name="trash_retention_notice">Notes in the trash are automatically deleted after %1$d days.</string>
+    <string name="trash_restored">Note restored</string>
+    <string name="trash_delete_forever">Delete permanently</string>
+    <string name="trash_delete_forever_title">Delete permanently?</string>
+    <string name="trash_delete_forever_body">This note will be permanently erased. This cannot be undone.</string>
+    <string name="trash_deleted_forever">Note permanently deleted</string>
+    <string name="trash_empty_all">Empty trash</string>
+    <string name="trash_empty_all_confirm">Permanently delete all notes in the trash? This cannot be undone.</string>
+    <!--
+      Ecart assume avec l'application publiee : elle affiche « Note supprimee definitivement » au
+      singulier apres avoir vide une corbeille de douze notes (trash_screen.dart:90). Rapporter le
+      compte mesure est le seul retour honnete apres un geste irreversible.
+    -->
+    <plurals name="trash_emptied">
+        <item quantity="one">%1$d note permanently deleted</item>
+        <item quantity="other">%1$d notes permanently deleted</item>
+    </plurals>
+
+    <!-- ── Coffres — passphrase et code PIN ────────────────────────────── -->
+    <string name="vault_pass_create_title">Create a vault</string>
+    <string name="vault_pass_create_body">Choose a strong passphrase for this folder. Write it down somewhere safe — if you forget it, the locked notes will be unrecoverable.</string>
+    <string name="vault_pass_field">Passphrase</string>
+    <string name="vault_pass_confirm_field">Confirm passphrase</string>
+    <string name="vault_pass_min_length">Minimum %1$d characters.</string>
+    <string name="vault_pass_mismatch">The two passphrases do not match.</string>
+    <string name="vault_pass_warning_lost">If you forget this passphrase, the locked notes in this folder will be UNRECOVERABLE. Notes Tech does not store the passphrase and cannot regenerate it.</string>
+    <string name="vault_pass_create_action">Create vault</string>
+    <string name="vault_pass_unlock_title">Unlock vault</string>
+    <string name="vault_pass_unlock_body">Enter the passphrase for folder “%1$s”.</string>
+    <string name="vault_pass_wrong">Incorrect passphrase.</string>
+    <string name="vault_pass_deriving">Argon2id derivation in progress…</string>
+    <string name="vault_pass_unlock_action">Unlock</string>
+    <string name="vault_pin_create_title">Create a PIN vault</string>
+    <string name="vault_pin_confirm_field">Confirm PIN</string>
+    <string name="vault_pin_mismatch">The two PINs do not match.</string>
+    <string name="vault_pin_too_short">PIN must be %1$d to %2$d digits.</string>
+    <string name="vault_pin_warning_wipe">Warning: 5 successive PIN failures will permanently wipe the locked notes in this folder.</string>
+    <string name="vault_pin_unlock_title">Unlock vault (PIN)</string>
+    <string name="vault_pin_unlock_body">PIN for folder “%1$s”.</string>
+    <string name="vault_pin_wrong">Incorrect PIN.</string>
+    <string name="vault_pin_attempts_left">Attempts remaining: %1$d</string>
+    <string name="vault_pin_wiped">Too many attempts — the vault has been wiped.</string>
+    <string name="vault_pin_digits_announce">%1$d digits entered out of %2$d</string>
+    <string name="vault_pin_key_label">Key %1$s</string>
+    <string name="vault_pin_key_delete">Delete last digit</string>
+    <string name="vault_mode_choose">Choose unlock mode</string>
+    <string name="vault_mode_passphrase">Passphrase</string>
+    <string name="vault_mode_passphrase_desc">Recommended. Slower derivation but resistant to off-device bruteforce.</string>
+    <string name="vault_mode_pin">PIN (4-6 digits)</string>
+    <string name="vault_mode_pin_desc">Faster. Auto-wipe after 5 failures. Device-bound security (Keystore).</string>
+    <string name="vault_convert_partial_fail">%1$d of %2$d notes could not be converted.</string>
+    <string name="vault_convert_success">Vault enabled.</string>
+    <string name="vault_convert_success_with_count">Vault enabled. %1$d note(s) encrypted.</string>
+    <string name="vault_convert_impossible">Conversion failed: %1$s</string>
+    <!-- Ajout du portage : la version publiee n'offre pas d'annuler pendant la derivation, donc
+         elle n'a pas cette course a annoncer. Ici l'annulation peut arriver APRES l'ecriture du
+         materiel du coffre : le dossier EST un coffre, et le taire serait le defaut que
+         `onConversionIncomplete` a deja ferme une fois — un cadenas dont personne ne dit qu'il ne
+         protege pas encore. -->
+    <string name="vault_convert_escaped_cancellation">Cancelled too late: this folder is now a vault. Its notes will be encrypted the first time you open it.</string>
+    <!--
+      Port additions (2026-09-25): when a PIN vault's key is gone. Removing the screen lock deletes
+      it (measured on API 34), and 2.0.9 then says "Vault locked." for ever; if Android invalidates
+      it instead, 2.0.9 says "Too many attempts" to someone who typed one correct PIN. Each case
+      gets its own sentence, and the mode chooser warns before it happens: appended to
+      `vault_mode_pin_desc`, whose terse style it follows.
+    -->
+    <string name="vault_pin_key_missing">This vault\'s key cannot be found on this phone. Android deletes it, for example, when the screen lock is removed. No PIN can open this vault without it.</string>
+    <string name="vault_pin_wiped_key_invalidated">Android invalidated this vault\'s key: its notes could no longer be opened and have been wiped. Wrong PINs did not cause this.</string>
+    <string name="vault_mode_pin_screen_lock">May no longer open if the phone\'s screen lock is removed.</string>
+    <!-- Security audit of 2026-09-26, K4: before Android 9 the PIN key cannot require an unlocked
+         phone, so a seized phone lets its code be searched offline. Shown there only. -->
+    <string name="vault_mode_pin_old_android">Needs Android 9 or later: before it, a PIN does not protect a vault on a seized phone.</string>
+    <string name="error_vault_pin_needs_android_9">PIN vaults need Android 9 or later: before it, a PIN does not protect a vault on a seized phone. Use a passphrase vault instead.</string>
+    <string name="vault_pin_unlock_old_android">On this Android version, this PIN does not protect the vault on a seized phone. To protect it, remove its protection, then make the folder a vault again with a passphrase.</string>
+    <string name="error_vault_wipe_pending">An earlier wipe of this folder\'s vault could not finish: its key is still on this phone. Try again later; restarting the phone may help.</string>
+
+    <!-- ── Réglages ────────────────────────────────────────────────────── -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_security">Security</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_fr">Français</string>
+    <string name="settings_language_en">English</string>
+    <string name="settings_language_changed_fr">Langue changée en français</string>
+    <string name="settings_language_changed_en">Language switched to English</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_secure_window">Hide in recent apps</string>
+    <string name="settings_secure_window_subtitle">Prevents screenshots and hides the app preview in the Android task switcher.</string>
+    <string name="settings_vault_auto_lock">Vault auto-lock</string>
+    <plurals name="settings_vault_auto_lock_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="settings_vault_auto_lock_never">Never</string>
+    <string name="settings_export_all">Export all my notes</string>
+    <string name="settings_export_subtitle">Generates a Markdown ZIP archive organized by folder.</string>
+    <string name="settings_export_done">Export complete: %1$d notes</string>
+    <string name="settings_export_done_partial">Export complete: %1$d notes (%2$d skipped in locked vaults)</string>
+    <string name="settings_export_error">Export failed: %1$s</string>
+    <string name="settings_panic">Panic mode</string>
+    <string name="settings_panic_subtitle">Permanently wipes notes, key, models and vaults.</string>
+    <string name="settings_about">About Notes Tech</string>
+    <string name="settings_about_subtitle">Privacy, licenses, support</string>
+    <!-- Port additions (2026-09-25): German, Spanish and Italian. Each language is named in itself,
+         as Français and English are, and each announcement is spoken in the language chosen: it is
+         said as the screen switches to it. The same six values in every language. -->
+    <string name="settings_language_de">Deutsch</string>
+    <string name="settings_language_es">Español</string>
+    <string name="settings_language_it">Italiano</string>
+    <string name="settings_language_changed_de">Sprache auf Deutsch umgestellt</string>
+    <string name="settings_language_changed_es">Idioma cambiado a español</string>
+    <string name="settings_language_changed_it">Lingua cambiata in italiano</string>
+
+    <!-- ── Verrouillage de l'application ───────────────────────────────── -->
+    <!--
+      Port addition (2026-09-24): the app lock, decision D-023. notes_tech never had one - the
+      Flutter app has no `local_auth`. Two lessons of the portfolio are in the words: the biometric
+      labels never promise the face (Class 3 only, which most Samsung face unlock is not), and
+      forgetting the PIN is stated for what it costs.
+    -->
+    <string name="app_lock_prompt">Enter your PIN</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_wrong_pin">Incorrect PIN.</string>
+    <string name="app_lock_use_biometric">Unlock with biometrics</string>
+    <string name="app_lock_biometric_prompt_title">Unlock Notes Tech</string>
+    <string name="app_lock_biometric_prompt_use_pin">Use PIN</string>
+    <string name="app_lock_biometric_failed">Biometric unlock did not work. Use your PIN.</string>
+    <string name="app_lock_biometric_invalidated">The fingerprints or faces of this device have changed, so biometric unlock was turned off. Unlock with your PIN, then turn it back on in Settings.</string>
+    <string name="app_lock_keystore_unavailable">The PIN could not be checked right now. Try again in a moment.</string>
+    <string name="app_lock_forgot_pin">Forgot your PIN?</string>
+    <string name="app_lock_forgot_body">The PIN cannot be recovered or reset: it never leaves this device. The only way to use Notes Tech again is to erase all your notes and settings with panic mode.</string>
+    <string name="app_lock_forgot_erase">Erase everything…</string>
+    <string name="app_lock_unverifiable">The PIN can no longer be checked on this device: the key that verifies it is missing or damaged. Your notes have not been modified, but the only way back into Notes Tech is to erase everything with panic mode.</string>
+    <string name="app_lock_unverifiable_biometric">The PIN can no longer be checked on this device: the key that verifies it is missing or damaged. Your notes have not been modified. Biometric unlock still works; without it, the only way back into Notes Tech is to erase everything with panic mode.</string>
+    <!-- A count that cannot be written means the attempt is not made: counted after the check, it
+         was a free guess after every force-stop on a full disk (external review, 2026-09-24). -->
+    <string name="app_lock_not_recorded">This attempt could not be recorded on the device, so the PIN was not checked. Free up some storage space, then try again.</string>
+
+    <string name="app_lock_settings_title">App lock</string>
+    <string name="app_lock_settings_toggle">Lock the app</string>
+    <string name="app_lock_settings_toggle_subtitle">When Notes Tech opens: a PIN, plus biometrics if you wish</string>
+    <string name="app_lock_settings_change_pin">Change PIN</string>
+    <string name="app_lock_settings_biometric">Unlock with biometrics</string>
+    <string name="app_lock_settings_biometric_subtitle">Fingerprint, or face where the device rates its face unlock as secure</string>
+    <string name="app_lock_settings_biometric_not_enrolled">Add a fingerprint in the device settings first.</string>
+    <string name="app_lock_settings_biometric_unavailable">This device has no biometric sensor secure enough.</string>
+    <string name="app_lock_settings_delay">Lock after leaving the app</string>
+    <string name="app_lock_delay_immediately">Immediately</string>
+    <plurals name="app_lock_delay_seconds">
+        <item quantity="one">After %1$d second</item>
+        <item quantity="other">After %1$d seconds</item>
+    </plurals>
+    <plurals name="app_lock_delay_minutes">
+        <item quantity="one">After %1$d minute</item>
+        <item quantity="other">After %1$d minutes</item>
+    </plurals>
+    <!-- Below Android 13, FLAG_SECURE is the only way to keep the notes out of the recent apps
+         screen, so the lock forces it: the switch must not claim that screenshots are allowed. -->
+    <string name="app_lock_secure_window_forced">Always on while the app lock is on: on this version of Android, it is what hides your notes from the recent apps screen.</string>
+
+    <string name="app_lock_pin_current_title">Enter your current PIN</string>
+    <string name="app_lock_pin_new_title">Choose a PIN</string>
+    <string name="app_lock_pin_confirm_title">Confirm the PIN</string>
+    <string name="app_lock_pin_new_warning">If you forget this PIN, the only way back into Notes Tech will be to erase all your notes.</string>
+    <!-- Security audit of 2026-09-26, K5: on a seized phone the app PIN can be searched offline; it
+         opens no vault, but a PIN reused as the screen lock's or a card's would fall with it. -->
+    <string name="app_lock_pin_new_not_reused">Choose a PIN you use nowhere else — not your phone\'s, not a card\'s.</string>
+
+    <string name="app_lock_enabled">App lock on.</string>
+    <string name="app_lock_disabled">App lock off.</string>
+    <string name="app_lock_pin_changed">PIN changed.</string>
+    <string name="app_lock_biometric_enabled">Biometric unlock on.</string>
+    <string name="app_lock_not_saved">The change could not be saved. Try again.</string>
+    <string name="app_lock_proof_expired">Too much time has passed. Enter your PIN again.</string>
+    <string name="app_lock_biometric_setup_failed">Biometric unlock could not be set up on this device.</string>
+
+    <!-- ── Export Markdown / ZIP ───────────────────────────────────────── -->
+    <string name="export_note_from_vault">Note from vault: %1$s</string>
+    <string name="export_share_subject">Notes Tech — export %1$d notes</string>
+
+    <!-- ── Mode panique ────────────────────────────────────────────────── -->
+    <string name="panic_confirm_title">Permanently wipe all data?</string>
+    <string name="panic_confirm_keyword">WIPE</string>
+    <string name="panic_confirm_yes">Wipe everything</string>
+    <string name="panic_progress">Wiping…</string>
+    <string name="panic_progress_subtitle">Please wait.</string>
+    <string name="panic_announce_done">Wipe complete</string>
+    <string name="panic_complete_title">Wipe complete</string>
+    <string name="panic_complete_body">All data has been wiped. Notes Tech restarts as on first launch.</string>
+    <string name="panic_complete_close">Close the app</string>
+    <string name="panic_complete_footer">On next launch, Notes Tech will start over on a blank slate.</string>
+    <string name="panic_complete_bullet_1">Keystore master key: destroyed</string>
+    <string name="panic_complete_bullet_2">Notes database: wiped and overwritten</string>
+    <string name="panic_complete_bullet_3">Voice dictation model: uninstalled</string>
+    <string name="panic_complete_bullet_4">Preferences: reset</string>
+    <string name="panic_confirm_destroy_intro">You are about to IRREVERSIBLY DESTROY:</string>
+    <string name="panic_confirm_item_1">All your notes (encryption destroyed + file overwritten)</string>
+    <string name="panic_confirm_item_2">The installed voice dictation model</string>
+    <string name="panic_confirm_item_3">All preferences and history</string>
+    <string name="panic_confirm_irreversible">This action CANNOT be undone. No backup, no trash, no forensic recovery possible.</string>
+    <string name="panic_confirm_type_prompt">To confirm, type exactly: %1$s</string>
+    <string name="panic_confirm_field_label">Confirmation word</string>
+    <!--
+        Three outcomes, not two. `panic_key_survived*` is the only one that means "you are NOT
+        protected": the key survived, so the notes are still decryptable. `panic_incomplete` is the
+        far milder case where the key IS gone and only a cleanup step failed — saying "your data may
+        have survived" there would frighten someone who is in fact safe.
+    -->
+    <string name="panic_key_survived_title">The key was NOT destroyed</string>
+    <string name="panic_key_survived">Your notes are still decryptable on this device. %1$d step(s) failed. Do not part with the device.</string>
+    <string name="panic_incomplete">Key destroyed: your notes can no longer be decrypted. However %1$d cleanup step(s) failed — unreadable files may remain on the device.</string>
+
+    <!-- Ajout du portage, 2026-08-15. La phrase ci-dessus dit « unreadable », ce qui est vrai de
+         toutes les etapes SAUF une : une archive d'export est du CLAIR. Quand c'est celle-la qui
+         echoue, rassurer serait decrire l'inverse de la situation.
+
+         ⚠️⚠️ REECRITE le 2026-08-19, pour DEUX raisons independantes.
+
+         1. Elle ne nommait que les archives d'export, alors que le predicat qui la declenche
+            — `PanicReport.clairPeutSubsister` — couvre TROIS sources : l'archive, l'enregistrement
+            de dictee, et le presse-papiers. Dans le cas « seul le presse-papiers a resiste », cette
+            phrase envoyait quelqu'un inspecter des fichiers qu'il ne trouverait pas, pour en
+            conclure qu'il est tire d'affaire — pendant qu'une note reste lisible par toute
+            application au premier plan. Le KDoc du predicat raconte lui-meme que son inventaire
+            s'est trompe DEUX fois par omission ; il a ete corrige les deux fois, et la phrase
+            affichee n'a jamais suivi. *Un inventaire corrige dans le code et pas dans le texte
+            n'est corrige nulle part, puisque c'est le texte qu'on lit.*
+
+         2. Le compteur `%1$d` est retire. Ce residu-la se MESURE a la fin de la sequence, il ne se
+            deduit pas des etapes : il vaut vrai avec ZERO etape en echec — c'est exactement l'etat
+            que construit `PanicReportTest.clairRestantEstSignale`. L'ecran annoncait donc
+            « 0 etape(s) de nettoyage ont echoue » juste avant d'avertir qu'il reste du clair. Une
+            phrase qui se contredit elle-meme ne sera pas crue, au moment ou elle doit l'etre. -->
+    <string name="panic_incomplete_plaintext">Key destroyed: the database can no longer be decrypted. However READABLE content may remain on this device — an export archive, a dictation recording, or a note copied to the clipboard. Do not part with it before checking.</string>
+    <!-- Security audit of 2026-09-26, P4: "All data has been wiped" said nothing of the keyboard\'s
+         own clipboard history, which keeps a copied note and which no app can reach. -->
+    <string name="panic_complete_keyboard_history">A note you copied may still be in your keyboard\'s clipboard history, which the app cannot reach: clear it from the keyboard.</string>
+
+    <!-- ── Dictée vocale ───────────────────────────────────────────────── -->
+    <string name="voice_mic_initializing">Initializing microphone…</string>
+    <string name="voice_transcribing_hint">Please wait…</string>
+    <string name="voice_open_system_settings">Open settings</string>
+    <string name="voice_setup_title">Voice dictation</string>
+    <string name="voice_setup_enable">Enable voice dictation</string>
+    <string name="voice_setup_choose_model">Choose a Whisper model</string>
+    <string name="voice_setup_download">Download to this phone</string>
+    <string name="voice_setup_select_file">Select the .bin file</string>
+    <string name="voice_setup_verifying">Verifying fingerprint…</string>
+    <string name="voice_setup_install_ok">Model installed: %1$s</string>
+    <string name="voice_setup_install_fail">Install failed: %1$s</string>
+    <string name="voice_setup_remove">Remove installed model</string>
+    <string name="voice_recording_title">Recording</string>
+    <string name="voice_recording_hint">Speak. Tap “Stop” to transcribe.</string>
+    <string name="voice_recording_stop">Stop</string>
+    <string name="voice_transcribing">Transcribing…</string>
+    <string name="voice_transcribed">Text inserted.</string>
+    <string name="voice_permission_denied">Microphone permission denied.</string>
+    <string name="voice_setup_app_bar_title">Voice dictation</string>
+    <string name="voice_setup_how_to_title">How to enable dictation</string>
+    <string name="voice_setup_step_1_title">1. Pick a model</string>
+    <string name="voice_setup_step_1_text">Whisper Base (57 MB) recommended.</string>
+    <string name="voice_setup_step_2_title">2. Download</string>
+    <string name="voice_setup_step_2_text">Your browser downloads the .bin into /Downloads. Notes Tech still has no Internet permission.</string>
+    <string name="voice_setup_step_3_title">3. Import</string>
+    <string name="voice_setup_step_3_text">Select the downloaded .bin. The app verifies SHA-256 then copies privately.</string>
+    <string name="voice_setup_copy_link_tooltip">Copy link</string>
+    <string name="voice_setup_link_copied">Link copied to clipboard</string>
+    <string name="voice_setup_path_unavailable">File path unavailable</string>
+    <string name="voice_setup_import_error_title">Import failed</string>
+    <string name="voice_setup_browser_open_failed">No browser available</string>
+    <string name="voice_setup_browser_open_error">Cannot open browser: %1$s</string>
+    <string name="voice_setup_copying">Copying…</string>
+    <string name="voice_setup_import_in_progress">Import in progress, please wait.</string>
+    <string name="voice_setup_picker_dialog_title">Pick the .bin file for %1$s</string>
+    <string name="voice_model_base_name">Whisper Base (multilingual, 57 MB)</string>
+    <string name="voice_model_base_notes">Recommended. Good quality, about 3 s to transcribe 5 s of audio on a mid-range phone.</string>
+    <string name="voice_model_tiny_name">Whisper Tiny (multilingual, 32 MB)</string>
+    <string name="voice_model_tiny_notes">Light and fast, but less accurate. For low-end phones or quick notes.</string>
+    <string name="voice_permission_denied_permanent_body">Microphone access was denied permanently. Allow it in the app settings.</string>
+    <!-- ⚠️⚠️ REECRITURES, pas des ajouts. Les trois chaines d'origine affirmaient que l'audio
+         n'est « jamais persiste ». C'est FAUX : le moteur de transcription lit un FICHIER, donc la
+         voix est ecrite sur le disque le temps de la transcription. « Efface des la transcription
+         obtenue » est exact et se tient ; « jamais persiste » ne se tient pas, et l'ecran aurait
+         contredit la politique de confidentialite, corrigee le meme jour pour la meme raison.
+         Cf. `res/raw*/privacy.md` et 04-PIEGES.md. -->
+    <string name="voice_setup_subtitle">Whisper, on this device. Audio is wiped as soon as the transcription comes back.</string>
+    <!-- ⚠️ Sans signe « % » : Android lit un pourcentage isole comme un format invalide, et
+         lint le refuse. L'echapper en « %% » l'afficherait tel quel, la chaine n'ayant aucun argument. -->
+    <string name="voice_setup_offline_banner">Fully offline. Audio is wiped as soon as the transcription comes back.</string>
+    <string name="voice_setup_security_footer_label">How your data is handled</string>
+    <string name="voice_setup_security_footer_body">Audio wiped as soon as the transcription comes back, transcription done locally by whisper.cpp bundled in the app, model SHA-256 verified before every load.</string>
+
+    <!-- Ajouts du portage : le fichier amont doit etre NOMME. La page source publie une trentaine
+         de variantes dont les noms ne different que par un suffixe, et se tromper coute un
+         telechargement de plusieurs dizaines de mega-octets pour finir sur une empreinte fausse. -->
+    <string name="voice_setup_upstream_file">File to download: %1$s</string>
+    <string name="voice_setup_model_installed">Installed</string>
+    <string name="voice_setup_model_not_installed">Not installed</string>
+
+    <!-- ⚠️ La progression couvre la copie ET la verification : le portage ne fait qu'un seul
+         passage sur le fichier, la ou la version publiee en faisait deux. -->
+    <string name="voice_setup_copying_progress">Copying and verifying: %1$d%%</string>
+
+    <!--
+      🔴 Un message par CAUSE, et jamais `exception.message`.
+      C'est la lecon deja payee par `VaultAttempt` : elle transportait le message interne de
+      l'exception, non traduit, et l'ecran le montrait tel quel dans les deux langues. Ici chaque
+      cas appelle en plus un geste different — choisir un autre fichier, liberer de la place,
+      retelecharger, reessayer — qu'un message unique rendrait impossible a proposer.
+    -->
+    <string name="voice_setup_error_source_invalid">This file does not match the selected model. Did you pick the right .bin?</string>
+    <string name="voice_setup_error_storage_full">Not enough room on this device. Free some space, then try again.</string>
+    <string name="voice_setup_error_checksum">The file fingerprint does not match. The download may have been interrupted, or the file comes from another source. It has been deleted.</string>
+    <string name="voice_setup_error_import_failed">The import failed. Try again.</string>
+
+    <!-- 🔴 La description de chaque modele etait un champ du CATALOGUE, donc du francais en dur
+         affiche tel quel dans l'application anglaise. Un texte vu par l'utilisateur se traduit ;
+         un catalogue de domaine ne connait pas les ressources Android. La correspondance se fait
+         donc dans l'ecran, seul endroit qui connait les deux.
+
+         2026-09-24: `voice_model_base_notes` and `voice_model_tiny_notes` are no longer added
+         here. notes_tech 2.0.9 fixed the same defect on its side (`voice_localize.dart`) and
+         ships both keys in its ARB, with its own wording. Keeping ours made the generator refuse
+         to write (duplicate names) — which is the guard doing its job. The published wording
+         wins: these are shared strings, and the ARB is their source. -->
+
+    <!--
+      🔴 Le silence n'est PAS un echec. L'ecran affichait « Transcription failed » a
+      quelqu'un qui n'avait simplement rien dit : un echec systeme et un geste de l'utilisateur
+      ne se classent pas ensemble — c'est deja la regle du `null` de `VoiceCapture`. Ne rien
+      afficher serait pire : apres un appui sur « Arreter », l'absence de retour se lit comme
+      une panne.
+    -->
+    <string name="voice_nothing_heard">Nothing was heard, no text inserted.</string>
+
+    <!-- Un refus SIMPLE du micro n'affichait rien du tout : le bouton revenait, sans un mot.
+         Seul le refus definitif etait traite. -->
+    <string name="voice_permission_needed">Microphone permission is needed to dictate. Tap the microphone again to allow it.</string>
+
+    <string name="voice_system_settings_unavailable">This device does not offer that settings screen. Open Android settings, find Notes Tech, and allow the microphone.</string>
+
+    <string name="voice_setup_remove_confirm_title">Remove the model?</string>
+    <string name="voice_setup_remove_confirm_body">You will have to download and import it again to dictate. Your notes are not affected.</string>
+    <!-- Ajout du portage : la capture est bornee a 2 min (VoiceCapture.DUREE_MAX_SECONDES), la ou
+         l'application publiee n'a AUCUNE borne. Elle s'appliquait en SILENCE : rien ne distinguait
+         « la limite est atteinte » de « l'utilisateur a appuye sur Arreter », si bien qu'on dictait
+         trois minutes et qu'il en manquait une. Cf. 04-PIEGES.md §96. L'argument porte la duree
+         formatee (« 2:00 »), exactement celle que le compteur affichait pendant la dictee. -->
+    <string name="voice_limit_reached">Text inserted. Limit of %1$s reached: the rest was not recorded.</string>
+
+    <!-- ── À propos ────────────────────────────────────────────────────── -->
+    <string name="about_title">About</string>
+    <string name="about_tagline">Your notes stay in your pocket. Encrypted, and offline.</string>
+    <string name="about_check_updates">Check for updates</string>
+    <string name="about_check_updates_hint">Opens the releases page on GitHub in your browser — the app itself never connects to the Internet.</string>
+    <string name="about_section_privacy">Privacy</string>
+    <string name="about_privacy_card_title" formatted="false">100% private — zero surveillance</string>
+    <string name="about_privacy_1">No network connection — verifiable in the manifest</string>
+    <string name="about_privacy_2">No account, no sign-up</string>
+    <string name="about_privacy_3">No tracker, no advertising</string>
+    <string name="about_privacy_4">Notes encrypted locally (SQLCipher + Android Keystore)</string>
+    <string name="about_privacy_5">“Hide in recent apps” mode available</string>
+    <string name="about_section_voice">Voice dictation</string>
+    <string name="about_notice_title">How to enable dictation</string>
+    <string name="about_notice_step_1">Settings → Voice dictation → Enable voice dictation.</string>
+    <string name="about_notice_step_2">Choose a model (Whisper Base 57 MB recommended).</string>
+    <string name="about_notice_step_3">Tap “Download to this phone” — the system browser downloads the .bin file to Downloads. Notes Tech still has no Internet permission: it\'s your browser that downloads, not the app.</string>
+    <string name="about_notice_step_4">Tap “Select the .bin file” — the app verifies the cryptographic fingerprint then copies the model to its private area.</string>
+    <string name="about_notice_step_5">In a note, tap the mic icon 🎤 in the top bar. Speak, then tap “Stop”. The transcribed text is inserted at the cursor.</string>
+    <string name="about_section_licenses">Sources, licenses and open code</string>
+    <string name="about_link_repo">Notes Tech (this app)</string>
+    <string name="about_link_whisper">Source of Whisper models (.bin)</string>
+    <string name="about_license">Apache License 2.0 — open source code, verifiable</string>
+    <string name="about_free">Free — no premium tier, no subscription</string>
+    <string name="about_section_contact">Author &amp; contact</string>
+    <string name="about_contact_email">Email us</string>
+    <string name="about_contact_questions">Questions, suggestions, feedback</string>
+    <string name="about_section_legal">Legal</string>
+    <string name="about_legal_link">View full legal notice</string>
+    <string name="about_legal_subtitle">Publisher, data collected, permissions, rights, license</string>
+    <string name="about_link_copied">Link copied — paste it in your browser.</string>
+    <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
+    <string name="about_voice_1">On-device Whisper (whisper.cpp, built into the app)</string>
+    <string name="about_voice_2">Model SHA-256 verified at import and before each load</string>
+    <string name="about_voice_3">Recordings deleted once transcribed</string>
+    <string name="about_link_voice">whisper.cpp (speech recognition engine)</string>
+
+    <!-- ── Mentions légales ────────────────────────────────────────────── -->
+    <string name="legal_title">Legal notice</string>
+    <string name="legal_tab_privacy">Privacy</string>
+    <string name="legal_tab_terms">Terms</string>
+
+    <!-- ── Divers ──────────────────────────────────────────────────────── -->
+    <string name="app_title">Notes Tech</string>
+    <string name="passphrase_show_tooltip">Show passphrase</string>
+    <string name="passphrase_hide_tooltip">Hide passphrase</string>
+    <string name="move_to_folder_empty">No other folder available.</string>
+    <string name="ai_chat_model_loaded">Model ready</string>
+    <string name="error_vault_locked">Vault locked.</string>
+    <string name="error_voice_no_model_installed">No transcription model installed.</string>
+    <string name="error_voice_start_capture_failed">Failed to start microphone capture.</string>
+    <string name="error_voice_transcribe_failed">Transcription failed.</string>
+    <string name="error_voice_mic_capture_error">Microphone capture error.</string>
+    <string name="error_folder_name_required">Folder name is required.</string>
+    <string name="error_inbox_not_deletable">“Inbox” folder cannot be deleted.</string>
+    <string name="error_note_title_too_long">Title too long (max 200 characters).</string>
+    <string name="error_vault_already_enabled">This folder is already a vault.</string>
+    <string name="error_vault_passphrase_too_short">Passphrase too short (minimum 8 characters).</string>
+    <string name="error_vault_passphrase_wrong">Wrong passphrase.</string>
+    <string name="error_vault_pin_too_short">Invalid PIN: 4 to 6 digits.</string>
+    <string name="error_vault_pin_not_digits">Invalid PIN: digits only.</string>
+    <string name="error_vault_pin_wrong">Wrong PIN.</string>
+    <string name="error_vault_pin_wiped">Vault self-destructed after too many failed attempts.</string>
+    <string name="error_vault_not_pin_vault">This folder is not a PIN vault.</string>
+    <string name="error_vault_not_avault">This folder is not a vault.</string>
+    <string name="error_vault_encrypted_content_invalid">Encrypted content invalid (too short).</string>
+    <string name="error_vault_wrap_invalid">Encrypted wrap invalid (truncated GCM tag).</string>
+    <string name="error_unexpected">Something went wrong. Please try again.</string>
+    <string name="error_clipboard_secure_unavailable">Copy refused: the secure clipboard is unavailable.</string>
+    <string name="error_vault_pin_hardware_unavailable">PIN vaults need hardware-backed key storage, which this device does not provide. Use a passphrase vault instead.</string>
+    <string name="error_vault_pin_needs_screen_lock">PIN vaults need a screen lock on this phone. Set a PIN, pattern or password in Android settings, or use a passphrase vault.</string>
+    <!-- Ajout du portage : l'application publiee n'offre pas de reveler le code. -->
+    <string name="pin_show_tooltip">Show PIN</string>
+    <string name="pin_hide_tooltip">Hide PIN</string>
+
+    <!-- ── Écran d'échec au démarrage ─────────────────────────────────────────
+         Ces chaînes n'ont PAS d'équivalent dans la version Flutter : l'écran qu'elles servent est
+         une addition du portage, pour l'utilisateur dont la base ne s'ouvre pas. Un message vague
+         à ce moment-là transforme une situation récupérable en abandon. -->
+    <string name="startup_failure_title">Your notes could not be unlocked</string>
+    <string name="startup_failure_notes_are_safe">Your notes are still on this device and have not been modified.</string>
+    <!-- 2026-09-24: the advice "install Notes Tech 2.0.4 first, then update again" had become
+         impossible. Since 2.0.5 every published version is above 2.0.4, and so is this one: going
+         back is a downgrade Android refuses, and uninstalling to get there deletes the notes. What
+         stays true, and matters most, is what NOT to do. -->
+    <string name="startup_failure_missing_key">The encryption key for this database was not found. Do not uninstall the app or clear its data: that would delete your notes for good. Write to contact@files-tech.com.</string>
+    <string name="startup_failure_key_unavailable">The device keystore is temporarily unavailable. Restart the app; if the problem persists, restart the device.</string>
+    <string name="startup_failure_unknown">The key was found but could not be used. Try again; if the problem persists, report it — your notes are not modified.</string>
+    <string name="startup_failure_retry">Try again</string>
+
+</resources>

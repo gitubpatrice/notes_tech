@@ -1,32 +1,37 @@
-Notes Tech : prise de notes Markdown 100 % locale et chiffrée at-rest.
+Notes Tech : prise de notes Markdown 100 % locale, chiffrée au repos. Écrite en Kotlin.
 
 <b>Confidentialité radicale</b>
-• Permission INTERNET retirée explicitement via le manifest merger (tools:node="remove" sur android.permission.INTERNET et ACCESS_NETWORK_STATE) — vérifiable post-merge avec <code>aapt dump permissions app.apk</code>
-• Aucun compte, aucune télémétrie, aucun tracker, aucune publicité
-• Base SQLCipher AES-256 + clé scellée Android Keystore (hardware-backed)
-• Mode panique multi-step : efface clé + DB + modèle de dictée en quelques secondes
+• Aucune permission INTERNET — vérifiable avec <code>aapt dump permissions app.apk</code>
+• Aucun compte, aucune télémétrie, aucun traceur, aucune publicité
+• Base SQLCipher AES-256, clé scellée par le Keystore Android
+• Mode panique en plusieurs étapes : efface clés, base et modèle de dictée en quelques secondes
+• Verrouillage de l'application en option : un code, et la biométrie forte si vous le souhaitez
 
 <b>Coffres par dossier</b>
-• Passphrase Argon2id RFC 9106 (m=64MB, t=3) ou PIN Keystore-bound
-• AES-256-GCM par note avec AAD = note_id (anti-swap)
-• Auto-wipe PIN après 5 échecs (Keystore device-bound)
-• Auto-verrouillage configurable (5 min à jamais)
+• Phrase secrète Argon2id (m=64MB, t=3) ou code lié au Keystore (Android 9 et plus)
+• AES-256-GCM par note, liée à sa note (anti-substitution)
+• Effacement automatique du code après 5 échecs
+• Verrouillage automatique réglable (5 min à jamais)
 
-<b>Dictée vocale on-device</b>
-• Whisper local (modèle .bin importé manuellement)
-• SHA-256 vérifié à l'import et avant chaque chargement
-• Audio jamais persisté — effacé après transcription
+<b>Dictée vocale sur l'appareil</b>
+• whisper.cpp intégré à l'application ; modèle Whisper importé à la main
+• SHA-256 vérifié à l'import et avant chargement
+• Enregistrements supprimés après transcription
 
 <b>Édition</b>
-• Markdown avec bascule Éditer / Aperçu (titres, listes, liens), auto-save 500ms debounce
-• Backlinks <code>[[Titre]]</code> avec autocomplétion + panel "notes qui mentionnent celle-ci"
-• Recherche FTS5 + bm25, filtrage par dossier, tri configurable
-• Export ZIP Markdown (frontmatter YAML compatible Obsidian/Logseq)
+• Markdown avec bascule Éditer / Aperçu (titres, listes, liens), enregistrement automatique
+• Rétroliens <code>[[Titre]]</code> avec autocomplétion + panneau « notes qui mentionnent celle-ci »
+• Recherche FTS5 instantanée, tri réglable
+• Export Markdown, d'une note ou en ZIP (en-tête YAML compatible Obsidian/Logseq)
 
-<b>i18n FR / EN</b>
-• Sélecteur Langue dans Réglages (FR / EN / Système)
-• Sélecteur Thème (Clair / Sombre / Système)
-• Pages légales (PRIVACY / TERMS) localisées
+<b>Cinq langues</b>
+• Anglais, français, allemand, italien, espagnol — au choix dans les Réglages
+• Thème clair / sombre / système
+• Politique de confidentialité et conditions dans les cinq langues
+
+<b>Permissions</b>
+• Micro : pour la dictée seulement, demandé quand vous l'activez
+• Biométrie : pour le verrouillage seulement, ne donne accès à aucune donnée
 
 <b>Open source Apache 2.0</b>
 Code source intégral et vérifiable sur GitHub : gitubpatrice/notes_tech

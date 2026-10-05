@@ -1,0 +1,15 @@
+# Vecteurs de parite des coffres -- produits en EXECUTANT le vrai code Dart de
+# Notes Tech 2.0.3 (paquet `cryptography` 2.9.0), puis recoupes contre une
+# troisieme implantation independante (argon2-cffi = C de reference, et
+# `cryptography` Python = OpenSSL). 37 concordances, 0 divergence.
+# Procedure et limites : docs/09-VECTEURS-DE-PARITE.md.
+# NE PAS EDITER A LA MAIN. Tout champ textuel est en hexadecimal UTF-8.
+# 
+# !! LA COUCHE KEYSTORE N'EST PAS ICI, ET NE PEUT PAS Y ETRE. Elle est liee a
+# l'appareil ET a l'UID de l'application : aucun vecteur ne la reproduit.
+# Ce qui est fige, c'est ce qui ENTRE dans le Keystore -- le wrap interne -- donc
+# le seul element dont le format doit concorder entre Dart et Kotlin.
+# Le scellement Keystore lui-meme se verifie par aller-retour, en test
+# instrumente sur appareil.
+# pinUtf8Hex	folderIdUtf8Hex	aliasKeystore	vaultSaltHex	vaultIvHex	pinKekHex	folderKekHex	wrapInterneHex
+343832393133	66306531643263332d623461352d343936382d383737382d363935613462336332643165	vault_pin_f0e1d2c3-b4a5-4968-8778-695a4b3c2d1e	112233445566778899aabbccddeeff00	fedcba9876543210fedcba98	fc6b10c87ba6b288c8898dc73cf82b4296f4627b483cbdfbfce498232c928b37	808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f	ff3e21848809ecb04ea6f5296d4d8fde44d5438496b517da51134d9687304647be8a0620cd2f2789f289f48fe9c40049

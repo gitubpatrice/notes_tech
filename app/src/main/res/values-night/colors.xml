@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Le fond de la fenêtre d'amorçage en thème sombre : `AppColors.darkBg` de `theme.dart`
+      (#0D1117), c'est-à-dire exactement le fond sur lequel l'écran de présentation se dessine
+      ensuite. La transition ne se voit pas.
+
+      Cf. le commentaire de `values/colors.xml` pour l'écart assumé avec la version Flutter, qui
+      affiche du blanc dans les deux thèmes.
+    -->
+    <color name="splash_background">#0D1117</color>
+</resources>

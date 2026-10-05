@@ -1,0 +1,142 @@
+name: CI (Kotlin)
+
+# Notes Tech 3.0 is the Kotlin rewrite. This workflow replaces the Flutter ci.yml, and the port's own
+# first ci.yml (2026-08, never run: the port had no remote then).
+#
+# `kotlin`, `fix/**` and `feat/**` are triggers on purpose: a work branch with nothing running on it
+# can pile up commits nobody checks (measured on a sibling app: 25 commits, detekt red since the
+# morning, unreported).
+on:
+  push:
+    branches: [main, kotlin, 'fix/**', 'feat/**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A newer push to the same ref cancels the previous run: its result is already stale.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Pinned in app/build.gradle.kts. Installed explicitly rather than left to whatever the runner
+  # image happens to carry: two NDKs produce different .so from the same sources.
+  NDK_VERSION: "27.0.12077973"
+  CMAKE_VERSION: "3.22.1"
+
+jobs:
+  gate:
+    name: Gate (build · tests · lint · detekt · ktlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Install the pinned NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION" > /dev/null
+
+      # The local gate, in one command, so CI and a developer's machine agree on what "green" means.
+      #
+      # `compileDebugAndroidTestKotlin`: the instrumented tests run on real phones, not here (see the
+      # end of this file), so nothing else would notice their source set no longer compiles. It
+      # happened in 2026-08: a key interface gained a member, five test doubles did not follow, and
+      # the instrumented suite could not run without anyone being told.
+      - name: Gate
+        run: >
+          ./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
+          :app:compileDebugAndroidTestKotlin
+
+      # Room validates the database when it opens it. Any drift between the entities and the schema the
+      # Flutter versions created would show up on the user's phone as a database that refuses to open,
+      # so after the update. The script compares, in memory, exactly what Room compares, against the
+      # schema KSP has just exported.
+      - name: Does the Room schema still match the database the Flutter versions created?
+        run: python3 audits/verifier-schema-room-vs-flutter.py
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gate-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  release:
+    name: Release build (R8, native code, real applicationId)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Install the pinned NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION" > /dev/null
+
+      # `-Pnotestech.replaceInstalledApp=true` is what a published build uses: without it the APK is
+      # `com.filestech.notes_tech.next`, installed beside Notes Tech. Without keystore.properties (not
+      # in the repository, on purpose) the APKs come out unsigned, which is all this job needs: it
+      # proves R8 and the NDK build pass, that each split carries versionCode * 10 + ABI, and the
+      # universal APK versionCode * 10.
+      - name: Build the release splits
+        run: ./gradlew --no-daemon :app:assembleRelease -Pnotestech.replaceInstalledApp=true
+
+      - name: Check package and versionCodes
+        run: |
+          set -euo pipefail
+          AAPT2=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2
+          BASE=$(sed -n 's/^versionCode=//p' version.properties | tr -d '\r')
+          for pair in universal:0 armeabi-v7a:1 arm64-v8a:2 x86_64:3; do
+            abi=${pair%%:*}; rank=${pair##*:}
+            apk=app/build/outputs/apk/release/app-$abi-release-unsigned.apk
+            line=$("$AAPT2" dump badging "$apk" | head -1)
+            echo "$abi: $line"
+            echo "$line" | grep -q "name='com.filestech.notes_tech' versionCode='$((BASE * 10 + rank))'" \
+              || { echo "::error::$abi: expected com.filestech.notes_tech / $((BASE * 10 + rank))"; exit 1; }
+          done
+
+  zero-network:
+    name: Zero-network promise
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Only the manifest merge: it needs no keystore and no R8, and it is the artefact that decides
+      # which permissions the published APK carries. The source manifest declares INTERNET only to
+      # remove it, so reading it would prove nothing.
+      - name: Merge the release manifest
+        run: ./gradlew --no-daemon :app:processReleaseMainManifest -Pnotestech.replaceInstalledApp=true
+
+      - name: Assert the permissions of the merged release manifest
+        run: python3 tools/check-manifest-permissions.py
+
+# Instrumented tests (484 on 2026-09-26) run on real phones, not here: many need a screen lock, a
+# hardware Keystore and, for some, a fingerprint — an emulator without them fails for its own reasons.
+# Locally, always by serial, never with connectedAndroidTest (it targets every attached device):
+#   adb -s <serial> shell am instrument -w -r \
+#     com.filestech.notes_tech.next.debug.test/com.filestech.notes_tech.HiltTestRunner

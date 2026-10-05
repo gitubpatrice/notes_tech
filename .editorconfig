@@ -1,0 +1,37 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+max_line_length = 120
+
+# Style ktlint « intellij_idea » et non « ktlint_official ».
+#
+# Le style officiel impose `multiline-expression-wrapping` et `chain-method-continuation`, qui
+# réécrivent tout `val x = try { … }` en `val x =\n    try { … }` et coupent les chaînes d'appels.
+# Sur ce projet, ça produisait un reformatage de 660 lignes sur du code déjà relu, et surtout ça
+# entrait en conflit direct avec les règles de mise en forme de detekt : deux outils exigeant des
+# mises en forme incompatibles sur les mêmes fichiers.
+#
+# Le conflit est tranché en amont : ktlint possède le style, detekt ne fait plus que du fond
+# (son jeu de règles `formatting` est désactivé dans config/detekt/detekt.yml).
+ktlint_code_style = intellij_idea
+
+# ⚠️ NON NÉGOCIABLE — le paquet est `com.filestech.notes_tech`, avec un tiret bas.
+#
+# Ce n'est pas une préférence : c'est l'`applicationId` de l'application publiée. Le renommer
+# déplacerait `/data/data/<paquet>/`, donc la base de données, les préférences et les alias
+# Keystore des coffres — équivalent à une désinstallation chez chaque utilisateur.
+# Cf. docs/01-DECISIONS.md D-007.
+ktlint_standard_package-name = disabled
+
+# Les fichiers de ce projet portent volontairement des noms de test en français avec des tirets
+# bas (`une_note_verrouillee_ne_ressort_jamais_de_la_recherche`). Ils décrivent un comportement
+# métier et se lisent mieux ainsi que dans un camelCase de trente caractères.
+ktlint_standard_function-naming = disabled
