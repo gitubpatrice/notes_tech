@@ -3,6 +3,35 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, **puis le 2026-10-05**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
+## 🧭 À LA REPRISE (écrit le 2026-10-05 au soir, Patrice : « consigne tout, on reprend demain »)
+
+La 3.0.0 est publiée et vérifiée (section suivante). Ce qui restait en cours au moment de couper :
+
+- **Incident GitHub Actions** depuis 19 h 11 UTC (« delays when assigning GitHub-hosted runners ») : TOUS
+  les jobs restaient en file. Rien à corriger chez nous. Relire d'abord `githubstatus.com`, puis
+  `gh run list -R gitubpatrice/notes_tech --limit 15`.
+- **`main` = `167d8a6`**, après les fusions du soir (« fusionne OK ») : #24 correctif JUnit (lanceur
+  JUnit Platform déclaré via le BOM — sans lui, TOUTE version autre que 5.11.3 ne découvrait aucun test,
+  mesuré : 425/0 en 5.11.3 ET en 5.14.4), #23 Bouncy Castle 1.86 (les 9 tests de parité du coffre,
+  Argon2id compris, passent en CI : coffres existants ouvrables), #20 Kotlin 2.3.21 + KSP 2.3.12, #19
+  androidx compatibles (Room 2.8.5, splashscreen 1.2.0, libs de test). Avant : #17 turbine, #18 plugin
+  ktlint 14.
+- **À vérifier en premier** : la CI de `main` sur `167d8a6` (en file à cause de l'incident) — elle teste
+  la COMBINAISON des quatre fusions, jamais testée ensemble. Un gate local complet sur `167d8a6` était
+  **ENTIÈREMENT VERT sur `167d8a6`** (build, 425/0/0, lint, detekt, ktlint, compilation androidTest, schéma Room) ; reste la CI GitHub, pour la forme. Pour le gate, si besoin
+  (`./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
+  :app:compileDebugAndroidTestKotlin`, puis `python audits/verifier-schema-room-vs-flutter.py`).
+- **`THIRD_PARTY_NOTICES.md` est périmé** depuis ces fusions : il cite Room 2.8.4, Kotlin 2.3.20, Bouncy
+  Castle 1.81. Le refaire depuis `:app:dependencies --configuration releaseRuntimeClasspath` (versions
+  ET liste : splashscreen est passé en 1.2.0) ; vérifier aussi l'écran des avis tiers de l'app s'il
+  cite des versions.
+- **Dependabot** : #21 (JUnit 5.14.4) et #22 (truth 1.4.5) — « @dependabot rebase » demandé ; les fusionner
+  quand leur CI est verte, sur un « fusionne » de Patrice (le classifieur l'exige, PR par PR).
+- **F-Droid `!51297`** : pipeline 12/12 vert, attend la revue de linsui. Après fusion par F-Droid,
+  vérifier `https://f-droid.org/api/v1/packages/com.filestech.notes_tech` avant d'écrire quoi que ce soit.
+- Signalé, non fait : la carte SMS Tech du site dit encore « FR / EN » (cinq langues depuis 1.28.12).
+- Consigne de Patrice : **ne jamais bloquer le chat** — toute attente (CI, pipeline, build) en arrière-plan.
+
 ## 🧭 EN BREF — 2026-10-05, nuit : la 3.0.0 est PUBLIÉE sur GitHub
 
 Patrice : « fais tout ce qu'il faut », « carte blanche », « full permissions ». Fait :
