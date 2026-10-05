@@ -1,6 +1,6 @@
 # Nutzungsbedingungen — Notes Tech
 
-**Version 1.1.0 — September 2026**
+**Version 1.2.0 — Oktober 2026**
 
 ## Lizenz
 
@@ -62,15 +62,15 @@ Alle Ihre Notizen werden **lokal und verschlüsselt** auf Ihrem Telefon gespeich
 
 ## Updates
 
-Updates werden über das offizielle GitHub-Repository verteilt. Keine automatische Aktualisierung: Es liegt bei Ihnen, die neue Version zu installieren.
+Updates werden im offiziellen GitHub-Repository und auf F-Droid veröffentlicht. Die App aktualisiert sich nie selbst und prüft nie, ob es eine neue Version gibt: Eine neue Version zu installieren liegt bei Ihnen – oder bei Ihrem F-Droid-Client, wenn Sie es ihm erlauben. Eine über F-Droid installierte Kopie lässt sich nur über F-Droid aktualisieren, eine über GitHub installierte nur über GitHub: Beide sind nicht mit demselben Schlüssel signiert. Ein Wechsel erfordert die Deinstallation der App, die Ihre Notizen löscht – exportieren Sie sie vorher.
 
 ## Haftung
 
-Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt (Apache-Lizenz 2.0, Abschnitt 8). Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen oder einer Deinstallation allein in der Verantwortung des Nutzers**.
+Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt (Apache-Lizenz 2.0, Abschnitt 8). Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen oder einer Deinstallation allein in der Verantwortung des Nutzers**. Nichts in diesen Bedingungen beschränkt eine Haftung, deren Beschränkung gesetzlich nicht zulässig ist.
 
 ## Anwendbares Recht
 
-Diese Bedingungen unterliegen **französischem Recht**. Bei Streitigkeiten sind die französischen Gerichte zuständig.
+Diese Bedingungen unterliegen **französischem Recht**, unbeschadet der zwingenden Verbraucherschutzvorschriften Ihres Wohnsitzlandes. Soweit gesetzlich zulässig, sind bei Streitigkeiten die französischen Gerichte zuständig.
 
 ## Sprache
 

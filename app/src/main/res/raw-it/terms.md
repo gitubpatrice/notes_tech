@@ -1,6 +1,6 @@
 # Condizioni d'uso — Notes Tech
 
-**Versione 1.1.0 — settembre 2026**
+**Versione 1.2.0 — ottobre 2026**
 
 ## Licenza
 
@@ -62,15 +62,15 @@ Tutte le sue note sono conservate **localmente e cifrate** sul suo telefono (ved
 
 ## Aggiornamenti
 
-Gli aggiornamenti sono distribuiti tramite il repository GitHub ufficiale. Nessun aggiornamento automatico: spetta a lei installare la nuova versione.
+Gli aggiornamenti sono pubblicati sul repository GitHub ufficiale e su F-Droid. L'app non si aggiorna mai da sola e non verifica mai la disponibilità di aggiornamenti: installare una nuova versione spetta a lei, o al suo client F-Droid se lo autorizza. Una copia installata da F-Droid si aggiorna solo da F-Droid, e una installata da GitHub solo da GitHub: non sono firmate con la stessa chiave. Passare dall'una all'altra richiede di disinstallare l'app, il che cancella le sue note: le esporti prima.
 
 ## Responsabilità
 
-L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese (licenza Apache 2.0, sezione 8). In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN o a una disinstallazione è di esclusiva responsabilità dell'utente**.
+L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese (licenza Apache 2.0, sezione 8). In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN o a una disinstallazione è di esclusiva responsabilità dell'utente**. Nulla in queste condizioni limita una responsabilità che la legge non consente di limitare.
 
 ## Legge applicabile
 
-Condizioni regolate dalla **legge francese**. In caso di controversia sono competenti i tribunali francesi.
+Condizioni regolate dalla **legge francese**, fatte salve le norme imperative a tutela dei consumatori del suo paese di residenza. Ove la legge lo consenta, in caso di controversia sono competenti i tribunali francesi.
 
 ## Lingua
 

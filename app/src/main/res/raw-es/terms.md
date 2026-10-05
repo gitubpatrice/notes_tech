@@ -1,6 +1,6 @@
 # Condiciones de uso — Notes Tech
 
-**Versión 1.1.0 — septiembre de 2026**
+**Versión 1.2.0 — octubre de 2026**
 
 ## Licencia
 
@@ -62,15 +62,15 @@ Todas sus notas se guardan **localmente y cifradas** en su teléfono (consulte l
 
 ## Actualizaciones
 
-Las actualizaciones se distribuyen a través del repositorio oficial de GitHub. No hay actualización automática: le corresponde a usted instalar la nueva versión.
+Las actualizaciones se publican en el repositorio oficial de GitHub y en F-Droid. La aplicación nunca se actualiza sola ni comprueba si hay actualizaciones: instalar una nueva versión le corresponde a usted, o a su cliente de F-Droid si se lo permite. Una copia instalada desde F-Droid solo se actualiza desde F-Droid, y una instalada desde GitHub solo desde GitHub: no están firmadas con la misma clave. Pasar de una a otra obliga a desinstalar la aplicación, lo que borra sus notas: expórtelas antes.
 
 ## Responsabilidad
 
-El editor no puede ser considerado responsable de ningún daño directo o indirecto derivado del uso de la aplicación, dentro de los límites que permite el derecho francés (licencia Apache 2.0, sección 8). En particular, **cualquier pérdida de datos derivada de un modo pánico, una frase de contraseña olvidada, un borrado automático por errores de PIN o una desinstalación es responsabilidad exclusiva del usuario**.
+El editor no puede ser considerado responsable de ningún daño directo o indirecto derivado del uso de la aplicación, dentro de los límites que permite el derecho francés (licencia Apache 2.0, sección 8). En particular, **cualquier pérdida de datos derivada de un modo pánico, una frase de contraseña olvidada, un borrado automático por errores de PIN o una desinstalación es responsabilidad exclusiva del usuario**. Nada en estas condiciones limita una responsabilidad que la ley no permite limitar.
 
 ## Legislación aplicable
 
-Condiciones regidas por el **derecho francés**. En caso de litigio, serán competentes los tribunales franceses.
+Condiciones regidas por el **derecho francés**, sin perjuicio de las normas imperativas de protección de los consumidores de su país de residencia. Cuando la ley lo permita, en caso de litigio serán competentes los tribunales franceses.
 
 ## Idioma
 
