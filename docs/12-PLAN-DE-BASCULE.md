@@ -220,6 +220,12 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
 
 ### Phase 4 — Publication par paliers, du moins risqué au plus risqué
 
+> ✅ **2026-10-05, nuit** — sur instruction de Patrice (« fais tout ce qu'il faut », « carte blanche »), les
+> paliers 1 et 2 ont été enchaînés le même soir : `kotlin` fusionnée dans `main` (PR #13, `db374c9`),
+> release `v3.0.0` publiée en pré-publication puis passée en version normale (le site pointe sur
+> `releases/latest`, qui ignore les pré-publications). Palier 3 : PR `files-tech-site` #8 ouverte.
+> Palier 4 : MR F-Droid `!51297` ouverte. Détail dans `REPRISE.md`.
+
 1. **Release GitHub marquée _pre-release_.** Ceux qui l'installent sont volontaires et savent
    revenir en arrière. C'est le seul palier où une erreur se rattrape.
 2. Release normale.

@@ -3,6 +3,41 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, **puis le 2026-10-05**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
+## 🧭 EN BREF — 2026-10-05, nuit : la 3.0.0 est PUBLIÉE sur GitHub
+
+Patrice : « fais tout ce qu'il faut », « carte blanche », « full permissions ». Fait :
+
+- **PR #13 fusionnée** en merge commit (`db374c9`, histoires gardées : 177 + 217 commits) ; `main` = arbre du
+  portage + `README.en.md` + `.gitleaks.toml`. Le classifieur refusait `gh pr merge` malgré « carte
+  blanche » ; il l'a accepté sur un « OK FUSIONNE » explicite.
+- **Tag `v3.0.0`** (léger, comme les précédents) sur `db374c9`. **Release v3.0.0 = Latest** (pré-publication
+  d'abord, puis normale : `releases/latest`, cible du site, ignore les pré-publications). 4 APK signés EN
+  LOCAL (`apksigner`, keystore de `notes_tech/android/`, secrets par variables d'environnement) : cert
+  `ddb385de…42e9` = celui de la **2.0.9 publiée** (APK retéléchargé et comparé) ; v2 + v3 ; versionCodes
+  5000-5003 ; aucun bloc « Dependency metadata » (v2, v3, bourrage seulement) ; 4 permissions, pas
+  d'INTERNET ; assets retéléchargés = SHA-256 identiques. SHA-256 : universel `2f29a0ee…17f2`, arm64
+  `efeafb48…6571`, armeabi-v7a `bebc7802…9256`, x86_64 `cadc981b…84b4`.
+- **CI de `main`** verte sur `db374c9` (CI Kotlin + CodeQL). Alerte CodeQL #1
+  (`insecure-local-key-gen`, clé du coffre) classée **faux positif** avec sa raison.
+- **Site** : PR `files-tech-site` **#8** (5 surfaces + contenu 3.0.0 vérifié dans le code : 8 Mo, cinq
+  langues, verrou, protection d'écran par défaut, panique, dictée, limites « sans retour » et F-Droid,
+  6 captures Kotlin). Rendu local FR/EN sans erreur. **Fusion refusée au classifieur : attend un
+  « fusionne » de Patrice**, puis vérifier EN LIGNE FR et EN.
+- **F-Droid** : **MR `!51297`** (fork, branche `update-notes-tech-3.0.0`, `24e3259`), recette = brouillon
+  `docs/fdroid/` avec `commit: db374c9…` ; lint/rewritemeta/scanner verts en local ; pipeline
+  `2914896959` : `checkupdates` vert (la nouvelle règle lit `version.properties` au tag).
+- **Dependabot** (nouvelle config) : #14 androidx, #15 Kotlin 2.4.10, #16 JUnit 6 — impossibles sur AGP
+  8.13, mesurés, désormais **ignorés** (`02d6c5c`) et fermés avec la raison ; #17 turbine et #18 plugin
+  ktlint 14 **verts, à fusionner** ; les 6 vieilles PR Flutter (#2, #4-#6, #8, #9) fermées, caduques.
+- Doc : le mot de confirmation de la panique est traduit (`EFFACER`, `WIPE`…), README/SECURITY corrigés.
+- ⛔ **Keystore** : il vit dans l'ancien clone `J:/applications/notes_tech/android/`, exclu par
+  `android/.gitignore` (fichier SUIVI). Un `git pull` de `main` dans ce clone ferait disparaître ce
+  `.gitignore` et rendrait le keystore commitable : **ne jamais mettre ce clone à jour**.
+
+**Reste** : fusion de la PR du site (#8) puis vérification en ligne ; résultat du `fdroid build` de
+`!51297` ; fusion de #17/#18 ; plus tard, la migration AGP 9 (comme Agenda Tech) qui débloquera
+androidx, Kotlin 2.4 et Hilt 2.58 ; la réécriture de l'adresse privée (à la demande de Patrice).
+
 ## 🧭 EN BREF — 2026-10-05 au soir : la 3.0.0 est PRÉPARÉE et poussée sur la branche `kotlin`, rien n'est publié
 
 Patrice, 2026-10-05 : « ok les points de 1 à 4 et la décision A aussi c'est OK. Fais tout ce qu'il y
