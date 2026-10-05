@@ -158,9 +158,8 @@ faite, les décisions A/B/C sont théoriques.
 
 ### Phase 2 — Le dépôt
 
-> ⏸️ **Pas encore faite (2026-10-05)** : 132 commits portent une adresse d'auteur privée, à réécrire
-> AVANT tout push (cf. `REPRISE.md`, EN BREF). La CI de la branche est prête
-> (`.github/workflows/android.yml`, déclenchée sur `kotlin`). ✅ **Phase 3 faite le 2026-10-05**
+> ✅ **Faite le 2026-10-05** : branche `kotlin` poussée sur `gitubpatrice/notes_tech` (`cbaf0ed`), avec
+> sa propre CI (`.github/workflows/android.yml`, déclenchée sur `kotlin`). ✅ **Phase 3 faite le 2026-10-05**
 > (métadonnées, fichiers publics, avis de licences, recette F-Droid en brouillon).
 
 `git remote add` sur `notes_tech`, push de `master` en branche `kotlin`. Rien ne change pour
