@@ -82,7 +82,7 @@ Builds:
 
   - versionName: 3.0.0
     versionCode: 5001
-    commit: v3.0.0
+    commit: db374c948d545da81a4e70b0f3d9c9fabf0d4519
     subdir: app
     gradle:
       - yes
@@ -93,7 +93,7 @@ Builds:
 
   - versionName: 3.0.0
     versionCode: 5002
-    commit: v3.0.0
+    commit: db374c948d545da81a4e70b0f3d9c9fabf0d4519
     subdir: app
     gradle:
       - yes
@@ -104,7 +104,7 @@ Builds:
 
   - versionName: 3.0.0
     versionCode: 5003
-    commit: v3.0.0
+    commit: db374c948d545da81a4e70b0f3d9c9fabf0d4519
     subdir: app
     gradle:
       - yes
