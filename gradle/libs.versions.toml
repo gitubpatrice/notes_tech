@@ -12,9 +12,9 @@ core-ktx = "1.18.0"
 activity-compose = "1.13.0"
 lifecycle = "2.10.0"
 navigation-compose = "2.9.8"
-room = "2.8.4"
+room = "2.8.5"
 datastore = "1.1.1"
-splashscreen = "1.0.1"
+splashscreen = "1.2.0"
 # The app lock's fingerprint / face unlock (D-023). Same version as Agenda Tech and SMS Tech: 1.1.0 is
 # the last stable release, and the two portfolio apps that ship it have measured its pitfalls
 # (`authenticate` after `onSaveInstanceState` gives up in silence; see `BiometricPrompts`).
@@ -53,9 +53,9 @@ junit5 = "5.11.3"
 mockk = "1.14.11"
 turbine = "1.2.0"
 truth = "1.4.4"
-androidx-test-ext = "1.2.1"
-androidx-test-runner = "1.6.2"
-espresso = "3.6.1"
+androidx-test-ext = "1.3.0"
+androidx-test-runner = "1.7.0"
+espresso = "3.7.0"
 
 # Qualité
 detekt = "1.23.8"
