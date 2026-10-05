@@ -107,7 +107,10 @@ n'a plus d'objet. Ce qui la remplace :
   installation F-Droid, et la recette Kotlin **ne doit pas** en ajouter : cela changerait le signataire
   servi aux utilisateurs F-Droid déjà installés, qui ne pourraient plus mettre à jour ;
 - l'auto-update de la recette actuelle lit `pubspec.yaml`, qui disparaît avec Kotlin : au tag `v3.0.0`,
-  elle ne devrait pas se déclencher (déduit, pas mesuré). La nouvelle lit `version.properties`.
+  elle **ne se déclenche pas** — lu dans le source de fdroidserver 2.4.2 le 2026-10-05,
+  `checkupdates.check_tags` fait `continue` quand le fichier d'`UpdateCheckData` manque au tag
+  (« UpdateCheckData file … not found in tag »), donc la plus haute version reste la 2.0.9. La nouvelle
+  recette lit `version.properties`.
 
 Brouillon de la recette : `docs/fdroid/com.filestech.notes_tech.yml`.
 

@@ -38,6 +38,23 @@ a à faire et proprement ». Fait le jour même, un commit par étape :
   `./gradlew: Permission denied` — `gradlew` était versionné en 100644 depuis Windows (`core.fileMode =
   false`) ; corrigé par `git update-index --chmod=+x gradlew`.
 
+- ✅ **PR #13 ouverte le 2026-10-05** (`feat/kotlin-into-main` → `main`), **9 contrôles verts** dont le
+  premier CodeQL sur l'app entière. Branche partie de `main`, `kotlin` fusionnée avec
+  `--allow-unrelated-histories` (commit `ae07543`, parents `da102a3` + `90a43bc`) : arbre = portage +
+  `README.en.md` + `.gitleaks.toml`. **À fusionner en « Create a merge commit », JAMAIS squash.** La fusion
+  par Claude a été refusée par le classifieur (« Merge Without Review ») : OK explicite de Patrice requis.
+  CodeQL : 1 alerte moyenne `java/android/insecure-local-key-gen` sur `AndroidVaultKeystore.kt:268` =
+  **faux positif** (clé du coffre, jamais passée à `BiometricPrompt` ; la clé biométrique du verrou exige
+  l'authentification, `BiometricUnlockKey.kt:83-90`) — à classer « false positive » avec cette raison.
+- Le tag `v3.0.0` ne déclenche PAS l'auto-update de la recette Flutter (source fdroidserver lu, cf. plan §C).
+- Build release propre faite en local le 05-10 au soir (`--no-build-cache clean`, daemon arrêté) : APK non
+  signés dans `app/build/outputs/apk/release/`. La signature par Claude a été refusée par le classifieur
+  avec la fusion : à refaire après l'OK. Méthode : `apksigner` avec `notes_tech/android/notestech-release.jks`,
+  secrets lus dans `key.properties` et passés par variables d'environnement, vérification cert
+  `ddb385de…42e9` + versionCode 5000-5003 ; assets `notes-tech-{universel,armeabi-v7a,arm64-v8a,x86_64}-3.0.0.apk`.
+  Notes de release : avertissement « sans retour », F-Droid à attendre (autre clé), export ZIP de la 2.x
+  (coffres verrouillés omis, coffres ouverts exportés en clair — lu dans `note_export_service.dart`).
+
 **Reste — décisions et gestes de Patrice :** la pré-publication GitHub (signature, tag `v3.0.0`, et
 `commit:` de la recette à remplacer par le hash du tag), puis release, site (5 surfaces), puis nouvelle
 MR F-Droid avec la recette — **en dernier**. Avant le tag : fusion de `kotlin` dans `main` (les fichiers
