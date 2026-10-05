@@ -1,0 +1,38 @@
+v1.0.4 — Expert audit zero-vuln/zero-fault (May 2026)
+
+Security (P0+P1)
+• A1 — `_validateEncryptedDb` post-migration: `onConfigure` aligned
+  with prod + explicit `notes` table check (anti false-positive on
+  future sqflite_sqlcipher bump)
+• A2 (F6) — `aliveIds` vs `_embeddings.save` race fixed: existence +
+  `encryptedContent==null` check before each save (anti orphan
+  embedding re-inserted after concurrent hard-delete or vault-ization)
+• A6 — `_aesGcmDecrypt`: wipe `plain` buffer after copy (narrows
+  plaintext window in cryptography package heap)
+• A7 — `lock()` / `lockAll()` cancel the orphan `_autoLockTimer`
+• A8 — `_Argon2Job` passes `passphraseBytes` (Uint8List) instead of
+  String; worker isolate wipes the copy in `finally` (anti RAM
+  forensics post-unlock)
+• A11 — `RagService._sanitize` hardened: strip zero-width/bidi
+  (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069, U+FEFF) + neutralize
+  long base64 blocks (aligned with AI Tech v0.6.1 F2)
+• A13 — `ai_chat_screen` clears `_turns` on paused/hidden/detached
+  lifecycle + stops in-progress generation (anti RAM forensics of
+  decrypted vault content in `turn.sources`)
+• A17 — `PRAGMA cipher_compatibility = 4;` explicit (anti future
+  SQLCipher bump)
+• B6 — `PanicStep.embedderWipe` added: panic wipes `<appSupport>/models/`
+  (MiniLM cache ~25 MB)
+
+Documentation
+• E1 — SECURITY.md "Version current v1.0.4"
+• E2 — README "v1.0.4"
+• AppConstants.appVersion bumped 1.0.3 → 1.0.4
+
+Deferred to v1.1 (format-breaking, migration required):
+• F3 (A3 audit) — vault `title` encryption (DB v7)
+• F16 (A4 audit) — Keystore wrap AAD binding (Kotlin + Dart)
+• A5 — Argon2id runtime adaptive calibration per device
+
+flutter analyze: 0 errors, 0 warnings.
+flutter test: 64/64 passed.

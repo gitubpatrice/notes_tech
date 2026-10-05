@@ -1,0 +1,10 @@
+v1.0.2 — May 2026
+
+Performance — MiniLM isolate worker
+• Semantic search MiniLM no longer blocks the main thread
+• Persistent isolate worker holds OrtSession + BertTokenizer
+• Communication via SendPort, multiplexed by requestId
+• Lazy spawn on first embedAsync, clean disposal
+• LocalEmbedder remains sync (lightweight, no isolate needed)
+• Visible gain: -200ms to -600ms jank on tap "search"
+  on Galaxy S9 and POCO C75

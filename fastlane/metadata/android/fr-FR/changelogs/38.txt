@@ -1,0 +1,45 @@
+v1.0.7 — Hardening 4-axes : perf, qualité, sécurité, accessibilité
+
+Performance
+• Indexation MiniLM déportée dans le worker isolate dédié — plus
+  jamais de blocage du thread principal pendant qu'on importe ou
+  qu'on bascule la recherche sémantique avancée (gain ~15-30 s sur
+  une base de 500 notes sur S9 / POCO C75).
+• Démarrage à froid accéléré : init Gemma parallélisée aux autres
+  bootstraps (-50 à -150 ms perçus).
+• Cache SQLCipher porté à 32 Mo + mmap 64 Mo : recherche FTS plus
+  fluide sur bases volumineuses.
+• ListView des notes : cacheExtent 600 + ValueKey stable, scroll
+  fluide à >300 notes sans creux 60 fps.
+• R8 full mode activé : taille DEX réduite et perf cold start.
+
+Sécurité (défense en profondeur)
+• FLAG_SECURE désormais forcé automatiquement sur les écrans
+  sensibles (saisie PIN/passphrase coffre, chat IA avec contexte
+  RAG, éditeur de note vault déchiffrée) — même si la préférence
+  globale a été désactivée volontairement.
+• Lockout exponentiel après chaque PIN raté : 1 s, 2 s, 4 s, 8 s,
+  16 s (anti observation passive « par-dessus l'épaule »).
+• Backlinks et indexation titre : les notes verrouillées n'apparaissent
+  plus dans les liens entrants/sortants ni dans l'index titre→id —
+  aucun titre de note vault ne fuite via les références croisées.
+• Clé Keystore PIN : « unlocked device required » sur Android 9+
+  (impossible à exercer via un debugger USB sur écran verrouillé).
+• Titre des notes verrouillées masqué aussi dans les chips RAG.
+
+Qualité / fiabilité
+• Fuite mémoire MiniLM (~25 Mo + isolate) corrigée au toggle OFF
+  de la recherche sémantique.
+• Fuite ValueNotifier dans les tours de chat IA corrigée.
+• Race « save final + autosave en vol » dans l'éditeur de note :
+  les deux écritures sont désormais sérialisées.
+• Écriture atomique du modèle MiniLM (tmp + rename + sidecar de
+  taille) : plus de corruption possible si l'app est tuée pendant
+  l'extraction des 25 Mo.
+• Shutdown propre du worker ONNX (libération FFI native).
+
+Apparence
+• Nouvelle icône Files Tech.
+
+Hors scope (reportés v1.1 — changements de format DB).
+flutter analyze : 0 erreur, 0 warning. flutter test : 64/64 passed.

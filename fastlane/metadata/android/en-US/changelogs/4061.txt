@@ -1,0 +1,6 @@
+Nothing changes in the app. Each download now carries a version code built as
+version x 10 + architecture, the scheme F-Droid asks for, instead of Flutter's
+architecture x 1000 + version.
+
+The new codes are smaller, so the version code jumps from 55 to 406: without
+that jump, installs from the 2.0.7 GitHub release would refuse this update.

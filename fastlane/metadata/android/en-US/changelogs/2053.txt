@@ -1,0 +1,7 @@
+The note editor read its translations before the screen had finished
+initialising. Flutter compiles its assertions out of release builds, so
+the published APKs never showed the fault and only debug builds hung on
+the loading indicator. The read now happens where it is allowed.
+
+No other behaviour changes. The licence text and the store description
+travel with this tag too, which is the only way they reach F-Droid.

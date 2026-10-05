@@ -1,0 +1,37 @@
+v1.0.9 — Expert audit: security, performance, a11y
+
+Security:
+* F1 — Exponential lockout on passphrase unlock (parity with the
+  PIN added in v1.0.7). Backoff 1/2/4/8/16/30s after 5 attempts.
+  Prevents dictionary attacks on a seized device (ADB script /
+  physical keyboard).
+* F3 — Auto-complete `[[…]]` inside an alive note no longer
+  suggests locked notes' titles (default leak since vaults
+  were introduced).
+* F7 — User question text is now sanitized before reaching
+  Gemma (same anti-injection filters — zero-width / bidi /
+  tags — as RAG sources).
+* F8 — FLAG_SECURE applied BEFORE note decryption (closes the
+  5-20 ms window during which a manual screenshot or
+  MediaProjection could capture the plaintext).
+
+Performance:
+* P1.2 — Note editor no longer re-`get`s the note on every
+  change event (now filters by id). On auto-save 500ms +
+  multiple screens open: one less SQLCipher SELECT per second.
+
+UX / a11y:
+* U1+U2+U11 — Vault passphrase field:
+    - Android Autofill disabled (`autofillHints: []`)
+    - `visiblePassword` keyboard (neutralizes SwiftKey/Gboard auto-cap)
+    - Selection/copy blocked while obscured (anti clipboard manager)
+* U3 — Destructive dialogs: `autofocus` on Cancel + red button
+  via `cs.errorContainer` (a11y safe default).
+* U4 — About icon with bounded `cacheWidth` — saves ~12 MB
+  permanent RAM (the 1024×1024 PNG was decoded unbounded to
+  display 56 dp).
+* U9 — Inline "New note" button in empty state (the FAB exists
+  but is less discoverable on first launch / tablet).
+
+No DB format change (still v6) nor vault format change.
+`flutter analyze` 0 issue, tests green.

@@ -1,0 +1,28 @@
+v1.0.3 — Audit hardening (May 2026)
+
+Security
+• F1 — synchronous embeddings purge when a folder becomes a vault
+  (closed window where semantic search could retrieve indexed plaintext)
+• F2 — FTS5 index no longer contains title/tags of locked notes
+  (CASE WHEN encrypted_content IS NOT NULL → empty). DB v6 + migration
+  purging titles already indexed under v1.0.2
+• F4 — plaintext export ZIPs moved to cache/exports/ purged at boot
+  (anti-residue if process killed during share sheet)
+• F5 — KeystoreException whitelist: only KeyPermanentlyInvalidatedException
+  now triggers PIN vault auto-wipe (anti data-loss on Samsung One UI OTA
+  or unlisted OEM-specific exceptions)
+• F7 — `_wipingFolders` mutex against _autoWipePinVault re-entrancy
+  (rapid re-tap during wipe = no more prefs flag pollution)
+• F8 — vault auto-lock now based on monotonic Stopwatch (DateTime.now
+  was rollback-bypassable on rooted devices)
+• F13 — broader RAG prompt sanitize: FR/EN verbs, <|system|>,
+  Assistant:, [INST] tags, "new instructions" steering
+• F17 — explicit guard against unlock(passphrase) on PIN-mode vault
+  (verbose NoSuchMethodError replaced by typed exception)
+
+Deferred to v1.1:
+• F16 AAD Keystore wrap (format-breaking, needs migration)
+• F6 aliveIds race vs write (DB transaction refactor)
+• F3 vault note title encryption (design change)
+
+Tests: 64/64 passed. flutter analyze: 0 errors, 0 warnings.

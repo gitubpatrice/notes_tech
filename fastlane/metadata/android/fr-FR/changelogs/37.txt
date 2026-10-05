@@ -1,0 +1,18 @@
+v1.0.6 — Fix initialisation Gemma (hotfix v1.0.5)
+
+Corrections
+• Fix « Bad state: Flutter gemma not initialized » à l'import du
+  modèle .task. Cause : flutter_gemma 0.14.5 exige un
+  `FlutterGemma.initialize()` global au boot AVANT toute opération
+  (installModel, getActiveModel). Notes Tech v1.0.5 ne l'appelait
+  pas → l'import échouait silencieusement, et le warmUp aussi.
+  Ajouté dans `main()` au démarrage de l'app, aligné sur AI Tech
+  v0.6.x qui faisait déjà ce call (main.dart:62).
+
+Tout le reste de v1.0.5 reste valide :
+• Section dédiée Gemma 3 dans Réglages (statut + boutons sources
+  Kaggle/Hugging Face + import + désinstaller + check updates).
+• Promesse 100 % offline respectée — pas de permission INTERNET.
+• Écran « Demander à mes notes » qui pousse vers Réglages.
+
+flutter analyze : 0 erreur, 0 warning. flutter test : 64/64 passed.

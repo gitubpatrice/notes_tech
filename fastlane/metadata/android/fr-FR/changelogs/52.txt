@@ -1,0 +1,11 @@
+Le rapport du mode panique pouvait annoncer la destruction de la cle
+alors qu'elle avait survecu. L'echec de cette etape est desormais
+detecte, et une panique incomplete peut etre relancee.
+
+Le menu de tri affichait les memes libelles deux fois : impossible de
+distinguer un tri par date de creation d'un tri par modification.
+
+Une note pouvait apparaitre dans ses propres retroliens.
+
+Export : un titre reprenant un nom reserve de Windows rendait
+l'archive entiere impossible a ouvrir.

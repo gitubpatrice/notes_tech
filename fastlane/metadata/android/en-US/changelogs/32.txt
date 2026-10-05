@@ -1,0 +1,26 @@
+v1.0.1 — May 2026
+
+Security
+• KeystoreException distinction (anti-wipe PIN on Samsung OTA)
+• Hardware-backed Keystore (TEE/StrongBox) validation at createKey
+• Panic mode: db_encrypted_v1 + secure_window_enabled whitelist
+
+i18n FR / EN
+• Language picker (FR / EN / System) in Settings
+• Theme picker (Light / Dark / System) with persistence
+• Localized legal pages (PRIVACY / TERMS .fr.md / .en.md)
+• Gemma Q&A: system prompt in the active language
+• 430+ translated strings (9 screens + 14 widgets)
+
+Performance
+• ABI splits: APK -1/3 per device (arm64-v8a / armeabi-v7a / x86_64)
+• MlMemoryGuard 5s timeout on eviction (anti-hang JNI)
+• MediaQuery.viewInsetsOf scoped on bottom sheets
+• Targeted Selector themeMode + locale in MaterialApp
+
+Quality
+• NotesError typed enum (28 codes) UI-localizable
+• Adopted extracted helpers: showFloatingSnack, BlockingProgressDialog,
+  PassphraseTextField, VaultWarningBanner
+• 64 unit tests passing
+• flutter analyze clean

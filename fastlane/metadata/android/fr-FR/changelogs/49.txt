@@ -1,0 +1,11 @@
+Correctif : le pave PIN bougeait sous le doigt.
+
+Le panneau du coffre est ancre en bas de l'ecran, donc tout ce qui
+apparaissait au-dessus du pave le deplacait : un message d'erreur
+decalait les touches de 40 dp, et le passage a la confirmation d'un
+nouveau PIN les faisait descendre de plus d'une hauteur de touche. Les
+appuis arrivaient bien, mais tombaient entre deux touches.
+
+Le pave garde desormais une position fixe.
+
+Corrige sur la creation comme sur le deverrouillage d'un coffre.

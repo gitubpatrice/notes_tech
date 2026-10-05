@@ -1,0 +1,39 @@
+Notes Tech : prise de notes Markdown 100 % locale, chiffrée au repos. Écrite en Kotlin.
+
+<b>Confidentialité radicale</b>
+• Aucune permission INTERNET — vérifiable avec <code>aapt dump permissions app.apk</code>
+• Aucun compte, aucune télémétrie, aucun traceur, aucune publicité
+• Base SQLCipher AES-256, clé scellée par le Keystore Android
+• Mode panique en plusieurs étapes : efface clés, base et modèle de dictée en quelques secondes
+• Verrouillage de l'application en option : un code, et la biométrie forte si vous le souhaitez
+
+<b>Coffres par dossier</b>
+• Phrase secrète Argon2id (m=64MB, t=3) ou code lié au Keystore (Android 9 et plus)
+• AES-256-GCM par note, liée à sa note (anti-substitution)
+• Effacement automatique du code après 5 échecs
+• Verrouillage automatique réglable (5 min à jamais)
+
+<b>Dictée vocale sur l'appareil</b>
+• whisper.cpp intégré à l'application ; modèle Whisper importé à la main
+• SHA-256 vérifié à l'import et avant chargement
+• Enregistrements supprimés après transcription
+
+<b>Édition</b>
+• Markdown avec bascule Éditer / Aperçu (titres, listes, liens), enregistrement automatique
+• Rétroliens <code>[[Titre]]</code> avec autocomplétion + panneau « notes qui mentionnent celle-ci »
+• Recherche FTS5 instantanée, tri réglable
+• Export Markdown, d'une note ou en ZIP (en-tête YAML compatible Obsidian/Logseq)
+
+<b>Cinq langues</b>
+• Anglais, français, allemand, italien, espagnol — au choix dans les Réglages
+• Thème clair / sombre / système
+• Politique de confidentialité et conditions dans les cinq langues
+
+<b>Permissions</b>
+• Micro : pour la dictée seulement, demandé quand vous l'activez
+• Biométrie : pour le verrouillage seulement, ne donne accès à aucune donnée
+
+<b>Open source Apache 2.0</b>
+Code source intégral et vérifiable sur GitHub : gitubpatrice/notes_tech
+
+Pour penseurs, thérapeutes, étudiants, chercheurs, écrivains et journalistes qui veulent prendre des notes sensibles ou denses sans qu'elles ne quittent jamais leur téléphone.

@@ -1,0 +1,14 @@
+v1.1.4 — Audit cohérence + qualité (13 corrections)
+
+Sécurité : PanicStep.exportsWipe séparé de tmpPurge,
+RagService cap 16 ko anti-DoS, BacklinksService TTL
+sur horloge monotone (anti-rollback).
+
+Perf low-end : cap embedding MiniLM 200 ko → 8 ko,
+cap parsing backlinks 50 ko.
+
+UI : tokens M3 errorContainer/primaryContainer
+explicites (WCAG AA), helpers snack error/success,
+haptique sur lock vault + bouton Terminé.
+
+100 % local. Aucun changement de format.

@@ -1,0 +1,43 @@
+v1.0.7 — 4-axis hardening: performance, quality, security, accessibility
+
+Performance
+• MiniLM indexing moved to its dedicated worker isolate — no more
+  main thread jank when importing notes or toggling advanced
+  semantic search (~15-30 s saved on a 500-note base on S9 /
+  POCO C75).
+• Faster cold start: Gemma init now runs in parallel with other
+  bootstraps (-50 to -150 ms perceived).
+• SQLCipher cache bumped to 32 MB + 64 MB mmap: smoother FTS
+  search on large bases.
+• Notes ListView: cacheExtent 600 + stable ValueKey, smooth scroll
+  past 300 notes with no 60 fps dips.
+• R8 full mode enabled: smaller DEX and improved cold start.
+
+Security (defense in depth)
+• FLAG_SECURE now auto-enforced on sensitive screens (vault PIN /
+  passphrase entry, AI chat with RAG context, decrypted vault note
+  editor) — even if the global preference was deliberately off.
+• Exponential lockout after each failed PIN: 1 s, 2 s, 4 s, 8 s,
+  16 s (anti shoulder-surfing brute force).
+• Backlinks and title index: locked notes no longer show up in
+  incoming/outgoing links or in the title→id index — no vault note
+  title leaks through cross-references.
+• PIN Keystore key: "unlocked device required" on Android 9+
+  (cannot be exercised via USB debug bridge on a locked screen).
+• Locked note title also masked in RAG source chips.
+
+Quality / reliability
+• MiniLM memory leak (~25 MB + isolate) fixed when toggling
+  semantic search OFF.
+• ValueNotifier leak in AI chat turns fixed.
+• "Final save vs in-flight autosave" race in the note editor
+  serialized properly.
+• Atomic MiniLM model write (tmp + rename + size sidecar): no
+  more corruption if the app is killed mid-extraction.
+• Clean ONNX worker shutdown (native FFI release).
+
+Appearance
+• New Files Tech icon.
+
+Out of scope (deferred to v1.1 — DB format changes).
+flutter analyze: 0 errors, 0 warnings. flutter test: 64/64 passed.

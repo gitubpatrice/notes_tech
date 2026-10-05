@@ -1,0 +1,26 @@
+v1.0.1 — Mai 2026
+
+Sécurité
+• KeystoreException distinction (anti-wipe PIN sur OTA Samsung)
+• Validation hardware-backed Keystore (TEE/StrongBox) au createKey
+• Mode panique : whitelist db_encrypted_v1 + secure_window_enabled
+
+i18n FR / EN
+• Sélecteur Langue (FR / EN / Système) dans Réglages
+• Sélecteur Thème (Clair / Sombre / Système) avec persistance
+• Mentions légales localisées (PRIVACY / TERMS .fr.md / .en.md)
+• Q&A Gemma : prompt système dans la langue active
+• 430+ chaînes traduites (9 écrans + 14 widgets)
+
+Performance
+• Splits ABI : APK -1/3 par device (arm64-v8a / armeabi-v7a / x86_64)
+• MlMemoryGuard timeout 5s sur eviction (anti-hang JNI)
+• MediaQuery.viewInsetsOf scoped sur les bottom sheets
+• Selector ciblé themeMode + locale dans MaterialApp
+
+Qualité
+• NotesError enum typé (28 codes) localisable côté UI
+• Helpers extraits adoptés : showFloatingSnack, BlockingProgressDialog,
+  PassphraseTextField, VaultWarningBanner
+• 64 tests unitaires passants
+• flutter analyze clean

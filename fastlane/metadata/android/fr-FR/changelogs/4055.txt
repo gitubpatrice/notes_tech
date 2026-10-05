@@ -1,0 +1,7 @@
+Rien ne change dans l'application. Cette version deplace le cache pub dans
+le depot pendant la construction de la release, pour que les chemins absolus
+inscrits dans les bibliotheques natives correspondent a ceux d'une
+reconstruction depuis les sources.
+
+Sans cela, les binaires publies ne peuvent pas etre verifies par un tiers, ce
+qui est pourtant l'interet de publier les sources.

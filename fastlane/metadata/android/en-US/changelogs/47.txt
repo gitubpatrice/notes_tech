@@ -1,0 +1,7 @@
+v1.1.6 — Logo & top bar
+
+New: the Notes Tech logo now shows next to the title, and a "Check for updates" button appears in About. It opens the releases page in your browser — the app itself never connects to the Internet.
+
+Decluttered top bar: Settings and About move into the ⋮ menu, keeping AI and Search one tap away.
+
+100% local, zero Internet.

@@ -1,0 +1,29 @@
+v1.1.3 — Signature visuelle Files Tech + refonte design
+
+Splash de bienvenue :
+* Splash de présentation au tout premier lancement après
+  installation (~5 s, skip au tap ou Back). Cohérence avec
+  Pass Tech et les autres apps Files Tech.
+  Slogan : « La protection maximale pour vos notes. »
+
+Refonte design À propos + Réglages :
+* « À propos » : header centré logo + pill version bleue
+  + carte confidentialité avec 5 badges colorés (cloud-off,
+  no-account, no-stats, lock, no-share) + sections Q&A /
+  Voix en lignes structurées + carte Auteur + liens
+  dépôts dans une carte unique.
+* « Réglages » : 9 sections regroupées en cartes arrondies
+  (Apparence / Tri / Recherche / Sécurité / IA Gemma /
+  Voix / Export / Mode panique / À propos). Mode panique
+  encadré en rouge subtle pour signaler la zone destructive.
+* Titres de sections plus gros (17 px), en bleu logo,
+  pour la cohérence visuelle.
+* « Suivre le système » devient « Système » (plus court).
+* Raccourci direct vers « À propos » dans l'AppBar de
+  l'accueil (à côté de la roue Réglages).
+
+100 % local — zéro nouvelle permission, aucune donnée
+collectée par le splash, aucun changement de format
+de fichier (.note / .nbk).
+
+flutter analyze 0 issue, 69/69 tests verts.

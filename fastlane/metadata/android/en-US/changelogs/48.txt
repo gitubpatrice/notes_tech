@@ -1,0 +1,11 @@
+Major release: the AI is gone.
+
+Semantic search and Gemma Q&A have been removed. The APK drops from 290 MB to 27 MB. Search stays full-text and instant.
+
+Vaults: a note title can no longer be written in the clear; deleting a folder now purges the database before the key, so no vault is left unreadable.
+
+Panic mode: no longer reports a completed wipe when a step failed.
+
+Clipboard: reliable purge even after several successive copies.
+
+One-way upgrade: no going back to 1.x.

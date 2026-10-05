@@ -1,0 +1,17 @@
+v1.0.8 — Hotfix for stuck startup (blank page)
+
+Critical fixes
+• Fixed startup stuck on a blank page with logo: rolled back the
+  parallelization of `FlutterGemma.initialize()` introduced in v1.0.7.
+  Init is now back to a strict `await` at the start of `main()`
+  (proven v1.0.6 pattern). Cost: ~80-200 ms cold-start regression on
+  S9 — preferable to a blocking risk.
+• Removed SQLCipher PRAGMA `mmap_size = 64 MB`: on some Android native
+  builds, the call could hang silently at cold boot. The
+  `cache_size = 32 MB` PRAGMA is kept (FTS perf gain unchanged, no risk).
+
+All v1.0.7 hardening still in effect (15 fixes perf/quality/security/UI):
+dynamic SecureWindow, exponential PIN lockout, async MiniLM indexing
+worker, atomic ONNX write, clean disposal, R8 full mode, etc.
+
+flutter analyze: 0 errors, 0 warnings. flutter test: 64/64 passed.

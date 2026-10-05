@@ -1,0 +1,11 @@
+The panic report could state that the key had been destroyed when it
+had survived. A failure at that step is now detected, and an
+incomplete panic run can be started again.
+
+The sort menu showed the same labels twice: telling a sort by
+creation date from a sort by modification date was impossible.
+
+A note could appear in its own backlinks.
+
+Export: a title matching a reserved Windows name made the whole
+archive impossible to open.

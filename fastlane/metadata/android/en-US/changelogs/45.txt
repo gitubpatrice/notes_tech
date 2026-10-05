@@ -1,0 +1,14 @@
+v1.1.4 — Consistency + quality audit (13 fixes)
+
+Security: PanicStep.exportsWipe split from tmpPurge,
+RagService 16 KB cap anti-DoS, BacklinksService TTL
+on monotonic clock (anti-rollback).
+
+Low-end perf: MiniLM embedding cap 200 KB → 8 KB,
+backlinks parsing cap 50 KB.
+
+UI: M3 errorContainer/primaryContainer tokens
+explicit (WCAG AA), snack error/success helpers,
+haptic on vault lock + Done button.
+
+100% local. No format change.

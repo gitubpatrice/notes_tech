@@ -1,0 +1,37 @@
+v1.0.5 — Gemma fix + new install UX (May 2026)
+
+Fixes
+• Fixed "Bad state: Flutter gemma not initialized" when loading the
+  model in "Ask my notes". Cause: flutter_gemma 0.14.5 changed APIs;
+  we now use `FlutterGemma.getActiveModel(...)` (the correct path
+  after `installModel().fromFile().install()`) instead of
+  `FlutterGemmaPlugin.instance.createModel(...)` which requires a
+  native state `install()` doesn't set. Aligned with AI Tech v0.6.x.
+
+New Gemma 3 install experience — Settings
+• Dedicated "Gemma 3 AI model" section in Settings.
+• Visual status: installed (size in MB) / not installed.
+• "How to install Gemma 3?" button → tutorial bottom sheet with 3
+  clear steps + buttons to official sources:
+   - Kaggle (official Google, Gemma EULA)
+   - Hugging Face (LiteRT mirror)
+• "Import a .task file" button for advanced users.
+• "Check for updates" → opens the Kaggle page (model last-modified
+  date is visible there).
+• "Uninstall model" button with confirmation dialog.
+
+Aligned with our 100% offline promise
+• NO INTERNET permission added — Notes Tech remains "zero network
+  permission". Kaggle / Hugging Face URLs are opened via
+  `launchUrl(externalApplication)` which delegates to the phone's
+  browser (allowed without a manifest network permission).
+• Download and license acceptance happen in the user's browser,
+  not in the app itself.
+
+"Ask my notes" screen
+• When model missing: primary "How to install Gemma 3?" button that
+  pushes to Settings, plus a secondary direct-import button for
+  users who already have the file in Downloads.
+• Auto-refreshes state on return from Settings.
+
+flutter analyze: 0 errors, 0 warnings. flutter test: 64/64 passed.

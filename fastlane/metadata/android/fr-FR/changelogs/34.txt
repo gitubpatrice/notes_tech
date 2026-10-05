@@ -1,0 +1,29 @@
+v1.0.3 — Hardening sécurité audit vulnérabilités (mai 2026)
+
+Sécurité
+• F1 — purge synchrone des embeddings sémantiques au moment de la
+  vault-isation d'un dossier (fenêtre où une recherche pouvait
+  retrouver le contenu indexé en clair supprimée)
+• F2 — index FTS5 ne contient plus le titre/tags des notes verrouillées
+  (CASE WHEN encrypted_content IS NOT NULL → vide). DB v6 + migration
+  qui purge les titres déjà indexés sous v1.0.2
+• F4 — exports ZIP plaintext déplacés dans cache/exports/ purgé au boot
+  (anti résidu si process tué pendant share sheet)
+• F5 — whitelist KeystoreException : seul KeyPermanentlyInvalidatedException
+  déclenche désormais l'auto-wipe du coffre PIN (anti data-loss sur OTA
+  Samsung One UI ou exception OEM-spécifique non listée)
+• F7 — mutex `_wipingFolders` contre la ré-entrance d'_autoWipePinVault
+  (re-tap rapide pendant wipe = pollution flag prefs supprimée)
+• F8 — auto-lock vault basé sur Stopwatch monotonique (DateTime.now
+  remplaçable côté root rendait le lock inopérant)
+• F13 — sanitize prompt RAG élargi : verbes FR/EN, tags <|system|>,
+  Assistant:, [INST], steering "nouvelles consignes"
+• F17 — guard explicite contre unlock(passphrase) sur coffre PIN
+  (NoSuchMethodError verbeux remplacé par exception typée)
+
+Reportés v1.1 :
+• F16 AAD Keystore wrap (format-breaking, migration à prévoir)
+• F6 race aliveIds vs write (refacto transaction DB)
+• F3 chiffrement du titre des notes vault (design change)
+
+Tests : 64/64 passed. flutter analyze : 0 erreur, 0 warning.

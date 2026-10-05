@@ -1,0 +1,8 @@
+Rien ne change dans l'application. Cette version existe pour rendre la
+construction verifiable de l'exterieur : la version de Flutter est desormais
+figee dans les workflows, dans pubspec.yaml et dans la recette F-Droid, et le
+lockfile est applique au lieu d'etre seulement present.
+
+Jusqu'ici les releases etaient construites sur la version de Flutter du moment,
+alors que le lockfile commite venait d'une autre : le fichier cense decrire ce
+qui est livre ne le decrivait pas.

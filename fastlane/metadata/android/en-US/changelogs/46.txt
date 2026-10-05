@@ -1,0 +1,7 @@
+v1.1.5 — Trash, contrast & fixes
+
+New: a Trash (restore / delete permanently / empty) for your deleted notes, with 30-day retention.
+
+Fixes: better-contrasted error messages (WCAG) that are finally translated, voice dictation in the app language, alerts for vault notes whose edits were lost, purge of plaintext traces when encrypting the database.
+
+100% local, zero Internet.

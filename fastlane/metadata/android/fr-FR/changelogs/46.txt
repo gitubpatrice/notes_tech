@@ -1,0 +1,7 @@
+v1.1.5 — Corbeille, contraste & correctifs
+
+Nouveau : une Corbeille (restaurer / supprimer définitivement / vider) pour vos notes supprimées, avec rétention 30 jours.
+
+Corrections : messages d'erreur mieux contrastés (WCAG) et enfin traduits, dictée vocale dans la langue de l'app, alerte pour les notes de coffre dont une modification s'est perdue, purge des traces en clair lors du chiffrement de la base.
+
+100 % local, zéro Internet.

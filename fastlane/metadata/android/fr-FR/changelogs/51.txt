@@ -1,0 +1,8 @@
+La fin des ecrans Reglages, A propos et Mentions legales etait
+inatteignable : le contenu passait sous la barre de navigation et les
+derniers elements restaient masques. Quatre ecrans sont corriges.
+
+L'application ne contient plus aucune reference a Play Core. Une regle
+de minification trop large retenait deux classes Flutter inutilisees
+dont les signatures citaient cette bibliotheque proprietaire. Rien ne
+les appelait, mais leurs references restaient dans le paquet.

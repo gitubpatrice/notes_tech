@@ -1,0 +1,8 @@
+The end of the Settings, About and Legal screens could not be reached:
+the content ran under the navigation bar and the last items stayed
+hidden. Four screens are fixed.
+
+The app no longer contains any reference to Play Core. An overly broad
+shrinking rule kept two unused Flutter classes whose signatures named
+that proprietary library. Nothing called them, but their references
+stayed in the package.

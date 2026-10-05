@@ -1,0 +1,3 @@
+Les notes ont un aperçu : basculez entre Éditer et Aperçu pour voir titres, listes, emphase et liens mis en forme. Un lien [[Titre]] ouvre la note visée.
+
+Le dossier par défaut suit la langue de l'app ; un dossier renommé garde son nom. Modèles de dictée, erreurs et README de l'export sont traduits. Un coffre PIN refusé dit pourquoi, et les messages ne sont plus cachés sous la liste des dossiers.
