@@ -33,7 +33,12 @@ a à faire et proprement ». Fait le jour même, un commit par étape :
 - **CI** `.github/workflows/android.yml` (gate, release avec prise de place, zéro réseau).
 - Relectures externes du jour : traductions 0,24 $ (3 journaux corrigés), libellé du verrou 0,007 $.
 
-**Reste — décisions et gestes de Patrice :** vérifier la CI de `kotlin`, puis la pré-publication GitHub (signature, tag `v3.0.0`, et
+- ✅ **CI de `kotlin` verte le 2026-10-05** (run 37352079683, `75914a6`) : gate, build release (versionCodes
+  5000-5003 contrôlés par aapt2), promesse zéro réseau. Le premier run avait échoué sur
+  `./gradlew: Permission denied` — `gradlew` était versionné en 100644 depuis Windows (`core.fileMode =
+  false`) ; corrigé par `git update-index --chmod=+x gradlew`.
+
+**Reste — décisions et gestes de Patrice :** la pré-publication GitHub (signature, tag `v3.0.0`, et
 `commit:` de la recette à remplacer par le hash du tag), puis release, site (5 surfaces), puis nouvelle
 MR F-Droid avec la recette — **en dernier**. Avant le tag : fusion de `kotlin` dans `main` (les fichiers
 Flutter à retirer, les workflows Flutter à remplacer) — à préparer avec Patrice. À confirmer sur la
