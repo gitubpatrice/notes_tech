@@ -513,9 +513,11 @@ private object CouleursDeBadge {
 /** Les adresses de la référence, littérales des deux côtés (`about_screen.dart:126-183`, `:342`). */
 private const val URL_DEPOT = "https://github.com/gitubpatrice/notes_tech"
 private const val URL_DERNIERE_VERSION = "$URL_DEPOT/releases/latest"
+
 // The engine itself: 3.0.0 builds whisper.cpp from source (app/src/main/cpp/vendor/whisper/).
 // The 2.x linked to files_tech_voice, the Flutter package it used, which 3.0.0 does not contain.
 private const val URL_WHISPER_CPP = "https://github.com/ggml-org/whisper.cpp"
+
 private const val URL_WHISPER = "https://huggingface.co/ggerganov/whisper.cpp"
 private const val URL_SITE = "https://www.files-tech.com"
 private const val MAILTO_CONTACT = "mailto:contact@files-tech.com"
