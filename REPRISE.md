@@ -1,9 +1,53 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, **puis le 2026-09-25**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, **puis le 2026-10-05**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 EN BREF — à la reprise (écrit le 2026-09-26 à 21 h 20, avant un compactage)
+## 🧭 EN BREF — 2026-10-05 au soir : la 3.0.0 est PRÉPARÉE, rien n'est publié
+
+Patrice, 2026-10-05 : « ok les points de 1 à 4 et la décision A aussi c'est OK. Fais tout ce qu'il y
+a à faire et proprement ». Fait le jour même, un commit par étape :
+
+- 🔴 **Décision A acceptée mais PAS appliquée : RIEN N'EST POUSSÉ.** Avant le push, le contrôle de
+  l'historique a montré que **132 commits (2026-08-13 → 2026-08-26) ont pour auteur
+  `guypanto@gmail.com`**, et Patrice : « cet guypanto@gmail.com est privé, il faut la supprimer ». Les
+  79 autres sont en `contact@files-tech.com` (adresse locale de ce dépôt, `git config --local`).
+  **À faire avant tout push** : réécrire l'auteur (et le committer) de ces 132 commits en
+  `contact@files-tech.com` (`git filter-repo --mailmap` ou `filter-branch --env-filter`), puis
+  remplacer dans les docs et l'audit les identifiants de commit cités (ils changent tous à partir du
+  2026-08-13) — garder la table ancien → nouveau. Ensuite seulement : remote `notes_tech`, push
+  `master:kotlin`, CI. ⚠️ La même adresse est déjà PUBLIQUE dans 3 commits de `pass_tech` : la retirer
+  imposerait une réécriture de `master` publié (force-push), refusée par le hook — décision de Patrice.
+  Aucun secret ni fichier de clé dans l'historique (vérifié). La branche `kotlin` n'existe pas encore
+  sur GitHub.
+- **Version 3.0.0** (`version.properties`), versionCode 500 : APK par ABI 5001/5002/5003, et de nouveau
+  un **APK universel 5000** pour GitHub (demandé par Patrice ; sûr sous `base × 10`, cf.
+  `app/build.gradle.kts`). F-Droid construit les trois APK par ABI.
+- **Fichiers publics à la racine** (anglais + `.fr.md`) : README, SECURITY (audit du 26/09, limites
+  acceptées), THIRD_PARTY_NOTICES (dépendances résolues, textes MIT/BSD de whisper.cpp, Bouncy Castle,
+  SQLCipher), LICENSE, NOTICE, PRIVACY/TERMS (renvois vers les pages de l'appli). L'ancien README de
+  ce dépôt est devenu `docs/README-PORTAGE.md`.
+- **CGU 1.2.0** dans les 5 langues : ce que la PR #11 de `notes_tech` a changé (F-Droid, responsabilité,
+  loi applicable) + « F-Droid et GitHub ne se mettent pas à jour l'un l'autre ».
+- **fastlane/** repris de `notes_tech` : journaux 5001-5003 en 5 langues (< 500 caractères),
+  descriptions refaites pour Kotlin, de-DE/it-IT/es-ES ajoutés, **captures refaites sur l'appli
+  Kotlin, en anglais seulement** (Patrice) ; les captures fr-FR, d'anciens essais, sont retirées.
+- **Écran « À propos »** : quatre phrases héritées de Flutter étaient fausses (files_tech_voice, « au
+  téléchargement », « jamais persisté ») — corrigées en 5 langues.
+- **F-Droid** : `foojay-resolver` retiré (le scanner le refusait) ; `dependenciesInfo` coupé ; brouillon
+  de recette `docs/fdroid/com.filestech.notes_tech.yml` (lint muet, rewritemeta stable, scanner : 0
+  problème sur la source).
+- **CI** `.github/workflows/android.yml` (gate, release avec prise de place, zéro réseau).
+- Relectures externes du jour : traductions 0,24 $ (3 journaux corrigés), libellé du verrou 0,007 $.
+
+**Reste — décisions et gestes de Patrice :** la réécriture de l'adresse (ci-dessus), le push de
+`kotlin`, puis la pré-publication GitHub (signature, tag `v3.0.0`, et
+`commit:` de la recette à remplacer par le hash du tag), puis release, site (5 surfaces), puis nouvelle
+MR F-Droid avec la recette — **en dernier**. Avant le tag : fusion de `kotlin` dans `main` (les fichiers
+Flutter à retirer, les workflows Flutter à remplacer) — à préparer avec Patrice. À confirmer sur la
+première release signée : l'absence du bloc « Dependency metadata ».
+
+## 🧭 EN BREF — section précédente (écrit le 2026-09-26 à 21 h 20, avant un compactage)
 
 - **Portage techniquement prêt** : audit de sécurité terminé et entièrement corrigé
   (`audits/securite-2026-09-26.md`, §9), relecture externe et audit 3 axes suivis, gate final vert sur
