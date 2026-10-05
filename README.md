@@ -1,68 +1,193 @@
-# Notes Tech — portage Kotlin natif
+# Notes Tech
 
-Réécriture en Kotlin natif de [Notes Tech](https://github.com/gitubpatrice/notes_tech), aujourd'hui
-en Flutter et publiée en **2.0.3** (versionCode 51).
+> Your notes stay in your pocket. Encrypted, and offline.
 
-> 🔒 **Ce dépôt ne remplace pas l'application installée.**
-> L'`applicationId` par défaut porte le suffixe `.next` : la build s'installe **à côté** de Notes
-> Tech et, le bac à sable étant distinct, ne *peut pas* voir ses données. Prendre sa place demande
-> un geste explicite, réservé à la phase 8.
-> Voir [docs/06-ISOLATION-PENDANT-LE-CHANTIER.md](docs/06-ISOLATION-PENDANT-LE-CHANTIER.md).
+🇫🇷 [Version française](README.fr.md)
 
-## Par où commencer
+**v3.0.0 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
 
-| Vous voulez… | Lire |
-|---|---|
-| savoir où en est le chantier | [docs/00-PLAN.md](docs/00-PLAN.md) |
-| comprendre pourquoi c'est fait comme ça | [docs/01-DECISIONS.md](docs/01-DECISIONS.md) |
-| toucher à la base de données | [docs/02-SCHEMA-HERITE.md](docs/02-SCHEMA-HERITE.md) **et** [docs/04-PIEGES.md](docs/04-PIEGES.md) |
-| toucher à la clé de chiffrement | [docs/03-KEK-ACQUISITION.md](docs/03-KEK-ACQUISITION.md) |
-| savoir ce qui a déjà été relu | [docs/07-RELECTURES.md](docs/07-RELECTURES.md) |
-| reprendre le travail après une pause | [docs/08-JOURNAL.md](docs/08-JOURNAL.md) |
+Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpack Compose.
+**100% local, no Internet permission.** Interface in **English, French, German, Italian and
+Spanish**. Per-folder vaults (Argon2id passphrase or Keystore-bound PIN), an app lock with PIN and
+strong biometrics, FTS5 full-text search, on-device Whisper voice dictation, `[[note]]` backlinks,
+Markdown preview, multi-step panic mode.
 
-## L'enjeu, en trois phrases
+For thinkers, therapists, students, researchers, writers and journalists who want to take
+sensitive or dense notes without them ever leaving their phone.
 
-Cette application doit ouvrir **la base de données déjà présente chez les utilisateurs** : SQLite
-chiffrée par SQLCipher, clé scellée dans le Keystore de l'appareil, **aucune sauvegarde**
-(`allowBackup=false`). Une clé introuvable ou, pire, une clé neuve générée par-dessus, et les notes
-sont perdues définitivement.
+**What sets it apart from Notesnook / Obsidian / Bear / Logseq: no Internet permission — the app is
+technically unable to send anything, and you can check that in its manifest.**
 
-Tout le reste du portage est de la traduction ; ce point-là est le projet.
+---
 
-## Commandes
+## What's new in 3.0.0
+
+**Notes Tech is rewritten in Kotlin.** Versions 1.x and 2.x were built with Flutter. The 3.0.0 keeps
+your data: installed over a 2.0.x, it opens the same encrypted database and the same vaults —
+measured over 2.0.3, 2.0.4 and the published 2.0.9, passphrase and PIN vaults included.
+
+- **App lock**: a PIN asked when Notes Tech opens, plus fingerprint (or face, where the phone rates
+  it as strong) if you wish; a relock delay; its content is hidden in the recent-apps screen.
+- **German, Italian and Spanish**, on top of English and French.
+- **A much smaller app**: the arm64 APK is about **8 MB**, down from 27 MB.
+- **Hardening from a full security audit** (September 2026):
+  - closing a vault clears the note open on screen;
+  - deleted text, and text moved into a vault, is also erased from the search index;
+  - copying from a vault note goes through the protected clipboard, and the keyboard is asked not
+    to learn what you type in it;
+  - other apps' text actions no longer appear in the selection menu, and no emoji font is requested
+    from Google services;
+  - a panic wipe that was interrupted completes at the next launch;
+  - plain-text files left in the cache by 2.x are erased at the first launch.
+- **Before Android 9, no new PIN vault**: Android cannot bind its key to the phone's unlock there.
+  An existing PIN vault still opens and says so.
+
+⚠️ **This update is one-way.** Android refuses to reinstall a 2.x over the 3.0.0, and uninstalling
+erases your notes along with their key. Export what you want to keep before updating if in doubt.
+
+⚠️ **F-Droid and GitHub copies do not update each other**: F-Droid signs Notes Tech with its own key.
+A copy installed from F-Droid receives the 3.0.0 through F-Droid.
+
+---
+
+## Privacy promise
+
+- **No `INTERNET` permission.** The merged release manifest holds exactly four permissions:
+  - `RECORD_AUDIO` — asked at run time, only if you turn on dictation;
+  - `USE_BIOMETRIC` and `USE_FINGERPRINT` — added by AndroidX Biometric for the app lock; granted at
+    install, they give access to no data;
+  - `com.filestech.notes_tech.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` — added by AndroidX,
+    `signature` level, internal to the app.
+
+  [`tools/check-manifest-permissions.py`](tools/check-manifest-permissions.py) checks the merged
+  manifest, not the source one, which declares `INTERNET` only to remove it.
+- No account, no sign-up, no tracker, no ads, no telemetry.
+- Open source under Apache 2.0: the whole code can be inspected.
+- `allowBackup=false` and full `dataExtractionRules`: nothing leaves through Android backup or a
+  device-to-device transfer.
+- The Whisper model is imported by you through the system file picker — never bundled, never
+  downloaded by the app.
+
+---
+
+## Features
+
+### Markdown editing
+- Create, edit, autosave.
+- **Edit / Preview**: the preview renders headings, lists, emphasis and links. A `[[Title]]` link
+  opens the note it points to; an `http`, `https` or `mailto` link opens in the system app, any
+  other scheme is ignored. Images are never loaded: their alternative text stands in.
+- Pin, favourites, archive, trash (30-day retention), sort order, light / dark / system theme.
+
+### Per-folder vaults
+- **Passphrase mode** — Argon2id (64 MiB, t = 3) and AES-256-GCM. The vault key (32 random bytes) is
+  wrapped by the key derived from the passphrase and stored in the SQLCipher database.
+- **PIN mode** — 4 to 6 digits, lighter Argon2id (32 MiB, t = 2) plus a dedicated Keystore key per
+  vault; **5 failed attempts wipe the vault key**. Requires Android 9 or later.
+- Authenticated encryption bound to its context (the folder for the key, the note for the content),
+  and a constant-time verifier that detects a wrong secret without decrypting the notes.
+- **Auto-lock** when the app goes to the background, and after a delay you choose (5, 15, 30 or 60
+  minutes, or never; 15 by default).
+
+### App lock
+- PIN of 4 to 6 digits, verified through Argon2id and a Keystore-held HMAC key; growing delays after
+  five wrong attempts.
+- Optional strong (class 3) biometric unlock, backed by its own Keystore key.
+- Relock immediately, or after 15 seconds, 1 minute or 5 minutes in the background.
+
+### Search
+- Instant **FTS5** full-text search (`unicode61` tokenizer, diacritics folded). Deleted text is
+  erased from the index too (`secure-delete`).
+
+### Whisper voice dictation
+- **whisper.cpp 1.8.3**, compiled into the app from source and run on the device.
+- Whisper Base q5_1 (about 60 MB) or Tiny q5_1 (about 32 MB), downloaded by your browser from the official source
+  and imported; checked by SHA-256 before use.
+- Recordings are deleted once transcribed.
+
+### Backlinks
+- `[[Title]]` links with autocompletion, a Mentions / outgoing links panel; dangling links resolve
+  when the target note appears.
+
+### Markdown export
+- One note as `.md` with a frontmatter readable by Obsidian, Logseq, Bear, Foam or Dendron.
+- Everything as a ZIP: one folder per notes folder, plus a README.
+
+### Panic mode
+- Settings → Panic mode, confirmed by typing `WIPE`.
+- An ordered sequence, where a failing step does not stop the next ones: secure window, dictation
+  stopped and forbidden, clipboard cleared, vaults locked, vault PIN keys and app lock keys deleted,
+  **database key destroyed**, exports and recordings erased, database header overwritten and files
+  deleted, voice model, preferences and cache erased. Interrupted, it resumes at the next launch.
+
+### Screen protection
+- On by default: no screenshots and no preview in the recent-apps screen.
+
+---
+
+## Installation
+
+1. **Published APK** — from [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases),
+   the split for your device (`arm64-v8a` fits almost every phone since 2016; there is no universal
+   APK). Check the SHA-256 published in the release notes.
+2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
+   built and signed by F-Droid.
+3. **Local build** — next section.
+
+No Play Store: no account is needed to install.
+
+---
+
+## Local build
+
+Requirements: JDK 17, Android SDK 36, NDK `27.0.12077973` and CMake 3.22.1 (pinned in
+`app/build.gradle.kts`). Gradle 8.13 comes with the wrapper.
 
 ```bash
-# Gate complet — ce que la CI exécute
-./gradlew :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
-
-# Les entités décrivent-elles toujours la base héritée ?
-python audits/verifier-schema-room-vs-flutter.py
-
-# La promesse « zéro réseau » tient-elle sur l'APK qui sera publié ?
-./gradlew :app:processReleaseMainManifest -Pnotestech.replaceInstalledApp=true
-python tools/check-manifest-permissions.py
-
-# Tests sur appareil — TOUJOURS en fixant la cible
-ANDROID_SERIAL=<numéro de série> ./gradlew :app:connectedDebugAndroidTest
+./gradlew testDebugUnitTest lintDebug
+./gradlew assembleRelease -Pnotestech.replaceInstalledApp=true
 ```
 
-⚠️ `connectedAndroidTest` cible **tous** les appareils branchés et **efface les données** de
-l'application testée. Fixer `ANDROID_SERIAL` n'est pas une commodité, c'est la précaution.
+⚠️ Without `-Pnotestech.replaceInstalledApp=true`, the build is installed **beside** Notes Tech under
+`com.filestech.notes_tech.next`, with its own empty storage: it cannot see, nor replace, an installed
+copy. That is how the port was developed without ever touching real data.
 
-## État vérifié
+The version lives in [`version.properties`](version.properties); each ABI split gets
+`versionCode × 10 + ABI` (1 = armeabi-v7a, 2 = arm64-v8a, 3 = x86_64), the scheme F-Droid requires.
 
-Au 2026-08-13 — mesuré, pas estimé :
+## Stack
 
-| | |
-|---|---|
-| Tests JVM | 37, 0 échec |
-| Tests instrumentés (Galaxy S9, API 29) | 20, 0 échec |
-| Schéma Room vs DDL hérité | aucune divergence |
-| Permissions du manifeste fusionné release | aucune permission réseau |
-| Relectures indépendantes | 6 — dont une passe **sur les correctifs eux-mêmes** |
+- Kotlin 2.3, Jetpack Compose (Material 3), Hilt, Room on **SQLCipher** 4.16, DataStore
+- Bouncy Castle (Argon2id), Android Keystore, AES-256-GCM from the platform
+- `org.jetbrains:markdown` (preview), whisper.cpp through JNI (dictation)
+- **No network library**
 
-Phases 1 et 2 closes. La suite est dans [docs/00-PLAN.md](docs/00-PLAN.md).
+Third-party components and their licences: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-## Licence
+## Targets
 
-Apache 2.0, comme le dépôt d'origine.
+- minSdk 24 (Android 7.0), targetSdk 36
+- Tested on Samsung Galaxy S9 (Android 10) and S24 FE (Android 16)
+
+## How it was built
+
+The port's design notes, decisions, traps and security audit are in [`docs/`](docs/) and
+[`audits/`](audits/), in French — start with [`docs/README-PORTAGE.md`](docs/README-PORTAGE.md).
+
+---
+
+## License
+
+[Apache License 2.0](LICENSE) — see also [`NOTICE`](NOTICE) and
+[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Files Tech suite
+
+Notes Tech is part of the [Files Tech](https://files-tech.com/en/) suite of privacy-focused Android
+apps:
+- [PDF Tech](https://github.com/gitubpatrice/PDF-TECH)
+- [Read Files Tech](https://github.com/gitubpatrice/READ-FILES-TECH)
+- [Pass Tech](https://github.com/gitubpatrice/pass_tech)
+- [Agenda Tech](https://github.com/gitubpatrice/AGENDA-TECH)
+- [SMS Tech](https://github.com/gitubpatrice/SMS-TECH)
+- [App Manager Tech](https://github.com/gitubpatrice/APP-MANAGER-TECH)

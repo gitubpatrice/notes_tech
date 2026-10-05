@@ -1,0 +1,20 @@
+Notes Tech
+Copyright 2026 Patrice Haltaya
+
+This product includes software developed by Files Tech
+(https://www.files-tech.com).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+see LICENSE for details.
+
+Notes Tech is a fully local Android note-taking app, written in Kotlin:
+Markdown notes in a SQLCipher database, per-folder vaults encrypted with
+AES-256-GCM, and on-device Whisper voice dictation.
+
+Third-party components, with their licences and the notices those licences
+require (SQLCipher, Bouncy Castle, whisper.cpp and ggml): see
+THIRD_PARTY_NOTICES.md.
+
+Speech recognition model (NOT bundled, imported by the user from the official
+source):
+- Whisper Base / Tiny — OpenAI, ggml port by Georgi Gerganov, MIT
