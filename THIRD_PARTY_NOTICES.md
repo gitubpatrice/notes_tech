@@ -3,7 +3,9 @@
 Notes Tech 3.0 (`com.filestech.notes_tech`) is written in Kotlin with Jetpack Compose and is licensed
 under the Apache License 2.0 ([LICENSE](LICENSE)). Everything it ships that it did not write is listed
 here. The list was read on 2026-10-05 from the resolved `releaseRuntimeClasspath` of the `:app` module
-at 3.0.0, and each licence from the POM that the library publishes — not from memory.
+after the dependency updates merged that evening (the 3.0.0 APK itself ships Room 2.8.4, Kotlin
+2.3.20 and Bouncy Castle 1.81: see this file at tag `v3.0.0`), and each licence from the POM that the
+library publishes — not from memory.
 
 **No Google Play Services, no ML Kit, no Firebase, no analytics SDK, no crash reporter, no network
 library.** The app does not hold the `INTERNET` permission.
@@ -14,18 +16,18 @@ library.** The app does not hold the `INTERNET` permission.
 |---|---|---|---|
 | AndroidX: Core, Activity, AppCompat, Lifecycle, Navigation, SavedState, Fragment, Emoji2, Window, Startup, Tracing, Profile Installer, DocumentFile, Biometric, Transition and their support modules | various | Google / AOSP | Apache 2.0 |
 | Jetpack Compose: UI, Foundation, Animation, Runtime, Material 3, Material Icons | BOM 2026.06.00 (UI 1.11.3, Material 3 1.4.0) | Google / AOSP | Apache 2.0 |
-| Room (`androidx.room`) and `androidx.sqlite` | 2.8.4 / 2.6.2 | Google / AOSP | Apache 2.0 |
+| Room (`androidx.room`) and `androidx.sqlite` | 2.8.5 / 2.6.2 | Google / AOSP | Apache 2.0 |
 | DataStore Preferences | 1.1.1 | Google / AOSP | Apache 2.0 |
 | Hilt and Dagger (`com.google.dagger`, `androidx.hilt`) | 2.57.2 / 1.3.0 | Google | Apache 2.0 |
 | Guava `listenablefuture`, JSR-305 annotations | 1.0 / 3.0.2 | Google | Apache 2.0 |
-| Kotlin standard library | 2.3.20 | JetBrains | Apache 2.0 |
+| Kotlin standard library | 2.3.21 | JetBrains | Apache 2.0 |
 | kotlinx.coroutines | 1.11.0 | JetBrains | Apache 2.0 |
 | `org.jetbrains:markdown` — the Markdown parser behind the preview | 0.7.14 | JetBrains | Apache 2.0 |
 | JetBrains annotations, JSpecify | 23.0.0 / 1.0.0 | JetBrains / JSpecify | Apache 2.0 |
 | `javax.inject`, `jakarta.inject-api` | 1 / 2.0.1 | JSR-330 / Eclipse Foundation | Apache 2.0 |
 | Okio (pulled in by DataStore) | 3.4.0 | Square | Apache 2.0 |
 | Timber | 5.0.1 | Jake Wharton | Apache 2.0 |
-| **Bouncy Castle** `bcprov-jdk18on` — **Argon2id**, the key derivation of the vaults | 1.81 | The Legion of the Bouncy Castle | **MIT** — full text below |
+| **Bouncy Castle** `bcprov-jdk18on` — **Argon2id**, the key derivation of the vaults | 1.86 | The Legion of the Bouncy Castle | **MIT** — full text below |
 | **SQLCipher for Android** — the encrypted database | 4.16.0 | Zetetic LLC | **BSD-3-Clause** — full text below |
 
 SQLCipher bundles **SQLite** and **LibTomCrypt**, both released into the public domain by their
