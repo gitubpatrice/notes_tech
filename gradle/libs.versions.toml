@@ -59,7 +59,7 @@ espresso = "3.6.1"
 
 # Qualité
 detekt = "1.23.8"
-ktlint-gradle = "12.1.1"
+ktlint-gradle = "14.2.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
