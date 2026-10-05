@@ -1,7 +1,7 @@
 name: CI (Kotlin)
 
-# Notes Tech 3.0 is the Kotlin rewrite. This workflow lives on the `kotlin` branch of notes_tech and
-# replaces the Flutter ci.yml there on the day the branch becomes `main`.
+# Notes Tech 3.0 is the Kotlin rewrite. This workflow replaces the Flutter ci.yml, and the port's own
+# first ci.yml (2026-08, never run: the port had no remote then).
 #
 # `kotlin`, `fix/**` and `feat/**` are triggers on purpose: a work branch with nothing running on it
 # can pile up commits nobody checks (measured on a sibling app: 25 commits, detekt red since the
@@ -45,8 +45,22 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION" > /dev/null
 
       # The local gate, in one command, so CI and a developer's machine agree on what "green" means.
+      #
+      # `compileDebugAndroidTestKotlin`: the instrumented tests run on real phones, not here (see the
+      # end of this file), so nothing else would notice their source set no longer compiles. It
+      # happened in 2026-08: a key interface gained a member, five test doubles did not follow, and
+      # the instrumented suite could not run without anyone being told.
       - name: Gate
-        run: ./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
+        run: >
+          ./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
+          :app:compileDebugAndroidTestKotlin
+
+      # Room validates the database when it opens it. Any drift between the entities and the schema the
+      # Flutter versions created would show up on the user's phone as a database that refuses to open,
+      # so after the update. The script compares, in memory, exactly what Room compares, against the
+      # schema KSP has just exported.
+      - name: Does the Room schema still match the database the Flutter versions created?
+        run: python3 audits/verifier-schema-room-vs-flutter.py
 
       - name: Upload reports
         if: always()
