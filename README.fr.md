@@ -134,8 +134,8 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 ## Installation
 
 1. **APK publié** — depuis les [Releases GitHub](https://github.com/gitubpatrice/notes_tech/releases),
-   le fichier de votre appareil (`arm64-v8a` convient à presque tous les téléphones depuis 2016 ; il
-   n'y a pas d'APK universel). Vérifiez l'empreinte SHA-256 publiée dans les notes de version.
+   l'APK universel (`notes-tech-universel-3.0.0.apk`, tous téléphones), ou le fichier plus léger de
+   votre appareil (`arm64-v8a` convient à presque tous les téléphones depuis 2016). Vérifiez l'empreinte SHA-256 publiée dans les notes de version.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    construite et signée par F-Droid.
 3. **Construction locale** — section suivante.
@@ -160,7 +160,8 @@ remplacer une copie installée. C'est ainsi que le portage a été développé s
 données réelles.
 
 La version se trouve dans [`version.properties`](version.properties) ; chaque APK par ABI porte
-`versionCode × 10 + ABI` (1 = armeabi-v7a, 2 = arm64-v8a, 3 = x86_64), le schéma qu'exige F-Droid.
+`versionCode × 10 + ABI` (1 = armeabi-v7a, 2 = arm64-v8a, 3 = x86_64), le schéma qu'exige F-Droid,
+et l'APK universel `versionCode × 10`.
 
 ## Technique
 

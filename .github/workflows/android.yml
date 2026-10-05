@@ -79,7 +79,8 @@ jobs:
       # `-Pnotestech.replaceInstalledApp=true` is what a published build uses: without it the APK is
       # `com.filestech.notes_tech.next`, installed beside Notes Tech. Without keystore.properties (not
       # in the repository, on purpose) the APKs come out unsigned, which is all this job needs: it
-      # proves R8 and the NDK build pass, and that each split carries versionCode * 10 + ABI.
+      # proves R8 and the NDK build pass, that each split carries versionCode * 10 + ABI, and the
+      # universal APK versionCode * 10.
       - name: Build the release splits
         run: ./gradlew --no-daemon :app:assembleRelease -Pnotestech.replaceInstalledApp=true
 
@@ -88,7 +89,7 @@ jobs:
           set -euo pipefail
           AAPT2=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)aapt2
           BASE=$(sed -n 's/^versionCode=//p' version.properties | tr -d '\r')
-          for pair in armeabi-v7a:1 arm64-v8a:2 x86_64:3; do
+          for pair in universal:0 armeabi-v7a:1 arm64-v8a:2 x86_64:3; do
             abi=${pair%%:*}; rank=${pair##*:}
             apk=app/build/outputs/apk/release/app-$abi-release-unsigned.apk
             line=$("$AAPT2" dump badging "$apk" | head -1)

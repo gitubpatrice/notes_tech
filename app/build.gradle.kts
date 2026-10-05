@@ -256,23 +256,26 @@ android {
     }
 
     // SQLCipher embarque du natif : le découpage par ABI réduit sensiblement la taille par
-    // architecture. The universal APK is NOT produced any more — see `isUniversalApk` below; this
-    // comment claimed the opposite for a month after the switch.
+    // architecture. A universal APK is produced too, since 2026-10-05 — see `isUniversalApk` below.
     splits {
         abi {
             isEnable = true
             reset()
             include("arm64-v8a", "armeabi-v7a", "x86_64")
-            // ATTENTION L'universel N'EST PLUS PRODUIT, et ce n'est pas une economie de taille.
+            // The universal APK is back (Patrice, 2026-10-05), with RANK 0: versionCode = base * 10.
             //
-            // Il portait le rang 4, donc versionCode 4053, au-dessus de tous les splits. Consequence
-            // relevee par deux relectures externes le 2026-08-20 : qui l'installe une fois ne peut
-            // plus recevoir un split -- 2054 par-dessus 4053 est un downgrade, qu'Android refuse. La
-            // seule sortie serait une desinstallation, qui detruit l'alias Keystore avec la base.
+            // It had been removed on 2026-08-20 under the old `rank * 1000 + base` scheme, where it
+            // carried rank 4 (4053), above every split: whoever installed it once could never take a
+            // split again (2054 over 4053 is a downgrade), and the only way out, uninstalling,
+            // destroys the Keystore alias with the database.
             //
-            // La release publiee ne contient de toute facon que les TROIS splits ; l'universel etait
-            // produit pour rien, et ne pouvait que pieger celui qui s'en servirait.
-            isUniversalApk = false
+            // Under `base * 10 + rank`, a version's codes stay below the next version's: universal
+            // 5000 replaces 2.0.9 (4071-4073), and 5010 or 5011-5013 replace it in turn. Rank 0 rather
+            // than 4: the universal never shadows a split; the one refused case — the universal of a
+            // version over a split of the SAME version — has no reason to happen and loses nothing.
+            //
+            // GitHub releases only. F-Droid builds the three splits, one Builds block each.
+            isUniversalApk = true
         }
     }
 }
@@ -308,6 +311,10 @@ require(rangsDAbi.values.all { it in 1..9 }) { "ABI ranks must be single digits:
 // ⚠️ And distinct: two ABIs of the same rank would ship the same version code (GPT-5.6 review, 2026-09-25).
 require(rangsDAbi.values.toSet().size == rangsDAbi.size) { "ABI ranks must be distinct: $rangsDAbi" }
 
+// The universal APK's rank: below every split of the same version, above every code of the previous one.
+val rangUniversel = 0
+require(rangUniversel !in rangsDAbi.values) { "The universal rank must differ from every ABI rank" }
+
 // ⚠️ A FLOOR, not a proof. 407 is the base of Flutter 2.0.9, the last release published when this
 // was written (2026-09-14). It stops an accidental return to the old base 53; it cannot know about a
 // Flutter release shipped since — the release checklist compares with the last published tag.
@@ -326,16 +333,13 @@ androidComponents {
             // `getValue` et non `get` : une ABI ajoutee sans rang doit faire ECHOUER
             // la configuration, pas produire un APK silencieusement non installable.
             //
-            // ⚠️ An output WITHOUT an ABI filter is a universal APK, and there is none any more —
-            // `isUniversalApk` is false. Whoever turns it back on must pick its rank on purpose.
-            // Under the `* 1000` scheme a rank above the splits locked its users out of every later
-            // split; under `* 10` it only shadows the splits of the SAME version, and the next
-            // version replaces it normally — but it would still be an APK F-Droid does not build,
-            // with a code no recipe line describes. Failing here is what forces that decision.
-            val rang = rangsDAbi[abi] ?: error(
-                "sortie sans ABI connue (abi=$abi) : l'universel n'est plus produit. " +
-                    "Le reactiver impose de lui choisir un rang -- voir le commentaire ci-dessus.",
-            )
+            // An output WITHOUT an ABI filter is the universal APK: rank 0, see `isUniversalApk`.
+            // An ABI filter with no rank must still FAIL the configuration, not ship silently.
+            val rang = if (abi == null) {
+                rangUniversel
+            } else {
+                rangsDAbi[abi] ?: error("sortie d'ABI sans rang (abi=$abi) : lui en donner un dans rangsDAbi.")
+            }
             sortie.versionCode.set(appVersionCode * 10 + rang)
         }
     }
