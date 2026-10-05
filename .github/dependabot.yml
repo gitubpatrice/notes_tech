@@ -53,8 +53,9 @@ updates:
       # Agenda Tech).
       - dependency-name: "org.jetbrains.kotlin*"
         versions: [">= 2.4.0"]
-      # JUnit 6 is a migration, not a bump: Gradle 8.13 brings a JUnit Platform 1.x launcher, and with
-      # Jupiter 6 no test starts (PR #16). It needs junit-platform-launcher declared alongside.
+      # JUnit majors stay a deliberate step (JUnit 6 needs Kotlin 2.2+ and drops deprecated APIs). Minor
+      # bumps pass since the platform launcher is declared through the BOM (gradle/libs.versions.toml):
+      # before that, ANY version but 5.11.3 discovered no test (PRs #16 and #21).
       - dependency-name: "org.junit*"
         update-types: ["version-update:semver-major"]
 
