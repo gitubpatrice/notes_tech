@@ -163,6 +163,15 @@ android {
         }
     }
 
+    // Without this, AGP writes a "Dependency metadata" block into the APK signature, encrypted with a
+    // key only Google holds: an opaque blob nobody else can read, which F-Droid's scanner rejects. It
+    // only exists in a SIGNED APK, so an unsigned build never shows it. Same setting as SMS Tech and
+    // Agenda Tech (found on every app of the portfolio on 2026-08-14).
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     signingConfigs {
         create("release") {
             // ⚠️ Le keystore DOIT être celui de `notes_tech`. Signer avec une autre clé romprait le
