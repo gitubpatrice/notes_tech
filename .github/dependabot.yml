@@ -1,0 +1,50 @@
+# Dependency watch for Notes Tech 3 (Kotlin), modelled on Agenda Tech's.
+#
+# Replaces the Flutter configuration (pub at the root, Gradle under android/), whose directories no
+# longer exist. Both ecosystems are watched because GitHub Actions are code run with access to the
+# repository too.
+version: 2
+
+updates:
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    # Grouped: ten separate PRs get closed unread, one grouped PR gets reviewed.
+    groups:
+      androidx:
+        patterns:
+          - "androidx.*"
+      kotlin-and-tools:
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp*"
+          - "com.google.dagger*"
+          - "io.gitlab.arturbosch.detekt*"
+      junit:
+        patterns:
+          - "org.junit*"
+    ignore:
+      # AGP 9 is a migration (Kotlin moves into AGP), done by hand, not a version bump.
+      - dependency-name: "com.android.application"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "com.android.tools.build:gradle"
+        update-types: ["version-update:semver-major"]
+      # Hilt 2.58+ requires AGP 9 (gradle/libs.versions.toml).
+      - dependency-name: "com.google.dagger*"
+        versions: [">= 2.58"]
+      # Kotlin 2.4.20+: CodeQL 2.27 refuses to compile it ("currently supports versions below 2.4.20",
+      # measured on Agenda Tech). A bump PR would fail CodeQL every time. Remove once CodeQL supports it.
+      - dependency-name: "org.jetbrains.kotlin*"
+        versions: [">= 2.4.20"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
