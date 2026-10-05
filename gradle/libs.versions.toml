@@ -35,7 +35,7 @@ sqlcipher = "4.16.0"
 # dans la plateforme. On utilise l'API bas niveau `org.bouncycastle.crypto.*`, PAS le fournisseur
 # JCE : aucun conflit possible avec le Bouncy Castle qu'Android embarque, qui vit sous le paquet
 # renommé `com.android.org.bouncycastle`. Pure Java, donc aucune bibliothèque native ajoutée.
-bouncycastle = "1.81"
+bouncycastle = "1.86"
 
 timber = "5.0.1"
 
