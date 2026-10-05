@@ -34,8 +34,12 @@ Patrice : « fais tout ce qu'il faut », « carte blanche », « full permission
   `android/.gitignore` (fichier SUIVI). Un `git pull` de `main` dans ce clone ferait disparaître ce
   `.gitignore` et rendrait le keystore commitable : **ne jamais mettre ce clone à jour**.
 
-**Reste** : fusion de la PR du site (#8) puis vérification en ligne ; résultat du `fdroid build` de
-`!51297` ; fusion de #17/#18 ; plus tard, la migration AGP 9 (comme Agenda Tech) qui débloquera
+- ✅ **Puis, Patrice : « fusionne tout »** — site #8 fusionnée (`7f29166`), déployée, **vérifiée EN LIGNE**
+  FR et EN (accueil, page, téléchargement, meta + Open Graph, 6 captures ; `releases/latest` → v3.0.0) ;
+  #17 et #18 fusionnées, CI + CodeQL de `main` verts sur `a799695`. **Pipeline de `!51297` : 12/12 vert**,
+  `fdroid build` depuis la source compris (11 min). Reste à attendre la revue de linsui.
+
+**Reste** : la revue de `!51297` par F-Droid (vérifier ensuite la version servie par l'API) ; plus tard, la migration AGP 9 (comme Agenda Tech) qui débloquera
 androidx, Kotlin 2.4 et Hilt 2.58 ; la réécriture de l'adresse privée (à la demande de Patrice).
 
 ## 🧭 EN BREF — 2026-10-05 au soir : la 3.0.0 est PRÉPARÉE et poussée sur la branche `kotlin`, rien n'est publié
