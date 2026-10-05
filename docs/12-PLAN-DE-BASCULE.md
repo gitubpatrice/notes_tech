@@ -61,7 +61,13 @@ ligne `output:` que sur Agenda Tech et SMS Tech (cf. `reference_fdroid_output_re
 
 ## Trois décisions à prendre AVANT toute manipulation
 
-### A. Où vit le code Kotlin ?
+### A. ✅ TRANCHÉE le 2026-10-05 — branche `kotlin` dans `gitubpatrice/notes_tech`
+
+Patrice, 2026-10-05 : « la décision A aussi c'est OK ». Le portage est poussé tel quel, avec son
+histoire, sur une branche `kotlin` du dépôt `notes_tech`. Rien n'est fusionné, rien n'est tagué. Ce qui
+suit est le raisonnement du 2026-08-20.
+
+### A. (état du 2026-08-20) Où vit le code Kotlin ?
 
 État au 2026-08-20 : le portage a **123 commits sur `master`, sans aucun remote**. `notes_tech` en
 a **164 sur `main`**, avec ses tags, ses issues, et l'URL que le site et F-Droid référencent.
@@ -89,7 +95,23 @@ L'offset ×1000 a été choisi le 2026-08-20 pour la continuité, et il a rempli
 permis de mesurer la bascule le jour même. Pour une publication, un **palier franc** est plus sûr.
 À trancher.
 
-### C. Que fait-on de la MR F-Droid `!37885` ?
+### C. ✅ CADUQUE — `!37885` a été FUSIONNÉE le 2026-09-14
+
+linsui l'a fusionnée le **2026-09-14** ; f-droid.org sert la 2.0.9 depuis le 2026-09-15, en trois ABI
+(4071 / 4072 / 4073), vérifié par l'API le 2026-10-05. La question « la laisser vivre ou la convertir »
+n'a plus d'objet. Ce qui la remplace :
+
+- la recette Kotlin passe par une **NOUVELLE MR** sur `fdroiddata`, **en dernier** (phase 4) ;
+- 🔴 **F-Droid signe Notes Tech avec SA clé** (`e6eafe58…1210`), pas la nôtre (`ddb385de…42e9`) : la
+  recette n'a ni `Binaries` ni `AllowedAPKSigningKeys`. Donc un APK GitHub ne peut PAS mettre à jour une
+  installation F-Droid, et la recette Kotlin **ne doit pas** en ajouter : cela changerait le signataire
+  servi aux utilisateurs F-Droid déjà installés, qui ne pourraient plus mettre à jour ;
+- l'auto-update de la recette actuelle lit `pubspec.yaml`, qui disparaît avec Kotlin : au tag `v3.0.0`,
+  elle ne devrait pas se déclencher (déduit, pas mesuré). La nouvelle lit `version.properties`.
+
+Brouillon de la recette : `docs/fdroid/com.filestech.notes_tech.yml`.
+
+### C. (état du 2026-09-24) Que fait-on de la MR F-Droid `!37885` ?
 
 > **2026-09-24** : la MR est désormais en **2.0.9** (4071/4072/4073), « mostly ready » selon linsui,
 > dans la file de test. La recommandation ci-dessous tient **plus que jamais** : convertir la recette
@@ -109,6 +131,13 @@ demande en bas de la file, pour une app qui n'est pas encore prête à être pub
 ## Le plan, dans l'ordre
 
 ### Phase 0 — Le rodage. **Le seul point qu'on ne peut pas accélérer.**
+
+> ✅ **Fait du 2026-09-26 au 2026-10-05, sur le S24 de Patrice**, avec l'application de test séparée
+> `.next.debug` (3.0.0-alpha01, 5002). Un retour : la biométrie du verrou d'app était introuvable avant
+> d'avoir activé le PIN — libellé corrigé le 2026-09-27 (`6ea8099`). ⚠️ Ce rodage a exercé l'**usage**,
+> pas la **bascule** : l'app de test ne reprend pas les données d'une Notes Tech installée. La bascule
+> elle-même a été mesurée sur le S9 (2.0.3, 2.0.4, 2.0.9 publiée). Patrice, 2026-10-05 : feu vert pour
+> préparer la publication.
 
 > 🔴 **Correction du 2026-09-24 — ce rodage N'A PAS EU LIEU.** Patrice : « je n'ai pas utilisé la
 > 3.0.0, le S9 est un téléphone de TESTS uniquement ». Les trois retours du 2026-08-20 venaient d'un
@@ -197,6 +226,7 @@ déclenchera pas** — c'est voulu à ce stade, mais il faudra l'étendre avant 
 
 - **Publier sans rodage.** L'irréversibilité rend l'erreur définitive pour l'utilisateur.
 - **Aplatir l'histoire du portage** — cf. décision A.
-- **Convertir `!37885` maintenant** — cf. décision C.
+- ~~**Convertir `!37885` maintenant**~~ — sans objet depuis sa fusion (décision C).
+- **Ajouter `Binaries` ou `AllowedAPKSigningKeys` à la recette Kotlin** — cf. décision C.
 - **Bumper le `versionCode` au dernier moment** : c'est ce qui a fait échouer la première tentative
   d'installation, le 2026-08-20 (§121).
