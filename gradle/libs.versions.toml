@@ -1,8 +1,8 @@
 [versions]
 # Chaîne de build — alignée sur Agenda Tech et SMS Tech (AGP 8.13.x / Kotlin 2.3.20 / KSP 2.3.9 / JDK 17).
 agp = "8.13.2"
-kotlin = "2.3.20"
-ksp = "2.3.9"
+kotlin = "2.3.21"
+ksp = "2.3.12"
 
 # AndroidX / Compose
 compose-bom = "2026.06.00"
