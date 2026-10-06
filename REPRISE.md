@@ -25,8 +25,12 @@ La 3.0.0 est publiée et vérifiée (section suivante). Ce qui restait en cours 
   dans le classpath release ; licence BC inchangée) ; l'app ne cite aucune version.
 - **Dependabot** : #21 (JUnit 5.14.4) et #22 (truth 1.4.5) — « @dependabot rebase » demandé ; les fusionner
   quand leur CI est verte, sur un « fusionne » de Patrice (le classifieur l'exige, PR par PR).
-- **F-Droid `!51297`** : pipeline 12/12 vert, attend la revue de linsui. Après fusion par F-Droid,
-  vérifier `https://f-droid.org/api/v1/packages/com.filestech.notes_tech` avant d'écrire quoi que ce soit.
+- ✅ **F-Droid `!51297` FUSIONNÉE** par licaon-kter le 2026-10-05 à 22 h 26 UTC (squash `467f5251`, recette
+  amont identique à la nôtre). Le 06 au matin, l'API sert encore la 2.0.9 : attendre la construction et la
+  signature par F-Droid (1 à 3 jours), puis vérifier
+  `https://f-droid.org/api/v1/packages/com.filestech.notes_tech` (5001-5003) avant d'écrire quoi que ce soit.
+- 2026-10-06 : incident GitHub clos ; runs annulés relancés ; rebase Dependabot de #21 redemandé (il avait
+  échoué pendant l'incident) ; libellé `dependencies` créé.
 - Signalé, non fait : la carte SMS Tech du site dit encore « FR / EN » (cinq langues depuis 1.28.12).
 - Consigne de Patrice : **ne jamais bloquer le chat** — toute attente (CI, pipeline, build) en arrière-plan.
 
