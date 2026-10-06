@@ -23,8 +23,8 @@ La 3.0.0 est publiée et vérifiée (section suivante). Ce qui restait en cours 
   :app:compileDebugAndroidTestKotlin`, puis `python audits/verifier-schema-room-vs-flutter.py`).
 - ✅ **`THIRD_PARTY_NOTICES.md` remis à jour** le soir même (Room 2.8.5, Kotlin 2.3.21, Bouncy Castle 1.86, relu
   dans le classpath release ; licence BC inchangée) ; l'app ne cite aucune version.
-- **Dependabot** : #21 (JUnit 5.14.4) et #22 (truth 1.4.5) — « @dependabot rebase » demandé ; les fusionner
-  quand leur CI est verte, sur un « fusionne » de Patrice (le classifieur l'exige, PR par PR).
+- ✅ **Dependabot à jour le 2026-10-06** : #21 remplacée par **#25** (JUnit 5.14.4, BOM et lanceur compris), #25 et
+  #22 (truth 1.4.5) fusionnées, CI + CodeQL de `main` verts sur `9cb837a` ; plus aucune PR ouverte.
 - ✅ **F-Droid `!51297` FUSIONNÉE** par licaon-kter le 2026-10-05 à 22 h 26 UTC (squash `467f5251`, recette
   amont identique à la nôtre). Le 06 au matin, l'API sert encore la 2.0.9 : attendre la construction et la
   signature par F-Droid (1 à 3 jours), puis vérifier
