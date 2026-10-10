@@ -118,15 +118,22 @@ internal class GestesDeNoteEnCours {
     }
 
     /**
-     * [dossier] was just unlocked: what waited for IT resumes. Compared by id — the unlock sheet may
-     * have been opened for another folder, the automatic lock opens one too.
+     * [dossier] was just unlocked: what waited for IT resumes, and only that is taken off — what waits
+     * for another vault keeps waiting (GPT-5.6 review, 2026-10-10: clearing everything first dropped a
+     * gesture waiting for vault A when the sheet of vault B closed). Compared by id: the automatic lock
+     * opens an unlock sheet too.
      */
     fun reprendreApres(dossier: Folder, executer: (GesteSurUneNote) -> Unit) {
         val menu = menuEnAttente
+        if (menu != null && menu.folderId == dossier.id) {
+            menuEnAttente = null
+            noteEnMenu = menu
+        }
         val geste = gesteEnAttente
-        abandonner()
-        if (menu != null && menu.folderId == dossier.id) noteEnMenu = menu
-        if (geste != null && geste.folder.id == dossier.id) executer(geste.geste)
+        if (geste != null && geste.folder.id == dossier.id) {
+            gesteEnAttente = null
+            executer(geste.geste)
+        }
     }
 
     /** Giving up the secret is giving up the gesture: what waited falls with the unlock sheet. */

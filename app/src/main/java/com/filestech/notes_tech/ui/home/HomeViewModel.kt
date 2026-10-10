@@ -216,6 +216,13 @@ class HomeViewModel @Inject constructor(
      */
     fun executer(geste: GesteSurUneNote) {
         viewModelScope.launch {
+     *
+     * ⚠️ **Not atomic with the write, and accepted** (raised by both external reviews, 2026-10-10): an
+     * automatic lock falling in the microseconds between this check and the DELETE/UPDATE lets the
+     * gesture complete. That gesture was made while the vault WAS open, by whoever had opened it — the
+     * editor's trash has always behaved so. What this check exists for, a gesture on a vault already
+     * closed, is refused. Holding the session through the write would need a lease the sessions do not
+     * have (`VaultSessions.whileUnlocking` marks an unlock in progress, it is not that).
             try {
                 val actuelle = notes.find(geste.note.id) ?: return@launch
                 val dossier = folders.find(actuelle.folderId)

@@ -498,6 +498,11 @@ fun NoteEditorScreen(
                 navigationIcon = {
                     IconButton(onClick = onQuitter) {
                         Icon(
+                        // The cursor at the END: "Edit" means "go on writing". A loaded note's value
+                        // starts at 0, which put the cursor before the first word — measured by the
+                        // end-to-end test of the tick. A cursor move is not an edit: the save compares
+                        // the text only.
+                        onContenuChange(state.content.copy(selection = TextRange(state.content.text.length)))
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.common_close),
                         )

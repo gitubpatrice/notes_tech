@@ -56,6 +56,10 @@ import java.time.ZoneOffset
  * whoever gets past the app lock could destroy a closed vault's notes from the list, without its
  * secret. Each refusal below is paired with the same gesture succeeding once the vault is open: a
  * refusal alone would also pass if the gesture never worked at all.
+ *
+ * ⚠️ The RESUME after the unlock — the refused gesture running by itself once the secret is given — is
+ * the screen's, not the view model's: it is checked in `GestesDeNoteEnCoursTest`, on the state holder
+ * that keeps the gesture waiting.
  */
 @RunWith(AndroidJUnit4::class)
 class GestesSurUneNoteTest {
@@ -121,7 +125,7 @@ class GestesSurUneNoteTest {
     }
 
     @Test
-    fun trashing_a_note_of_a_closed_vault_waits_for_its_secret_and_runs_once_it_is_open(): Unit = runBlocking {
+    fun trashing_a_note_of_a_closed_vault_is_refused_and_allowed_once_it_is_open(): Unit = runBlocking {
         val (coffre, note) = noteDeCoffreFermee()
         val geste = GesteSurUneNote.MettreALaCorbeille(note)
 
@@ -135,7 +139,7 @@ class GestesSurUneNoteTest {
     }
 
     @Test
-    fun erasing_a_note_of_a_closed_vault_waits_for_its_secret_and_runs_once_it_is_open(): Unit = runBlocking {
+    fun erasing_a_note_of_a_closed_vault_is_refused_and_allowed_once_it_is_open(): Unit = runBlocking {
         val (coffre, note) = noteDeCoffreFermee()
         val geste = GesteSurUneNote.SupprimerDefinitivement(note)
 
