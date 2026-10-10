@@ -113,6 +113,13 @@ interface NoteWriteDao {
     ): Int
 
     /**
+     * Writes the colour alone (3.1.0) — like [updateFlags], and for the same reason: neither the content
+     * nor the sealed blob, so it cannot undo a vault's protection whatever the note is.
+     */
+    @Query("UPDATE notes SET color_id = :colorId, updated_at = :updatedAt WHERE id = :id")
+    suspend fun updateColor(id: String, colorId: Int?, updatedAt: Long): Int
+
+    /**
      * Écrit les seules étiquettes.
      *
      * **Pas de garde `encrypted_content IS NULL` ici, et c'est correct** : les étiquettes d'une

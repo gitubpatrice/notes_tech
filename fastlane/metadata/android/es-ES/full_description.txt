@@ -19,7 +19,9 @@ Notes Tech: notas Markdown 100 % locales, cifradas en reposo. Escrita en Kotlin.
 • Grabaciones eliminadas tras la transcripción
 
 <b>Edición</b>
-• Markdown con conmutador Editar / Vista previa (títulos, listas, enlaces), guardado automático
+• Las notas se abren para leer (Markdown: títulos, listas, enlaces); «Editar» para escribir, guardado automático
+• Pulsación larga en una nota: moverla a la papelera, con Deshacer, o eliminarla definitivamente
+• Un color pastel por nota en las listas (el de una nota de caja fuerte, solo desbloqueada)
 • Retroenlaces <code>[[Título]]</code> con autocompletado y panel «notas que enlazan aquí»
 • Búsqueda FTS5 instantánea, orden configurable
 • Exportación Markdown, de una nota o en ZIP (frontmatter YAML compatible con Obsidian/Logseq)

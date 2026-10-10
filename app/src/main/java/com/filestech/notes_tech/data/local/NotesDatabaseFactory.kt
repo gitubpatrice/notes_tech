@@ -89,6 +89,9 @@ class NotesDatabaseFactory(
             )
             .openHelperFactory(factory)
             .addCallback(NotesDatabase.callback(nowMillis))
+            // Every migration, by name: a new schema version adds its own here (detekt refuses the
+            // spread of an array, which copied it for nothing).
+            .addMigrations(NotesDatabase.MIGRATION_9_10)
             // ⚠️ AUCUN `fallbackToDestructiveMigration*` ici, et cette absence est porteuse.
             //
             // Room 2.7 a changé la signature de `fallbackToDestructiveMigrationOnDowngrade` : le

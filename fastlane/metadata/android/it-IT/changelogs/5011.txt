@@ -1,0 +1,1 @@
+Toccare una nota ora la apre in lettura; «Modifica» per scrivere. Pressione prolungata su una nota: spostarla nel cestino (con Annulla) o eliminarla definitivamente. Un colore pastello per nota, visibile negli elenchi (per una nota in cassaforte, solo mentre è sbloccata). Testi legali aggiornati. Strumenti di build aggiornati (AGP 9).

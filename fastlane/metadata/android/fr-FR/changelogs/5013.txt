@@ -1,0 +1,1 @@
+Toucher une note l'ouvre en lecture ; « Éditer » pour écrire. Appui long sur une note : mettre à la corbeille (avec Annuler) ou supprimer définitivement. Une couleur pastel par note, visible dans les listes (pour une note de coffre, seulement coffre ouvert). Textes légaux mis à jour. Chaîne de build modernisée (AGP 9).

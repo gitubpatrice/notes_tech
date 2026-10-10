@@ -11,8 +11,10 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -76,6 +78,7 @@ class ApercuDeBoutEnBoutTest {
     private val texteAffiche = "See $titreCible here."
     private var scenario: ActivityScenario<MainActivity>? = null
     private var presentationDejaVue = false
+    private lateinit var idSource: String
 
     @Before
     fun setUp() {
@@ -92,6 +95,7 @@ class ApercuDeBoutEnBoutTest {
             )
             // Pinned: at the top of the list whatever else the device holds.
             notes.setPinned(source.id, true)
+            idSource = source.id
         }
     }
 
@@ -111,16 +115,18 @@ class ApercuDeBoutEnBoutTest {
         compose.waitUntilAtLeastOneExists(hasText(titreSource), TIMEOUT_MILLIS)
         compose.onNodeWithText(titreSource).performClick()
 
-        ouvrirLApercu()
+        // 3.1.0: a note that has a body opens to be READ — nothing to tap to see the rendering.
+        attendreLaLecture()
         toucherLeLien()
 
-        // Created, in the source's folder — and OPEN: its title is in the editor's title field.
+        // Created, in the source's folder — and OPEN, to be WRITTEN: it is blank, so it opens with its
+        // title in the editor's title field rather than as a page with nothing to read.
         compose.waitUntilAtLeastOneExists(hasSetTextAction() and hasText(titreCible), TIMEOUT_MILLIS)
         val creees = runBlocking { notes.listAllAlive().filter { it.title == titreCible } }
         assertThat(creees).hasSize(1)
         assertThat(creees.single().folderId).isEqualTo(Folder.INBOX_ID)
 
-        // Back to the source, still on its preview (saved state), and the same link tapped again:
+        // Back to the source, still read (saved state), and the same link tapped again:
         // the note now exists, so it is opened — nothing is created a second time.
         Espresso.pressBack()
         compose.waitUntilAtLeastOneExists(hasText(texteAffiche), TIMEOUT_MILLIS)
@@ -148,12 +154,48 @@ class ApercuDeBoutEnBoutTest {
         )
         compose.waitUntilAtLeastOneExists(lienFantome, TIMEOUT_MILLIS)
 
+        // The note opens to be read (3.1.0): "Edit" first, which puts the cursor in the body.
+        compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
         compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content))).performClick()
         assumeTrue("No soft keyboard showed on this device", attendreLeClavier(affiche = true))
         compose.waitUntilDoesNotExist(lienFantome, TIMEOUT_MILLIS)
 
         Espresso.closeSoftKeyboard()
         compose.waitUntilAtLeastOneExists(lienFantome, TIMEOUT_MILLIS)
+    }
+
+    /**
+     * The ✓ tick saves AT ONCE (3.1.0). It now shows the note to be read instead of leaving, and the
+     * reading must show what is saved — raised by both external reviews of 2026-10-10: the screen tests
+     * replace the Route's `onTerminer`, so nothing checked its `saveNow()`.
+     *
+     * Discriminating: without `saveNow`, the text would reach the base only after the 500 ms auto-save
+     * delay, counted from the keystroke; the base is read for [FENETRE_D_ENREGISTREMENT_MILLIS] after the
+     * tick, well within it. Proved by removing the call: this case fails.
+     */
+    @Test
+    fun the_tick_saves_at_once_and_shows_the_note_to_be_read() {
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasText(titreSource), TIMEOUT_MILLIS)
+        compose.onNodeWithText(titreSource).performClick()
+        attendreLaLecture()
+
+        compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
+        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
+            .performTextInput(AJOUT)
+        compose.onNodeWithContentDescription(context.getString(R.string.note_editor_tooltip_done)).performClick()
+
+        val depart = SystemClock.uptimeMillis()
+        var enregistre = false
+        while (!enregistre && SystemClock.uptimeMillis() - depart < FENETRE_D_ENREGISTREMENT_MILLIS) {
+            enregistre = runBlocking { notes.find(idSource) }?.content?.contains(AJOUT) == true
+            if (!enregistre) SystemClock.sleep(POLL_MILLIS)
+        }
+        assertThat(enregistre).isTrue()
+        // And it is the reading that shows it: no field left to write in.
+        compose.waitUntilAtLeastOneExists(hasText(AJOUT, substring = true), TIMEOUT_MILLIS)
+        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
+            .assertDoesNotExist()
     }
 
     /** Whether the system reaches [affiche] — a soft keyboard shown or not — within [TIMEOUT_MILLIS]. */
@@ -173,11 +215,11 @@ class ApercuDeBoutEnBoutTest {
             .contains("mInputShown=true")
     }
 
-    private fun ouvrirLApercu() {
-        val apercu = context.getString(R.string.note_editor_mode_preview)
-        compose.waitUntilAtLeastOneExists(hasText(apercu), TIMEOUT_MILLIS)
-        compose.onNodeWithText(apercu).performClick()
+    /** The note is shown to be read: its rendering is there, and no field to write in. */
+    private fun attendreLaLecture() {
         compose.waitUntilAtLeastOneExists(hasText(texteAffiche), TIMEOUT_MILLIS)
+        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
+            .assertDoesNotExist()
     }
 
     private fun toucherLeLien() {
@@ -187,7 +229,12 @@ class ApercuDeBoutEnBoutTest {
 
     private companion object {
         const val TIMEOUT_MILLIS = 10_000L
-        const val POLL_MILLIS = 100L
+        const val POLL_MILLIS = 20L
+
+        /** Under the editor's 500 ms auto-save delay: what is in the base by then was saved by the tick. */
+        const val FENETRE_D_ENREGISTREMENT_MILLIS = 250L
+        const val AJOUT = " Added before the tick."
+
         const val SPLASH_SHOWN_KEY = "splash_shown_v1"
     }
 }

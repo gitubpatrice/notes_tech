@@ -111,6 +111,20 @@ class NoteEntity(
      */
     @ColumnInfo(name = "enc_v", defaultValue = "1")
     val encVersion: Int,
+
+    /**
+     * [com.filestech.notes_tech.domain.model.NoteColor.id], or `null` for none (3.1.0, schema 10 —
+     * the one column that was never in the Flutter base; see `NotesDatabase.MIGRATION_9_10`).
+     *
+     * ⚠️ Outside the vault's envelope, like [tags]: the whole database is encrypted by SQLCipher, but a
+     * vault's own key does not cover it. The lists show it on a vault note only while the vault is
+     * open; the privacy policy says it.
+     *
+     * No default: a row rebuilt without its colour would write NULL — an erased colour. The compiler
+     * makes every constructor say it (Claude review, 2026-10-10; today only the insert builds one).
+     */
+    @ColumnInfo(name = "color_id")
+    val colorId: Int?,
 ) {
     /** `true` si la note est verrouillée dans un coffre. Unique test à utiliser — jamais
      *  `content.isEmpty()`, qui est aussi vrai d'une note vide ordinaire. */

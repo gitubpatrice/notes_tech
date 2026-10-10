@@ -908,3 +908,37 @@ portait aucun : lu, celui qui s'applique — la recommandation sur les applicati
 ⚖️ Une aide à la compréhension, pas l'avis d'un avocat : pour un litige, consulter un professionnel.
 
 **Réalisation** : `a94ad36` (langue, gratuité, usage) puis le commit de la phrase sur le RGPD.
+
+## D-028 — Schéma 10 : la couleur des notes, et la fin du retour possible vers Flutter
+
+**2026-10-10 · Patrice** : « Ok pour l'option A » (la couleur d'une note de coffre visible dans les
+listes seulement coffre ouvert), puis, à la question « on passe la base en version 10 ? » : **« Oui,
+version 10 »**.
+
+**Contexte.** La 3.0.0 gardait la base en version 9, celle de Flutter, pour qu'une base ouverte par
+Room reste lisible par la 2.0.9 : un filet de la transition (`NotesDatabase`, D-005). La couleur des
+notes (3.1.0) demande une colonne, donc une version 10.
+
+**Vérifié, pas supposé :** ce filet ne protégeait plus personne. Android refuse d'installer la 2.0.9
+(versionCode 4071 à 4073) par-dessus la 3.x (5001 et plus) ; le seul chemin, désinstaller, efface la base
+avec l'alias Keystore. Revenir à Flutter était déjà impossible sans perdre ses notes.
+
+**Décisions :**
+- **Migration 9 → 10 réelle et additive** : `ALTER TABLE notes ADD COLUMN color_id INTEGER`. Toutes les
+  notes existantes reçoivent `NULL`, c'est-à-dire « pas de couleur », ce qu'elles montraient. Rien à voir
+  avec la migration fictive que D-005 écartait.
+- **Ce qui est stocké est un identifiant** (`NoteColor.id`, 1 à 8), jamais une couleur : la paire fond et
+  bordure se choisit à l'écran, selon le thème réel (`CouleursDeNote`). Un identifiant inconnu se lit
+  comme « pas de couleur ».
+- **Option A pour les coffres** : la couleur reste en clair dans la base (chiffrée par SQLCipher), hors
+  de l'enveloppe du coffre, comme les étiquettes ; les listes ne l'affichent sur une note de coffre que
+  coffre ouvert. La politique de confidentialité le dit, et dit enfin la même chose des étiquettes.
+  L'option B (la couleur dans l'enveloppe, format v3) est écartée : elle touchait au format chiffré, et
+  la liste aurait dû déchiffrer chaque note du coffre pour l'afficher.
+
+**Contrôles :** `audits/verifier-schema-room-vs-flutter.py` vérifie désormais deux choses, sans
+appareil : le schéma 9 décrit toujours exactement la base Flutter, et la base Flutter rejouée avec la
+migration donne exactement le schéma 10 (contrôle négatif : migration retirée, le script échoue).
+`MigrationVersDixTest` rejoue le vrai objet `Migration` sur une base SQLCipher Flutter, puis sur une base
+déjà adoptée par la 3.0.0 (empreinte Room du schéma 9) : les deux s'ouvrent, aucune note ni aucun blob
+scellé ne bouge.

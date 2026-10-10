@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
@@ -40,20 +42,18 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -72,6 +72,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.Layout
@@ -83,8 +85,10 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -137,9 +141,17 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         if (cible != state.note?.id) onOpenNote(cible)
     }
 
-    // Edit or Preview (D-024). Saved: a rotation, or the app lock taking the screen away and giving
-    // it back, returns to the side the user was reading.
-    var apercu by rememberSaveable { mutableStateOf(false) }
+    // Reading or writing (3.1.0) — it replaces 2.0.9's Edit / Preview switch (D-024). `null` until the
+    // note has loaded, then decided ONCE: an existing note opens to be read, a blank one — just created,
+    // or emptied — to be written, there being nothing to read. Saved: a rotation, or the app lock taking
+    // the screen away and giving it back, returns to the side the user was on.
+    var lectureChoisie by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val chargee = !state.loading && state.note != null && state.loadError == null && state.lockedVault == null
+    // Until the choice is stored, the screen already shows the side it will be: no frame of the other.
+    val lecture = lectureChoisie ?: (chargee && state.content.text.isNotBlank())
+    LaunchedEffect(chargee) {
+        if (chargee && lectureChoisie == null) lectureChoisie = state.content.text.isNotBlank()
+    }
 
     var autocompletionOuverte by rememberSaveable { mutableStateOf(false) }
     val suggestions by viewModel.suggestionsDeLien.collectAsStateWithLifecycle()
@@ -152,6 +164,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
 
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
+    var couleurOuverte by rememberSaveable { mutableStateOf(false) }
     var infosOuvertes by rememberSaveable { mutableStateOf(false) }
 
     // Les deux détours du déplacement, retenus par **identifiant** pour survivre à une rotation et
@@ -170,7 +183,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     // text lands where the user cannot see it. notes_tech 2.0.9's `_insertAtCursor` does the same.
     val dictee = rememberControleurDeDictee(
         onTexte = { texte ->
-            apercu = false
+            lectureChoisie = false
             viewModel.insererAuCurseur(texte)
         },
         messages = messages,
@@ -213,6 +226,22 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         onBack = onBack,
         onOuvrirNote = ouvrirUneAutreNote,
     )
+
+    // Closed — not merely hidden — when the note stops being readable: a vault that locks while the sheet
+    // is open would otherwise leave the sealed note's colour shown and changeable (GPT-5.6 review).
+    val couleurPossible = state.note != null && state.lockedVault == null && state.loadError == null
+    LaunchedEffect(couleurPossible) { if (!couleurPossible) couleurOuverte = false }
+    if (couleurOuverte && couleurPossible) {
+        FeuilleDeCouleur(
+            actuelle = state.note?.color,
+            dansUnCoffre = state.isVaultNote,
+            onChoisir = { couleur ->
+                couleurOuverte = false
+                viewModel.setColor(couleur)
+            },
+            onDismiss = { couleurOuverte = false },
+        )
+    }
 
     if (deplacementOuvert) {
         FeuilleDeDeplacement(
@@ -296,12 +325,12 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
                 suggestions = suggestions,
                 onRequeteChange = viewModel::chercherUnTitre,
                 onChoisirUnTitre = { titre ->
-                    apercu = false
+                    lectureChoisie = false
                     viewModel.insererUnLien(titre)
                     fermerLAutocompletion()
                 },
                 onCreer = { titre ->
-                    apercu = false
+                    lectureChoisie = false
                     viewModel.creerPuisLier(titre)
                     fermerLAutocompletion()
                 },
@@ -330,9 +359,9 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     // otherwise the last half second of typing is reported lost at the return.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.saveNow() }
 
-    // ⚠️ **Un seul geste, trois chemins** : le Retour système, la flèche de la barre et la coche
-    // « Terminé ». Les trois vident puis quittent — deux chemins pour un seul geste, pas deux
-    // comportements. C'est le commentaire de la coche, appliqué là où il se vérifie.
+    // ⚠️ **Un seul geste, deux chemins** : le Retour système et la flèche de la barre. Les deux vident
+    // puis quittent. Until 3.1.0 the « Terminé » tick was a third path to the same gesture; it now ends
+    // the WRITING and shows the note to be read (`onTerminer` below), and leaving stays these two.
     val quitter = {
         viewModel.saveNow()
         onBack()
@@ -358,6 +387,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             onFavori = viewModel::setFavorite,
             onInfos = { infosOuvertes = true },
             onDeplacer = { deplacementOuvert = true },
+            onCouleur = { couleurOuverte = true },
             onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
             onCopier = {
                 // Retour haptique sur un geste réussi, comme l'application publiée
@@ -375,8 +405,14 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             // le titre du lien, **puis l'ouvre** — le même chemin qu'un `[[Titre]]` touché dans l'aperçu,
             // comme dans l'application publiée. Le texte de la note, lui, ne bouge pas.
             onLienFantome = viewModel::ouvrirOuCreerLaNote,
-            apercu = apercu,
-            onApercu = { apercu = it },
+            lecture = lecture,
+            onModifier = { lectureChoisie = false },
+            // Saved first: the tick is the "it is saved, you may stop" signal 2.0.9 added on user
+            // feedback, and the reading that follows shows the saved note.
+            onTerminer = {
+                viewModel.saveNow()
+                lectureChoisie = true
+            },
             onLienDeLApercu = lienDeLApercu,
         )
     }
@@ -424,20 +460,65 @@ fun NoteEditorScreen(
     // ⚠️ No default: a menu entry wired to `{}` would be a dead button that compiles.
     onInfos: () -> Unit,
     onDeplacer: () -> Unit,
+    /** The ⋮ menu's "Color" (3.1.0): the sheet that colours the note's card in the lists. */
+    onCouleur: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
     onOuvrirNote: (String) -> Unit,
     onLienFantome: (String) -> Unit,
-    /** `true`: the Markdown is drawn instead of the text field (D-024). */
-    apercu: Boolean,
-    onApercu: (Boolean) -> Unit,
+    /**
+     * `true`: the note is READ (3.1.0) — its title as a heading, its Markdown drawn (D-024), no field,
+     * so no cursor and no keyboard; an "Edit" button at the bottom right writes it.
+     */
+    lecture: Boolean,
+    /** Reading → writing: the "Edit" button. */
+    onModifier: () -> Unit,
+    /** Writing → reading: the ✓ tick, which saves first. */
+    onTerminer: () -> Unit,
     onLienDeLApercu: (LinkTarget) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val focus = LocalFocusManager.current
+    // Leaving the reading puts the cursor in the body, and with it the keyboard: "Edit" means "write".
+    // Only after that button — a note created blank opens to be written, as before, without forcing it.
+    val focusDuCorps = remember { FocusRequester() }
+    var focaliserLeCorps by remember { mutableStateOf(false) }
+    LaunchedEffect(lecture, focaliserLeCorps) {
+        if (!lecture && focaliserLeCorps) {
+            focaliserLeCorps = false
+            focusDuCorps.requestFocus()
+        }
+    }
+    val noteOuverte = state.note != null && state.lockedVault == null && state.loadError == null && !state.loading
     Scaffold(
         modifier = modifier,
         snackbarHost = { HoteDeMessages(messages) },
+        floatingActionButton = {
+            if (lecture && noteOuverte) {
+                // 🔴 The content overload, NOT `text = …, icon = …`: measured on the emulator, the
+                // latter's label did not reach the button's merged node — TalkBack announced a button
+                // with no name, and the editor's sweep caught it (`actionnablesSansNom`). Here the
+                // label is a plain child of the clickable surface, so it merges, as on every button.
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        // The cursor at the END: "Edit" means "go on writing". A loaded note's value
+                        // starts at 0, which put the cursor before the first word — measured by the
+                        // end-to-end test of the tick. A cursor move is not an edit: the save compares
+                        // the text only.
+                        onContenuChange(state.content.copy(selection = TextRange(state.content.text.length)))
+                        focaliserLeCorps = true
+                        onModifier()
+                    },
+                ) {
+                    Icon(Icons.Outlined.Edit, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.note_editor_mode_edit),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
+        },
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -462,11 +543,16 @@ fun NoteEditorScreen(
                 },
                 actions = {
                     val note = state.note
+                    // Nothing to do on a note that could not be opened — see the first comment below.
+                    val ouvrable = note != null && state.lockedVault == null && state.loadError == null
                     // ⚠️ **Rien à faire sur une note qu'on n'a pas pu ouvrir.** `loadError` laisse
                     // `note` renseignée — c'est utile au diagnostic — mais épingler, mettre en
                     // favori ou insérer un lien dans un contenu qu'on n'a jamais déchiffré n'a aucun
                     // sens, et « Terminé » n'aurait rien à enregistrer. Même relecture.
-                    if (note != null && state.lockedVault == null && state.loadError == null) {
+                    if (ouvrable && !lecture) {
+                        // ⚠️ 3.1.0: the tick, the microphone and the link button are writing tools,
+                        // shown while writing only. Reading keeps the ⋮ menu, below, unchanged.
+                        //
                         // 🔴 **Un bouton « Terminé » visible, alors que l'enregistrement est
                         // automatique.**
                         //
@@ -476,8 +562,9 @@ fun NoteEditorScreen(
                         // risque*. Une note qui s'enregistre toute seule demande un signal explicite
                         // de fin, sinon l'utilisateur reste sur l'écran à chercher « Enregistrer ».
                         //
-                        // Le geste est le même que celui de la flèche — vidage puis retour — et c'est
-                        // voulu : deux chemins pour un seul geste, pas deux comportements.
+                        // Since 3.1.0 it no longer leaves: it saves and shows the note to be read —
+                        // the end of writing, which is what that feedback asked to see. Leaving is the
+                        // arrow's, and the system Back's.
                         // ⚠️⚠️ **Une icône, pas un bouton libellé** — mesuré sur le S9 : un
                         // `FilledTonalButton` portant le mot « Terminé » fait cinq éléments d'action,
                         // et le titre est alors écrasé **à zéro pixel**. Le nom du dossier et l'état
@@ -488,7 +575,12 @@ fun NoteEditorScreen(
                         // La coche reste visible et découvrable, et sa description la nomme : c'est
                         // le « bouton visible » que le retour utilisateur réclamait, à la largeur
                         // des autres.
-                        IconButton(onClick = onQuitter) {
+                        IconButton(
+                            onClick = {
+                                focus.clearFocus(force = true)
+                                onTerminer()
+                            },
+                        ) {
                             // 🔴 Verte, et pas de la teinte des icônes ordinaires : relevé sur le
                             // S9 le 2026-08-16, « on la voit pas bien ». Elle avait le même poids
                             // visuel que le micro et le lien, alors qu'elle seule dit « c'est
@@ -535,6 +627,8 @@ fun NoteEditorScreen(
                                 contentDescription = stringResource(R.string.note_editor_tooltip_insert_link),
                             )
                         }
+                    }
+                    if (ouvrable) {
                         MenuDeDebordement(
                             epinglee = note.pinned,
                             favorite = note.favorite,
@@ -546,6 +640,7 @@ fun NoteEditorScreen(
                             onFavori = { onFavori(!note.favorite) },
                             onInfos = onInfos,
                             onDeplacer = onDeplacer,
+                            onCouleur = onCouleur,
                             onExporter = onExporter,
                             onCopier = onCopier,
                             onCorbeille = onCorbeille,
@@ -633,20 +728,27 @@ fun NoteEditorScreen(
                     // the user has just typed — the save is 500 ms behind. Called in both modes: a
                     // reading, and so the preview's position, survives a trip to Edit when nothing
                     // was typed (see `rememberLectureDeLApercu`).
-                    val lecture = rememberLectureDeLApercu(state.content.text, actif = apercu)
+                    val rendu = rememberLectureDeLApercu(state.content.text, actif = lecture)
                     MiseEnPageDeLEditeur(
-                        enTete = { EnTeteDeLEditeur(state, onTitreChange, apercu, onApercu) },
-                        pied = { PiedDeLEditeur(liens, onOuvrirNote, onLienFantome) },
+                        enTete = { EnTeteDeLEditeur(state, onTitreChange, lecture) },
+                        pied = {
+                            Column {
+                                PiedDeLEditeur(liens, onOuvrirNote, onLienFantome)
+                                // Room for the "Edit" button: without it, the button would sit over the
+                                // last links of the panel, which a tap could then no longer reach.
+                                if (lecture) Spacer(Modifier.height(HAUTEUR_DU_BOUTON_MODIFIER))
+                            }
+                        },
                         modifier = Modifier.fillMaxSize().imePadding(),
                     ) {
-                        if (apercu) {
+                        if (lecture) {
                             // 🔴 Lazy in preview — see `apercuMarkdown`: a note has no size limit.
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 state = defilementDeLApercu,
                                 contentPadding = PaddingValues(bottom = 24.dp),
                             ) {
-                                apercuMarkdown(lecture, onLienDeLApercu)
+                                apercuMarkdown(rendu, onLienDeLApercu)
                             }
                         } else {
                             TextField(
@@ -659,7 +761,7 @@ fun NoteEditorScreen(
                                 placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
                                 textStyle = MaterialTheme.typography.bodyLarge,
                                 colors = champSansDecor(),
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier.fillMaxSize().focusRequester(focusDuCorps),
                             )
                         }
                     }
@@ -719,20 +821,34 @@ private fun MiseEnPageDeLEditeur(
 /** About three lines of text under the body field's label. */
 internal val HAUTEUR_MINIMALE_DU_CORPS = 120.dp
 
+/** An extended FAB (56 dp) and its margin: what the reading leaves free at the bottom right. */
+private val HAUTEUR_DU_BOUTON_MODIFIER = 80.dp
+
 /**
- * What the editor shows above the note's body, in both modes: the save failure, the title, and the
- * Edit / Preview switch. It stays on screen whenever the window has room for the body under it —
- * see [MiseEnPageDeLEditeur].
+ * What the editor shows above the note's body: the save failure, and the title — a field while
+ * writing, a heading while reading (3.1.0; until then, the field and an Edit / Preview switch in
+ * both). It stays on screen whenever the window has room for the body under it — see
+ * [MiseEnPageDeLEditeur].
  */
 @Composable
-private fun EnTeteDeLEditeur(
-    state: EditorUiState,
-    onTitreChange: (TextFieldValue) -> Unit,
-    apercu: Boolean,
-    onApercu: (Boolean) -> Unit,
-) {
+private fun EnTeteDeLEditeur(state: EditorUiState, onTitreChange: (TextFieldValue) -> Unit, lecture: Boolean) {
     Column(Modifier.fillMaxWidth()) {
         if (state.saveFailed) BanniereEchecEnregistrement(state.saveFailureReason)
+        if (lecture) {
+            // The title the note has; an empty one says so, in italics, as the cards do.
+            val sansTitre = state.titre.text.isEmpty()
+            Text(
+                text = if (sansTitre) stringResource(R.string.note_untitled) else state.titre.text,
+                style = MaterialTheme.typography.headlineSmall,
+                fontStyle = if (sansTitre) FontStyle.Italic else null,
+                color = MaterialTheme.colorScheme.run { if (sansTitre) onSurfaceVariant else onSurface },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .semantics { heading() },
+            )
+            return@Column
+        }
         // 🔴🔴 **`label` et non `placeholder` : les deux champs n'avaient AUCUN nom
         // accessible dès qu'ils portaient du texte.**
         //
@@ -789,11 +905,6 @@ private fun EnTeteDeLEditeur(
             singleLine = true,
             colors = champSansDecor(),
             modifier = Modifier.fillMaxWidth(),
-        )
-        BasculeEditionApercu(
-            apercu = apercu,
-            onApercu = onApercu,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
     }
 }
@@ -894,47 +1005,6 @@ private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> U
             ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onAnnuler)
         },
     )
-}
-
-/**
- * Edit / Preview, under the title — where notes_tech 2.0.9 puts its `SegmentedButton`.
- *
- * Switching closes the keyboard, as in 2.0.9 (`FocusManager.instance.primaryFocus?.unfocus()`): it
- * would cover the preview, and reading needs no cursor. ⚠️ The title field stays composed across the
- * switch — both modes share the header — so its focus, and the keyboard, would stay too without this
- * `clearFocus`. (While each mode laid the editor out in its own container, both fields left the
- * composition on every switch and the call was dead code — a negative control proved it on the S9,
- * 2026-09-25.)
- *
- * Tapping the side already shown does nothing — 2.0.9's `onSelectionChanged` does not fire either —
- * so it cannot close a keyboard the user is typing with.
- */
-@Composable
-private fun BasculeEditionApercu(apercu: Boolean, onApercu: (Boolean) -> Unit, modifier: Modifier = Modifier) {
-    val focus = LocalFocusManager.current
-    val cotes = listOf(
-        Triple(false, R.string.note_editor_mode_edit, Icons.Outlined.Edit),
-        Triple(true, R.string.note_editor_mode_preview, Icons.Outlined.Visibility),
-    )
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        cotes.forEachIndexed { index, (valeur, libelle, icone) ->
-            SegmentedButton(
-                selected = apercu == valeur,
-                onClick = {
-                    if (valeur != apercu) {
-                        focus.clearFocus(force = true)
-                        onApercu(valeur)
-                    }
-                },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = cotes.size),
-                // The label names the segment; the icon only repeats it.
-                icon = {
-                    Icon(icone, contentDescription = null, modifier = Modifier.size(SegmentedButtonDefaults.IconSize))
-                },
-                label = { Text(stringResource(libelle)) },
-            )
-        }
-    }
 }
 
 /** Deux champs de texte qui ne ressemblent pas à un formulaire. */
@@ -1176,6 +1246,7 @@ private fun MenuDeDebordement(
     onFavori: () -> Unit,
     onInfos: () -> Unit,
     onDeplacer: () -> Unit,
+    onCouleur: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
@@ -1231,6 +1302,15 @@ private fun MenuDeDebordement(
             onClick = {
                 ouvert = false
                 onFavori()
+            },
+        )
+        // The colour is about the note's card in the lists, as pin and favourite are (3.1.0).
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_color)) },
+            leadingIcon = { Icon(Icons.Outlined.Palette, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onCouleur()
             },
         )
         // The info panel sits with pin and favourite: all three are about the note's record card,

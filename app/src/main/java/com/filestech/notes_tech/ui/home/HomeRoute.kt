@@ -63,6 +63,7 @@ fun HomeRoute(
     val homeViewModel: HomeViewModel = hiltViewModel()
     val foldersViewModel: FoldersDrawerViewModel = hiltViewModel()
     val state by homeViewModel.state.collectAsStateWithLifecycle()
+    val coffresOuverts by homeViewModel.coffresOuverts.collectAsStateWithLifecycle()
     val foldersState by foldersViewModel.state.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -94,6 +95,9 @@ fun HomeRoute(
     var dossierAProteger by remember { mutableStateOf<Folder?>(null) }
     var modeChoisi by remember { mutableStateOf<VaultMode?>(null) }
 
+    // The long press on a note (3.1.0): its sheet, its confirmation, what waits for a vault's secret.
+    val gestes = remember { GestesDeNoteEnCours() }
+
     /**
      * Exécute un geste dont le coffre est **ouvert**. Séparé de [lancerLeGeste] parce que la reprise
      * après déverrouillage ne doit **pas** repasser par le contrôle : l'ensemble des coffres ouverts
@@ -123,6 +127,7 @@ fun HomeRoute(
     LaunchedEffect(Unit) { homeViewModel.purgeExpiredTrash() }
 
     MessagesDeDossier(foldersViewModel, snackbars)
+    MessagesDesGestesDeNote(homeViewModel, snackbars)
     ConstatsDeCoffre(snackbars)
 
     // ⚠️ La creation de note ouvre l'editeur, ou demande le secret du coffre. Les deux issues
@@ -152,6 +157,15 @@ fun HomeRoute(
                         ),
                     )
                 }
+
+                is HomeEvent.GesteEnAttenteDuCoffre -> {
+                    gestes.attendreLeCoffre(evenement)
+                    dossierAOuvrir = evenement.folder
+                }
+
+                // Said by `MessagesDesGestesDeNote`, which collects the same events.
+                is HomeEvent.MovedToTrash, HomeEvent.Restored, HomeEvent.DeletedForever, is HomeEvent.ActionFailed,
+                -> Unit
             }
         }
     }
@@ -191,10 +205,14 @@ fun HomeRoute(
             },
         ) {
             HomeScreen(
-                state = state,
+                state = state.copy(coffresOuverts = coffresOuverts),
                 onQueryChange = homeViewModel::onQueryChange,
                 onSortSelected = homeViewModel::onSortSelected,
                 onOpenNote = onOpenNote,
+                onLongPressNote = { note ->
+                    val coffreAOuvrir = gestes.appuiLong(note, foldersState.folders, foldersState.unlockedFolderIds)
+                    if (coffreAOuvrir != null) dossierAOuvrir = coffreAOuvrir
+                },
                 onNewNote = homeViewModel::createNote,
                 onOpenDrawer = { portee.launch { drawerState.open() } },
                 onOpenSearch = onOpenSearch,
@@ -300,6 +318,10 @@ fun HomeRoute(
         )
     }
 
+    // What waits for a vault's secret waits for THAT sheet: replaced by another vault's sheet without
+    // being dismissed, it would have survived and run at the next unlock of its vault.
+    LaunchedEffect(dossierAOuvrir?.id) { gestes.garderSeulementPour(dossierAOuvrir?.id) }
+
     dossierAOuvrir?.let { dossier ->
         UnlockVaultSheet(
             folder = dossier,
@@ -309,6 +331,7 @@ fun HomeRoute(
                 // feuille. Le laisser armé le ferait partir au prochain déverrouillage, pour une
                 // tout autre raison.
                 gesteEnAttente = null
+                gestes.abandonner()
             },
             onUnlocked = {
                 dossierAOuvrir = null
@@ -318,9 +341,12 @@ fun HomeRoute(
                 val geste = gesteEnAttente
                 gesteEnAttente = null
                 if (geste != null && geste.dossier.id == dossier.id) executerLeGeste(geste)
+                gestes.reprendreApres(dossier, homeViewModel::executer)
             },
         )
     }
+
+    FeuillesDesGestesDeNote(gestes, homeViewModel::executer)
 
     dossierAProteger?.let { dossier ->
         val mode = modeChoisi

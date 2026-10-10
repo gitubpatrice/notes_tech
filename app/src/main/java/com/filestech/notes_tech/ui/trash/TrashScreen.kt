@@ -16,7 +16,6 @@ import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DeleteSweep
 import androidx.compose.material.icons.outlined.RestoreFromTrash
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,11 +42,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
-import com.filestech.notes_tech.ui.common.ActionDeDialogue
-import com.filestech.notes_tech.ui.common.CorpsDeDialogue
+import com.filestech.notes_tech.ui.common.DialogueDestructif
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.home.NoteCard
+import com.filestech.notes_tech.ui.home.couleurVisible
 import com.filestech.notes_tech.ui.theme.Formes
 import kotlinx.coroutines.launch
 
@@ -177,7 +176,12 @@ fun TrashScreen(
                 ) {
                     items(state.notes, key = { it.id }) { note ->
                         Column {
-                            NoteCard(note = note, onClick = null)
+                            // A sealed note in the trash keeps its colour hidden: no vault is open here.
+                            NoteCard(
+                                note = note,
+                                onClick = null,
+                                couleur = note.couleurVisible(coffresOuverts = emptySet()),
+                            )
                             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                                 TextButton(onClick = { onRestore(note.id) }, shape = Formes.bouton) {
                                     Icon(Icons.Outlined.RestoreFromTrash, contentDescription = null)
@@ -231,40 +235,6 @@ fun TrashScreen(
             onAnnuler = { vidangeADemander = false },
         )
     }
-}
-
-/**
- * Dialogue de confirmation d'un geste irréversible.
- *
- * ⚠️ **La confirmation n'est PAS le bouton d'action principal.** L'application publiée avait mis la
- * suppression définitive en `FilledButton` face à un « Annuler » discret ; son propre commentaire
- * dit pourquoi c'était faux — *« le geste irréversible était celui qu'on tape par réflexe »*
- * (`trash_screen.dart:121`). Les deux boutons sont donc du même poids, seule la couleur d'erreur
- * distingue celui qui détruit.
- */
-@Composable
-private fun DialogueDestructif(
-    titre: String,
-    corps: String,
-    libelleConfirmation: String,
-    onConfirmer: () -> Unit,
-    onAnnuler: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onAnnuler,
-        title = { Text(titre) },
-        text = { CorpsDeDialogue(corps) },
-        confirmButton = {
-            ActionDeDialogue(
-                texte = libelleConfirmation,
-                onClick = onConfirmer,
-                couleur = MaterialTheme.colorScheme.error,
-            )
-        },
-        dismissButton = {
-            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onAnnuler)
-        },
-    )
 }
 
 /**

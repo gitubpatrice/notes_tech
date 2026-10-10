@@ -67,7 +67,7 @@ private object AppColors {
  * tombait sous le seuil en thème clair. Le commentaire de `theme.dart` le raconte (v1.1.4), et les
  * valeurs ci-dessous sont les siennes, vérifiées à la main à 4,5:1 au moins.
  */
-private fun schemeSombre(): ColorScheme = ColorScheme(
+internal fun schemeSombre(): ColorScheme = ColorScheme(
     primary = AppColors.DarkBlue,
     onPrimary = Color.White,
     primaryContainer = AppColors.DarkBlueContainer,
@@ -106,7 +106,7 @@ private fun schemeSombre(): ColorScheme = ColorScheme(
     surfaceContainerLowest = AppColors.DarkBg,
 )
 
-private fun schemeClair(): ColorScheme = ColorScheme(
+internal fun schemeClair(): ColorScheme = ColorScheme(
     primary = AppColors.LightBlue,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFD3E4FF),

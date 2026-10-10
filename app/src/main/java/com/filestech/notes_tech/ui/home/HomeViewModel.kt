@@ -44,6 +44,11 @@ data class HomeUiState(
     val currentFolder: Folder? = null,
     val folderNamesById: Map<String, String> = emptyMap(),
     val vaultLostCount: Int = 0,
+    /**
+     * The vaults open right now: a vault note's colour shows only then (`couleurVisible`, 3.1.0). Set by
+     * `HomeRoute` from [HomeViewModel.coffresOuverts], never cached with the rest of this state.
+     */
+    val coffresOuverts: Set<String> = emptySet(),
 ) {
     /** `true` quand la liste n'est pas restreinte à un dossier — le badge de dossier sert alors. */
     val showFolderBadge: Boolean get() = currentFolder == null || query.isNotEmpty()
@@ -63,6 +68,22 @@ sealed interface HomeEvent {
 
     /** [message] is chosen by `userMessageFor` — never the exception's own text. */
     data class CreationFailed(@StringRes val message: Int) : HomeEvent
+
+    /**
+     * A long-press [geste] on a note of the vault [folder], which is closed: the screen asks for the
+     * secret, then runs the gesture again — accepted, it must not be dropped in silence.
+     */
+    data class GesteEnAttenteDuCoffre(val folder: Folder, val geste: GesteSurUneNote) : HomeEvent
+
+    /** The note went to the trash; the message offers to undo it. */
+    data class MovedToTrash(val noteId: String) : HomeEvent
+
+    data object Restored : HomeEvent
+
+    data object DeletedForever : HomeEvent
+
+    /** [message] is chosen by `userMessageFor`, as for [CreationFailed]. */
+    data class ActionFailed(@StringRes val message: Int) : HomeEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -127,6 +148,14 @@ class HomeViewModel @Inject constructor(
             initialValue = HomeUiState(sort = settings.sortNow()),
         )
 
+    /**
+     * The vaults open right now, straight from the sessions (3.1.0). NOT through [state]: `stateIn`
+     * keeps its last value while nobody collects it, so a vault that locked meanwhile would still read
+     * as open on the first frame back on the home screen — and a sealed note would flash its colour
+     * (both external reviews, 2026-10-10). The sessions' flow is hot and always current.
+     */
+    val coffresOuverts: StateFlow<Set<String>> = vaults.unlockedFolderIds
+
     fun onQueryChange(value: String) {
         query.value = value
         savedState[CLE_RECHERCHE] = value
@@ -177,6 +206,74 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 Timber.w(e, "creation de note")
                 events.emit(HomeEvent.CreationFailed(userMessageFor(e)))
+            }
+        }
+    }
+
+    /**
+     * Runs a long-press gesture on a note (3.1.0).
+     *
+     * ## 🔴 The vault is checked HERE, on a fresh read, and not on the card
+     *
+     * Putting a vault note in the trash, or erasing it, needs no key: the row goes, sealed blob and
+     * all. So nothing structural stops it, and this check IS the protection. Without it, whoever gets
+     * past the app lock could destroy a vault's notes without its secret, from the list — while the
+     * editor, the only way to do it until now, needs the vault open to show the note at all.
+     *
+     * - **Fresh read**: the card's copy may be stale — the note moved into a vault since, or out.
+     * - **At execution**: the sheet and the confirmation stay open as long as they like, and the
+     *   automatic lock can fall in between. A check made when the sheet opened would be stale by the
+     *   time the user confirms (same reasoning as the folder gestures in `HomeRoute`).
+     * - **Vault folder, or a sealed note**: an empty note in a vault is not sealed yet, and a sealed
+     *   note is protected wherever it sits.
+     *
+     * ⚠️ **Not atomic with the write, and accepted** (raised by both external reviews, 2026-10-10): an
+     * automatic lock falling in the microseconds between this check and the DELETE/UPDATE lets the
+     * gesture complete. That gesture was made while the vault WAS open, by whoever had opened it — the
+     * editor's trash has always behaved so. What this check exists for, a gesture on a vault already
+     * closed, is refused. Holding the session through the write would need a lease the sessions do not
+     * have (`VaultSessions.whileUnlocking` marks an unlock in progress, it is not that).
+     */
+    fun executer(geste: GesteSurUneNote) {
+        viewModelScope.launch {
+            try {
+                val actuelle = notes.find(geste.note.id) ?: return@launch
+                val dossier = folders.find(actuelle.folderId)
+                val protegee = actuelle.isLocked || dossier?.isVault == true
+                if (protegee && !vaults.isUnlocked(actuelle.folderId)) {
+                    if (dossier != null) events.emit(HomeEvent.GesteEnAttenteDuCoffre(dossier, geste))
+                    return@launch
+                }
+                val evenement = when (geste) {
+                    is GesteSurUneNote.MettreALaCorbeille ->
+                        if (notes.moveToTrash(actuelle.id)) HomeEvent.MovedToTrash(actuelle.id) else null
+
+                    is GesteSurUneNote.SupprimerDefinitivement ->
+                        if (notes.deletePermanently(actuelle.id)) HomeEvent.DeletedForever else null
+                }
+                evenement?.let { events.emit(it) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "geste sur une note")
+                events.emit(HomeEvent.ActionFailed(userMessageFor(e)))
+            }
+        }
+    }
+
+    /**
+     * Undoes [executer]'s move to the trash. No vault check: a restored note comes back sealed, as it
+     * left, and the trash screen restores vault notes the same way.
+     */
+    fun restaurer(noteId: String) {
+        viewModelScope.launch {
+            try {
+                if (notes.restoreFromTrash(noteId)) events.emit(HomeEvent.Restored)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "annulation de la mise a la corbeille")
+                events.emit(HomeEvent.ActionFailed(userMessageFor(e)))
             }
         }
     }

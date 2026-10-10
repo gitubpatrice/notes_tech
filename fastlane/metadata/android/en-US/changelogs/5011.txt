@@ -1,0 +1,1 @@
+Tapping a note now opens it to be read; “Edit” to write. Long press on a note: move to trash (with Undo) or delete permanently. A pastel colour per note, shown in the lists (for a vault note, only while its vault is open). Legal texts updated. Build toolchain updated (AGP 9).

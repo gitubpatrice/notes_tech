@@ -16,7 +16,13 @@ Ce qu'il ne prouve pas, et qu'il faut mesurer sur appareil :
 
 Sources :
   - DDL Flutter   : notes_tech/lib/data/db/database.dart, _createSchemaV1
-  - DDL Room      : notes_files_tech/app/schemas/…/9.json, produit par KSP
+  - DDL Room      : app/schemas/…/<version>.json, produits par KSP
+
+Since 3.1.0 (schema 10, the notes' colour) it checks TWO things, both of which a user's phone needs:
+  1. the Room schema 9 still describes the Flutter base EXACTLY — every installed base starts there;
+  2. the Flutter base, with the migrations' SQL replayed in order ([MIGRATIONS]), gives EXACTLY what
+     the latest Room schema expects — otherwise Room refuses the base after migrating it, that is
+     right after the update.
 
 Usage : python audits/verifier-schema-room-vs-flutter.py
 Sortie : code 0 si les deux schémas sont indiscernables pour Room, 1 sinon.
@@ -85,26 +91,47 @@ FLUTTER_DDL = [
 
 TABLES = ("folders", "notes")
 
+# ── The migrations' SQL, copied from `NotesDatabase` (MIGRATION_9_10, …) ─────────────────────────
+# Keyed by the version each one reaches. ⚠️ Kept in step with the Kotlin by hand: a migration written
+# there and not here makes this script fail (schema N+1 has a column the replay lacks), which is the
+# point — and the instrumented migration test replays the real Kotlin object on a real base.
+MIGRATIONS = {
+    10: ["ALTER TABLE notes ADD COLUMN color_id INTEGER"],
+}
+
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent.parent / "app" / "schemas"
 
 
-def room_ddl():
-    """Extrait le DDL attendu par Room depuis le schéma exporté par KSP."""
-    candidates = sorted(SCHEMA_DIR.glob("**/*.json"))
+def room_schemas():
+    """The schemas exported by KSP, by version."""
+    candidates = {int(p.stem): p for p in SCHEMA_DIR.glob("**/*.json")}
     if not candidates:
         sys.exit(
             "Schéma Room introuvable sous app/schemas — lancer `./gradlew assembleDebug` d'abord."
         )
-    # Le plus haut numéro de version : c'est celui que la build courante produit.
-    latest = max(candidates, key=lambda p: int(p.stem))
-    data = json.loads(latest.read_text(encoding="utf-8"))
+    return candidates
+
+
+def room_ddl(schema_file):
+    """Extrait le DDL attendu par Room depuis un schéma exporté par KSP."""
+    data = json.loads(schema_file.read_text(encoding="utf-8"))
     statements = []
     for entity in data["database"]["entities"]:
         table = entity["tableName"]
         statements.append(entity["createSql"].replace("${TABLE_NAME}", table))
         for index in entity.get("indices", []):
             statements.append(index["createSql"].replace("${TABLE_NAME}", table))
-    return latest, statements
+    return statements
+
+
+def flutter_ddl_migrated_to(version):
+    """The Flutter base (version 9), with every migration up to [version] replayed."""
+    statements = list(FLUTTER_DDL)
+    for target in range(10, version + 1):
+        if target not in MIGRATIONS:
+            sys.exit(f"Aucune migration vers {target} dans MIGRATIONS : à recopier de NotesDatabase.")
+        statements += MIGRATIONS[target]
+    return statements
 
 
 def introspect(statements):
@@ -176,19 +203,49 @@ def report(flutter, room):
     return problems
 
 
+NOTES_DATABASE = pathlib.Path(__file__).resolve().parent.parent / "app" / "src" / "main" / "java" / \
+    "com" / "filestech" / "notes_tech" / "data" / "local" / "NotesDatabase.kt"
+
+
+def version_du_code():
+    """`NotesDatabase.VERSION`, read in the Kotlin: the schema the app will ask Room for."""
+    import re
+    trouve = re.search(r"const val VERSION = (\d+)", NOTES_DATABASE.read_text(encoding="utf-8"))
+    if not trouve:
+        sys.exit("NotesDatabase.VERSION introuvable : le script ne sait plus quel schéma vérifier.")
+    return int(trouve.group(1))
+
+
 def main():
-    schema_file, statements = room_ddl()
-    print(f"Schéma Room lu depuis : {schema_file.name}")
-    problems = report(introspect(FLUTTER_DDL), introspect(statements))
-    if problems:
-        print(f"\n{len(problems)} DIVERGENCE(S) — Room refuserait d'ouvrir la base héritée :\n")
-        for p in problems:
-            print(f"  - {p}")
+    schemas = room_schemas()
+    if 9 not in schemas:
+        sys.exit("Schéma Room 9 introuvable : c'est celui de toutes les bases installées.")
+    # The schema of the version the CODE declares — not the highest file found, which would let a
+    # missing export pass by checking only schema 9 (GPT-5.6 review, 2026-10-10).
+    latest = version_du_code()
+    if latest not in schemas:
+        sys.exit(f"Schéma Room {latest} (NotesDatabase.VERSION) non exporté sous app/schemas : rien ne le vérifie.")
+    checks = [(9, FLUTTER_DDL, "la base Flutter")]
+    if latest > 9:
+        checks.append((latest, flutter_ddl_migrated_to(latest), f"la base Flutter migrée jusqu'à {latest}"))
+
+    failed = False
+    for version, base, label in checks:
+        print(f"Schéma Room {version} ({schemas[version].name}) contre {label} :")
+        problems = report(introspect(base), introspect(room_ddl(schemas[version])))
+        if problems:
+            failed = True
+            print(f"  {len(problems)} DIVERGENCE(S) — Room refuserait cette base :")
+            for p in problems:
+                print(f"  - {p}")
+        else:
+            print("  aucune divergence.")
+    if failed:
         return 1
     print(
         "\nAucune divergence.\n"
-        "Les entités Room décrivent exactement le schéma créé par la version Flutter :\n"
-        "colonnes, types, nullabilité, valeurs par défaut, clés primaires, clés étrangères,\n"
+        "Les entités Room décrivent exactement le schéma créé par la version Flutter, et ce schéma\n"
+        "migré : colonnes, types, nullabilité, valeurs par défaut, clés primaires, clés étrangères,\n"
         "index et ordres de tri.\n\n"
         "⚠️ Ne prouve PAS que la base réelle s'ouvre : la clé SQLCipher et l'index FTS5 se\n"
         "vérifient sur appareil (cf. docs/06-ISOLATION-PENDANT-LE-CHANTIER.md §2)."

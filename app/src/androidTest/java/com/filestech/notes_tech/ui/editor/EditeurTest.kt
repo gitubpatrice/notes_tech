@@ -20,7 +20,6 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
@@ -104,6 +103,7 @@ class EditeurTest {
     private val favoris = mutableListOf<Boolean>()
     private val infos = mutableListOf<Unit>()
     private val deplacements = mutableListOf<Unit>()
+    private val couleurs = mutableListOf<Unit>()
     private val exports = mutableListOf<Unit>()
     private val copies = mutableListOf<Unit>()
     private val corbeilles = mutableListOf<Unit>()
@@ -118,8 +118,8 @@ class EditeurTest {
     private val liensCourants = mutableStateOf(PanneauDeLiens())
     private val dicteeCourante = mutableStateOf(false)
 
-    /** Held here, as the Route holds it: tapping the switch really switches the screen. */
-    private val apercuCourant = mutableStateOf(false)
+    /** Held here, as the Route holds it: "Edit" and the tick really switch the screen. */
+    private val lectureCourante = mutableStateOf(false)
 
     private var pose = false
 
@@ -128,7 +128,7 @@ class EditeurTest {
         etat: EditorUiState,
         liens: PanneauDeLiens = PanneauDeLiens(),
         dicteeActive: Boolean = false,
-        apercu: Boolean = false,
+        lecture: Boolean = false,
         hauteurDeFenetre: Dp? = null,
     ) {
         if (pose) {
@@ -136,7 +136,7 @@ class EditeurTest {
                 etatCourant.value = etat
                 liensCourants.value = liens
                 dicteeCourante.value = dicteeActive
-                apercuCourant.value = apercu
+                lectureCourante.value = lecture
             }
             regle.waitForIdle()
             return
@@ -144,7 +144,7 @@ class EditeurTest {
         etatCourant.value = etat
         liensCourants.value = liens
         dicteeCourante.value = dicteeActive
-        apercuCourant.value = apercu
+        lectureCourante.value = lecture
         pose = true
         regle.setContent {
             NotesTechTheme {
@@ -163,15 +163,20 @@ class EditeurTest {
                         onFavori = { favoris += it },
                         onInfos = { infos += Unit },
                         onDeplacer = { deplacements += Unit },
+                        onCouleur = { couleurs += Unit },
                         onExporter = { exports += Unit },
                         onCopier = { copies += Unit },
                         onCorbeille = { corbeilles += Unit },
                         onOuvrirNote = { notesOuvertes += it },
                         onLienFantome = { fantomes += it },
-                        apercu = apercuCourant.value,
-                        onApercu = {
-                            basculements += it
-                            apercuCourant.value = it
+                        lecture = lectureCourante.value,
+                        onModifier = {
+                            basculements += false
+                            lectureCourante.value = false
+                        },
+                        onTerminer = {
+                            basculements += true
+                            lectureCourante.value = true
                         },
                         onLienDeLApercu = { liensDeLApercu += it },
                     )
@@ -454,14 +459,17 @@ class EditeurTest {
      * peut quitter sans risque* quand l'enregistrement est automatique.
      */
     @Test
-    fun la_fleche_et_la_coche_terminee_remontent_toutes_deux_a_l_appelant() {
+    fun the_arrow_leaves_and_the_tick_ends_the_writing_without_leaving() {
         poser(noteChargee())
 
         regle.onNodeWithContentDescription(texte(R.string.common_close)).performClick()
         assertThat(sorties).hasSize(1)
 
+        // 3.1.0: the tick no longer leaves — it shows the note to be read.
         regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_done)).performClick()
-        assertThat(sorties).hasSize(2)
+        regle.waitForIdle()
+        assertThat(sorties).hasSize(1)
+        assertThat(basculements).containsExactly(true)
     }
 
     /**
@@ -655,51 +663,57 @@ class EditeurTest {
         assertThat(notesOuvertes).containsExactly("mention")
     }
 
-    // ------------------------------------------------------- the Markdown preview (D-024)
+    // ------------------------------------------- reading and writing (3.1.0; rendering D-024)
 
     @Test
-    fun switching_to_preview_replaces_the_body_field_with_the_rendering_and_back() {
+    fun the_tick_shows_the_note_to_be_read_and_edit_writes_it_again() {
         poser(noteChargee(corps = "# Heading of the note\n\nA paragraph."))
-        // The control: in edit mode the body is a field, and there is no rendering.
+        // The control: while writing the body is a field, and there is no rendering.
         champDuCorps().assertExists()
         regle.onNode(hasText("Heading of the note") and isHeading()).assertDoesNotExist()
 
-        regle.onNodeWithText(texte(R.string.note_editor_mode_preview)).performClick()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_done)).performClick()
         attendre("Heading of the note")
 
         assertThat(basculements).containsExactly(true)
         champDuCorps().assertDoesNotExist()
+        champDuTitre().assertDoesNotExist()
         regle.onNode(hasText("Heading of the note") and isHeading()).assertExists()
 
         regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
         regle.waitForIdle()
         assertThat(basculements).containsExactly(true, false).inOrder()
-        champDuCorps().assertExists()
+        // "Edit" means "write": the cursor is in the body.
+        champDuCorps().assertIsFocused()
     }
 
     /**
-     * Switching closes the keyboard, as 2.0.9 does — and tapping the side already shown does
-     * nothing, so it cannot close the keyboard under the fingers of someone typing.
+     * Reading shows the title as a heading, no field — so no cursor and no keyboard —, keeps the ⋮
+     * menu, and drops the writing tools: tick, microphone, link.
      */
     @Test
-    fun switching_closes_the_keyboard_and_the_side_already_shown_does_nothing() {
-        poser(noteChargee())
-        champDuTitre().performClick()
-        champDuTitre().assertIsFocused()
+    fun reading_keeps_the_menu_and_drops_the_writing_tools() {
+        poser(noteChargee(corps = "A paragraph."), lecture = true)
 
-        regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
-        regle.waitForIdle()
-        champDuTitre().assertIsFocused()
-        assertThat(basculements).isEmpty()
+        regle.onNode(hasText(TITRE_DE_LA_NOTE) and isHeading()).assertExists()
+        regle.onAllNodes(hasSetTextAction()).assertCountEquals(0)
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_done)).assertDoesNotExist()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_dictate)).assertDoesNotExist()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_insert_link)).assertDoesNotExist()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_more)).assertExists()
+        regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).assertExists()
+    }
 
-        regle.onNodeWithText(texte(R.string.note_editor_mode_preview)).performClick()
-        regle.waitForIdle()
-        champDuTitre().assertIsNotFocused()
+    @Test
+    fun reading_a_note_without_a_title_says_untitled() {
+        poser(noteChargee(titre = "", corps = "A paragraph."), lecture = true)
+
+        regle.onNode(hasText(texte(R.string.note_untitled)) and isHeading()).assertExists()
     }
 
     @Test
     fun the_preview_of_a_blank_note_says_there_is_nothing_to_show() {
-        poser(noteChargee(corps = " \n\t\n "), apercu = true)
+        poser(noteChargee(corps = " \n\t\n "), lecture = true)
 
         attendre(texte(R.string.note_editor_preview_empty))
     }
@@ -712,7 +726,7 @@ class EditeurTest {
     @Test
     fun a_long_note_is_previewed_lazily() {
         val corps = (0 until PARAGRAPHES_D_UNE_LONGUE_NOTE).joinToString("\n\n") { "Paragraph $it" }
-        poser(noteChargee(corps = corps), apercu = true)
+        poser(noteChargee(corps = corps), lecture = true)
         attendre("Paragraph 0")
         val dernier = "Paragraph ${PARAGRAPHES_D_UNE_LONGUE_NOTE - 1}"
 
@@ -723,14 +737,14 @@ class EditeurTest {
     }
 
     /**
-     * 🔴 The switch stays on screen at the end of a long preview: the header does not scroll, as in
-     * 2.0.9. It scrolled with the note at first, and leaving the preview meant scrolling back to the
-     * top — discriminating: in that layout, the switch is off screen once the last paragraph is shown.
+     * 🔴 "Edit" stays on screen at the end of a long note. Until 3.1.0 it was the Edit / Preview switch,
+     * whose header scrolled with the note at first, so that leaving the preview meant scrolling back to
+     * the top; it is now a floating button, which must stay reachable wherever the reading is.
      */
     @Test
-    fun the_switch_stays_on_screen_at_the_end_of_a_long_preview() {
+    fun the_edit_button_stays_on_screen_at_the_end_of_a_long_note() {
         val corps = (0 until PARAGRAPHES_D_UNE_LONGUE_NOTE).joinToString("\n\n") { "Paragraph $it" }
-        poser(noteChargee(corps = corps), apercu = true)
+        poser(noteChargee(corps = corps), lecture = true)
         attendre("Paragraph 0")
         val dernier = "Paragraph ${PARAGRAPHES_D_UNE_LONGUE_NOTE - 1}"
         regle.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(dernier))
@@ -751,7 +765,7 @@ class EditeurTest {
     @Test
     fun the_preview_comes_back_where_it_was_left_after_a_trip_to_edit() {
         val corps = (0 until PARAGRAPHES_D_UNE_LONGUE_NOTE).joinToString("\n\n") { "Paragraph $it" }
-        poser(noteChargee(corps = corps), apercu = true)
+        poser(noteChargee(corps = corps), lecture = true)
         attendre("Paragraph 0")
         regle.onNode(hasScrollToIndexAction()).performScrollToNode(hasText(PARAGRAPHE_DU_MILIEU))
         regle.onNodeWithText(PARAGRAPHE_DU_MILIEU).assertIsDisplayed()
@@ -759,7 +773,7 @@ class EditeurTest {
         regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
         regle.waitForIdle()
         champDuCorps().assertExists()
-        regle.onNodeWithText(texte(R.string.note_editor_mode_preview)).performClick()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_done)).performClick()
         regle.waitForIdle()
 
         regle.onNodeWithText(PARAGRAPHE_DU_MILIEU).assertIsDisplayed()
@@ -806,17 +820,17 @@ class EditeurTest {
     }
 
     /**
-     * The three sweeps on the editor in preview, on a note with a heading, a task list and a table —
+     * The three sweeps on the editor while READING, on a note with a heading, a task list and a table —
      * no link: the links' own finding is measured, with the real accessibility tree, in
-     * `ApercuMarkdownTest`.
+     * `ApercuMarkdownTest`. It caught the "Edit" button without a name (3.1.0, see the button).
      */
     @Test
-    fun the_editor_in_preview_has_its_one_field_named_and_no_unnamed_actionable() {
-        poser(noteChargee(corps = "# A heading\n\n- [ ] a task\n\n| a | b |\n|---|---|\n| 1 | 2 |"), apercu = true)
+    fun the_editor_while_reading_has_no_field_and_no_unnamed_actionable() {
+        poser(noteChargee(corps = "# A heading\n\n- [ ] a task\n\n| a | b |\n|---|---|\n| 1 | 2 |"), lecture = true)
         attendre("A heading")
 
-        // One field in preview — the title — counted before saying none is mute.
-        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).hasSize(1)
+        // No field while reading — not even the title, now a heading: no cursor, so no keyboard.
+        assertThat(regle.onAllNodes(CHAMP_DE_SAISIE).fetchSemanticsNodes()).isEmpty()
         assertThat(regle.champsDeSaisieSansNom()).isEmpty()
         assertThat(regle.actionnablesSansNom()).isEmpty()
         assertThat(regle.actionsPerduesALaFusion()).isEmpty()

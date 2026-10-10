@@ -1,0 +1,1 @@
+Ein Tipp auf eine Notiz öffnet sie jetzt zum Lesen; „Bearbeiten“ zum Schreiben. Langes Drücken auf eine Notiz: in den Papierkorb (mit Rückgängig) oder endgültig löschen. Eine Pastellfarbe pro Notiz, sichtbar in den Listen (bei einer Tresornotiz nur, solange der Tresor entsperrt ist). Rechtstexte aktualisiert. Build-Werkzeuge aktualisiert (AGP 9).

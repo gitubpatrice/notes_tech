@@ -79,6 +79,8 @@ fun HomeScreen(
     onQueryChange: (String) -> Unit,
     onSortSelected: (NoteSortMode) -> Unit,
     onOpenNote: (Note) -> Unit,
+    /** The long press on a card: the note's actions (3.1.0). */
+    onLongPressNote: (Note) -> Unit,
     onNewNote: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -289,6 +291,8 @@ fun HomeScreen(
                         NoteCard(
                             note = note,
                             onClick = { onOpenNote(note) },
+                            onLongClick = { onLongPressNote(note) },
+                            couleur = note.couleurVisible(state.coffresOuverts),
                             folderName = if (state.showFolderBadge) {
                                 state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
                             } else {

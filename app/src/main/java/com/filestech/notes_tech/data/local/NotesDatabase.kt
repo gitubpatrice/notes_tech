@@ -2,6 +2,7 @@ package com.filestech.notes_tech.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.filestech.notes_tech.data.local.dao.FolderDao
 import com.filestech.notes_tech.data.local.dao.NoteDao
@@ -40,12 +41,16 @@ import com.filestech.notes_tech.data.local.entity.NoteEntity
  * raisons structurelles détaillées dans [UnmanagedSchema]. Room les ignore — il ne valide que ses
  * propres tables, et une table supplémentaire ne le gêne pas.
  *
- * ## Rétrocompatibilité avec la version Flutter
+ * ## Rétrocompatibilité avec la version Flutter — levée en 3.1.0
  *
- * Room n'incrémente pas `user_version` et se contente d'ajouter `room_master_table`, que sqflite
- * ignore. **Une base ouverte par cette application reste donc lisible par la version Dart.**
- * C'est le filet de sécurité de toute la transition : un utilisateur peut revenir en arrière.
- * Aucune évolution de schéma ne doit le retirer sans décision explicite.
+ * Jusqu'à la 3.0.0, Room n'incrémentait pas `user_version` et se contentait d'ajouter
+ * `room_master_table`, que sqflite ignore : une base ouverte par cette application restait lisible par
+ * la version Dart, filet de sécurité de la transition.
+ *
+ * **Decided by Patrice on 2026-10-10 (D-028): schema 10, for the notes' colour.** That way back was
+ * already closed in practice — Android refuses to install 2.0.9 (4071-4073) over 3.x (5001+), and
+ * uninstalling erases the notes — so it protected no one any more. [MIGRATION_9_10] is a real migration,
+ * additive, and a base adopted from Flutter (no `room_master_table`, `user_version` 9) takes it too.
  */
 @Database(
     entities = [FolderEntity::class, NoteEntity::class],
@@ -83,13 +88,28 @@ abstract class NotesDatabase : RoomDatabase() {
 
     companion object {
         /**
-         * Version du schéma hérité — `notes_tech/lib/core/constants.dart:31`.
+         * 9 is the version of the inherited schema (`notes_tech/lib/core/constants.dart:31`); 10 adds
+         * the notes' colour (3.1.0, D-028).
          *
-         * ⚠️ Ne se bumpe pas pour « repartir proprement ». La faire monter impose d'écrire une
-         * migration que la version Flutter ne saura pas redescendre, ce qui supprime la
-         * possibilité de revenir en arrière décrite plus haut.
+         * ⚠️ Raised only with a real migration, registered in `NotesDatabaseFactory`, never to "start clean": every installed
+         * base is 9 or 10, and `audits/verifier-schema-room-vs-flutter.py` checks that the Flutter
+         * schema, migrated, gives exactly what Room expects.
          */
-        const val VERSION = 9
+        const val VERSION = 10
+
+        /**
+         * 9 → 10: the notes' colour (3.1.0). One nullable column: every existing note gets `NULL`, no
+         * colour, which is what it showed. The FTS index and `note_links` do not read it.
+         *
+         * ⚠️ Kept in step with `MIGRATIONS` of `audits/verifier-schema-room-vs-flutter.py`, which
+         * replays this SQL on the Flutter schema and compares the result with the exported `10.json`;
+         * `MigrationVersDixTest` replays this very object on a real SQLCipher base.
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notes ADD COLUMN color_id INTEGER")
+            }
+        }
 
         /**
          * Rattache à Room ce qu'il ne sait pas créer, et applique le profil d'ouverture.

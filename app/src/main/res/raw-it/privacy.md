@@ -1,6 +1,6 @@
 # Informativa sulla privacy — Notes Tech
 
-**Versione 1.2.0 — settembre 2026**
+_Ultimo aggiornamento: 10 ottobre 2026_
 
 ## In una frase
 
@@ -12,6 +12,7 @@ Notes Tech non raccoglie, non trasmette e non conserva alcun dato su server remo
 
 - **Le sue note Markdown**: create e conservate esclusivamente sul suo telefono, in un database SQLite cifrato con **SQLCipher** tramite una chiave unica generata localmente (KEK di 32 byte) conservata nell'**Android Keystore**.
 - **Casseforti per cartella**: ogni cassaforte che attiva usa una propria **passphrase** o un proprio **PIN**, derivati tramite **Argon2id RFC 9106** (m=64MB, t=3 per la passphrase; più leggero per il PIN, compensato da una sigillatura nel Keystore legata al dispositivo). Il contenuto delle note bloccate è cifrato con **AES-256-GCM**, con AAD legato a `note_id`. Prima di Android 9, Android non può legare questo sigillo allo sblocco del telefono: l'app offre allora solo una passphrase per una nuova cassaforte, e una cassaforte con PIN creata in precedenza non resiste più, su un telefono sequestrato, a una ricerca del suo codice.
+- **Tag e colore di una nota in cassaforte**: restano nel database cifrato da SQLCipher, ma **fuori dalla cifratura propria della cassaforte** — solo il titolo e il contenuto vi rientrano. Negli elenchi, una nota in cassaforte non mostra mai i suoi tag, e mostra il suo colore solo mentre la cassaforte è sbloccata.
 - **Blocco dell'app (facoltativo)**: il PIN non viene mai memorizzato. Viene conservato un valore derivato da esso con **Argon2id** e legato tramite **HMAC-SHA256** a una chiave dell'**Android Keystore** che non lascia mai il telefono, quindi non può essere verificato altrove. Dopo cinque PIN errati, ogni nuovo tentativo attende più a lungo (30 secondi, raddoppiando fino a un'ora); i tentativi errati non cancellano mai nulla. Lo **sblocco con impronta digitale o volto** è gestito interamente da Android: Notes Tech non riceve alcun dato biometrico, solo la conferma che l'uso di una chiave del Keystore è stato consentito, e viene accettata solo la biometria forte (classe 3).
 - **Collegamenti inversi `[[Titolo]]`**: indice invertito locale, mai trasmesso.
 - **Modello di dettatura vocale (Whisper `.bin`)**: se lo procura lei stesso — l'app mostra il nome del file e la sua origine — e poi lo importa tramite il selettore di documenti di Android. Notes Tech non ha l'autorizzazione di accesso a Internet e **non offre alcun modo di scaricare nulla**. Il suo SHA-256 viene verificato all'importazione e prima di ogni caricamento.
@@ -53,6 +54,7 @@ La cancellazione **non è atomica**, e l'ordine dei passaggi è pensato di conse
 
 I suoi dati restano sul suo telefono, sotto il suo esclusivo controllo, e l'editore non ha alcun modo di accedervi: non tratta quindi alcun dato personale che la riguardi. È il caso che la CNIL, l'autorità francese per la protezione dei dati, descrive come un «semplice software messo a disposizione dell'utente», al quale il GDPR non si applica (raccomandazione sulle applicazioni mobili, paragrafo 3.3). Mantiene il controllo dei suoi dati e in qualsiasi momento può:
 - esportare le sue note in Markdown o ZIP (`Impostazioni → Esporta tutte le mie note`),
+- eliminare definitivamente una nota, dal cestino o con una pressione prolungata nell'elenco delle note,
 - cancellare tutti i dati con la modalità panico,
 - disinstallare l'app: Android cancellerà automaticamente tutti i dati privati.
 

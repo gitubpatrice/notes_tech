@@ -149,6 +149,23 @@
     <string name="note_editor_copied_to_clipboard">Copiato negli appunti</string>
     <string name="note_editor_export_failed">Esportazione non riuscita: %1$s</string>
     <string name="note_editor_moved">Nota spostata</string>
+    <!-- Long press on a note in a list (3.1.0) -->
+    <string name="note_actions_label">Azioni sulla nota</string>
+    <string name="note_moved_to_trash">Nota spostata nel cestino</string>
+    <string name="common_undo">Annulla</string>
+    <!-- A note's colour in the lists (3.1.0) -->
+    <string name="note_editor_menu_color">Colore</string>
+    <string name="note_color_title">Colore della nota</string>
+    <string name="note_color_vault_hint">Visibile nell\'elenco solo mentre la cassaforte è sbloccata.</string>
+    <string name="note_color_none">Nessun colore</string>
+    <string name="note_color_yellow">Giallo</string>
+    <string name="note_color_orange">Arancione</string>
+    <string name="note_color_green">Verde</string>
+    <string name="note_color_teal">Turchese</string>
+    <string name="note_color_blue">Blu</string>
+    <string name="note_color_purple">Viola</string>
+    <string name="note_color_pink">Rosa</string>
+    <string name="note_color_gray">Grigio</string>
     <string name="note_editor_move_failed">Spostamento non riuscito: %1$s</string>
     <string name="note_editor_exit_vault_title">Spostare la nota fuori dalla cassaforte?</string>
     <string name="note_editor_exit_vault_body">Il contenuto verrà decifrato e salvato in chiaro nel database, senza protezione con password. Irreversibile: la nota sarà esistita fuori dalla cifratura, anche se in seguito la rimetterà in una cassaforte.</string>
@@ -156,7 +173,6 @@
     <string name="note_editor_menu_copy_markdown">Copia il Markdown</string>
     <string name="note_editor_content_hint">Scriva in Markdown… ([[Titolo]] per creare un link)</string>
     <string name="note_editor_mode_edit">Modifica</string>
-    <string name="note_editor_mode_preview">Anteprima</string>
     <string name="note_editor_preview_empty">Ancora niente da mostrare in anteprima.</string>
     <string name="note_editor_copy_empty">Niente da copiare: questa nota è vuota</string>
     <string name="move_to_folder_vault">Cartella cassaforte: la nota verrà cifrata</string>

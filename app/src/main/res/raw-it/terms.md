@@ -1,6 +1,6 @@
 # Condizioni d'uso — Notes Tech
 
-**Versione 1.2.0 — ottobre 2026**
+_Ultimo aggiornamento: 10 ottobre 2026_
 
 ## Licenza
 
@@ -19,6 +19,8 @@ L'app è messa a disposizione **gratuitamente** da un privato, a titolo personal
 ## Modalità panico e perdita di dati
 
 La **modalità panico** cancella in modo definitivo e irreversibile le sue note, la sua chiave di cifratura e i suoi modelli. **Nessun recupero è possibile**: è voluto. Prima di usarla, esporti ciò che vuole conservare con `Impostazioni → Esporta tutte le mie note`.
+
+Una nota **spostata nel cestino** può essere ripristinata per 30 giorni. Una nota **eliminata definitivamente** — dal cestino, o con una pressione prolungata nell'elenco delle note, dopo una conferma — non passa dal cestino e **non può più essere recuperata**.
 
 Allo stesso modo, **dimenticare la passphrase di una cassaforte rende le sue note illeggibili per sempre**: la passphrase non viene mai memorizzata, serve solo a derivare la chiave tramite Argon2id. Non esiste alcuna procedura di recupero.
 
@@ -66,7 +68,7 @@ Gli aggiornamenti sono pubblicati sul repository GitHub ufficiale e su F-Droid. 
 
 ## Responsabilità
 
-L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese (licenza Apache 2.0, sezione 8). In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN o a una disinstallazione è di esclusiva responsabilità dell'utente**. Nulla in queste condizioni limita una responsabilità che la legge non consente di limitare.
+L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese (licenza Apache 2.0, sezione 8). In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN, a un'eliminazione definitiva o a una disinstallazione è di esclusiva responsabilità dell'utente**. Nulla in queste condizioni limita una responsabilità che la legge non consente di limitare.
 
 ## Legge applicabile
 

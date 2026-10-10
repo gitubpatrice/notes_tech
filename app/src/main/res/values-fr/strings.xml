@@ -154,6 +154,23 @@
     <string name="note_editor_copied_to_clipboard">Copié dans le presse-papier</string>
     <string name="note_editor_export_failed">Export impossible : %1$s</string>
     <string name="note_editor_moved">Note déplacée</string>
+    <!-- Long press on a note in a list (3.1.0) -->
+    <string name="note_actions_label">Actions sur la note</string>
+    <string name="note_moved_to_trash">Note mise à la corbeille</string>
+    <string name="common_undo">Annuler</string>
+    <!-- A note's colour in the lists (3.1.0) -->
+    <string name="note_editor_menu_color">Couleur</string>
+    <string name="note_color_title">Couleur de la note</string>
+    <string name="note_color_vault_hint">Visible dans la liste seulement quand le coffre est ouvert.</string>
+    <string name="note_color_none">Aucune couleur</string>
+    <string name="note_color_yellow">Jaune</string>
+    <string name="note_color_orange">Orange</string>
+    <string name="note_color_green">Vert</string>
+    <string name="note_color_teal">Turquoise</string>
+    <string name="note_color_blue">Bleu</string>
+    <string name="note_color_purple">Violet</string>
+    <string name="note_color_pink">Rose</string>
+    <string name="note_color_gray">Gris</string>
     <string name="note_editor_move_failed">Déplacement impossible : %1$s</string>
     <string name="note_editor_exit_vault_title">Sortir cette note du coffre ?</string>
     <string name="note_editor_exit_vault_body">Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.</string>
@@ -161,7 +178,6 @@
     <string name="note_editor_menu_copy_markdown">Copier le Markdown</string>
     <string name="note_editor_content_hint">Écrivez en Markdown… ([[Titre]] pour lier)</string>
     <string name="note_editor_mode_edit">Éditer</string>
-    <string name="note_editor_mode_preview">Aperçu</string>
     <string name="note_editor_preview_empty">Rien à afficher pour l\'instant.</string>
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
     <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>

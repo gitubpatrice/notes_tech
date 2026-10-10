@@ -141,6 +141,23 @@
     <string name="note_editor_copied_to_clipboard">In die Zwischenablage kopiert</string>
     <string name="note_editor_export_failed">Export fehlgeschlagen: %1$s</string>
     <string name="note_editor_moved">Notiz verschoben</string>
+    <!-- Long press on a note in a list (3.1.0) -->
+    <string name="note_actions_label">Notizaktionen</string>
+    <string name="note_moved_to_trash">Notiz in den Papierkorb verschoben</string>
+    <string name="common_undo">Rückgängig</string>
+    <!-- A note's colour in the lists (3.1.0) -->
+    <string name="note_editor_menu_color">Farbe</string>
+    <string name="note_color_title">Farbe der Notiz</string>
+    <string name="note_color_vault_hint">In der Liste nur sichtbar, solange der Tresor entsperrt ist.</string>
+    <string name="note_color_none">Keine Farbe</string>
+    <string name="note_color_yellow">Gelb</string>
+    <string name="note_color_orange">Orange</string>
+    <string name="note_color_green">Grün</string>
+    <string name="note_color_teal">Türkis</string>
+    <string name="note_color_blue">Blau</string>
+    <string name="note_color_purple">Lila</string>
+    <string name="note_color_pink">Rosa</string>
+    <string name="note_color_gray">Grau</string>
     <string name="note_editor_move_failed">Verschieben fehlgeschlagen: %1$s</string>
     <string name="note_editor_exit_vault_title">Notiz aus dem Tresor verschieben?</string>
     <string name="note_editor_exit_vault_body">Der Inhalt wird entschlüsselt und unverschlüsselt, ohne Passwortschutz, in der Datenbank gespeichert. Nicht umkehrbar: Die Notiz hat dann außerhalb der Verschlüsselung existiert, auch wenn Sie sie später wieder in einen Tresor verschieben.</string>
@@ -148,7 +165,6 @@
     <string name="note_editor_menu_copy_markdown">Markdown kopieren</string>
     <string name="note_editor_content_hint">In Markdown schreiben… ([[Titel]] zum Verlinken)</string>
     <string name="note_editor_mode_edit">Bearbeiten</string>
-    <string name="note_editor_mode_preview">Vorschau</string>
     <string name="note_editor_preview_empty">Noch nichts für die Vorschau.</string>
     <string name="note_editor_copy_empty">Nichts zu kopieren: Diese Notiz ist leer</string>
     <string name="move_to_folder_vault">Tresorordner: Die Notiz wird verschlüsselt</string>
