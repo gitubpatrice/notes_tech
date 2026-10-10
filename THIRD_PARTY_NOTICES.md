@@ -1,11 +1,10 @@
 # Third-party notices — Notes Tech
 
-Notes Tech 3.0 (`com.filestech.notes_tech`) is written in Kotlin with Jetpack Compose and is licensed
+Notes Tech 3.1 (`com.filestech.notes_tech`) is written in Kotlin with Jetpack Compose and is licensed
 under the Apache License 2.0 ([LICENSE](LICENSE)). Everything it ships that it did not write is listed
-here. The list was read on 2026-10-05 from the resolved `releaseRuntimeClasspath` of the `:app` module
-after the dependency updates merged that evening (the 3.0.0 APK itself ships Room 2.8.4, Kotlin
-2.3.20 and Bouncy Castle 1.81: see this file at tag `v3.0.0`), and each licence from the POM that the
-library publishes — not from memory.
+here. The list was read on 2026-10-10 from the resolved `releaseRuntimeClasspath` of the `:app` module
+for 3.1.0, after the move to AGP 9 (earlier versions: see this file at their tag, e.g. `v3.0.0`), and
+each licence from the POM that the library publishes — not from memory.
 
 **No Google Play Services, no ML Kit, no Firebase, no analytics SDK, no crash reporter, no network
 library.** The app does not hold the `INTERNET` permission.
@@ -15,12 +14,12 @@ library.** The app does not hold the `INTERNET` permission.
 | Library | Version | Publisher | Licence |
 |---|---|---|---|
 | AndroidX: Core, Activity, AppCompat, Lifecycle, Navigation, SavedState, Fragment, Emoji2, Window, Startup, Tracing, Profile Installer, DocumentFile, Biometric, Transition and their support modules | various | Google / AOSP | Apache 2.0 |
-| Jetpack Compose: UI, Foundation, Animation, Runtime, Material 3, Material Icons | BOM 2026.06.00 (UI 1.11.3, Material 3 1.4.0) | Google / AOSP | Apache 2.0 |
+| Jetpack Compose: UI, Foundation, Animation, Runtime, Material 3, Material Icons | BOM 2026.09.00 (UI 1.12.1, Material 3 1.4.0) | Google / AOSP | Apache 2.0 |
 | Room (`androidx.room`) and `androidx.sqlite` | 2.8.5 / 2.6.2 | Google / AOSP | Apache 2.0 |
 | DataStore Preferences | 1.1.1 | Google / AOSP | Apache 2.0 |
-| Hilt and Dagger (`com.google.dagger`, `androidx.hilt`) | 2.57.2 / 1.3.0 | Google | Apache 2.0 |
+| Hilt and Dagger (`com.google.dagger`, `androidx.hilt`) | 2.60.1 / 1.4.0 | Google | Apache 2.0 |
 | Guava `listenablefuture`, JSR-305 annotations | 1.0 / 3.0.2 | Google | Apache 2.0 |
-| Kotlin standard library | 2.3.21 | JetBrains | Apache 2.0 |
+| Kotlin standard library | 2.4.10 | JetBrains | Apache 2.0 |
 | kotlinx.coroutines | 1.11.0 | JetBrains | Apache 2.0 |
 | `org.jetbrains:markdown` — the Markdown parser behind the preview | 0.7.14 | JetBrains | Apache 2.0 |
 | JetBrains annotations, JSpecify | 23.0.0 / 1.0.0 | JetBrains / JSpecify | Apache 2.0 |

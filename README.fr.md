@@ -10,7 +10,7 @@ Application de prise de notes Markdown chiffrée pour Android, écrite en **Kotl
 Compose. **100 % locale, sans permission Internet.** Interface en **anglais, français, allemand,
 italien et espagnol**. Coffres par dossier (phrase secrète Argon2id ou code lié au Keystore),
 verrouillage de l'application par code et biométrie forte, recherche plein texte FTS5, dictée
-Whisper sur l'appareil, rétroliens `[[note]]`, aperçu Markdown, mode panique en plusieurs étapes.
+Whisper sur l'appareil, rétroliens `[[note]]`, notes lues en fiche à leur couleur, mode panique en plusieurs étapes.
 
 Pour les penseurs, thérapeutes, étudiants, chercheurs, auteurs et journalistes qui veulent prendre
 des notes sensibles ou denses sans qu'elles quittent jamais leur téléphone.

@@ -10,7 +10,7 @@ Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpa
 **100% local, no Internet permission.** Interface in **English, French, German, Italian and
 Spanish**. Per-folder vaults (Argon2id passphrase or Keystore-bound PIN), an app lock with PIN and
 strong biometrics, FTS5 full-text search, on-device Whisper voice dictation, `[[note]]` backlinks,
-Markdown preview, multi-step panic mode.
+notes read as cards in their colour, multi-step panic mode.
 
 For thinkers, therapists, students, researchers, writers and journalists who want to take
 sensitive or dense notes without them ever leaving their phone.
