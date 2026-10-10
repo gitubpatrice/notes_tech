@@ -43,7 +43,7 @@ timber = "5.0.1"
 
 # The Markdown preview's parser (D-024): pure Kotlin, Apache 2.0, a single dependency on
 # kotlin-stdlib. Only the GFM parser is used; the rendering is written here, in Compose.
-jetbrains-markdown = "0.7.14"
+jetbrains-markdown = "0.7.16"
 
 # Désucrage des bibliothèques de base — `java.time` n'est natif qu'à partir de l'API 26, or le
 # plancher est à 24 (cf. `app/build.gradle.kts`). Sans ça, tout formatage de date écrirait du
