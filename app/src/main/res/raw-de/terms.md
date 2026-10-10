@@ -1,6 +1,6 @@
 # Nutzungsbedingungen — Notes Tech
 
-**Version 1.2.0 — Oktober 2026**
+_Zuletzt aktualisiert: 10. Oktober 2026_
 
 ## Lizenz
 
@@ -19,6 +19,8 @@ Die App wird von einer Privatperson **kostenlos**, privat und nicht kommerziell 
 ## Panikmodus und Datenverlust
 
 Der **Panikmodus** löscht Ihre Notizen, Ihren Verschlüsselungsschlüssel und Ihre Modelle endgültig und unwiderruflich. **Keine Wiederherstellung ist möglich** — das ist so gewollt. Exportieren Sie vor der Verwendung, was Sie behalten möchten, über `Einstellungen → Alle meine Notizen exportieren`.
+
+Eine **in den Papierkorb verschobene** Notiz kann 30 Tage lang wiederhergestellt werden. Eine **endgültig gelöschte** Notiz — aus dem Papierkorb oder mit langem Drücken in der Notizliste, nach einer Bestätigung — geht nicht durch den Papierkorb und **kann nicht mehr wiederhergestellt werden**.
 
 Ebenso **macht eine vergessene Tresor-Passphrase dessen Notizen für immer unlesbar**: Die Passphrase wird nie gespeichert, sie dient nur dazu, den Schlüssel über Argon2id abzuleiten. Es gibt kein Wiederherstellungsverfahren.
 
@@ -66,7 +68,7 @@ Updates werden im offiziellen GitHub-Repository und auf F-Droid veröffentlicht.
 
 ## Haftung
 
-Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt (Apache-Lizenz 2.0, Abschnitt 8). Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen oder einer Deinstallation allein in der Verantwortung des Nutzers**. Nichts in diesen Bedingungen beschränkt eine Haftung, deren Beschränkung gesetzlich nicht zulässig ist.
+Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt (Apache-Lizenz 2.0, Abschnitt 8). Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen, einer endgültigen Löschung oder einer Deinstallation allein in der Verantwortung des Nutzers**. Nichts in diesen Bedingungen beschränkt eine Haftung, deren Beschränkung gesetzlich nicht zulässig ist.
 
 ## Anwendbares Recht
 

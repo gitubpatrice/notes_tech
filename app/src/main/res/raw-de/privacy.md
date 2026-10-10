@@ -1,6 +1,6 @@
 # Datenschutzerklärung — Notes Tech
 
-**Version 1.2.0 — September 2026**
+_Zuletzt aktualisiert: 10. Oktober 2026_
 
 ## In einem Satz
 
@@ -12,6 +12,7 @@ Notes Tech erhebt, überträgt und speichert keinerlei Daten auf entfernten Serv
 
 - **Ihre Markdown-Notizen**: ausschließlich auf Ihrem Telefon erstellt und gespeichert, in einer SQLite-Datenbank, die mit **SQLCipher** verschlüsselt ist — mit einem eindeutigen, lokal erzeugten Schlüssel (32-Byte-KEK), der im **Android Keystore** aufbewahrt wird.
 - **Tresore pro Ordner**: Jeder Tresor, den Sie aktivieren, verwendet eine eigene **Passphrase** oder **PIN**, abgeleitet über **Argon2id RFC 9106** (m=64MB, t=3 für die Passphrase; leichter für die PIN, ausgeglichen durch eine an das Gerät gebundene Versiegelung im Keystore). Der Inhalt gesperrter Notizen wird mit **AES-256-GCM** verschlüsselt, AAD an `note_id` gebunden. Vor Android 9 kann Android diese Versiegelung nicht an das Entsperren des Telefons binden: Die App bietet dort für einen neuen Tresor nur eine Passphrase an, und ein zuvor erstellter PIN-Tresor hält auf einem beschlagnahmten Telefon einer Suche nach seinem Code nicht mehr stand.
+- **Tags und Farbe einer Tresornotiz**: Sie bleiben in der von SQLCipher verschlüsselten Datenbank, aber **außerhalb der eigenen Verschlüsselung des Tresors** — nur Titel und Inhalt fallen darunter. In den Listen zeigt eine Tresornotiz nie ihre Tags und ihre Farbe nur, solange dieser Tresor entsperrt ist.
 - **App-Sperre (optional)**: Die PIN selbst wird nie gespeichert. Aufbewahrt wird ein mit **Argon2id** daraus abgeleiteter Wert, der per **HMAC-SHA256** an einen Schlüssel des **Android Keystore** gebunden ist, der das Telefon nie verlässt — er kann also nirgendwo anders geprüft werden. Nach fünf falschen PINs wartet jeder neue Versuch länger (30 Sekunden, verdoppelt bis zu einer Stunde); falsche Versuche löschen nie etwas. **Entsperren per Fingerabdruck oder Gesicht** wird vollständig von Android übernommen: Notes Tech erhält keine biometrischen Daten, nur die Bestätigung, dass ein Keystore-Schlüssel verwendet werden durfte, und nur starke Biometrie (Klasse 3) wird akzeptiert.
 - **Rückverweise `[[Titel]]`**: lokaler invertierter Index, nie übertragen.
 - **Diktiermodell (Whisper `.bin`)**: Sie beschaffen es selbst — die App zeigt den Dateinamen und seine Quelle an — und importieren es dann über die Android-Dokumentauswahl. Notes Tech hat keine Internetberechtigung und **bietet keine Möglichkeit, etwas herunterzuladen**. Sein SHA-256 wird beim Import und vor jedem Laden geprüft.
@@ -53,6 +54,7 @@ Das Löschen ist **nicht atomar**, und die Reihenfolge der Schritte ist darauf a
 
 Ihre Daten bleiben auf Ihrem Telefon, unter Ihrer alleinigen Kontrolle, und der Herausgeber hat keinerlei Zugriff darauf: Er verarbeitet also keine personenbezogenen Daten über Sie. Die CNIL, die französische Datenschutzbehörde, beschreibt diesen Fall als „einfache Software, die dem Nutzer zur Verfügung gestellt wird“, auf die die DSGVO nicht anwendbar ist (Empfehlung zu mobilen Apps, Abschnitt 3.3). Sie behalten die Kontrolle über Ihre Daten und können jederzeit:
 - Ihre Notizen als Markdown oder ZIP exportieren (`Einstellungen → Alle meine Notizen exportieren`),
+- eine Notiz endgültig löschen, aus dem Papierkorb oder mit langem Drücken in der Notizliste,
 - alle Daten über den Panikmodus löschen,
 - die App deinstallieren — Android löscht dann automatisch alle privaten Daten.
 

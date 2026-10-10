@@ -1,6 +1,6 @@
 # Terms of use — Notes Tech
 
-**Version 1.2.0 — October 2026**
+_Last updated: 10 October 2026_
 
 ## License
 
@@ -18,7 +18,9 @@ The app is made available **free of charge** by an individual, on a personal and
 
 ## Panic mode and data loss
 
-The **panic mode** permanently and irreversibly wipes your notes, encryption key, and models. **No recovery is possible** — it is by design. Before using it, export what you want to keep via `Settings → Export`.
+The **panic mode** permanently and irreversibly wipes your notes, encryption key, and models. **No recovery is possible** — it is by design. Before using it, export what you want to keep via `Settings → Export all my notes`.
+
+A note **moved to the trash** can be restored for 30 days. A note **deleted permanently** — from the trash, or with a long press in the list of notes, after a confirmation — does not go through the trash and **can no longer be recovered**.
 
 Likewise, **forgetting a vault passphrase makes its notes unreadable forever**: the passphrase is never stored, it only derives the key via Argon2id. No recovery procedure exists.
 
@@ -69,7 +71,7 @@ Updates are published on the official GitHub repository and on F-Droid. The app 
 
 ## Liability
 
-The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law (Apache 2.0 license, section 8). In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe or an uninstall is the sole responsibility of the user**. Nothing in these terms limits a liability that the law does not allow to be limited.
+The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law (Apache 2.0 license, section 8). In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe, a permanent deletion or an uninstall is the sole responsibility of the user**. Nothing in these terms limits a liability that the law does not allow to be limited.
 
 ## Governing law
 

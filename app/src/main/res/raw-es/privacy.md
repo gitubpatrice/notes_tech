@@ -1,6 +1,6 @@
 # Política de privacidad — Notes Tech
 
-**Versión 1.2.0 — septiembre de 2026**
+_Última actualización: 10 de octubre de 2026_
 
 ## En una frase
 
@@ -12,6 +12,7 @@ Notes Tech no recopila, no transmite ni almacena ningún dato en servidores remo
 
 - **Sus notas en Markdown**: creadas y conservadas exclusivamente en su teléfono, en una base de datos SQLite cifrada con **SQLCipher** mediante una clave única generada localmente (KEK de 32 bytes) guardada en el **Android Keystore**.
 - **Cajas fuertes por carpeta**: cada caja fuerte que active usa una **frase de contraseña** o un **PIN** propios, derivados mediante **Argon2id RFC 9106** (m=64MB, t=3 para la frase de contraseña; más ligero para el PIN, compensado por un sellado en el Keystore ligado al dispositivo). El contenido de las notas bloqueadas se cifra con **AES-256-GCM**, con AAD vinculado a `note_id`. Antes de Android 9, Android no puede vincular este sellado al desbloqueo del teléfono: la aplicación solo ofrece entonces una frase de contraseña para una nueva caja fuerte, y una caja fuerte con PIN creada antes ya no resiste, en un teléfono incautado, una búsqueda de su código.
+- **Etiquetas y color de una nota de caja fuerte**: permanecen en la base de datos cifrada por SQLCipher, pero **fuera del cifrado propio de la caja fuerte**: solo el título y el contenido quedan bajo él. En las listas, una nota de caja fuerte nunca muestra sus etiquetas, y muestra su color solo mientras esa caja fuerte está desbloqueada.
 - **Bloqueo de la aplicación (opcional)**: el PIN nunca se guarda. Se conserva un valor derivado de él con **Argon2id** y vinculado mediante **HMAC-SHA256** a una clave del **Android Keystore** que nunca sale del teléfono, de modo que no puede comprobarse en ningún otro lugar. Tras cinco PIN incorrectos, cada nuevo intento espera más (30 segundos, que se duplican hasta una hora); los intentos fallidos nunca borran nada. El **desbloqueo con huella dactilar o rostro** lo gestiona íntegramente Android: Notes Tech no recibe ningún dato biométrico, solo la confirmación de que se ha permitido usar una clave del Keystore, y solo se acepta la biometría fuerte (clase 3).
 - **Retroenlaces `[[Título]]`**: índice invertido local, nunca transmitido.
 - **Modelo de dictado por voz (Whisper `.bin`)**: lo obtiene usted mismo —la aplicación muestra el nombre del archivo y su origen— y luego lo importa mediante el selector de documentos de Android. Notes Tech no tiene permiso de acceso a Internet y **no ofrece ninguna forma de descargar nada**. Su SHA-256 se comprueba al importarlo y antes de cada carga.
@@ -53,6 +54,7 @@ El borrado **no es atómico**, y el orden de los pasos está pensado en función
 
 Sus datos permanecen en su teléfono, bajo su exclusivo control, y el editor no tiene ningún medio de acceder a ellos: por tanto, no trata ningún dato personal suyo. Es el caso que la CNIL, la autoridad francesa de protección de datos, describe como un «simple software puesto a disposición del usuario», al que no se aplica el RGPD (recomendación sobre las aplicaciones móviles, apartado 3.3). Usted conserva el control de sus datos y en cualquier momento puede:
 - exportar sus notas en Markdown o ZIP (`Ajustes → Exportar todas mis notas`),
+- eliminar una nota definitivamente, desde la papelera o con una pulsación larga en la lista de notas,
 - borrar todos los datos mediante el modo pánico,
 - desinstalar la aplicación: Android borrará automáticamente todos los datos privados.
 

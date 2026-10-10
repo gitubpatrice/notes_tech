@@ -1,6 +1,6 @@
 # Condiciones de uso — Notes Tech
 
-**Versión 1.2.0 — octubre de 2026**
+_Última actualización: 10 de octubre de 2026_
 
 ## Licencia
 
@@ -19,6 +19,8 @@ Un particular pone la aplicación a disposición **de forma gratuita**, a títul
 ## Modo pánico y pérdida de datos
 
 El **modo pánico** borra de forma definitiva e irreversible sus notas, su clave de cifrado y sus modelos. **No es posible ninguna recuperación**: es intencionado. Antes de usarlo, exporte lo que quiera conservar mediante `Ajustes → Exportar todas mis notas`.
+
+Una nota **movida a la papelera** puede restaurarse durante 30 días. Una nota **eliminada definitivamente** —desde la papelera, o con una pulsación larga en la lista de notas, tras una confirmación— no pasa por la papelera y **ya no puede recuperarse**.
 
 Del mismo modo, **olvidar la frase de contraseña de una caja fuerte hace que sus notas sean ilegibles para siempre**: la frase de contraseña nunca se guarda, solo sirve para derivar la clave mediante Argon2id. No existe ningún procedimiento de recuperación.
 
@@ -66,7 +68,7 @@ Las actualizaciones se publican en el repositorio oficial de GitHub y en F-Droid
 
 ## Responsabilidad
 
-El editor no puede ser considerado responsable de ningún daño directo o indirecto derivado del uso de la aplicación, dentro de los límites que permite el derecho francés (licencia Apache 2.0, sección 8). En particular, **cualquier pérdida de datos derivada de un modo pánico, una frase de contraseña olvidada, un borrado automático por errores de PIN o una desinstalación es responsabilidad exclusiva del usuario**. Nada en estas condiciones limita una responsabilidad que la ley no permite limitar.
+El editor no puede ser considerado responsable de ningún daño directo o indirecto derivado del uso de la aplicación, dentro de los límites que permite el derecho francés (licencia Apache 2.0, sección 8). En particular, **cualquier pérdida de datos derivada de un modo pánico, una frase de contraseña olvidada, un borrado automático por errores de PIN, una eliminación definitiva o una desinstalación es responsabilidad exclusiva del usuario**. Nada en estas condiciones limita una responsabilidad que la ley no permite limitar.
 
 ## Legislación aplicable
 

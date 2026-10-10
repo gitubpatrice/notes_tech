@@ -1,6 +1,6 @@
 # Conditions d'utilisation — Notes Tech
 
-**Version 1.2.0 — Octobre 2026**
+_Dernière mise à jour : 10 octobre 2026_
 
 ## Licence
 
@@ -18,7 +18,9 @@ L'application est mise à disposition **gratuitement** par un particulier, à ti
 
 ## Mode panique et perte de données
 
-Le **mode panique** efface définitivement et irréversiblement vos notes, votre clé de chiffrement et vos modèles. **Aucune récupération n'est possible** — c'est par conception. Avant de l'utiliser, exportez ce que vous voulez conserver via `Réglages → Exporter`.
+Le **mode panique** efface définitivement et irréversiblement vos notes, votre clé de chiffrement et vos modèles. **Aucune récupération n'est possible** — c'est par conception. Avant de l'utiliser, exportez ce que vous voulez conserver via `Réglages → Exporter toutes mes notes`.
+
+Une note **mise à la corbeille** peut être restaurée pendant 30 jours. Une note **supprimée définitivement** — depuis la corbeille, ou par un appui long dans la liste des notes, après confirmation — ne passe pas par la corbeille et **ne peut plus être récupérée**.
 
 De même, **oublier la passphrase d'un coffre rend ses notes illisibles à jamais** : la passphrase n'est jamais stockée, elle ne sert qu'à dériver la clé via Argon2id. Aucune procédure de récupération n'existe.
 
@@ -70,7 +72,7 @@ Les mises à jour sont publiées sur le dépôt GitHub officiel et sur F-Droid. 
 
 ## Responsabilité
 
-L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française (licence Apache 2.0, section 8). En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**. Rien dans ces conditions ne limite une responsabilité que la loi interdit de limiter.
+L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française (licence Apache 2.0, section 8). En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN, à une suppression définitive ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**. Rien dans ces conditions ne limite une responsabilité que la loi interdit de limiter.
 
 ## Loi applicable
 

@@ -1,6 +1,6 @@
 # Privacy policy — Notes Tech
 
-**Version 1.2.0 — September 2026**
+_Last updated: 10 October 2026_
 
 ## In one sentence
 
@@ -12,6 +12,7 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 
 - **Your Markdown notes**: generated and kept exclusively on your phone, in a SQLite database encrypted by **SQLCipher** with a unique key generated locally (32-byte KEK) stored in the **Android Keystore**.
 - **Per-folder vaults**: each vault you enable uses a distinct **passphrase** or **PIN**, derived through **Argon2id RFC 9106** (m=64MB, t=3 for passphrase; lighter for PIN, compensated by device-bound Keystore sealing). Locked note content is encrypted with **AES-256-GCM**, AAD bound to `note_id`. Before Android 9, Android cannot tie this sealing to the phone being unlocked: the app then offers only a passphrase for a new vault, and a PIN vault created earlier no longer resists, on a seized phone, a search of its code.
+- **Tags and colour of a vault note**: they stay in the database encrypted by SQLCipher, but **outside the vault's own encryption** — only the title and the content fall under it. In the lists, a vault note never shows its tags, and shows its colour only while that vault is open.
 - **App lock (optional)**: the PIN itself is never stored. What is kept is a value derived from it with **Argon2id** and bound by **HMAC-SHA256** to a key of the **Android Keystore** that never leaves the phone — so it cannot be checked anywhere else. After five wrong PINs, each new attempt waits longer (30 seconds, doubling up to one hour); wrong attempts never erase anything. **Fingerprint or face unlock** is handled entirely by Android: Notes Tech receives no biometric data, only the confirmation that a Keystore key was allowed to work, and only strong (Class 3) biometrics are accepted.
 - **Backlinks `[[Title]]`**: local inverted index, never transmitted.
 - **Voice dictation model (Whisper `.bin`)**: you obtain it yourself — the app shows the file name and its source — then import it through the Android document picker. Notes Tech has no Internet permission and **exposes no way to download anything**. Its SHA-256 is verified on import and before every load.
@@ -52,7 +53,8 @@ The wipe is **not atomic**, and the step order is designed around that: the encr
 ### Your rights
 
 Your data stays on your phone, under your sole control, and the publisher has no way to access it, and therefore processes no personal data about you. This is what the CNIL, the French data protection authority, describes as "software simply made available to the user", to which the GDPR does not apply (recommendation on mobile apps, section 3.3). You remain in control of your data and may at any time:
-- export your notes in Markdown or ZIP (`Settings → Export`),
+- export your notes in Markdown or ZIP (`Settings → Export all my notes`),
+- delete a note permanently, from the trash or with a long press in the list of notes,
 - delete all data via panic mode,
 - uninstall the app — Android will automatically delete all private data.
 
