@@ -46,6 +46,7 @@ import com.filestech.notes_tech.security.panic.PanicReport
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 import java.util.Locale
 import kotlin.system.exitProcess
 
@@ -365,7 +366,9 @@ fun PanicOverlay(running: Boolean, report: PanicReport?, onClose: () -> Unit) {
                 )
             }
             Spacer(Modifier.height(24.dp))
-            Button(onClick = onClose, shape = Formes.bouton) { Text(stringResource(R.string.panic_complete_close)) }
+            Button(onClick = onClose, shape = Formes.bouton, colors = couleursDeBoutonPrincipal()) {
+                Text(stringResource(R.string.panic_complete_close))
+            }
         }
     }
 }

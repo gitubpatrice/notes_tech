@@ -78,6 +78,17 @@ class SemanticColorsTest {
     }
 
     /**
+     * The main buttons (3.1.0): white on the checkerboard blue, readable; and the button itself seen
+     * against both themes' background (WCAG 1.4.11, 3:1).
+     */
+    @Test
+    fun `the main buttons are readable and stand out on both themes`() {
+        assertThat(contraste(SemanticColors.onPrimaryButton, SemanticColors.primaryButton)).isGreaterThan(SEUIL_TEXTE)
+        assertThat(contraste(SemanticColors.primaryButton, schemeClair().background)).isAtLeast(3f)
+        assertThat(contraste(SemanticColors.primaryButton, schemeSombre().background)).isAtLeast(3f)
+    }
+
+    /**
      * 🔴 **Le cas témoin.** Sans lui, les trois tests ci-dessus passeraient tout aussi bien si
      * [contraste] rendait une constante. Deux teintes proches doivent échouer au seuil.
      */

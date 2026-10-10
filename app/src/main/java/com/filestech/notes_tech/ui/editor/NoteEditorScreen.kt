@@ -501,6 +501,8 @@ fun NoteEditorScreen(
                 // with no name, and the editor's sweep caught it (`actionnablesSansNom`). Here the
                 // label is a plain child of the clickable surface, so it merges, as on every button.
                 ExtendedFloatingActionButton(
+                    containerColor = SemanticColors.primaryButton,
+                    contentColor = SemanticColors.onPrimaryButton,
                     onClick = {
                         // The cursor at the END: "Edit" means "go on writing". A loaded note's value
                         // starts at 0, which put the cursor before the first word — measured by the

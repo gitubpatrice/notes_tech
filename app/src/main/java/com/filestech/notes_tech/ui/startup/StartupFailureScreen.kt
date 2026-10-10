@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 
 /**
  * Ce que voit un utilisateur dont la base ne s'ouvre pas.
@@ -64,7 +65,7 @@ fun StartupFailureScreen(reason: FailureReason, onRetry: () -> Unit, modifier: M
                 text = stringResource(reason.messageRes),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onRetry, shape = Formes.bouton) {
+            Button(onClick = onRetry, shape = Formes.bouton, colors = couleursDeBoutonPrincipal()) {
                 Text(stringResource(R.string.startup_failure_retry))
             }
         }

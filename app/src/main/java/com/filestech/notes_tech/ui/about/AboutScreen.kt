@@ -71,6 +71,7 @@ import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.ouvrirUnLien
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 import kotlinx.coroutines.launch
 
 /**
@@ -217,6 +218,7 @@ private fun EnTete(onVerifierLesMisesAJour: () -> Unit) {
         FilledTonalButton(
             onClick = onVerifierLesMisesAJour,
             shape = Formes.bouton,
+            colors = couleursDeBoutonPrincipal(),
             modifier = Modifier.padding(top = 16.dp),
         ) {
             Icon(Icons.Outlined.SystemUpdateAlt, contentDescription = null, modifier = Modifier.size(18.dp))
