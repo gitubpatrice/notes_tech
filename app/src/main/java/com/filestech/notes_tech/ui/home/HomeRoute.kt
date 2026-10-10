@@ -94,6 +94,9 @@ fun HomeRoute(
     var dossierAProteger by remember { mutableStateOf<Folder?>(null) }
     var modeChoisi by remember { mutableStateOf<VaultMode?>(null) }
 
+    // The long press on a note (3.1.0): its sheet, its confirmation, what waits for a vault's secret.
+    val gestes = remember { GestesDeNoteEnCours() }
+
     /**
      * Exécute un geste dont le coffre est **ouvert**. Séparé de [lancerLeGeste] parce que la reprise
      * après déverrouillage ne doit **pas** repasser par le contrôle : l'ensemble des coffres ouverts
@@ -123,6 +126,7 @@ fun HomeRoute(
     LaunchedEffect(Unit) { homeViewModel.purgeExpiredTrash() }
 
     MessagesDeDossier(foldersViewModel, snackbars)
+    MessagesDesGestesDeNote(homeViewModel, snackbars)
     ConstatsDeCoffre(snackbars)
 
     // ⚠️ La creation de note ouvre l'editeur, ou demande le secret du coffre. Les deux issues
@@ -152,6 +156,15 @@ fun HomeRoute(
                         ),
                     )
                 }
+
+                is HomeEvent.GesteEnAttenteDuCoffre -> {
+                    gestes.attendreLeCoffre(evenement)
+                    dossierAOuvrir = evenement.folder
+                }
+
+                // Said by `MessagesDesGestesDeNote`, which collects the same events.
+                is HomeEvent.MovedToTrash, HomeEvent.Restored, HomeEvent.DeletedForever, is HomeEvent.ActionFailed,
+                -> Unit
             }
         }
     }
@@ -195,6 +208,10 @@ fun HomeRoute(
                 onQueryChange = homeViewModel::onQueryChange,
                 onSortSelected = homeViewModel::onSortSelected,
                 onOpenNote = onOpenNote,
+                onLongPressNote = { note ->
+                    val coffreAOuvrir = gestes.appuiLong(note, foldersState.folders, foldersState.unlockedFolderIds)
+                    if (coffreAOuvrir != null) dossierAOuvrir = coffreAOuvrir
+                },
                 onNewNote = homeViewModel::createNote,
                 onOpenDrawer = { portee.launch { drawerState.open() } },
                 onOpenSearch = onOpenSearch,
@@ -309,6 +326,7 @@ fun HomeRoute(
                 // feuille. Le laisser armé le ferait partir au prochain déverrouillage, pour une
                 // tout autre raison.
                 gesteEnAttente = null
+                gestes.abandonner()
             },
             onUnlocked = {
                 dossierAOuvrir = null
@@ -318,9 +336,12 @@ fun HomeRoute(
                 val geste = gesteEnAttente
                 gesteEnAttente = null
                 if (geste != null && geste.dossier.id == dossier.id) executerLeGeste(geste)
+                gestes.reprendreApres(dossier, homeViewModel::executer)
             },
         )
     }
+
+    FeuillesDesGestesDeNote(gestes, homeViewModel::executer)
 
     dossierAProteger?.let { dossier ->
         val mode = modeChoisi

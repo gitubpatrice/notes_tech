@@ -154,6 +154,10 @@
     <string name="note_editor_copied_to_clipboard">Copié dans le presse-papier</string>
     <string name="note_editor_export_failed">Export impossible : %1$s</string>
     <string name="note_editor_moved">Note déplacée</string>
+    <!-- Long press on a note in a list (3.1.0) -->
+    <string name="note_actions_label">Actions sur la note</string>
+    <string name="note_moved_to_trash">Note mise à la corbeille</string>
+    <string name="common_undo">Annuler</string>
     <string name="note_editor_move_failed">Déplacement impossible : %1$s</string>
     <string name="note_editor_exit_vault_title">Sortir cette note du coffre ?</string>
     <string name="note_editor_exit_vault_body">Le contenu sera décrypté et écrit en clair dans la base, sans protection par mot de passe. Action irréversible — la note actuelle aura transité hors chiffrement, même si vous la remettez ensuite dans un coffre.</string>

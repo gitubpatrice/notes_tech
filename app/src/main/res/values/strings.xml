@@ -169,6 +169,10 @@
     <string name="note_editor_copied_to_clipboard">Copied to clipboard</string>
     <string name="note_editor_export_failed">Export failed: %1$s</string>
     <string name="note_editor_moved">Note moved</string>
+    <!-- Long press on a note in a list (3.1.0) -->
+    <string name="note_actions_label">Note actions</string>
+    <string name="note_moved_to_trash">Note moved to trash</string>
+    <string name="common_undo">Undo</string>
     <string name="note_editor_move_failed">Move failed: %1$s</string>
     <string name="note_editor_exit_vault_title">Move note out of vault?</string>
     <string name="note_editor_exit_vault_body">The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.</string>

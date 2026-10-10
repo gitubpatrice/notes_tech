@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -65,19 +66,28 @@ import com.filestech.notes_tech.ui.theme.SemanticColors
  * un geste sans effet. Cf. `04-PIEGES.md` §74.
  *
  * `null` retire le modificateur — donc l'action, donc l'annonce.
+ *
+ * ## [onLongClick]: the note's actions (3.1.0)
+ *
+ * On the SAME node as the click, for the reason given below for the click: an action set on a child
+ * does not reach the merged node, and TalkBack would never offer it. `onLongClickLabel` is what it
+ * reads ("double-tap and hold to …"); without it the gesture exists only for those who see. A card
+ * that cannot be opened (trash) takes no long press either: its actions are its own buttons.
  */
 @Composable
-fun NoteCard(note: Note, onClick: (() -> Unit)?, modifier: Modifier = Modifier, folderName: String? = null) {
+fun NoteCard(
+    note: Note,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    folderName: String? = null,
+    onLongClick: (() -> Unit)? = null,
+) {
     val verrouillee = note.isLocked
     val couleurs = MaterialTheme.colorScheme
     val formate = rememberNoteDateFormatter()
     val extrait = remember(note.id, note.content, verrouillee) { NoteExcerpt.of(note) }
 
-    val titreAffiche = when {
-        verrouillee -> stringResource(R.string.note_card_locked)
-        note.title.isEmpty() -> stringResource(R.string.note_untitled)
-        else -> note.title
-    }
+    val titreAffiche = titreAffiche(note)
 
     // Un seul nœud d'accessibilité pour toute la carte : un balayage de lecteur d'écran doit lire
     // « titre, date, dossier » d'un coup, pas égrener quatre éléments dont trois sont du contexte.
@@ -129,10 +139,15 @@ fun NoteCard(note: Note, onClick: (() -> Unit)?, modifier: Modifier = Modifier, 
                 // ⚠️ `Role.Button` : sans lui TalkBack dit la description puis « double-touchez pour
                 // activer », sans jamais nommer **ce que c'est**. Relevé par la même relecture.
                 .then(
-                    if (onClick != null) {
-                        Modifier.clickable(role = Role.Button, onClick = onClick)
-                    } else {
-                        Modifier
+                    when {
+                        onClick != null && onLongClick != null -> Modifier.combinedClickable(
+                            role = Role.Button,
+                            onLongClickLabel = stringResource(R.string.note_actions_label),
+                            onLongClick = onLongClick,
+                            onClick = onClick,
+                        )
+                        onClick != null -> Modifier.clickable(role = Role.Button, onClick = onClick)
+                        else -> Modifier
                     },
                 )
                 .semantics(mergeDescendants = true) { contentDescription = description }
@@ -210,6 +225,18 @@ fun NoteCard(note: Note, onClick: (() -> Unit)?, modifier: Modifier = Modifier, 
             }
         }
     }
+}
+
+/**
+ * The title a list shows for [note]: "Locked note" for a sealed one — never its title, which the
+ * column holds empty anyway for `enc_v` 2 — and "Untitled" for an empty one. One rule for the card and
+ * for the long-press sheet that names it, so the two cannot disagree on what a vault note reveals.
+ */
+@Composable
+internal fun titreAffiche(note: Note): String = when {
+    note.isLocked -> stringResource(R.string.note_card_locked)
+    note.title.isEmpty() -> stringResource(R.string.note_untitled)
+    else -> note.title
 }
 
 /** La puce discrète qui dit d'où vient une note, en vue non filtrée. */

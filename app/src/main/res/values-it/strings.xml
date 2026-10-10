@@ -149,6 +149,10 @@
     <string name="note_editor_copied_to_clipboard">Copiato negli appunti</string>
     <string name="note_editor_export_failed">Esportazione non riuscita: %1$s</string>
     <string name="note_editor_moved">Nota spostata</string>
+    <!-- Long press on a note in a list (3.1.0) -->
+    <string name="note_actions_label">Azioni sulla nota</string>
+    <string name="note_moved_to_trash">Nota spostata nel cestino</string>
+    <string name="common_undo">Annulla</string>
     <string name="note_editor_move_failed">Spostamento non riuscito: %1$s</string>
     <string name="note_editor_exit_vault_title">Spostare la nota fuori dalla cassaforte?</string>
     <string name="note_editor_exit_vault_body">Il contenuto verrà decifrato e salvato in chiaro nel database, senza protezione con password. Irreversibile: la nota sarà esistita fuori dalla cifratura, anche se in seguito la rimetterà in una cassaforte.</string>

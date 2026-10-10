@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui.home
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertHasClickAction
@@ -11,10 +12,13 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
@@ -62,6 +66,7 @@ class AccueilTest {
     private val nouvellesNotesDemandees = mutableListOf<Unit>()
     private val banniereFermee = mutableListOf<Unit>()
     private val notesOuvertes = mutableListOf<Note>()
+    private val notesEnActions = mutableListOf<Note>()
     private val trisChoisis = mutableListOf<NoteSortMode>()
     private val requetes = mutableListOf<String>()
     private val tiroirsOuverts = mutableListOf<Unit>()
@@ -99,6 +104,7 @@ class AccueilTest {
                     onQueryChange = { requetes += it },
                     onSortSelected = { trisChoisis += it },
                     onOpenNote = { notesOuvertes += it },
+                    onLongPressNote = { notesEnActions += it },
                     onNewNote = { nouvellesNotesDemandees += Unit },
                     onOpenDrawer = { tiroirsOuverts += Unit },
                     onOpenSearch = { recherchesOuvertes += Unit },
@@ -358,6 +364,30 @@ class AccueilTest {
         carte.performClick()
 
         assertThat(notesOuvertes).containsExactly(laNote)
+    }
+
+    /**
+     * The long press (3.1.0) reaches the caller with THAT note, by the finger and by TalkBack.
+     *
+     * ⚠️ The semantics action is performed on the node that carries the card's name — the one a screen
+     * reader focuses — and its label is checked: an action set on a child would not reach that node
+     * (§74), and an action without a label is announced as "double-tap and hold" to do nothing named.
+     */
+    @Test
+    fun a_long_press_on_a_card_asks_for_that_note_s_actions_by_touch_and_by_talkback() {
+        val premiere = note("a", "Première")
+        val seconde = note("b", "Seconde")
+        poser(HomeUiState(notes = listOf(premiere, seconde), loading = false))
+
+        val carte = regle.onNode(hasContentDescription(seconde.title, substring = true))
+        val action = carte.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnLongClick)
+        assertThat(action?.label).isEqualTo(texte(R.string.note_actions_label))
+
+        carte.performTouchInput { longClick() }
+        carte.performSemanticsAction(SemanticsActions.OnLongClick)
+
+        assertThat(notesEnActions).containsExactly(seconde, seconde)
+        assertThat(notesOuvertes).isEmpty()
     }
 
     /** Ouvrir une note rend **la** note, pas un identifiant reconstruit ailleurs. */
