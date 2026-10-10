@@ -149,6 +149,8 @@ data class ActionDEditeur(
     val export: ExportResult? = null,
     val deplacee: Boolean = false,
     val misAlaCorbeille: Boolean = false,
+    /** Erased for good from the ⋮ menu (3.1.0): the screen leaves, as after the trash. */
+    val supprimee: Boolean = false,
     /** Le contenu est dans le presse-papiers. `false` aussi quand il n'y avait rien à copier. */
     val copiee: Boolean = false,
     /** La note était vide : le presse-papiers n'a **pas** été touché. */
@@ -165,7 +167,7 @@ data class ActionDEditeur(
      */
     val origine: OrigineDErreur? = null,
 ) {
-    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, COPIE }
+    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, SUPPRESSION, COPIE }
 }
 
 /**
@@ -851,6 +853,27 @@ class NoteEditorViewModel @Inject constructor(
     fun moveToTrash() = tenterUneAction(ActionDEditeur.OrigineDErreur.CORBEILLE) {
         notes.moveToTrash(noteId)
         _action.value = ActionDEditeur(misAlaCorbeille = true)
+    }
+
+    /**
+     * Erases the note for good (3.1.0, the ⋮ menu's "Delete permanently", after a confirmation).
+     *
+     * 🔴 The vault is checked again HERE, as `HomeViewModel.executer` does for the list: erasing a sealed
+     * note needs no key, so a confirmation answered after the automatic lock would otherwise erase a
+     * note of a closed vault. The screen closes its dialog when the note stops being readable; this is
+     * the check that does not depend on it.
+     */
+    fun deletePermanently() = tenterUneAction(ActionDEditeur.OrigineDErreur.SUPPRESSION) {
+        val actuelle = notes.find(noteId) ?: return@tenterUneAction
+        val protegee = actuelle.isLocked || folders.find(actuelle.folderId)?.isVault == true
+        if (protegee && !vaults.isUnlocked(actuelle.folderId)) {
+            _action.value = ActionDEditeur(
+                erreur = R.string.error_vault_locked,
+                origine = ActionDEditeur.OrigineDErreur.SUPPRESSION,
+            )
+            return@tenterUneAction
+        }
+        if (notes.deletePermanently(noteId)) _action.value = ActionDEditeur(supprimee = true)
     }
 
     /** Relance le chargement après un déverrouillage réussi. */

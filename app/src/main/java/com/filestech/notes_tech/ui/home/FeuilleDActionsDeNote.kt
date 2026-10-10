@@ -70,10 +70,9 @@ internal fun FeuilleDActionsDeNote(
                 title = stringResource(R.string.note_editor_mode_edit),
                 onClick = onEditer,
             )
-            // Red like the ⋮ menu's same entry: the same gesture has the same colour everywhere.
+            // Neutral: the trash can be undone. Only the permanent deletion is red, as in the ⋮ menu.
             EntreeDeMenu(
                 icon = Icons.Outlined.DeleteOutline,
-                destructive = true,
                 title = stringResource(R.string.note_editor_menu_trash),
                 onClick = onCorbeille,
             )

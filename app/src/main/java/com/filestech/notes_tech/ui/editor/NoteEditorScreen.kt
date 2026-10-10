@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -105,6 +106,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.markdown.LinkTarget
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.CorpsDeDialogue
+import com.filestech.notes_tech.ui.common.DialogueDestructif
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
@@ -172,6 +174,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
     var couleurOuverte by rememberSaveable { mutableStateOf(false) }
+    var suppressionDemandee by rememberSaveable { mutableStateOf(false) }
     var infosOuvertes by rememberSaveable { mutableStateOf(false) }
 
     // Les deux détours du déplacement, retenus par **identifiant** pour survivre à une rotation et
@@ -236,9 +239,14 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 
     // Closed — not merely hidden — when the note stops being readable: a vault that locks while the sheet
     // is open would otherwise leave the sealed note's colour shown and changeable (GPT-5.6 review).
-    val couleurPossible = state.note != null && state.lockedVault == null && state.loadError == null
-    LaunchedEffect(couleurPossible) { if (!couleurPossible) couleurOuverte = false }
-    if (couleurOuverte && couleurPossible) {
+    val noteLisible = state.note != null && state.lockedVault == null && state.loadError == null
+    LaunchedEffect(noteLisible) {
+        if (!noteLisible) {
+            couleurOuverte = false
+            suppressionDemandee = false
+        }
+    }
+    if (couleurOuverte && noteLisible) {
         FeuilleDeCouleur(
             actuelle = state.note?.color,
             dansUnCoffre = state.isVaultNote,
@@ -247,6 +255,20 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
                 viewModel.setColor(couleur)
             },
             onDismiss = { couleurOuverte = false },
+        )
+    }
+
+    // The trash's own question, word for word, as from the list's long press.
+    if (suppressionDemandee && noteLisible) {
+        DialogueDestructif(
+            titre = stringResource(R.string.trash_delete_forever_title),
+            corps = stringResource(R.string.trash_delete_forever_body),
+            libelleConfirmation = stringResource(R.string.trash_delete_forever),
+            onConfirmer = {
+                suppressionDemandee = false
+                viewModel.deletePermanently()
+            },
+            onAnnuler = { suppressionDemandee = false },
         )
     }
 
@@ -407,6 +429,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             // l'observation de `action` ci-dessus. Quitter tout de suite laissait croire à une note
             // supprimée qui ne l'était pas.
             onCorbeille = viewModel::moveToTrash,
+            onSupprimerDefinitivement = { suppressionDemandee = true },
             onOuvrirNote = ouvrirUneAutreNote,
             // ⚠️ Un lien fantôme désigne une note annoncée et pas encore écrite : l'appuyer la crée, avec
             // le titre du lien, **puis l'ouvre** — le même chemin qu'un `[[Titre]]` touché dans l'aperçu,
@@ -472,6 +495,8 @@ fun NoteEditorScreen(
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
+    /** The ⋮ menu's "Delete permanently" (3.1.0): asks the trash's question first. */
+    onSupprimerDefinitivement: () -> Unit,
     onOuvrirNote: (String) -> Unit,
     onLienFantome: (String) -> Unit,
     /**
@@ -653,6 +678,7 @@ fun NoteEditorScreen(
                             onExporter = onExporter,
                             onCopier = onCopier,
                             onCorbeille = onCorbeille,
+                            onSupprimerDefinitivement = onSupprimerDefinitivement,
                         )
                     }
                 },
@@ -1127,7 +1153,7 @@ internal fun IssueDUneAction(
                 onConsommer()
             }
 
-            action.misAlaCorbeille -> {
+            action.misAlaCorbeille || action.supprimee -> {
                 onConsommer()
                 onBack()
             }
@@ -1165,6 +1191,7 @@ internal fun IssueDUneAction(
                     ActionDEditeur.OrigineDErreur.CREATION ->
                         ressources.getString(R.string.note_editor_link_create_failed, phrase)
                     ActionDEditeur.OrigineDErreur.CORBEILLE,
+                    ActionDEditeur.OrigineDErreur.SUPPRESSION,
                     ActionDEditeur.OrigineDErreur.COPIE,
                     null,
                     -> phrase
@@ -1302,6 +1329,7 @@ private fun MenuDeDebordement(
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
+    onSupprimerDefinitivement: () -> Unit,
 ) {
     var ouvert by rememberSaveable { mutableStateOf(false) }
 
@@ -1402,16 +1430,24 @@ private fun MenuDeDebordement(
                 onCopier()
             },
         )
-        // In red, as every gesture that removes a note (Patrice, 2026-10-10): `error`, the theme's own red,
-        // readable on both menus' surfaces.
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.note_editor_menu_trash), color = MaterialTheme.colorScheme.error) },
-            leadingIcon = {
-                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-            },
+            text = { Text(stringResource(R.string.note_editor_menu_trash)) },
+            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
             onClick = {
                 ouvert = false
                 onCorbeille()
+            },
+        )
+        // Last, and in red (Patrice, 2026-10-10): the one gesture of the menu that cannot be undone. The
+        // trash, which can, stays neutral. `error` is the theme's own red, readable on the menu.
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.trash_delete_forever), color = MaterialTheme.colorScheme.error) },
+            leadingIcon = {
+                Icon(Icons.Outlined.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
+            onClick = {
+                ouvert = false
+                onSupprimerDefinitivement()
             },
         )
     }

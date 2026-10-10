@@ -107,6 +107,7 @@ class EditeurTest {
     private val exports = mutableListOf<Unit>()
     private val copies = mutableListOf<Unit>()
     private val corbeilles = mutableListOf<Unit>()
+    private val suppressions = mutableListOf<Unit>()
     private val notesOuvertes = mutableListOf<String>()
     private val fantomes = mutableListOf<String>()
     private val basculements = mutableListOf<Boolean>()
@@ -167,6 +168,7 @@ class EditeurTest {
                         onExporter = { exports += Unit },
                         onCopier = { copies += Unit },
                         onCorbeille = { corbeilles += Unit },
+                        onSupprimerDefinitivement = { suppressions += Unit },
                         onOuvrirNote = { notesOuvertes += it },
                         onLienFantome = { fantomes += it },
                         lecture = lectureCourante.value,
@@ -556,6 +558,7 @@ class EditeurTest {
             R.string.note_editor_menu_export,
             R.string.note_editor_menu_copy_markdown,
             R.string.note_editor_menu_trash,
+            R.string.trash_delete_forever,
         ).forEach { entree ->
             regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_more)).performClick()
             regle.onNodeWithText(texte(entree)).performClick()
@@ -566,6 +569,7 @@ class EditeurTest {
         assertThat(exports).hasSize(1)
         assertThat(copies).hasSize(1)
         assertThat(corbeilles).hasSize(1)
+        assertThat(suppressions).hasSize(1)
     }
 
     // ------------------------------------------------------------------ le panneau de liens
