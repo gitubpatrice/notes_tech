@@ -29,30 +29,11 @@ updates:
         patterns:
           - "org.junit*"
     ignore:
-      # AGP 9 is a migration (Kotlin moves into AGP), done by hand, not a version bump.
-      - dependency-name: "com.android.application"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "com.android.tools.build:gradle"
-        update-types: ["version-update:semver-major"]
-      # Hilt 2.58+ requires AGP 9 (gradle/libs.versions.toml).
-      - dependency-name: "com.google.dagger*"
-        versions: [">= 2.58"]
-      # These require AGP 9.1 and compileSdk 37 (measured on PR #14, 2026-10-05): Compose 1.12, Navigation
-      # 2.10, Hilt Navigation 1.4. core-ktx is capped for the same reason (gradle/libs.versions.toml).
-      # They come with the AGP 9 migration, as on Agenda Tech, not one bump at a time.
-      - dependency-name: "androidx.compose:compose-bom"
-        versions: [">= 2026.09.00"]
-      - dependency-name: "androidx.navigation:*"
-        versions: [">= 2.10.0"]
-      - dependency-name: "androidx.hilt:*"
-        versions: [">= 1.4.0"]
-      - dependency-name: "androidx.core:*"
-        versions: [">= 1.19.0"]
-      # Kotlin 2.4 goes with the AGP 9 migration too (2.4.10 fails the build here, PR #15). Beyond that,
-      # CodeQL 2.27 refuses Kotlin 2.4.20+ ("currently supports versions below 2.4.20", measured on
-      # Agenda Tech).
+      # Kotlin 2.4.20+: CodeQL 2.27 refuses to compile it ("currently supports versions below 2.4.20",
+      # measured on Agenda Tech). A bump PR would fail on every run; the root build.gradle.kts also pins
+      # the compiler with `strictly`. Remove once a CodeQL release supports it.
       - dependency-name: "org.jetbrains.kotlin*"
-        versions: [">= 2.4.0"]
+        versions: [">= 2.4.20"]
       # JUnit majors stay a deliberate step (JUnit 6 needs Kotlin 2.2+ and drops deprecated APIs). Minor
       # bumps pass since the platform launcher is declared through the BOM (gradle/libs.versions.toml):
       # before that, ANY version but 5.11.3 discovered no test (PRs #16 and #21).

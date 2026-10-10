@@ -1,6 +1,22 @@
+// The Kotlin compiler version, as a real cap. With AGP 9 the Kotlin Gradle Plugin (KGP) is a
+// dependency of AGP itself, and Gradle keeps the HIGHEST version requested: the catalog's `kotlin`
+// entry reaches the compiler only through the Compose plugin. A future AGP asking for 2.4.20+ would
+// raise the compiler silently past what CodeQL accepts. `strictly` holds it at the catalog's version
+// whatever is requested: Gradle downgrades every higher request to it (measured on App Manager Tech,
+// 2026-10-08). Raising Kotlin is therefore always a deliberate edit of the catalog.
+buildscript {
+    dependencies {
+        constraints {
+            classpath("org.jetbrains.kotlin:kotlin-gradle-plugin") {
+                version { strictly(libs.versions.kotlin.get()) }
+                because("CodeQL 2.27 refuses Kotlin 2.4.20+; the compiler must be the catalog's version")
+            }
+        }
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
