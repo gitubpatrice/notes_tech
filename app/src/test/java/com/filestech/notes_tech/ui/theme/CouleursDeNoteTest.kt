@@ -30,6 +30,8 @@ class CouleursDeNoteTest {
             verifier("date, extrait, étiquettes (onSurfaceVariant)", schema.onSurfaceVariant, AA_TEXTE)
             verifier("cadenas (error)", schema.error, AA_NON_TEXTE)
             verifier("étoile des favoris", SemanticColors.favoriteIconOn(schema), AA_NON_TEXTE)
+            // The reading card (3.1.0) draws the note's links in `primary` on its colour.
+            verifier("liens de la fiche de lecture (primary)", schema.primary, AA_TEXTE)
         }
     }
 

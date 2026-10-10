@@ -5,6 +5,7 @@ import android.content.res.Resources
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -22,8 +23,10 @@ import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -50,6 +53,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -107,8 +111,10 @@ import com.filestech.notes_tech.ui.common.MIME_MARKDOWN
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.ouvrirUnLienExterne
 import com.filestech.notes_tech.ui.common.partagerUnFichier
+import com.filestech.notes_tech.ui.common.rememberNoteDateFormatter
 import com.filestech.notes_tech.ui.secure.SaisieDeCoffre
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
+import com.filestech.notes_tech.ui.theme.CouleursDeNote
 import com.filestech.notes_tech.ui.theme.SemanticColors
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 import com.filestech.notes_tech.ui.voice.SurcoucheDeDictee
@@ -145,7 +151,8 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     // note has loaded, then decided ONCE: an existing note opens to be read, a blank one — just created,
     // or emptied — to be written, there being nothing to read. Saved: a rotation, or the app lock taking
     // the screen away and giving it back, returns to the side the user was on.
-    var lectureChoisie by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    // ⚠️ Writing at once when the long press's "Edit" opened it: the choice is already made.
+    var lectureChoisie by rememberSaveable { mutableStateOf(if (viewModel.ouvrirEnEcriture) false else null) }
     val chargee = !state.loading && state.note != null && state.loadError == null && state.lockedVault == null
     // Until the choice is stored, the screen already shows the side it will be: no frame of the other.
     val lecture = lectureChoisie ?: (chargee && state.content.text.isNotBlank())
@@ -744,14 +751,7 @@ fun NoteEditorScreen(
                         modifier = Modifier.fillMaxSize().imePadding(),
                     ) {
                         if (lecture) {
-                            // 🔴 Lazy in preview — see `apercuMarkdown`: a note has no size limit.
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                state = defilementDeLApercu,
-                                contentPadding = PaddingValues(bottom = 24.dp),
-                            ) {
-                                apercuMarkdown(rendu, onLienDeLApercu)
-                            }
+                            FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu)
                         } else {
                             TextField(
                                 value = state.content,
@@ -820,6 +820,69 @@ private fun MiseEnPageDeLEditeur(
     }
 }
 
+/**
+ * A note being read, drawn as a note (3.1.0, Patrice: "que la note ressemble à une note" — the
+ * "Fiche" he chose): a card on the screen, in the note's own colour — the pastel background and the
+ * border of its hue, 2 dp — or the plain card and a grey border without one; its title at the top, a
+ * thin rule, the text, and the date of its last change at the bottom.
+ *
+ * ⚠️ The text keeps the colours whose contrast `CouleursDeNoteTest` measures on every background:
+ * `onSurface`, `onSurfaceVariant`, and the links' `primary`. A vault note's colour shows here: reading
+ * it means its vault is open.
+ *
+ * 🔴 Lazy, as the preview was — see `apercuMarkdown`: a note has no size limit.
+ */
+@Composable
+private fun FicheDeLecture(
+    state: EditorUiState,
+    rendu: LectureDeLApercu,
+    defilement: LazyListState,
+    onLien: (LinkTarget) -> Unit,
+) {
+    val schema = MaterialTheme.colorScheme
+    val teinte = state.note?.color?.let { CouleursDeNote.teinte(it, schema) }
+    val bord = teinte?.bord ?: schema.outlineVariant
+    val formate = rememberNoteDateFormatter()
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = teinte?.fond ?: schema.surfaceContainerLow,
+        border = BorderStroke(2.dp, bord),
+        shadowElevation = 2.dp,
+        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            // The title the note has; an empty one says so, in italics, as the cards do.
+            val sansTitre = state.titre.text.isEmpty()
+            Text(
+                text = if (sansTitre) stringResource(R.string.note_untitled) else state.titre.text,
+                style = MaterialTheme.typography.headlineSmall,
+                fontStyle = if (sansTitre) FontStyle.Italic else null,
+                color = if (sansTitre) schema.onSurfaceVariant else schema.onSurface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 10.dp)
+                    .semantics { heading() },
+            )
+            HorizontalDivider(color = bord.copy(alpha = 0.5f), modifier = Modifier.padding(horizontal = 16.dp))
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                state = defilement,
+                contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
+            ) {
+                apercuMarkdown(rendu, onLien)
+            }
+            state.note?.updatedAt?.let { modifiee ->
+                Text(
+                    text = stringResource(R.string.note_info_modified) + " " + formate(modifiee),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = schema.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.End).padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                )
+            }
+        }
+    }
+}
+
 /** About three lines of text under the body field's label. */
 internal val HAUTEUR_MINIMALE_DU_CORPS = 120.dp
 
@@ -836,21 +899,8 @@ private val HAUTEUR_DU_BOUTON_MODIFIER = 80.dp
 private fun EnTeteDeLEditeur(state: EditorUiState, onTitreChange: (TextFieldValue) -> Unit, lecture: Boolean) {
     Column(Modifier.fillMaxWidth()) {
         if (state.saveFailed) BanniereEchecEnregistrement(state.saveFailureReason)
-        if (lecture) {
-            // The title the note has; an empty one says so, in italics, as the cards do.
-            val sansTitre = state.titre.text.isEmpty()
-            Text(
-                text = if (sansTitre) stringResource(R.string.note_untitled) else state.titre.text,
-                style = MaterialTheme.typography.headlineSmall,
-                fontStyle = if (sansTitre) FontStyle.Italic else null,
-                color = MaterialTheme.colorScheme.run { if (sansTitre) onSurfaceVariant else onSurface },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .semantics { heading() },
-            )
-            return@Column
-        }
+        // While reading, the title is on the note's card itself — see [FicheDeLecture].
+        if (lecture) return@Column
         // 🔴🔴 **`label` et non `placeholder` : les deux champs n'avaient AUCUN nom
         // accessible dès qu'ils portaient du texte.**
         //
@@ -1352,9 +1402,13 @@ private fun MenuDeDebordement(
                 onCopier()
             },
         )
+        // In red, as every gesture that removes a note (Patrice, 2026-10-10): `error`, the theme's own red,
+        // readable on both menus' surfaces.
         DropdownMenuItem(
-            text = { Text(stringResource(R.string.note_editor_menu_trash)) },
-            leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+            text = { Text(stringResource(R.string.note_editor_menu_trash), color = MaterialTheme.colorScheme.error) },
+            leadingIcon = {
+                Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            },
             onClick = {
                 ouvert = false
                 onCorbeille()

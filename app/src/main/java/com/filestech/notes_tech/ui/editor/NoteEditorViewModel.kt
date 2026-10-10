@@ -197,6 +197,9 @@ class NoteEditorViewModel @Inject constructor(
     savedState: SavedStateHandle,
 ) : ViewModel() {
 
+    /** Opened by the long press's "Edit" (3.1.0): the note starts on the writing side. */
+    val ouvrirEnEcriture: Boolean = savedState[Destination.ARG_ECRIRE] ?: false
+
     private val noteId: String = checkNotNull(savedState[Destination.ARG_NOTE_ID]) {
         "l'editeur a ete ouvert sans identifiant de note"
     }

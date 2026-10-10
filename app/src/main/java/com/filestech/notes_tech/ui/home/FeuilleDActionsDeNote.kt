@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarDuration
@@ -48,6 +49,7 @@ import kotlinx.coroutines.launch
 internal fun FeuilleDActionsDeNote(
     note: Note,
     onDismiss: () -> Unit,
+    onEditer: () -> Unit,
     onCorbeille: () -> Unit,
     onSupprimer: () -> Unit,
 ) {
@@ -62,14 +64,22 @@ internal fun FeuilleDActionsDeNote(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .semantics { heading() },
             )
+            // First, and the only one that keeps the note: it opens it straight on the writing side.
+            EntreeDeMenu(
+                icon = Icons.Outlined.Edit,
+                title = stringResource(R.string.note_editor_mode_edit),
+                onClick = onEditer,
+            )
+            // Red like the ⋮ menu's same entry: the same gesture has the same colour everywhere.
             EntreeDeMenu(
                 icon = Icons.Outlined.DeleteOutline,
+                destructive = true,
                 title = stringResource(R.string.note_editor_menu_trash),
                 onClick = onCorbeille,
             )
             EntreeDeMenu(
                 icon = Icons.Outlined.DeleteForever,
-                tint = MaterialTheme.colorScheme.error,
+                destructive = true,
                 title = stringResource(R.string.trash_delete_forever),
                 onClick = onSupprimer,
             )
@@ -171,11 +181,21 @@ internal class GestesDeNoteEnCours {
 
 /** The sheet of [etat]'s note, then the confirmation of the irreversible choice. */
 @Composable
-internal fun FeuillesDesGestesDeNote(etat: GestesDeNoteEnCours, executer: (GesteSurUneNote) -> Unit) {
+internal fun FeuillesDesGestesDeNote(
+    etat: GestesDeNoteEnCours,
+    executer: (GesteSurUneNote) -> Unit,
+    ecrire: (Note) -> Unit,
+) {
     etat.noteEnMenu?.let { note ->
         FeuilleDActionsDeNote(
             note = note,
             onDismiss = { etat.noteEnMenu = null },
+            // A note of a closed vault gets this sheet only once its vault is open (`appuiLong`), and
+            // the editor asks for the secret again if it closed meanwhile: nothing to check here.
+            onEditer = {
+                etat.noteEnMenu = null
+                ecrire(note)
+            },
             onCorbeille = {
                 etat.noteEnMenu = null
                 executer(GesteSurUneNote.MettreALaCorbeille(note))

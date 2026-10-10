@@ -25,12 +25,14 @@ data class TeinteDeNote(val fond: Color, val bord: Color)
  * | | light theme | dark theme |
  * |---|---|---|
  * | body text (`onSurface`) | 13.5 – 14.7:1 | 11.9 – 12.7:1 |
- * | date, excerpt, tags (`onSurfaceVariant`, small text, AA = 4.5) | 4.51 – 4.87:1 | 4.57 – 4.89:1 |
+ * | date, excerpt, tags (`onSurfaceVariant`, small text, AA = 4.5) | 4.56 – 4.87:1 | 4.57 – 4.89:1 |
+ * | links of the reading card (`primary`) | 4.51 – 4.82:1 | 5.56 – 5.96:1 |
  * | lock icon (`error`, AA non-text = 3) | 4.8 – 5.2:1 | 4.2 – 4.5:1 |
  * | favourite star | 4.8 – 5.2:1 | 10.9 – 11.6:1 |
  *
  * ⚠️ The light backgrounds are paler than a "pastel" picked by eye on purpose: the first, more
- * saturated set left the secondary text at 4.1 – 4.4:1, under AA. The hue is carried by the border,
+ * saturated set left the secondary text at 4.1 – 4.4:1, under AA; and the pink was paled once more when
+ * the reading card put the links on it (4.47:1, caught by `CouleursDeNoteTest`). The hue is carried by the border,
  * which is what tells the notes apart at a glance — and what Patrice asked for ("une bordure un peu
  * plus prononcée"). Retouching a value means measuring again: the contrast is the constraint.
  *
@@ -52,7 +54,7 @@ object CouleursDeNote {
         NoteColor.TEAL to TeinteDeNote(Color(0xFFDFF4F1), Color(0xFF1F8A7E)),
         NoteColor.BLUE to TeinteDeNote(Color(0xFFE6F0FD), Color(0xFF3D7BD0)),
         NoteColor.PURPLE to TeinteDeNote(Color(0xFFF4EEFB), Color(0xFF8459C4)),
-        NoteColor.PINK to TeinteDeNote(Color(0xFFFCE9F1), Color(0xFFC8528A)),
+        NoteColor.PINK to TeinteDeNote(Color(0xFFFDEDF4), Color(0xFFC8528A)),
         NoteColor.GRAY to TeinteDeNote(Color(0xFFEEF0F3), Color(0xFF7D8691)),
     )
 

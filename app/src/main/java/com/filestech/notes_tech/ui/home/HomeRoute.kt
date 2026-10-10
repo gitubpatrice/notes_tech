@@ -55,6 +55,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeRoute(
     onOpenNote: (Note) -> Unit,
+    /** The long press's "Edit": the note opens to be written (3.1.0). */
+    onEditNote: (Note) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenTrash: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -350,7 +352,7 @@ fun HomeRoute(
         )
     }
 
-    FeuillesDesGestesDeNote(gestes, homeViewModel::executer)
+    FeuillesDesGestesDeNote(gestes, homeViewModel::executer, ecrire = onEditNote)
 
     dossierAProteger?.let { dossier ->
         val mode = modeChoisi
