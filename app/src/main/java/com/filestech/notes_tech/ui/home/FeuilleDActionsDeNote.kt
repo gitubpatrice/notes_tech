@@ -88,6 +88,9 @@ internal fun FeuilleDActionsDeNote(
  *   is open (courtesy; the protection is `HomeViewModel.executer`, at execution);
  * - [gesteEnAttente]: a gesture refused at execution because the vault closed in the meantime runs
  *   again once it is reopened — accepted, it must not be dropped in silence.
+ * - [creationEnAttente]: "+" in a closed vault asks for its secret, then creates the note. Until 3.1.0
+ *   the secret was asked and nothing followed: the user had to tap "+" a second time — an accepted
+ *   gesture dropped in silence (seen on the emulator, 2026-10-10).
  *
  * Both are kept with the folder they wait for, and dropped with the unlock sheet if the user gives up.
  */
@@ -97,6 +100,7 @@ internal class GestesDeNoteEnCours {
     var noteASupprimer by mutableStateOf<Note?>(null)
     private var menuEnAttente by mutableStateOf<Note?>(null)
     private var gesteEnAttente by mutableStateOf<HomeEvent.GesteEnAttenteDuCoffre?>(null)
+    private var creationEnAttente by mutableStateOf<String?>(null)
 
     /**
      * The long press on [note]. Opens its sheet, or returns the closed vault whose secret must come
@@ -117,13 +121,18 @@ internal class GestesDeNoteEnCours {
         gesteEnAttente = evenement
     }
 
+    /** "+" was tapped in the closed vault [dossier]: the note is created once its secret is given. */
+    fun attendreLaCreation(dossier: Folder) {
+        creationEnAttente = dossier.id
+    }
+
     /**
      * [dossier] was just unlocked: what waited for IT resumes, and only that is taken off — what waits
      * for another vault keeps waiting (GPT-5.6 review, 2026-10-10: clearing everything first dropped a
      * gesture waiting for vault A when the sheet of vault B closed). Compared by id: the automatic lock
      * opens an unlock sheet too.
      */
-    fun reprendreApres(dossier: Folder, executer: (GesteSurUneNote) -> Unit) {
+    fun reprendreApres(dossier: Folder, executer: (GesteSurUneNote) -> Unit, creer: () -> Unit) {
         val menu = menuEnAttente
         if (menu != null && menu.folderId == dossier.id) {
             menuEnAttente = null
@@ -133,6 +142,10 @@ internal class GestesDeNoteEnCours {
         if (geste != null && geste.folder.id == dossier.id) {
             gesteEnAttente = null
             executer(geste.geste)
+        }
+        if (creationEnAttente == dossier.id) {
+            creationEnAttente = null
+            creer()
         }
     }
 
@@ -145,12 +158,14 @@ internal class GestesDeNoteEnCours {
     fun garderSeulementPour(dossierId: String?) {
         if (menuEnAttente?.folderId != dossierId) menuEnAttente = null
         if (gesteEnAttente?.folder?.id != dossierId) gesteEnAttente = null
+        if (creationEnAttente != dossierId) creationEnAttente = null
     }
 
     /** Giving up the secret is giving up the gesture: what waited falls with the unlock sheet. */
     fun abandonner() {
         menuEnAttente = null
         gesteEnAttente = null
+        creationEnAttente = null
     }
 }
 

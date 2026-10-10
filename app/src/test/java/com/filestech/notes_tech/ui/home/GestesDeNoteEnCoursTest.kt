@@ -34,7 +34,7 @@ class GestesDeNoteEnCoursTest {
         assertThat(etat.appuiLong(note, dossiers, coffresOuverts = emptySet())).isEqualTo(coffreA)
         assertThat(etat.noteEnMenu).isNull()
 
-        etat.reprendreApres(coffreA) { error("no gesture waits") }
+        etat.reprendreApres(coffreA, executer = { error("no gesture waits") }, creer = { error("no creation waits") })
         assertThat(etat.noteEnMenu).isEqualTo(note)
     }
 
@@ -55,8 +55,8 @@ class GestesDeNoteEnCoursTest {
         val executes = mutableListOf<GesteSurUneNote>()
 
         etat.attendreLeCoffre(HomeEvent.GesteEnAttenteDuCoffre(coffreA, geste))
-        etat.reprendreApres(coffreA) { executes += it }
-        etat.reprendreApres(coffreA) { executes += it }
+        etat.reprendreApres(coffreA, executer = { executes += it }, creer = AUCUNE_CREATION)
+        etat.reprendreApres(coffreA, executer = { executes += it }, creer = AUCUNE_CREATION)
 
         assertThat(executes).containsExactly(geste)
     }
@@ -71,11 +71,11 @@ class GestesDeNoteEnCoursTest {
         etat.appuiLong(note, dossiers, emptySet())
         etat.attendreLeCoffre(HomeEvent.GesteEnAttenteDuCoffre(coffreA, geste))
 
-        etat.reprendreApres(coffreB) { executes += it }
+        etat.reprendreApres(coffreB, executer = { executes += it }, creer = AUCUNE_CREATION)
         assertThat(executes).isEmpty()
         assertThat(etat.noteEnMenu).isNull()
 
-        etat.reprendreApres(coffreA) { executes += it }
+        etat.reprendreApres(coffreA, executer = { executes += it }, creer = AUCUNE_CREATION)
         assertThat(executes).containsExactly(geste)
         assertThat(etat.noteEnMenu).isEqualTo(note)
     }
@@ -93,7 +93,7 @@ class GestesDeNoteEnCoursTest {
 
         etat.garderSeulementPour(coffreA.id)
         etat.garderSeulementPour(coffreB.id)
-        etat.reprendreApres(coffreA) { error("the deletion outlived its sheet") }
+        etat.reprendreApres(coffreA, executer = { error("the deletion outlived its sheet") }, creer = AUCUNE_CREATION)
 
         assertThat(etat.noteEnMenu).isNull()
     }
@@ -106,7 +106,7 @@ class GestesDeNoteEnCoursTest {
         etat.attendreLeCoffre(HomeEvent.GesteEnAttenteDuCoffre(coffreA, geste))
 
         etat.garderSeulementPour(coffreA.id)
-        etat.reprendreApres(coffreA) { executes += it }
+        etat.reprendreApres(coffreA, executer = { executes += it }, creer = AUCUNE_CREATION)
 
         assertThat(executes).containsExactly(geste)
     }
@@ -119,9 +119,36 @@ class GestesDeNoteEnCoursTest {
         etat.attendreLeCoffre(HomeEvent.GesteEnAttenteDuCoffre(coffreA, GesteSurUneNote.MettreALaCorbeille(note)))
 
         etat.abandonner()
-        etat.reprendreApres(coffreA) { error("the gesture was given up") }
+        etat.reprendreApres(coffreA, executer = { error("the gesture was given up") }, creer = AUCUNE_CREATION)
 
         assertThat(etat.noteEnMenu).isNull()
+    }
+
+    /** "+" in a closed vault (3.1.0): the note is created once the vault is open — once, and only for it. */
+    @Test
+    fun `a note asked for in a closed vault is created once it is open, once only`() {
+        val etat = GestesDeNoteEnCours()
+        var creations = 0
+        etat.attendreLaCreation(coffreA)
+
+        etat.reprendreApres(coffreB, executer = {}, creer = { creations++ })
+        assertThat(creations).isEqualTo(0)
+        etat.reprendreApres(coffreA, executer = {}, creer = { creations++ })
+        etat.reprendreApres(coffreA, executer = {}, creer = { creations++ })
+
+        assertThat(creations).isEqualTo(1)
+    }
+
+    @Test
+    fun `a creation waiting for a vault dies with its sheet, or when the secret is given up`() {
+        val etat = GestesDeNoteEnCours()
+        etat.attendreLaCreation(coffreA)
+        etat.garderSeulementPour(coffreB.id)
+        etat.reprendreApres(coffreA, executer = {}, creer = { error("the creation outlived its sheet") })
+
+        etat.attendreLaCreation(coffreA)
+        etat.abandonner()
+        etat.reprendreApres(coffreA, executer = {}, creer = { error("the creation was given up") })
     }
 
     private fun dossier(id: String, coffre: Boolean) = Folder(
@@ -153,5 +180,6 @@ class GestesDeNoteEnCoursTest {
 
     private companion object {
         val INSTANT: Instant = Instant.ofEpochMilli(1_760_000_000_000L)
+        val AUCUNE_CREATION: () -> Unit = { error("no creation waits") }
     }
 }
