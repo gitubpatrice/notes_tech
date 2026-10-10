@@ -4,13 +4,13 @@
 
 🇫🇷 [Version française](README.fr.md)
 
-**v3.0.0 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
+**v3.1.0 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
 
 Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpack Compose.
 **100% local, no Internet permission.** Interface in **English, French, German, Italian and
 Spanish**. Per-folder vaults (Argon2id passphrase or Keystore-bound PIN), an app lock with PIN and
 strong biometrics, FTS5 full-text search, on-device Whisper voice dictation, `[[note]]` backlinks,
-Markdown preview, multi-step panic mode.
+notes read as cards in their colour, multi-step panic mode.
 
 For thinkers, therapists, students, researchers, writers and journalists who want to take
 sensitive or dense notes without them ever leaving their phone.
@@ -19,6 +19,20 @@ sensitive or dense notes without them ever leaving their phone.
 technically unable to send anything, and you can check that in its manifest.**
 
 ---
+
+## What's new in 3.1.0
+
+- **Reading**: tapping a note opens it to be read, drawn as a card in its colour — its title, the
+  rendered text, its date — with an **Edit** button; the ✓ tick saves and goes back to reading. A blank
+  note opens to be written.
+- **Long press on a note**: edit, move to trash (with Undo) or delete permanently. A vault note's
+  actions are offered only once its vault is open.
+- **Colours**: eight pastel colours per note, from the ⋮ menu, shown in the lists. A vault note shows its
+  colour only while its vault is open; like its tags, the colour is stored outside the vault's own
+  encryption (in the encrypted database) — the privacy policy says so.
+- **"+" in a closed vault** creates the note once the vault is unlocked.
+- One blue for the main buttons; legal pages dated and checked against the code; build toolchain moved
+  to AGP 9. The database moves to schema 10 (one column added, every note kept).
 
 ## What's new in 3.0.0
 
@@ -74,10 +88,11 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 
 ### Markdown editing
 - Create, edit, autosave.
-- **Edit / Preview**: the preview renders headings, lists, emphasis and links. A `[[Title]]` link
+- **Reading and writing**: a note opens to be read — headings, lists, emphasis and links rendered —,
+  and **Edit** writes it. A `[[Title]]` link
   opens the note it points to; an `http`, `https` or `mailto` link opens in the system app, any
   other scheme is ignored. Images are never loaded: their alternative text stands in.
-- Pin, favourites, archive, trash (30-day retention), sort order, light / dark / system theme.
+- Pin, favourites, colours, archive, trash (30-day retention), sort order, light / dark / system theme.
 
 ### Per-folder vaults
 - **Passphrase mode** — Argon2id (64 MiB, t = 3) and AES-256-GCM. The vault key (32 random bytes) is
@@ -128,7 +143,7 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 ## Installation
 
 1. **Published APK** — from [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases),
-   the universal APK (`notes-tech-universel-3.0.0.apk`, any phone), or the lighter one for your device
+   the universal APK (`notes-tech-universel-3.1.0.apk`, any phone), or the lighter one for your device
    (`arm64-v8a` fits almost every phone since 2016). Check the SHA-256 published in the release notes.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    built and signed by F-Droid.

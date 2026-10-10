@@ -2,9 +2,25 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.0.0 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.1.0 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.1.0 — long press, reading mode, note colours (2026-10-10)
+
+- **Trashing or erasing a vault note needs no key** — the row goes, sealed blob and all. So the long
+  press on a note, and the editor's new "Delete permanently", check the vault **at execution, on a fresh
+  read of the note**: with its vault closed, the gesture asks for the secret and runs once it is open.
+  Proved by sabotage: without the check, the refusal tests fail.
+- **A note's colour is stored outside the vault's envelope**, like its tags (in the SQLCipher database).
+  The lists show it on a vault note only while its vault is open, and hide it again at the automatic
+  lock. The privacy policy now says it, for the tags too.
+- **Reading mode** keeps a vault note's protections (FLAG_SECURE, session, automatic lock), opens no
+  keyboard, and its rendering is not selectable — no copy path around the protected clipboard.
+- **Schema 10**: one nullable column (`color_id`), added by a migration replayed in tests on a Flutter
+  base and on a base adopted by 3.0.0; no note or sealed blob changes.
+- Reviewed per change by two external models and a three-axis pre-release audit (no Critical, no High;
+  one Medium fixed: a gesture waiting for a vault now dies with its unlock sheet).
 
 ## v3.0.0 — Kotlin rewrite and full security audit (2026-09-26)
 

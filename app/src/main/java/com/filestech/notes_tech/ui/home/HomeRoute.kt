@@ -55,6 +55,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeRoute(
     onOpenNote: (Note) -> Unit,
+    /** The long press's "Edit": the note opens to be written (3.1.0). */
+    onEditNote: (Note) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenTrash: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -145,7 +147,11 @@ fun HomeRoute(
                     if (evenement.inInbox) portee.launch { snackbars.showSnackbar(messageNoteEnBoiteDeReception) }
                 }
 
-                is HomeEvent.VaultLocked -> dossierAOuvrir = evenement.folder
+                // The creation waits for the secret, then happens: one "+" is enough.
+                is HomeEvent.VaultLocked -> {
+                    gestes.attendreLaCreation(evenement.folder)
+                    dossierAOuvrir = evenement.folder
+                }
                 // ⚠️ La chaine est formatee ICI, avec son argument reel, et pas par un gabarit
                 // « %s » construit a l'avance : ce dernier casserait en silence le jour ou la
                 // chaine gagnerait un second placeholder. Releve par l'audit i18n du 2026-08-14.
@@ -341,12 +347,12 @@ fun HomeRoute(
                 val geste = gesteEnAttente
                 gesteEnAttente = null
                 if (geste != null && geste.dossier.id == dossier.id) executerLeGeste(geste)
-                gestes.reprendreApres(dossier, homeViewModel::executer)
+                gestes.reprendreApres(dossier, homeViewModel::executer, homeViewModel::createNote)
             },
         )
     }
 
-    FeuillesDesGestesDeNote(gestes, homeViewModel::executer)
+    FeuillesDesGestesDeNote(gestes, homeViewModel::executer, ecrire = onEditNote)
 
     dossierAProteger?.let { dossier ->
         val mode = modeChoisi

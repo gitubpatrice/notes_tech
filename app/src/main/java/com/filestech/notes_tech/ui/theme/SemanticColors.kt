@@ -1,5 +1,7 @@
 package com.filestech.notes_tech.ui.theme
 
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -105,6 +107,20 @@ object SemanticColors {
      */
     val messageForeground: Color = Color.White
 
+    /**
+     * The app's main buttons — "New note", "Edit", "New folder", "Check for updates" — on the blue of
+     * the checkerboard, with white text (Patrice, 2026-10-10). The same pair as the messages: one blue
+     * for the signature of the app, defined once.
+     *
+     * Fixed in both themes, like the logo. White on it: 6.0:1 (AA 4.5, `SemanticColorsTest`). The
+     * button against the screen's background: 5.65:1 light, 3.15:1 dark (WCAG 1.4.11 asks 3). On the
+     * drawer's dark surface it is 2.88:1 — there the white label, at 6:1, is what identifies it.
+     */
+    val primaryButton: Color = BLEU_DAMIER
+
+    /** The text and icon of [primaryButton]. */
+    val onPrimaryButton: Color = Color.White
+
     private val AMBER_200 = Color(0xFFFFCC80)
 
     /**
@@ -139,3 +155,15 @@ object SemanticColors {
      */
     internal const val DARK_SURFACE_THRESHOLD = 0.35f
 }
+
+/**
+ * The colours of every filled button of the app that is not destructive ([SemanticColors.primaryButton]):
+ * one blue across the app (Patrice, 2026-10-10: "que toute l'appli soit harmonisée"). The destructive
+ * ones — erasing after a forgotten PIN, confirming the panic mode — keep the theme's `error` red: there
+ * the colour says the danger. Disabled, a button keeps Material's grey, as before.
+ */
+@Composable
+fun couleursDeBoutonPrincipal(): ButtonColors = ButtonDefaults.buttonColors(
+    containerColor = SemanticColors.primaryButton,
+    contentColor = SemanticColors.onPrimaryButton,
+)

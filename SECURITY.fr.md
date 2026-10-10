@@ -2,9 +2,29 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.0.0 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.1.0 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.1.0 — appui long, mode lecture, couleur des notes (2026-10-10)
+
+- **Mettre à la corbeille ou effacer une note de coffre ne demande aucune clé** : la ligne part, blob
+  scellé compris. L'appui long sur une note, et la nouvelle « Supprimer définitivement » de l'éditeur,
+  vérifient donc le coffre **au moment d'agir, sur une relecture de la note** : coffre fermé, le geste
+  demande le secret et s'exécute une fois le coffre ouvert. Prouvé par sabotage : sans ce contrôle, les
+  tests de refus échouent.
+- **La couleur d'une note est stockée hors de l'enveloppe du coffre**, comme ses étiquettes (dans la base
+  SQLCipher). Les listes ne l'affichent sur une note de coffre que coffre ouvert, et la masquent à
+  nouveau au verrouillage automatique. La politique de confidentialité le dit désormais, pour les
+  étiquettes aussi.
+- **Le mode lecture** garde les protections d'une note de coffre (FLAG_SECURE, session, verrouillage
+  automatique), n'ouvre aucun clavier, et son rendu n'est pas sélectionnable — aucun chemin de copie qui
+  contournerait le presse-papiers protégé.
+- **Schéma 10** : une colonne facultative (`color_id`), ajoutée par une migration rejouée en test sur une
+  base Flutter et sur une base adoptée par la 3.0.0 ; aucune note ni aucun blob scellé ne change.
+- Relu modification par modification par deux modèles externes et un audit pré-publication sur trois
+  axes (aucun critique, aucun élevé ; un moyen corrigé : un geste en attente d'un coffre disparaît avec
+  sa feuille de déverrouillage).
 
 ## v3.0.0 — réécriture en Kotlin et audit de sécurité complet (2026-09-26)
 

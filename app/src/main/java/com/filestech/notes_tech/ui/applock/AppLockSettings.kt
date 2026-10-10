@@ -68,6 +68,7 @@ import com.filestech.notes_tech.ui.secure.ProprietesDeFeuilleSecrete
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.settings.DialogueDeChoix
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 import kotlinx.coroutines.launch
 
 /**
@@ -311,6 +312,7 @@ internal fun AppLockPinSheet(sheet: PinSheetState, onPin: (String) -> Unit, onDi
                 onDelete = { typed = typed.dropLast(1) },
             )
             Button(
+                colors = couleursDeBoutonPrincipal(),
                 onClick = { onPin(typed) },
                 enabled = canType && typed.isNotEmpty(),
                 shape = Formes.bouton,

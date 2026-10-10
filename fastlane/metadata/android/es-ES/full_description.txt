@@ -20,7 +20,7 @@ Notes Tech: notas Markdown 100 % locales, cifradas en reposo. Escrita en Kotlin.
 
 <b>Edición</b>
 • Las notas se abren para leer (Markdown: títulos, listas, enlaces); «Editar» para escribir, guardado automático
-• Pulsación larga en una nota: moverla a la papelera, con Deshacer, o eliminarla definitivamente
+• Pulsación larga en una nota: editarla, moverla a la papelera con Deshacer o eliminarla definitivamente
 • Un color pastel por nota en las listas (el de una nota de caja fuerte, solo desbloqueada)
 • Retroenlaces <code>[[Título]]</code> con autocompletado y panel «notas que enlazan aquí»
 • Búsqueda FTS5 instantánea, orden configurable

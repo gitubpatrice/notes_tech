@@ -29,6 +29,7 @@ fun NotesTechNavHost(navController: NavHostController) {
         composable(Destination.Home.route) {
             HomeRoute(
                 onOpenNote = { navController.navigate(Destination.Editor(it.id).route) },
+                onEditNote = { navController.navigate(Destination.Editor(it.id, ecrire = true).route) },
                 onOpenSearch = { navController.navigate(Destination.Search.route) },
                 onOpenTrash = { navController.navigate(Destination.Trash.route) },
                 onOpenSettings = { navController.navigate(Destination.Settings.route) },
@@ -38,7 +39,13 @@ fun NotesTechNavHost(navController: NavHostController) {
 
         composable(
             route = Destination.EDITOR_PATTERN,
-            arguments = listOf(navArgument(Destination.ARG_NOTE_ID) { type = NavType.StringType }),
+            arguments = listOf(
+                navArgument(Destination.ARG_NOTE_ID) { type = NavType.StringType },
+                navArgument(Destination.ARG_ECRIRE) {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
+            ),
         ) {
             // L'identifiant n'est pas relu ici : `SavedStateHandle` le remet au ViewModel, qui est
             // le seul à en avoir besoin. Le faire transiter par le composable ajouterait un second

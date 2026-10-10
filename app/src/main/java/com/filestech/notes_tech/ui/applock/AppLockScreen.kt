@@ -64,6 +64,7 @@ import com.filestech.notes_tech.ui.panic.PanicConfirmDialog
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 import kotlinx.coroutines.launch
 
 /**
@@ -229,6 +230,7 @@ fun AppLockScreen(
                     tailleDeTouche = KEY_SIZE,
                 )
                 Button(
+                    colors = couleursDeBoutonPrincipal(),
                     onClick = { onSubmit(typed) },
                     enabled = canType && AppLockParams.isValidPin(typed),
                     shape = Formes.bouton,

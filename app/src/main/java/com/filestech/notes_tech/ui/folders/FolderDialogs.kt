@@ -84,7 +84,7 @@ fun FolderActionSheet(folder: Folder, unlocked: Boolean, onDismiss: () -> Unit, 
             }
             EntreeDeMenu(
                 icon = Icons.Outlined.DeleteOutline,
-                tint = couleurs.error,
+                destructive = true,
                 title = stringResource(R.string.common_delete),
                 onClick = { onAction(FolderAction.DELETE) },
             )

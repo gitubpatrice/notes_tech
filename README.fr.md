@@ -4,13 +4,13 @@
 
 🇬🇧 [English version](README.md)
 
-**v3.0.0 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
+**v3.1.0 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
 
 Application de prise de notes Markdown chiffrée pour Android, écrite en **Kotlin** avec Jetpack
 Compose. **100 % locale, sans permission Internet.** Interface en **anglais, français, allemand,
 italien et espagnol**. Coffres par dossier (phrase secrète Argon2id ou code lié au Keystore),
 verrouillage de l'application par code et biométrie forte, recherche plein texte FTS5, dictée
-Whisper sur l'appareil, rétroliens `[[note]]`, aperçu Markdown, mode panique en plusieurs étapes.
+Whisper sur l'appareil, rétroliens `[[note]]`, notes lues en fiche à leur couleur, mode panique en plusieurs étapes.
 
 Pour les penseurs, thérapeutes, étudiants, chercheurs, auteurs et journalistes qui veulent prendre
 des notes sensibles ou denses sans qu'elles quittent jamais leur téléphone.
@@ -20,6 +20,20 @@ l'application est techniquement incapable d'envoyer quoi que ce soit, et son man
 vérifier.**
 
 ---
+
+## Nouveautés de la 3.1.0
+
+- **Lecture** : toucher une note l'ouvre en lecture, sous forme de fiche à sa couleur — son titre, le
+  texte mis en forme, sa date —, avec un bouton **Éditer** ; la coche ✓ enregistre et revient à la
+  lecture. Une note vide s'ouvre en écriture.
+- **Appui long sur une note** : éditer, mettre à la corbeille (avec Annuler) ou supprimer
+  définitivement. Les actions d'une note de coffre ne sont proposées qu'une fois le coffre ouvert.
+- **Couleurs** : huit couleurs pastel par note, depuis le menu ⋮, visibles dans les listes. Une note de
+  coffre ne montre sa couleur que coffre ouvert ; comme ses étiquettes, la couleur est stockée hors du
+  chiffrement propre au coffre (dans la base chiffrée) — la politique de confidentialité le dit.
+- **« + » dans un coffre fermé** crée la note une fois le coffre déverrouillé.
+- Un seul bleu pour les boutons principaux ; pages légales datées et relues contre le code ; chaîne de
+  build passée à AGP 9. La base passe au schéma 10 (une colonne ajoutée, toutes les notes conservées).
 
 ## Nouveautés de la 3.0.0
 
@@ -79,10 +93,11 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 
 ### Édition Markdown
 - Création, édition, enregistrement automatique.
-- **Éditer / Aperçu** : l'aperçu affiche titres, listes, emphase et liens. Un lien `[[Titre]]` ouvre la
+- **Lecture et écriture** : une note s'ouvre en lecture — titres, listes, emphase et liens mis en
+  forme —, et **Éditer** permet de l'écrire. Un lien `[[Titre]]` ouvre la
   note qu'il désigne ; un lien `http`, `https` ou `mailto` s'ouvre dans l'application du système, tout
   autre schéma est ignoré. Les images ne sont jamais chargées : leur texte de remplacement s'affiche.
-- Épingler, favoris, archives, corbeille (30 jours), ordre de tri, thème clair / sombre / système.
+- Épingler, favoris, couleurs, archives, corbeille (30 jours), ordre de tri, thème clair / sombre / système.
 
 ### Coffres par dossier
 - **Mode phrase secrète** — Argon2id (64 Mio, t = 3) et AES-256-GCM. La clé du coffre (32 octets
@@ -134,7 +149,7 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 ## Installation
 
 1. **APK publié** — depuis les [Releases GitHub](https://github.com/gitubpatrice/notes_tech/releases),
-   l'APK universel (`notes-tech-universel-3.0.0.apk`, tous téléphones), ou le fichier plus léger de
+   l'APK universel (`notes-tech-universel-3.1.0.apk`, tous téléphones), ou le fichier plus léger de
    votre appareil (`arm64-v8a` convient à presque tous les téléphones depuis 2016). Vérifiez l'empreinte SHA-256 publiée dans les notes de version.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    construite et signée par F-Droid.

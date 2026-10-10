@@ -62,15 +62,20 @@ sealed interface Destination {
      * réservé — mais une route est une URI, et se reposer sur la forme actuelle des identifiants
      * pour ne pas encoder revient à faire dépendre la navigation d'un détail du modèle de données.
      */
-    data class Editor(val noteId: String) : Destination {
-        override val route = "$EDITOR_PREFIX/${Uri.encode(noteId)}"
+    /**
+     * [ecrire]: open the note to be written rather than read (3.1.0) — the long press's "Edit". Absent
+     * from the route when false, so every other way into the editor keeps the route it had.
+     */
+    data class Editor(val noteId: String, val ecrire: Boolean = false) : Destination {
+        override val route = "$EDITOR_PREFIX/${Uri.encode(noteId)}" + if (ecrire) "?$ARG_ECRIRE=true" else ""
     }
 
     companion object {
         const val EDITOR_PREFIX = "editor"
         const val ARG_NOTE_ID = "noteId"
+        const val ARG_ECRIRE = "ecrire"
 
         /** Le motif déclaré au `NavHost`. Une seule déclaration, ici. */
-        const val EDITOR_PATTERN = "$EDITOR_PREFIX/{$ARG_NOTE_ID}"
+        const val EDITOR_PATTERN = "$EDITOR_PREFIX/{$ARG_NOTE_ID}?$ARG_ECRIRE={$ARG_ECRIRE}"
     }
 }

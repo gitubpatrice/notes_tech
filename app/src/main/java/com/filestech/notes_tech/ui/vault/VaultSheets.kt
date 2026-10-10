@@ -74,6 +74,7 @@ import com.filestech.notes_tech.ui.common.retryWaitMessage
 import com.filestech.notes_tech.ui.secure.ProprietesDeFeuilleSecrete
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 
 /**
  * La feuille qui déverrouille un coffre, **du bon mode**.
@@ -506,6 +507,7 @@ internal fun FeuilleDePhraseSecrete(
             } else {
                 Button(
                     shape = Formes.bouton,
+                    colors = couleursDeBoutonPrincipal(),
                     onClick = {
                         erreurLocale = when {
                             secret.length < VaultParams.PASSPHRASE_MIN_LENGTH -> tropCourte
@@ -804,6 +806,7 @@ internal fun FeuilleDeCode(
 
             Button(
                 shape = Formes.bouton,
+                colors = couleursDeBoutonPrincipal(),
                 onClick = {
                     if (saisi.length !in VaultParams.PIN_MIN_LENGTH..VaultParams.PIN_MAX_LENGTH) {
                         erreurLocale = tropCourt
@@ -1182,7 +1185,12 @@ private fun ResultatDeTentative(attempt: VaultAttempt?, onSuccess: (chiffrees: I
  */
 @Composable
 private fun BoutonDeFermeture(onDone: () -> Unit) {
-    Button(onClick = onDone, shape = Formes.bouton, modifier = Modifier.fillMaxWidth()) {
+    Button(
+        onClick = onDone,
+        shape = Formes.bouton,
+        colors = couleursDeBoutonPrincipal(),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
         Text(stringResource(R.string.common_close))
     }
 }

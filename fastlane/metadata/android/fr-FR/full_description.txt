@@ -20,7 +20,7 @@ Notes Tech : prise de notes Markdown 100 % locale, chiffrée au repos. Écrite e
 
 <b>Édition</b>
 • Les notes s'ouvrent en lecture (Markdown : titres, listes, liens) ; « Éditer » pour écrire, enregistrement automatique
-• Appui long sur une note : mettre à la corbeille, avec Annuler, ou supprimer définitivement
+• Appui long sur une note : éditer, mettre à la corbeille avec Annuler, ou supprimer définitivement
 • Une couleur pastel par note dans les listes (celle d'une note de coffre, seulement coffre ouvert)
 • Rétroliens <code>[[Titre]]</code> avec autocomplétion + panneau « notes qui mentionnent celle-ci »
 • Recherche FTS5 instantanée, tri réglable

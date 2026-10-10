@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarDuration
@@ -48,6 +49,7 @@ import kotlinx.coroutines.launch
 internal fun FeuilleDActionsDeNote(
     note: Note,
     onDismiss: () -> Unit,
+    onEditer: () -> Unit,
     onCorbeille: () -> Unit,
     onSupprimer: () -> Unit,
 ) {
@@ -62,6 +64,13 @@ internal fun FeuilleDActionsDeNote(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .semantics { heading() },
             )
+            // First, and the only one that keeps the note: it opens it straight on the writing side.
+            EntreeDeMenu(
+                icon = Icons.Outlined.Edit,
+                title = stringResource(R.string.note_editor_mode_edit),
+                onClick = onEditer,
+            )
+            // Neutral: the trash can be undone. Only the permanent deletion is red, as in the ⋮ menu.
             EntreeDeMenu(
                 icon = Icons.Outlined.DeleteOutline,
                 title = stringResource(R.string.note_editor_menu_trash),
@@ -69,7 +78,7 @@ internal fun FeuilleDActionsDeNote(
             )
             EntreeDeMenu(
                 icon = Icons.Outlined.DeleteForever,
-                tint = MaterialTheme.colorScheme.error,
+                destructive = true,
                 title = stringResource(R.string.trash_delete_forever),
                 onClick = onSupprimer,
             )
@@ -88,6 +97,9 @@ internal fun FeuilleDActionsDeNote(
  *   is open (courtesy; the protection is `HomeViewModel.executer`, at execution);
  * - [gesteEnAttente]: a gesture refused at execution because the vault closed in the meantime runs
  *   again once it is reopened — accepted, it must not be dropped in silence.
+ * - [creationEnAttente]: "+" in a closed vault asks for its secret, then creates the note. Until 3.1.0
+ *   the secret was asked and nothing followed: the user had to tap "+" a second time — an accepted
+ *   gesture dropped in silence (seen on the emulator, 2026-10-10).
  *
  * Both are kept with the folder they wait for, and dropped with the unlock sheet if the user gives up.
  */
@@ -97,6 +109,7 @@ internal class GestesDeNoteEnCours {
     var noteASupprimer by mutableStateOf<Note?>(null)
     private var menuEnAttente by mutableStateOf<Note?>(null)
     private var gesteEnAttente by mutableStateOf<HomeEvent.GesteEnAttenteDuCoffre?>(null)
+    private var creationEnAttente by mutableStateOf<String?>(null)
 
     /**
      * The long press on [note]. Opens its sheet, or returns the closed vault whose secret must come
@@ -117,13 +130,18 @@ internal class GestesDeNoteEnCours {
         gesteEnAttente = evenement
     }
 
+    /** "+" was tapped in the closed vault [dossier]: the note is created once its secret is given. */
+    fun attendreLaCreation(dossier: Folder) {
+        creationEnAttente = dossier.id
+    }
+
     /**
      * [dossier] was just unlocked: what waited for IT resumes, and only that is taken off — what waits
      * for another vault keeps waiting (GPT-5.6 review, 2026-10-10: clearing everything first dropped a
      * gesture waiting for vault A when the sheet of vault B closed). Compared by id: the automatic lock
      * opens an unlock sheet too.
      */
-    fun reprendreApres(dossier: Folder, executer: (GesteSurUneNote) -> Unit) {
+    fun reprendreApres(dossier: Folder, executer: (GesteSurUneNote) -> Unit, creer: () -> Unit) {
         val menu = menuEnAttente
         if (menu != null && menu.folderId == dossier.id) {
             menuEnAttente = null
@@ -133,6 +151,10 @@ internal class GestesDeNoteEnCours {
         if (geste != null && geste.folder.id == dossier.id) {
             gesteEnAttente = null
             executer(geste.geste)
+        }
+        if (creationEnAttente == dossier.id) {
+            creationEnAttente = null
+            creer()
         }
     }
 
@@ -145,22 +167,34 @@ internal class GestesDeNoteEnCours {
     fun garderSeulementPour(dossierId: String?) {
         if (menuEnAttente?.folderId != dossierId) menuEnAttente = null
         if (gesteEnAttente?.folder?.id != dossierId) gesteEnAttente = null
+        if (creationEnAttente != dossierId) creationEnAttente = null
     }
 
     /** Giving up the secret is giving up the gesture: what waited falls with the unlock sheet. */
     fun abandonner() {
         menuEnAttente = null
         gesteEnAttente = null
+        creationEnAttente = null
     }
 }
 
 /** The sheet of [etat]'s note, then the confirmation of the irreversible choice. */
 @Composable
-internal fun FeuillesDesGestesDeNote(etat: GestesDeNoteEnCours, executer: (GesteSurUneNote) -> Unit) {
+internal fun FeuillesDesGestesDeNote(
+    etat: GestesDeNoteEnCours,
+    executer: (GesteSurUneNote) -> Unit,
+    ecrire: (Note) -> Unit,
+) {
     etat.noteEnMenu?.let { note ->
         FeuilleDActionsDeNote(
             note = note,
             onDismiss = { etat.noteEnMenu = null },
+            // A note of a closed vault gets this sheet only once its vault is open (`appuiLong`), and
+            // the editor asks for the secret again if it closed meanwhile: nothing to check here.
+            onEditer = {
+                etat.noteEnMenu = null
+                ecrire(note)
+            },
             onCorbeille = {
                 etat.noteEnMenu = null
                 executer(GesteSurUneNote.MettreALaCorbeille(note))

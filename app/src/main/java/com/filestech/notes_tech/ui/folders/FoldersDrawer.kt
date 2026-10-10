@@ -39,6 +39,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 
 /**
  * Le tiroir des dossiers.
@@ -189,6 +190,7 @@ fun FoldersDrawer(
             FilledTonalButton(
                 onClick = onCreateFolder,
                 shape = Formes.bouton,
+                colors = couleursDeBoutonPrincipal(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(imageVector = Icons.Outlined.CreateNewFolder, contentDescription = null)

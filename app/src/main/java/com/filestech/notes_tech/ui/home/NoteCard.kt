@@ -260,10 +260,15 @@ internal fun titreAffiche(note: Note): String = when {
 @Composable
 private fun FolderChip(label: String, modifier: Modifier = Modifier) {
     val couleurs = MaterialTheme.colorScheme
+    // A white chip with a grey border (Patrice, 2026-10-10), not the grey fill it had: it reads the same
+    // on a plain card and on a coloured one. `background` is white in the light theme and the screen's
+    // own dark in the dark one, where a white chip would glare; the folder name keeps its contrast on
+    // both (onSurfaceVariant: 5.4:1 on white, 6.1:1 on the dark background).
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
-        color = couleurs.surfaceContainerHighest,
+        color = couleurs.background,
+        border = BorderStroke(1.dp, couleurs.outlineVariant),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),

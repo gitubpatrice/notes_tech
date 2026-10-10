@@ -65,6 +65,7 @@ import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.rememberFolderDisplayName
 import com.filestech.notes_tech.ui.theme.Formes
+import com.filestech.notes_tech.ui.theme.SemanticColors
 
 /**
  * L'écran d'accueil : la liste des notes, filtrée par dossier ou par recherche.
@@ -229,6 +230,8 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = onNewNote,
                 shape = Formes.bouton,
+                containerColor = SemanticColors.primaryButton,
+                contentColor = SemanticColors.onPrimaryButton,
                 modifier = Modifier.semantics { contentDescription = nomDeLaNouvelleNote },
                 icon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
                 text = { Text(nomDeLaNouvelleNote) },
