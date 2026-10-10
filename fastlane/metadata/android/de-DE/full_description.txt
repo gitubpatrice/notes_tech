@@ -19,7 +19,9 @@ Notes Tech: Markdown-Notizen, 100 % lokal und im Ruhezustand verschlüsselt. In 
 • Aufnahmen werden nach der Transkription gelöscht
 
 <b>Bearbeiten</b>
-• Markdown mit Umschalter Bearbeiten / Vorschau (Überschriften, Listen, Links), automatisches Speichern
+• Notizen öffnen sich zum Lesen (Markdown: Überschriften, Listen, Links); „Bearbeiten“ zum Schreiben, automatisches Speichern
+• Langes Drücken auf eine Notiz: in den Papierkorb, mit Rückgängig, oder endgültig löschen
+• Eine Pastellfarbe pro Notiz in den Listen (bei einer Tresornotiz nur bei entsperrtem Tresor)
 • Rückverweise <code>[[Titel]]</code> mit Autovervollständigung und Bereich „Notizen, die hierher verlinken“
 • Sofortige FTS5-Suche, einstellbare Sortierung
 • Markdown-Export, eine Notiz oder als ZIP (YAML-Frontmatter, kompatibel mit Obsidian/Logseq)

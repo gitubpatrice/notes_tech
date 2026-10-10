@@ -19,7 +19,9 @@ Notes Tech : prise de notes Markdown 100 % locale, chiffrée au repos. Écrite e
 • Enregistrements supprimés après transcription
 
 <b>Édition</b>
-• Markdown avec bascule Éditer / Aperçu (titres, listes, liens), enregistrement automatique
+• Les notes s'ouvrent en lecture (Markdown : titres, listes, liens) ; « Éditer » pour écrire, enregistrement automatique
+• Appui long sur une note : mettre à la corbeille, avec Annuler, ou supprimer définitivement
+• Une couleur pastel par note dans les listes (celle d'une note de coffre, seulement coffre ouvert)
 • Rétroliens <code>[[Titre]]</code> avec autocomplétion + panneau « notes qui mentionnent celle-ci »
 • Recherche FTS5 instantanée, tri réglable
 • Export Markdown, d'une note ou en ZIP (en-tête YAML compatible Obsidian/Logseq)

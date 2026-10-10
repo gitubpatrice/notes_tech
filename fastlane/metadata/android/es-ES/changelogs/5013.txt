@@ -1,0 +1,1 @@
+Tocar una nota ahora la abre para leerla; «Editar» para escribir. Pulsación larga en una nota: moverla a la papelera (con Deshacer) o eliminarla definitivamente. Un color pastel por nota, visible en las listas (para una nota de caja fuerte, solo mientras está desbloqueada). Textos legales actualizados. Herramientas de compilación actualizadas (AGP 9).

@@ -19,7 +19,9 @@ Notes Tech: 100% local Markdown note-taking, encrypted at rest. Written in Kotli
 • Recordings deleted after transcription
 
 <b>Editing</b>
-• Markdown with an Edit / Preview switch (headings, lists, links), autosave
+• Notes open to be read (Markdown: headings, lists, links); “Edit” to write, autosave
+• Long press on a note: move to trash, with Undo, or delete permanently
+• A pastel colour per note in the lists (a vault note's only while its vault is open)
 • <code>[[Title]]</code> backlinks with autocomplete + "notes linking here" panel
 • Instant FTS5 search, configurable sort
 • Markdown export, one note or a ZIP (YAML frontmatter, Obsidian/Logseq compatible)
