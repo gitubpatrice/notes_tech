@@ -180,7 +180,6 @@
     <string name="note_editor_menu_copy_markdown">Copy Markdown</string>
     <string name="note_editor_content_hint">Write in Markdown… ([[Title]] to link)</string>
     <string name="note_editor_mode_edit">Edit</string>
-    <string name="note_editor_mode_preview">Preview</string>
     <string name="note_editor_preview_empty">Nothing to preview yet.</string>
     <!--
       Ajout du portage : la note publiee copiait une chaine vide, ce qui EFFACE ce que

@@ -152,7 +152,6 @@
     <string name="note_editor_menu_copy_markdown">Markdown kopieren</string>
     <string name="note_editor_content_hint">In Markdown schreiben… ([[Titel]] zum Verlinken)</string>
     <string name="note_editor_mode_edit">Bearbeiten</string>
-    <string name="note_editor_mode_preview">Vorschau</string>
     <string name="note_editor_preview_empty">Noch nichts für die Vorschau.</string>
     <string name="note_editor_copy_empty">Nichts zu kopieren: Diese Notiz ist leer</string>
     <string name="move_to_folder_vault">Tresorordner: Die Notiz wird verschlüsselt</string>

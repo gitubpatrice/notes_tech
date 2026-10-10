@@ -160,7 +160,6 @@
     <string name="note_editor_menu_copy_markdown">Copia il Markdown</string>
     <string name="note_editor_content_hint">Scriva in Markdown… ([[Titolo]] per creare un link)</string>
     <string name="note_editor_mode_edit">Modifica</string>
-    <string name="note_editor_mode_preview">Anteprima</string>
     <string name="note_editor_preview_empty">Ancora niente da mostrare in anteprima.</string>
     <string name="note_editor_copy_empty">Niente da copiare: questa nota è vuota</string>
     <string name="move_to_folder_vault">Cartella cassaforte: la nota verrà cifrata</string>

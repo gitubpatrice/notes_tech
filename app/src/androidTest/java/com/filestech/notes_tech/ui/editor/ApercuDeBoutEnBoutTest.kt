@@ -111,16 +111,18 @@ class ApercuDeBoutEnBoutTest {
         compose.waitUntilAtLeastOneExists(hasText(titreSource), TIMEOUT_MILLIS)
         compose.onNodeWithText(titreSource).performClick()
 
-        ouvrirLApercu()
+        // 3.1.0: a note that has a body opens to be READ — nothing to tap to see the rendering.
+        attendreLaLecture()
         toucherLeLien()
 
-        // Created, in the source's folder — and OPEN: its title is in the editor's title field.
+        // Created, in the source's folder — and OPEN, to be WRITTEN: it is blank, so it opens with its
+        // title in the editor's title field rather than as a page with nothing to read.
         compose.waitUntilAtLeastOneExists(hasSetTextAction() and hasText(titreCible), TIMEOUT_MILLIS)
         val creees = runBlocking { notes.listAllAlive().filter { it.title == titreCible } }
         assertThat(creees).hasSize(1)
         assertThat(creees.single().folderId).isEqualTo(Folder.INBOX_ID)
 
-        // Back to the source, still on its preview (saved state), and the same link tapped again:
+        // Back to the source, still read (saved state), and the same link tapped again:
         // the note now exists, so it is opened — nothing is created a second time.
         Espresso.pressBack()
         compose.waitUntilAtLeastOneExists(hasText(texteAffiche), TIMEOUT_MILLIS)
@@ -148,6 +150,8 @@ class ApercuDeBoutEnBoutTest {
         )
         compose.waitUntilAtLeastOneExists(lienFantome, TIMEOUT_MILLIS)
 
+        // The note opens to be read (3.1.0): "Edit" first, which puts the cursor in the body.
+        compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
         compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content))).performClick()
         assumeTrue("No soft keyboard showed on this device", attendreLeClavier(affiche = true))
         compose.waitUntilDoesNotExist(lienFantome, TIMEOUT_MILLIS)
@@ -173,11 +177,11 @@ class ApercuDeBoutEnBoutTest {
             .contains("mInputShown=true")
     }
 
-    private fun ouvrirLApercu() {
-        val apercu = context.getString(R.string.note_editor_mode_preview)
-        compose.waitUntilAtLeastOneExists(hasText(apercu), TIMEOUT_MILLIS)
-        compose.onNodeWithText(apercu).performClick()
+    /** The note is shown to be read: its rendering is there, and no field to write in. */
+    private fun attendreLaLecture() {
         compose.waitUntilAtLeastOneExists(hasText(texteAffiche), TIMEOUT_MILLIS)
+        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
+            .assertDoesNotExist()
     }
 
     private fun toucherLeLien() {
