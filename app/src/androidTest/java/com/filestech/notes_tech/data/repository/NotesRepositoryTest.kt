@@ -300,6 +300,7 @@ class NotesRepositoryTest {
                 createdAt = horloge.millis(),
                 updatedAt = horloge.millis(),
                 encVersion = 1,
+                colorId = null,
             ),
         )
 

@@ -63,6 +63,7 @@ fun HomeRoute(
     val homeViewModel: HomeViewModel = hiltViewModel()
     val foldersViewModel: FoldersDrawerViewModel = hiltViewModel()
     val state by homeViewModel.state.collectAsStateWithLifecycle()
+    val coffresOuverts by homeViewModel.coffresOuverts.collectAsStateWithLifecycle()
     val foldersState by foldersViewModel.state.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -204,7 +205,7 @@ fun HomeRoute(
             },
         ) {
             HomeScreen(
-                state = state,
+                state = state.copy(coffresOuverts = coffresOuverts),
                 onQueryChange = homeViewModel::onQueryChange,
                 onSortSelected = homeViewModel::onSortSelected,
                 onOpenNote = onOpenNote,

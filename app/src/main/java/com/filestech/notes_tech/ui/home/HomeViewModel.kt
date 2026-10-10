@@ -44,7 +44,10 @@ data class HomeUiState(
     val currentFolder: Folder? = null,
     val folderNamesById: Map<String, String> = emptyMap(),
     val vaultLostCount: Int = 0,
-    /** The vaults open right now: a vault note's colour shows only then (`couleurVisible`, 3.1.0). */
+    /**
+     * The vaults open right now: a vault note's colour shows only then (`couleurVisible`, 3.1.0). Set by
+     * `HomeRoute` from [HomeViewModel.coffresOuverts], never cached with the rest of this state.
+     */
     val coffresOuverts: Set<String> = emptySet(),
 ) {
     /** `true` quand la liste n'est pas restreinte à un dossier — le badge de dossier sert alors. */
@@ -135,7 +138,6 @@ class HomeViewModel @Inject constructor(
             folderNamesById = noms,
         )
     }.combine(vaultLostCount) { etat, perdues -> etat.copy(vaultLostCount = perdues) }
-        .combine(vaults.unlockedFolderIds) { etat, ouverts -> etat.copy(coffresOuverts = ouverts) }
         .stateIn(
             scope = viewModelScope,
             // `WhileSubscribed(5 s)` et non `Eagerly` : sans abonné, garder ces flux actifs
@@ -145,6 +147,14 @@ class HomeViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
             initialValue = HomeUiState(sort = settings.sortNow()),
         )
+
+    /**
+     * The vaults open right now, straight from the sessions (3.1.0). NOT through [state]: `stateIn`
+     * keeps its last value while nobody collects it, so a vault that locked meanwhile would still read
+     * as open on the first frame back on the home screen — and a sealed note would flash its colour
+     * (both external reviews, 2026-10-10). The sessions' flow is hot and always current.
+     */
+    val coffresOuverts: StateFlow<Set<String>> = vaults.unlockedFolderIds
 
     fun onQueryChange(value: String) {
         query.value = value

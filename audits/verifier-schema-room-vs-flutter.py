@@ -203,11 +203,28 @@ def report(flutter, room):
     return problems
 
 
+NOTES_DATABASE = pathlib.Path(__file__).resolve().parent.parent / "app" / "src" / "main" / "java" / \
+    "com" / "filestech" / "notes_tech" / "data" / "local" / "NotesDatabase.kt"
+
+
+def version_du_code():
+    """`NotesDatabase.VERSION`, read in the Kotlin: the schema the app will ask Room for."""
+    import re
+    trouve = re.search(r"const val VERSION = (\d+)", NOTES_DATABASE.read_text(encoding="utf-8"))
+    if not trouve:
+        sys.exit("NotesDatabase.VERSION introuvable : le script ne sait plus quel schéma vérifier.")
+    return int(trouve.group(1))
+
+
 def main():
     schemas = room_schemas()
     if 9 not in schemas:
         sys.exit("Schéma Room 9 introuvable : c'est celui de toutes les bases installées.")
-    latest = max(schemas)
+    # The schema of the version the CODE declares — not the highest file found, which would let a
+    # missing export pass by checking only schema 9 (GPT-5.6 review, 2026-10-10).
+    latest = version_du_code()
+    if latest not in schemas:
+        sys.exit(f"Schéma Room {latest} (NotesDatabase.VERSION) non exporté sous app/schemas : rien ne le vérifie.")
     checks = [(9, FLUTTER_DDL, "la base Flutter")]
     if latest > 9:
         checks.append((latest, flutter_ddl_migrated_to(latest), f"la base Flutter migrée jusqu'à {latest}"))

@@ -227,7 +227,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         onOuvrirNote = ouvrirUneAutreNote,
     )
 
-    if (couleurOuverte) {
+    // Closed — not merely hidden — when the note stops being readable: a vault that locks while the sheet
+    // is open would otherwise leave the sealed note's colour shown and changeable (GPT-5.6 review).
+    val couleurPossible = state.note != null && state.lockedVault == null && state.loadError == null
+    LaunchedEffect(couleurPossible) { if (!couleurPossible) couleurOuverte = false }
+    if (couleurOuverte && couleurPossible) {
         FeuilleDeCouleur(
             actuelle = state.note?.color,
             dansUnCoffre = state.isVaultNote,

@@ -106,7 +106,10 @@ private fun PastilleDeCouleur(couleur: NoteColor?, choisie: Boolean, onChoisir: 
     ) {
         Box(contentAlignment = Alignment.Center) {
             when {
-                choisie -> Icon(Icons.Filled.Check, contentDescription = null, tint = teinte?.bord ?: schema.onSurface)
+                // `onSurface`, not the border's colour: on its own background the yellow border
+                // falls to 2.4:1 and the orange to 2.8:1, under the 3:1 of a non-text mark (both
+                // external reviews). `onSurface` is what CouleursDeNoteTest holds at 4.5:1 and more.
+                choisie -> Icon(Icons.Filled.Check, contentDescription = null, tint = schema.onSurface)
                 couleur == null -> Icon(
                     Icons.Outlined.FormatColorReset,
                     contentDescription = null,

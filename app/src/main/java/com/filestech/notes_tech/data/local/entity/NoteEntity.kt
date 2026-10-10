@@ -119,9 +119,12 @@ class NoteEntity(
      * ⚠️ Outside the vault's envelope, like [tags]: the whole database is encrypted by SQLCipher, but a
      * vault's own key does not cover it. The lists show it on a vault note only while the vault is
      * open; the privacy policy says it.
+     *
+     * No default: a row rebuilt without its colour would write NULL — an erased colour. The compiler
+     * makes every constructor say it (Claude review, 2026-10-10; today only the insert builds one).
      */
     @ColumnInfo(name = "color_id")
-    val colorId: Int? = null,
+    val colorId: Int?,
 ) {
     /** `true` si la note est verrouillée dans un coffre. Unique test à utiliser — jamais
      *  `content.isEmpty()`, qui est aussi vrai d'une note vide ordinaire. */
