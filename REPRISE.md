@@ -1,7 +1,33 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, **puis le 2026-10-05**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, **puis le 2026-10-10**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
+
+## 🧭 À LA REPRISE (écrit le 2026-10-10 au soir) — la 3.1.0 est PUBLIÉE
+
+Patrice : « fusionne tout », « release ok », « mets tout à jour ». Fait :
+
+- **PR #26** (AGP 9 : Gradle 9.8.1, AGP 9.4.1, Kotlin 2.4.10 épinglé `strictly` sur KGP, Hilt 2.60.1,
+  compileSdk 37, lint hors du démon), **#27** (3.1.0) et **#30** (suites des essais de Patrice sur S24)
+  fusionnées ; `main` = `ae92a70`, CI + CodeQL verts **avant** le tag.
+- **3.1.0** : lecture en fiche + bouton « Éditer » ; appui long (Éditer, corbeille avec Annuler, supprimer
+  définitivement) ; « Supprimer définitivement » dans le menu ⋮ ; huit couleurs pastel par note (option A :
+  celle d'une note de coffre ne s'affiche que coffre ouvert, stockée hors enveloppe comme les étiquettes) ;
+  « + » dans un coffre fermé crée la note après déverrouillage ; un seul bleu (celui du damier) pour les
+  boutons principaux ; textes légaux datés. **Base en schéma 10** (`MIGRATION_9_10`, D-028).
+- **Tag léger `v3.1.0`** sur `ae92a70`. **Release v3.1.0 = Latest**, 4 APK signés EN LOCAL : cert
+  `ddb385de…42e9` inchangé, v2 + v3, versionCodes 5010-5013, 4 permissions, pas d'INTERNET, aucun bloc
+  « Dependency metadata » ; assets retéléchargés = SHA-256 identiques. SHA-256 : universel `aab8cc8d…50f8`,
+  arm64 `e60e5bc4…bd9e`, armeabi-v7a `f30cb292…e520`, x86_64 `d206c095…ed5e`.
+- **Site** : PR `files-tech-site` **#10** fusionnée et déployée, 6 pages vérifiées EN LIGNE en FR et en EN.
+- **F-Droid : rien à faire**, mise à jour automatique (tag + `version.properties` 501 → 5011/5012/5013).
+  Vérifié avant le tag : F-Droid sert Agenda Tech 1.2.0, construite avec la même chaîne (AGP 9.4.1,
+  Kotlin 2.4.10, compileSdk 37) ; Gradle 9.8.1 figure dans `gradle-transparency-log` avec le SHA de notre
+  wrapper ; NDK et `gradleprops` de la recette inchangés. Le 10-10, l'API sert la 3.0.0 (5003) : vérifier
+  `https://f-droid.org/api/v1/packages/com.filestech.notes_tech` avant d'écrire que la 3.1.0 y est.
+- **Ensuite** : Dependabot #28 (markdown 0.7.16) et #29 (SQLCipher 4.19.1 — tester d'abord sur appareil
+  l'ouverture des bases héritées et la parité des coffres) ; `ubuntu-latest` passe à Ubuntu 26 le
+  2026-10-19 (surveiller la CI).
 
 ## 🧭 À LA REPRISE (écrit le 2026-10-05 au soir, Patrice : « consigne tout, on reprend demain »)
 
