@@ -4,7 +4,7 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    // No `org.jetbrains.kotlin.android`: AGP 9 compiles Kotlin itself.
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -69,7 +69,9 @@ android {
     // classes, et donc les alias Keystore que `flutter_secure_storage` a dérivés du nom de paquet.
     // Cf. docs/01-DECISIONS.md D-007.
     namespace = "com.filestech.notes_tech"
-    compileSdk = 36
+    // compileSdk 37 as in Agenda Tech and App Manager Tech: the AndroidX releases built for AGP 9
+    // require it. targetSdk stays 36 (below), so the app's behaviour on the device does not change.
+    compileSdk = 37
 
     defaultConfig {
         // ⚠️ PAS `com.filestech.notes_tech` par défaut — voir le bloc « prise de place » ci-dessus.

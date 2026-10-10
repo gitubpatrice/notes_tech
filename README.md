@@ -140,8 +140,8 @@ No Play Store: no account is needed to install.
 
 ## Local build
 
-Requirements: JDK 17, Android SDK 36, NDK `27.0.12077973` and CMake 3.22.1 (pinned in
-`app/build.gradle.kts`). Gradle 8.13 comes with the wrapper.
+Requirements: JDK 17, Android SDK 37, NDK `27.0.12077973` and CMake 3.22.1 (pinned in
+`app/build.gradle.kts`). Gradle 9.8.1 comes with the wrapper.
 
 ```bash
 ./gradlew testDebugUnitTest lintDebug
@@ -158,7 +158,7 @@ and the universal APK `versionCode × 10`.
 
 ## Stack
 
-- Kotlin 2.3, Jetpack Compose (Material 3), Hilt, Room on **SQLCipher** 4.16, DataStore
+- Kotlin 2.4, Jetpack Compose (Material 3), Hilt, Room on **SQLCipher** 4.16, DataStore
 - Bouncy Castle (Argon2id), Android Keystore, AES-256-GCM from the platform
 - `org.jetbrains:markdown` (preview), whisper.cpp through JNI (dictation)
 - **No network library**
