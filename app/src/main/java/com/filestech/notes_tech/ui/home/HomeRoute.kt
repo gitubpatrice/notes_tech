@@ -318,6 +318,10 @@ fun HomeRoute(
         )
     }
 
+    // What waits for a vault's secret waits for THAT sheet: replaced by another vault's sheet without
+    // being dismissed, it would have survived and run at the next unlock of its vault.
+    LaunchedEffect(dossierAOuvrir?.id) { gestes.garderSeulementPour(dossierAOuvrir?.id) }
+
     dossierAOuvrir?.let { dossier ->
         UnlockVaultSheet(
             folder = dossier,

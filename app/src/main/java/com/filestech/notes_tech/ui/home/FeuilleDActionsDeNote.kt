@@ -136,6 +136,17 @@ internal class GestesDeNoteEnCours {
         }
     }
 
+    /**
+     * The unlock sheet now asks for [dossierId]'s secret — or for none: what waited for ANOTHER vault
+     * is given up. The sheet is the gesture's context; a confirmed "Delete permanently" must not run
+     * later, at an unlock made for another reason, once that sheet was replaced by another vault's
+     * without being dismissed (3-axes audit, 2026-10-10).
+     */
+    fun garderSeulementPour(dossierId: String?) {
+        if (menuEnAttente?.folderId != dossierId) menuEnAttente = null
+        if (gesteEnAttente?.folder?.id != dossierId) gesteEnAttente = null
+    }
+
     /** Giving up the secret is giving up the gesture: what waited falls with the unlock sheet. */
     fun abandonner() {
         menuEnAttente = null

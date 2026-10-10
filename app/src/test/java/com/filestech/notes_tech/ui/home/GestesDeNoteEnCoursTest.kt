@@ -80,6 +80,37 @@ class GestesDeNoteEnCoursTest {
         assertThat(etat.noteEnMenu).isEqualTo(note)
     }
 
+    /**
+     * 3-axes audit: a confirmed deletion waiting for vault A must not survive A's unlock sheet being
+     * replaced by vault B's — it would run later, at an unlock made for another reason.
+     */
+    @Test
+    fun `what waits for vault A is given up when the unlock sheet moves to vault B`() {
+        val etat = GestesDeNoteEnCours()
+        val note = note("n1", coffreA, scellee = true)
+        etat.appuiLong(note, dossiers, emptySet())
+        etat.attendreLeCoffre(HomeEvent.GesteEnAttenteDuCoffre(coffreA, GesteSurUneNote.SupprimerDefinitivement(note)))
+
+        etat.garderSeulementPour(coffreA.id)
+        etat.garderSeulementPour(coffreB.id)
+        etat.reprendreApres(coffreA) { error("the deletion outlived its sheet") }
+
+        assertThat(etat.noteEnMenu).isNull()
+    }
+
+    @Test
+    fun `the sheet of the awaited vault keeps what waits for it`() {
+        val etat = GestesDeNoteEnCours()
+        val geste = GesteSurUneNote.MettreALaCorbeille(note("n1", coffreA, scellee = true))
+        val executes = mutableListOf<GesteSurUneNote>()
+        etat.attendreLeCoffre(HomeEvent.GesteEnAttenteDuCoffre(coffreA, geste))
+
+        etat.garderSeulementPour(coffreA.id)
+        etat.reprendreApres(coffreA) { executes += it }
+
+        assertThat(executes).containsExactly(geste)
+    }
+
     @Test
     fun `giving up the secret gives up what waited for it`() {
         val etat = GestesDeNoteEnCours()
