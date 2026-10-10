@@ -133,6 +133,9 @@ object SemanticColors {
     /**
      * Seuil de bascule. `0.5` serait le milieu arithmétique ; `0.35` place la frontière là où la
      * perception bascule réellement, la luminance relative n'étant pas linéaire.
+     *
+     * Internal since 3.1.0: the notes' colours (`CouleursDeNote`) switch on the same threshold, so that
+     * a card and the star drawn on it never disagree on whether the surface is dark.
      */
-    private const val DARK_SURFACE_THRESHOLD = 0.35f
+    internal const val DARK_SURFACE_THRESHOLD = 0.35f
 }

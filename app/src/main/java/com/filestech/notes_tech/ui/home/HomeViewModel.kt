@@ -44,6 +44,8 @@ data class HomeUiState(
     val currentFolder: Folder? = null,
     val folderNamesById: Map<String, String> = emptyMap(),
     val vaultLostCount: Int = 0,
+    /** The vaults open right now: a vault note's colour shows only then (`couleurVisible`, 3.1.0). */
+    val coffresOuverts: Set<String> = emptySet(),
 ) {
     /** `true` quand la liste n'est pas restreinte à un dossier — le badge de dossier sert alors. */
     val showFolderBadge: Boolean get() = currentFolder == null || query.isNotEmpty()
@@ -133,6 +135,7 @@ class HomeViewModel @Inject constructor(
             folderNamesById = noms,
         )
     }.combine(vaultLostCount) { etat, perdues -> etat.copy(vaultLostCount = perdues) }
+        .combine(vaults.unlockedFolderIds) { etat, ouverts -> etat.copy(coffresOuverts = ouverts) }
         .stateIn(
             scope = viewModelScope,
             // `WhileSubscribed(5 s)` et non `Eagerly` : sans abonné, garder ces flux actifs
@@ -213,9 +216,6 @@ class HomeViewModel @Inject constructor(
      *   time the user confirms (same reasoning as the folder gestures in `HomeRoute`).
      * - **Vault folder, or a sealed note**: an empty note in a vault is not sealed yet, and a sealed
      *   note is protected wherever it sits.
-     */
-    fun executer(geste: GesteSurUneNote) {
-        viewModelScope.launch {
      *
      * ⚠️ **Not atomic with the write, and accepted** (raised by both external reviews, 2026-10-10): an
      * automatic lock falling in the microseconds between this check and the DELETE/UPDATE lets the
@@ -223,6 +223,9 @@ class HomeViewModel @Inject constructor(
      * editor's trash has always behaved so. What this check exists for, a gesture on a vault already
      * closed, is refused. Holding the session through the write would need a lease the sessions do not
      * have (`VaultSessions.whileUnlocking` marks an unlock in progress, it is not that).
+     */
+    fun executer(geste: GesteSurUneNote) {
+        viewModelScope.launch {
             try {
                 val actuelle = notes.find(geste.note.id) ?: return@launch
                 val dossier = folders.find(actuelle.folderId)

@@ -153,6 +153,19 @@
     <string name="note_actions_label">Acciones de la nota</string>
     <string name="note_moved_to_trash">Nota movida a la papelera</string>
     <string name="common_undo">Deshacer</string>
+    <!-- A note's colour in the lists (3.1.0) -->
+    <string name="note_editor_menu_color">Color</string>
+    <string name="note_color_title">Color de la nota</string>
+    <string name="note_color_vault_hint">Visible en la lista solo mientras la caja fuerte está desbloqueada.</string>
+    <string name="note_color_none">Sin color</string>
+    <string name="note_color_yellow">Amarillo</string>
+    <string name="note_color_orange">Naranja</string>
+    <string name="note_color_green">Verde</string>
+    <string name="note_color_teal">Turquesa</string>
+    <string name="note_color_blue">Azul</string>
+    <string name="note_color_purple">Morado</string>
+    <string name="note_color_pink">Rosa</string>
+    <string name="note_color_gray">Gris</string>
     <string name="note_editor_move_failed">No se pudo mover: %1$s</string>
     <string name="note_editor_exit_vault_title">¿Sacar la nota de la caja fuerte?</string>
     <string name="note_editor_exit_vault_body">El contenido se descifrará y se guardará sin cifrar en la base de datos, sin protección por contraseña. Irreversible: la nota habrá existido fuera del cifrado, aunque más adelante la vuelva a mover a una caja fuerte.</string>

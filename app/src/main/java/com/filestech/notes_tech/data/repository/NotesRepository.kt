@@ -12,6 +12,7 @@ import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.links.WikiLinkParser
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.domain.repository.VaultOpener
 import com.filestech.notes_tech.domain.repository.VaultSealer
@@ -405,6 +406,10 @@ class NotesRepository @Inject constructor(
 
     suspend fun setArchived(id: String, archived: Boolean): Boolean =
         databases.get().noteWriteDao().updateFlags(id = id, updatedAt = clock.millis(), archived = archived) > 0
+
+    /** The note's colour in the lists, `null` for none (3.1.0). Writes that column only, as [setPinned]. */
+    suspend fun setColor(id: String, color: NoteColor?): Boolean =
+        databases.get().noteWriteDao().updateColor(id = id, colorId = color?.id, updatedAt = clock.millis()) > 0
 
     /**
      * Met une note à la corbeille.
@@ -801,6 +806,7 @@ class NotesRepository @Inject constructor(
         createdAt = createdAt.toEpochMilli(),
         updatedAt = updatedAt.toEpochMilli(),
         encVersion = encVersion,
+        colorId = color?.id,
     )
 
     private fun requireTitleWithinLimit(title: String) {

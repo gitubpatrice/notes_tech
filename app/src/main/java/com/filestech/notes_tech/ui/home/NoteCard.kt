@@ -34,8 +34,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.model.NoteExcerpt
+import com.filestech.notes_tech.ui.common.nom
 import com.filestech.notes_tech.ui.common.rememberNoteDateFormatter
+import com.filestech.notes_tech.ui.theme.CouleursDeNote
 import com.filestech.notes_tech.ui.theme.SemanticColors
 
 /**
@@ -81,6 +84,12 @@ fun NoteCard(
     modifier: Modifier = Modifier,
     folderName: String? = null,
     onLongClick: (() -> Unit)? = null,
+    /**
+     * The colour to draw (3.1.0) — decided by the caller with `couleurVisible`, never read from [note]
+     * here: whether a vault note may show its colour depends on its vault being open, which the card
+     * cannot know.
+     */
+    couleur: NoteColor? = null,
 ) {
     val verrouillee = note.isLocked
     val couleurs = MaterialTheme.colorScheme
@@ -113,11 +122,15 @@ fun NoteCard(
     // ⚠️ **`!verrouillee` comme partout ailleurs ici.** Annoncer les étiquettes d'une note de coffre
     // rouvrirait exactement la fuite que cette carte ferme : « Note verrouillée, #médical, #divorce »
     // n'a rien protégé. La garde suit la branche visuelle, ligne pour ligne.
+    val teinte = couleur?.let { CouleursDeNote.teinte(it, couleurs) }
+    val nomDeCouleur = couleur?.let { stringResource(it.nom()) }
     val description = buildString {
         append(titreAffiche)
         if (!verrouillee && extrait.isNotEmpty()) append(". ").append(extrait)
         append(". ").append(formate(note.updatedAt))
         folderName?.let { append(". ").append(it) }
+        // Said as it is shown: a colour drawn on the card is a colour TalkBack names.
+        nomDeCouleur?.let { append(". ").append(it) }
         if (!verrouillee && note.tags.isNotEmpty()) {
             append(". ").append(note.tags.joinToString(" ") { "#$it" })
         }
@@ -126,13 +139,17 @@ fun NoteCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = couleurs.surfaceContainerLow,
-        border = BorderStroke(
-            width = 1.dp,
+        color = teinte?.fond ?: couleurs.surfaceContainerLow,
+        border = when {
             // Le liseré rouge d'une note verrouillée est le même signal que le cadenas du tiroir :
             // deux repères pour la même chose, l'un lisible de loin, l'autre à la lecture.
-            color = if (verrouillee) couleurs.error.copy(alpha = 0.4f) else couleurs.outlineVariant,
-        ),
+            // ⚠️ It wins over a colour (a vault note's, shown while its vault is open): "locked"
+            // is the signal that must never be lost.
+            verrouillee -> BorderStroke(1.dp, couleurs.error.copy(alpha = 0.4f))
+            // The colour's border is stronger than the plain one: it is what tells notes apart.
+            teinte != null -> BorderStroke(1.5.dp, teinte.bord)
+            else -> BorderStroke(1.dp, couleurs.outlineVariant)
+        },
     ) {
         Column(
             modifier = Modifier

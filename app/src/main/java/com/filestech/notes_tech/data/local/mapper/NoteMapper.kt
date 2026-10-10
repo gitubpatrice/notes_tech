@@ -3,6 +3,7 @@ package com.filestech.notes_tech.data.local.mapper
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteColor
 import java.time.Instant
 
 /**
@@ -32,6 +33,7 @@ internal fun NoteEntity.toDomain(): Note = Note(
     updatedAt = Instant.ofEpochMilli(updatedAt),
     encrypted = encryptedContent?.let(::EncryptedBody),
     encVersion = encVersion,
+    color = NoteColor.fromId(colorId),
 )
 
 internal fun List<NoteEntity>.toDomain(): List<Note> = map(NoteEntity::toDomain)

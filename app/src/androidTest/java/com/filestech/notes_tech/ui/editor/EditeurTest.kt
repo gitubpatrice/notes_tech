@@ -20,7 +20,6 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
@@ -104,6 +103,7 @@ class EditeurTest {
     private val favoris = mutableListOf<Boolean>()
     private val infos = mutableListOf<Unit>()
     private val deplacements = mutableListOf<Unit>()
+    private val couleurs = mutableListOf<Unit>()
     private val exports = mutableListOf<Unit>()
     private val copies = mutableListOf<Unit>()
     private val corbeilles = mutableListOf<Unit>()
@@ -163,6 +163,7 @@ class EditeurTest {
                         onFavori = { favoris += it },
                         onInfos = { infos += Unit },
                         onDeplacer = { deplacements += Unit },
+                        onCouleur = { couleurs += Unit },
                         onExporter = { exports += Unit },
                         onCopier = { copies += Unit },
                         onCorbeille = { corbeilles += Unit },

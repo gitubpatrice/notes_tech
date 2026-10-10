@@ -173,6 +173,19 @@
     <string name="note_actions_label">Note actions</string>
     <string name="note_moved_to_trash">Note moved to trash</string>
     <string name="common_undo">Undo</string>
+    <!-- A note's colour in the lists (3.1.0) -->
+    <string name="note_editor_menu_color">Color</string>
+    <string name="note_color_title">Note color</string>
+    <string name="note_color_vault_hint">Shown in the list only while the vault is open.</string>
+    <string name="note_color_none">No color</string>
+    <string name="note_color_yellow">Yellow</string>
+    <string name="note_color_orange">Orange</string>
+    <string name="note_color_green">Green</string>
+    <string name="note_color_teal">Teal</string>
+    <string name="note_color_blue">Blue</string>
+    <string name="note_color_purple">Purple</string>
+    <string name="note_color_pink">Pink</string>
+    <string name="note_color_gray">Gray</string>
     <string name="note_editor_move_failed">Move failed: %1$s</string>
     <string name="note_editor_exit_vault_title">Move note out of vault?</string>
     <string name="note_editor_exit_vault_body">The content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — the current note will have transited outside encryption, even if you later move it back into a vault.</string>

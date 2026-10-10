@@ -292,6 +292,7 @@ fun HomeScreen(
                             note = note,
                             onClick = { onOpenNote(note) },
                             onLongClick = { onLongPressNote(note) },
+                            couleur = note.couleurVisible(state.coffresOuverts),
                             folderName = if (state.showFolderBadge) {
                                 state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
                             } else {

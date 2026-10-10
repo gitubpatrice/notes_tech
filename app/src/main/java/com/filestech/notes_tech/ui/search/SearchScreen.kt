@@ -39,6 +39,7 @@ import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.rememberFolderDisplayName
 import com.filestech.notes_tech.ui.home.NoteCard
+import com.filestech.notes_tech.ui.home.couleurVisible
 
 /**
  * La recherche, branchée : ViewModel et rien d'autre.
@@ -177,6 +178,8 @@ fun SearchScreen(
                             note = note,
                             onClick = { onOpenNote(note) },
                             folderName = state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) },
+                            // The search holds no vault note (its index is masked); none is open here.
+                            couleur = note.couleurVisible(coffresOuverts = emptySet()),
                         )
                     }
                 }

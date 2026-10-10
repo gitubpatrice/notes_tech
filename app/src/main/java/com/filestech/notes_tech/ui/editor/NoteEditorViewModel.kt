@@ -17,6 +17,7 @@ import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.export.NoteMarkdown
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -821,6 +822,12 @@ class NoteEditorViewModel @Inject constructor(
     fun setFavorite(favorite: Boolean) = enArrierePlan {
         notes.setFavorite(noteId, favorite)
         _state.update { etat -> etat.copy(note = etat.note?.copy(favorite = favorite)) }
+    }
+
+    /** The third twin (3.1.0): the colour of the note's card, `null` for none — same copy, same reason. */
+    fun setColor(color: NoteColor?) = enArrierePlan {
+        notes.setColor(noteId, color)
+        _state.update { etat -> etat.copy(note = etat.note?.copy(color = color)) }
     }
 
     /**

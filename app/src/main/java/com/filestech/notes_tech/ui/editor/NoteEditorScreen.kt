@@ -42,6 +42,7 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
@@ -163,6 +164,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     }
 
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
+    var couleurOuverte by rememberSaveable { mutableStateOf(false) }
     var infosOuvertes by rememberSaveable { mutableStateOf(false) }
 
     // Les deux détours du déplacement, retenus par **identifiant** pour survivre à une rotation et
@@ -224,6 +226,18 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         onBack = onBack,
         onOuvrirNote = ouvrirUneAutreNote,
     )
+
+    if (couleurOuverte) {
+        FeuilleDeCouleur(
+            actuelle = state.note?.color,
+            dansUnCoffre = state.isVaultNote,
+            onChoisir = { couleur ->
+                couleurOuverte = false
+                viewModel.setColor(couleur)
+            },
+            onDismiss = { couleurOuverte = false },
+        )
+    }
 
     if (deplacementOuvert) {
         FeuilleDeDeplacement(
@@ -369,6 +383,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             onFavori = viewModel::setFavorite,
             onInfos = { infosOuvertes = true },
             onDeplacer = { deplacementOuvert = true },
+            onCouleur = { couleurOuverte = true },
             onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
             onCopier = {
                 // Retour haptique sur un geste réussi, comme l'application publiée
@@ -441,6 +456,8 @@ fun NoteEditorScreen(
     // ⚠️ No default: a menu entry wired to `{}` would be a dead button that compiles.
     onInfos: () -> Unit,
     onDeplacer: () -> Unit,
+    /** The ⋮ menu's "Color" (3.1.0): the sheet that colours the note's card in the lists. */
+    onCouleur: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
@@ -481,6 +498,11 @@ fun NoteEditorScreen(
                 // label is a plain child of the clickable surface, so it merges, as on every button.
                 ExtendedFloatingActionButton(
                     onClick = {
+                        // The cursor at the END: "Edit" means "go on writing". A loaded note's value
+                        // starts at 0, which put the cursor before the first word — measured by the
+                        // end-to-end test of the tick. A cursor move is not an edit: the save compares
+                        // the text only.
+                        onContenuChange(state.content.copy(selection = TextRange(state.content.text.length)))
                         focaliserLeCorps = true
                         onModifier()
                     },
@@ -498,11 +520,6 @@ fun NoteEditorScreen(
                 navigationIcon = {
                     IconButton(onClick = onQuitter) {
                         Icon(
-                        // The cursor at the END: "Edit" means "go on writing". A loaded note's value
-                        // starts at 0, which put the cursor before the first word — measured by the
-                        // end-to-end test of the tick. A cursor move is not an edit: the save compares
-                        // the text only.
-                        onContenuChange(state.content.copy(selection = TextRange(state.content.text.length)))
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.common_close),
                         )
@@ -619,6 +636,7 @@ fun NoteEditorScreen(
                             onFavori = { onFavori(!note.favorite) },
                             onInfos = onInfos,
                             onDeplacer = onDeplacer,
+                            onCouleur = onCouleur,
                             onExporter = onExporter,
                             onCopier = onCopier,
                             onCorbeille = onCorbeille,
@@ -1224,6 +1242,7 @@ private fun MenuDeDebordement(
     onFavori: () -> Unit,
     onInfos: () -> Unit,
     onDeplacer: () -> Unit,
+    onCouleur: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
@@ -1279,6 +1298,15 @@ private fun MenuDeDebordement(
             onClick = {
                 ouvert = false
                 onFavori()
+            },
+        )
+        // The colour is about the note's card in the lists, as pin and favourite are (3.1.0).
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_color)) },
+            leadingIcon = { Icon(Icons.Outlined.Palette, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onCouleur()
             },
         )
         // The info panel sits with pin and favourite: all three are about the note's record card,

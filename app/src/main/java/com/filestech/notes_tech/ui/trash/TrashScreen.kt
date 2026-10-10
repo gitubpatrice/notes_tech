@@ -46,6 +46,7 @@ import com.filestech.notes_tech.ui.common.DialogueDestructif
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.home.NoteCard
+import com.filestech.notes_tech.ui.home.couleurVisible
 import com.filestech.notes_tech.ui.theme.Formes
 import kotlinx.coroutines.launch
 
@@ -175,7 +176,12 @@ fun TrashScreen(
                 ) {
                     items(state.notes, key = { it.id }) { note ->
                         Column {
-                            NoteCard(note = note, onClick = null)
+                            // A sealed note in the trash keeps its colour hidden: no vault is open here.
+                            NoteCard(
+                                note = note,
+                                onClick = null,
+                                couleur = note.couleurVisible(coffresOuverts = emptySet()),
+                            )
                             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                                 TextButton(onClick = { onRestore(note.id) }, shape = Formes.bouton) {
                                     Icon(Icons.Outlined.RestoreFromTrash, contentDescription = null)

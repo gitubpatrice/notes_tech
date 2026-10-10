@@ -40,6 +40,12 @@ data class Note(
     /** Non-`null` ⇒ note verrouillée dans un coffre. */
     val encrypted: EncryptedBody?,
     val encVersion: Int,
+    /**
+     * The background colour in the lists (3.1.0), `null` for none. Stored in clear, like [tags], even
+     * for a vault note: the lists show it on a vault note only while its vault is open — see
+     * `ui/home/CouleurVisible.kt`.
+     */
+    val color: NoteColor? = null,
 ) {
     /**
      * `true` si la note est verrouillée dans un coffre.
