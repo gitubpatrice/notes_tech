@@ -1,6 +1,6 @@
 # Política de privacidad — Notes Tech
 
-_Última actualización: 10 de octubre de 2026_
+_Última actualización: 26 de octubre de 2026_
 
 ## En una frase
 
@@ -75,6 +75,8 @@ Esta política se redactó en francés; las versiones en otros idiomas son tradu
 ### Contacto
 
 Para cualquier pregunta: **contact@files-tech.com**
+
+El editor no recibe ningún dato de la aplicación. Solo le llega un correo que usted decida escribirle: solo sirve para responderle, se conserva el tiempo del intercambio y después se borra. Puede solicitar el acceso a él o su supresión en la misma dirección, y reclamar ante la CNIL, la autoridad francesa de protección de datos (www.cnil.fr), si considera que no se respetan sus derechos.
 
 ---
 

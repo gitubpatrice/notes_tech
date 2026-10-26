@@ -1,6 +1,6 @@
 # Privacy policy — Notes Tech
 
-_Last updated: 10 October 2026_
+_Last updated: 26 October 2026_
 
 ## In one sentence
 
@@ -75,6 +75,8 @@ This policy was written in French; the versions in other languages are translati
 ### Contact
 
 For any question: **contact@files-tech.com**
+
+The publisher receives no data from the app. Only an e-mail you choose to write to him reaches him: it is used only to answer you, kept for the time of the exchange, then erased. You can ask for access to it or its erasure at the same address, and complain to the CNIL, the French data protection authority (www.cnil.fr), if you think your rights are not respected.
 
 ---
 

@@ -1,6 +1,6 @@
 # Condizioni d'uso — Notes Tech
 
-_Ultimo aggiornamento: 10 ottobre 2026_
+_Ultimo aggiornamento: 26 ottobre 2026_
 
 ## Licenza
 
@@ -68,7 +68,7 @@ Gli aggiornamenti sono pubblicati sul repository GitHub ufficiale e su F-Droid. 
 
 ## Responsabilità
 
-L'editore non può essere ritenuto responsabile di alcun danno diretto o indiretto derivante dall'uso dell'app, nei limiti consentiti dalla legge francese (licenza Apache 2.0, sezione 8). In particolare, **qualsiasi perdita di dati conseguente a una modalità panico, a una passphrase dimenticata, a una cancellazione automatica per errori di PIN, a un'eliminazione definitiva o a una disinstallazione è di esclusiva responsabilità dell'utente**. Nulla in queste condizioni limita una responsabilità che la legge non consente di limitare.
+L'app è fornita gratuitamente, da un privato. Nella misura consentita dalla legge, l'editore non è responsabile dei danni indiretti, né delle perdite di dati dovute all'uso di funzioni concepite per essere irreversibili (modalità panico, cancellazione di una cassaforte con PIN dopo cinque codici errati, eliminazione definitiva, disinstallazione) o a una passphrase o un PIN dimenticati (licenza Apache 2.0, sezione 8). Questo limite non si applica né in caso di colpa grave o dolo, né ai danni che la legge vieta di escludere.
 
 ## Legge applicabile
 

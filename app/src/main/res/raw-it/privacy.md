@@ -1,6 +1,6 @@
 # Informativa sulla privacy — Notes Tech
 
-_Ultimo aggiornamento: 10 ottobre 2026_
+_Ultimo aggiornamento: 26 ottobre 2026_
 
 ## In una frase
 
@@ -75,6 +75,8 @@ Questa informativa è stata redatta in francese; le versioni in altre lingue ne 
 ### Contatti
 
 Per qualsiasi domanda: **contact@files-tech.com**
+
+L'editore non riceve alcun dato dall'app. Gli arriva solo un'e-mail che Lei sceglie di scrivergli: serve solo a risponderLe, è conservata per il tempo dello scambio, poi cancellata. Può chiederne l'accesso o la cancellazione allo stesso indirizzo, e rivolgersi alla CNIL, l'autorità francese per la protezione dei dati (www.cnil.fr), se ritiene che i Suoi diritti non siano rispettati.
 
 ---
 

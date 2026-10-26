@@ -1,6 +1,6 @@
 # Conditions d'utilisation — Notes Tech
 
-_Dernière mise à jour : 10 octobre 2026_
+_Dernière mise à jour : 26 octobre 2026_
 
 ## Licence
 
@@ -72,7 +72,7 @@ Les mises à jour sont publiées sur le dépôt GitHub officiel et sur F-Droid. 
 
 ## Responsabilité
 
-L'éditeur ne pourra être tenu responsable de tout dommage direct ou indirect résultant de l'utilisation de l'application, dans la limite autorisée par la loi française (licence Apache 2.0, section 8). En particulier, **toute perte de données consécutive à un mode panique, à un oubli de passphrase, à un auto-wipe PIN, à une suppression définitive ou à une désinstallation de l'application est de la seule responsabilité de l'utilisateur**. Rien dans ces conditions ne limite une responsabilité que la loi interdit de limiter.
+L'application est fournie gratuitement, par un particulier. Dans la mesure permise par la loi, l'éditeur n'est pas responsable des dommages indirects, ni des pertes de données dues à l'usage de fonctions conçues pour être irréversibles (mode panique, effacement d'un coffre PIN après cinq codes erronés, suppression définitive, désinstallation) ou à une passphrase ou un code PIN oublié (licence Apache 2.0, section 8). Cette limite ne s'applique ni en cas de faute lourde ou dolosive, ni aux dommages que la loi interdit d'exclure.
 
 ## Loi applicable
 
