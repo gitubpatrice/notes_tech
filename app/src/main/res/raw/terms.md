@@ -1,6 +1,6 @@
 # Terms of use — Notes Tech
 
-_Last updated: 10 October 2026_
+_Last updated: 26 October 2026_
 
 ## License
 
@@ -71,7 +71,7 @@ Updates are published on the official GitHub repository and on F-Droid. The app 
 
 ## Liability
 
-The publisher cannot be held liable for any direct or indirect damage resulting from the use of the app, within the limits authorized by French law (Apache 2.0 license, section 8). In particular, **any data loss consequent to a panic mode, a forgotten passphrase, a PIN auto-wipe, a permanent deletion or an uninstall is the sole responsibility of the user**. Nothing in these terms limits a liability that the law does not allow to be limited.
+The app is provided free of charge, by a private individual. To the extent permitted by law, the publisher is not liable for indirect damage, nor for data loss caused by using functions designed to be irreversible (panic mode, the erasure of a PIN vault after five wrong codes, permanent deletion, uninstalling) or by a forgotten passphrase or PIN (Apache 2.0 license, section 8). This limit applies neither to gross negligence or wilful misconduct, nor to damage the law forbids excluding.
 
 ## Governing law
 

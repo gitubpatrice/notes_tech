@@ -1,6 +1,6 @@
 # Nutzungsbedingungen — Notes Tech
 
-_Zuletzt aktualisiert: 10. Oktober 2026_
+_Zuletzt aktualisiert: 26. Oktober 2026_
 
 ## Lizenz
 
@@ -68,7 +68,7 @@ Updates werden im offiziellen GitHub-Repository und auf F-Droid veröffentlicht.
 
 ## Haftung
 
-Der Herausgeber haftet nicht für direkte oder indirekte Schäden, die aus der Nutzung der App entstehen, soweit das französische Recht dies zulässt (Apache-Lizenz 2.0, Abschnitt 8). Insbesondere liegt **jeder Datenverlust infolge eines Panikmodus, einer vergessenen Passphrase, eines automatischen Löschens nach PIN-Fehlversuchen, einer endgültigen Löschung oder einer Deinstallation allein in der Verantwortung des Nutzers**. Nichts in diesen Bedingungen beschränkt eine Haftung, deren Beschränkung gesetzlich nicht zulässig ist.
+Die App wird kostenlos von einer Privatperson bereitgestellt. Soweit gesetzlich zulässig, haftet der Herausgeber nicht für indirekte Schäden und nicht für Datenverluste, die auf die Nutzung bewusst unwiderruflicher Funktionen (Panikmodus, Löschen eines PIN-Tresors nach fünf falschen Codes, endgültiges Löschen, Deinstallation) oder auf eine vergessene Passphrase oder PIN zurückgehen (Apache-Lizenz 2.0, Abschnitt 8). Diese Beschränkung gilt weder bei grober Fahrlässigkeit oder Vorsatz noch für Schäden, deren Ausschluss das Gesetz verbietet.
 
 ## Anwendbares Recht
 

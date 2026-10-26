@@ -3,6 +3,14 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, **puis le 2026-10-10**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
+## 📝 POUR LA PROCHAINE VERSION (noté le 2026-10-26)
+
+Textes juridiques embarqués (`res/raw*/terms.md`, `privacy.md`, 5 langues, datés du 26/10) alignés sur ceux de
+Read Files Tech 3.0 : clause de responsabilité réécrite (gratuité, particulier ; dommages indirects et pertes
+dues aux fonctions irréversibles ou à un oubli, jamais la faute lourde ou dolosive — C. civ. 1231-3, 1171) et
+clause e-mail (RGPD art. 13 : finalité, gardé le temps de l'échange, accès, effacement, CNIL). Ils partent avec
+la prochaine version : le dire dans ses notes (« Textes juridiques précisés »).
+
 ## 🧭 À LA REPRISE (écrit le 2026-10-10 au soir) — la 3.1.0 est PUBLIÉE
 
 Patrice : « fusionne tout », « release ok », « mets tout à jour ». Fait :

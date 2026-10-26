@@ -1,6 +1,6 @@
 # Politique de confidentialité — Notes Tech
 
-_Dernière mise à jour : 10 octobre 2026_
+_Dernière mise à jour : 26 octobre 2026_
 
 ## En une phrase
 
@@ -75,6 +75,8 @@ Cette politique a été rédigée en français ; les versions dans d'autres lang
 ### Contact
 
 Pour toute question : **contact@files-tech.com**
+
+L'éditeur ne reçoit aucune donnée de l'application. Seul un e-mail que vous choisissez de lui écrire lui parvient : il sert uniquement à vous répondre, il est gardé le temps de l'échange, puis effacé. Vous pouvez en demander l'accès ou l'effacement à la même adresse, et saisir la CNIL (www.cnil.fr) si vous estimez que vos droits ne sont pas respectés.
 
 ---
 

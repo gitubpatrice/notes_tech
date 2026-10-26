@@ -1,6 +1,6 @@
 # Datenschutzerklärung — Notes Tech
 
-_Zuletzt aktualisiert: 10. Oktober 2026_
+_Zuletzt aktualisiert: 26. Oktober 2026_
 
 ## In einem Satz
 
@@ -75,6 +75,8 @@ Diese Datenschutzerklärung wurde auf Französisch verfasst; die Fassungen in an
 ### Kontakt
 
 Für alle Fragen: **contact@files-tech.com**
+
+Der Herausgeber erhält keine Daten von der App. Ihn erreicht nur eine E-Mail, die Sie ihm schreiben möchten: Sie dient nur dazu, Ihnen zu antworten, wird für die Dauer des Austauschs aufbewahrt und dann gelöscht. Sie können unter derselben Adresse Auskunft darüber oder ihre Löschung verlangen und sich bei der CNIL, der französischen Datenschutzbehörde (www.cnil.fr), beschweren, wenn Sie Ihre Rechte nicht gewahrt sehen.
 
 ---
 
