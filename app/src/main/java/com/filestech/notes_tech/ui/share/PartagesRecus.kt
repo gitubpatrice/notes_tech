@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.repository.NotesRepository
+import com.filestech.notes_tech.domain.importation.PartageRecu
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,11 +26,14 @@ import timber.log.Timber
 import javax.inject.Inject
 
 /**
- * Turns a share waiting in [PartagesEnAttente] into notes of the Inbox, then opens the note — or, when
- * the share made several or could not all be read, says what happened.
+ * A share waiting in [PartagesEnAttente]: the user is asked, then it becomes notes of the Inbox, and
+ * the note opens — or, when it made several or could not all be read, a summary says what happened.
  *
- * 🔴 **Composed beside the navigation, inside the app lock's content** (`MainActivity`): it exists only
- * while the app is unlocked, so a share is never written behind the lock screen. Never in a vault.
+ * 🔴 **Composed beside the navigation, inside the app lock's content** (`MainActivity`), and not while
+ * the panic mode runs: it exists only while the app is unlocked, so a share is never written behind
+ * the lock screen. 🔴 **Nothing is written before the user says "Add"** (security review of 3.2.0, L3):
+ * any app can start the share activity by name, without the user ever choosing Notes Tech in a share
+ * sheet. Never in a vault.
  */
 @Composable
 fun PartagesRecus(onOuvrirLaNote: (String) -> Unit) {
@@ -37,42 +41,86 @@ fun PartagesRecus(onOuvrirLaNote: (String) -> Unit) {
     val enAttente by modele.enAttente.collectAsState()
     val resultat by modele.resultat.collectAsState()
 
-    LaunchedEffect(enAttente) {
-        if (enAttente != null) modele.enregistrer()
+    val attente = enAttente
+    val fait = resultat
+    when {
+        fait != null -> Resultat(fait, onOuvrirLaNote, modele::vu)
+        attente != null && attente.notes.isEmpty() -> LaunchedEffect(attente) { modele.enregistrer() }
+        attente != null -> Confirmation(attente, onAjouter = modele::enregistrer, onAnnuler = modele::abandonner)
     }
+}
 
-    when (val r = resultat) {
-        null -> Unit
-        is ResultatDUnPartage.UneNote -> LaunchedEffect(r) {
-            onOuvrirLaNote(r.id)
-            modele.vu()
+@Composable
+private fun Confirmation(recu: PartageRecu, onAjouter: () -> Unit, onAnnuler: () -> Unit) {
+    val titreDeLaNote = recu.notes.singleOrNull()?.titre
+    AlertDialog(
+        onDismissRequest = onAnnuler,
+        title = { Text(stringResource(R.string.share_confirm_title)) },
+        text = {
+            Text(
+                buildList {
+                    add(
+                        if (titreDeLaNote != null) {
+                            stringResource(
+                                R.string.share_confirm_one,
+                                titreDeLaNote.ifBlank { stringResource(R.string.note_untitled) },
+                            )
+                        } else {
+                            pluralStringResource(R.plurals.share_confirm_many, recu.notes.size, recu.notes.size)
+                        },
+                    )
+                    if (recu.ignores > 0) {
+                        add(pluralStringResource(R.plurals.share_result_ignored, recu.ignores, recu.ignores))
+                    }
+                }.joinToString("\n"),
+            )
+        },
+        confirmButton = { TextButton(onClick = onAjouter) { Text(stringResource(R.string.share_confirm_add)) } },
+        dismissButton = { TextButton(onClick = onAnnuler) { Text(stringResource(R.string.common_cancel)) } },
+    )
+}
+
+@Composable
+private fun Resultat(resultat: ResultatDUnPartage, onOuvrirLaNote: (String) -> Unit, onVu: () -> Unit) {
+    when (resultat) {
+        is ResultatDUnPartage.UneNote -> LaunchedEffect(resultat) {
+            onOuvrirLaNote(resultat.id)
+            onVu()
         }
         is ResultatDUnPartage.Resume -> AlertDialog(
-            onDismissRequest = modele::vu,
+            onDismissRequest = onVu,
             title = { Text(stringResource(R.string.share_result_title)) },
             text = {
                 Text(
                     buildList {
-                        if (r.ajoutees >
-                            0
-                        ) {
-                            add(pluralStringResource(R.plurals.share_result_added, r.ajoutees, r.ajoutees))
+                        if (resultat.ajoutees > 0) {
+                            add(
+                                pluralStringResource(
+                                    R.plurals.share_result_added,
+                                    resultat.ajoutees,
+                                    resultat.ajoutees,
+                                ),
+                            )
                         }
-                        if (r.ignorees >
-                            0
-                        ) {
-                            add(pluralStringResource(R.plurals.share_result_ignored, r.ignorees, r.ignorees))
+                        if (resultat.ignorees > 0) {
+                            add(
+                                pluralStringResource(
+                                    R.plurals.share_result_ignored,
+                                    resultat.ignorees,
+                                    resultat.ignorees,
+                                ),
+                            )
                         }
                     }.joinToString("\n"),
                 )
             },
-            confirmButton = { TextButton(onClick = modele::vu) { Text(stringResource(R.string.common_ok)) } },
+            confirmButton = { TextButton(onClick = onVu) { Text(stringResource(R.string.common_ok)) } },
         )
         ResultatDUnPartage.Echec -> AlertDialog(
-            onDismissRequest = modele::vu,
+            onDismissRequest = onVu,
             title = { Text(stringResource(R.string.share_result_title)) },
             text = { Text(stringResource(R.string.share_result_failed)) },
-            confirmButton = { TextButton(onClick = modele::vu) { Text(stringResource(R.string.common_ok)) } },
+            confirmButton = { TextButton(onClick = onVu) { Text(stringResource(R.string.common_ok)) } },
         )
     }
 }
@@ -95,18 +143,16 @@ class PartagesRecusViewModel @Inject constructor(
     private val dernier = MutableStateFlow<ResultatDUnPartage?>(null)
     val resultat: StateFlow<ResultatDUnPartage?> = dernier.asStateFlow()
 
+    /** "Add": the share is taken here, synchronously — a second tap finds nothing, it is written once. */
     fun enregistrer() {
-        // Taken here, synchronously: a second call finds nothing, the share is written once.
+        // Expired (PartagesEnAttente.DUREE_DE_VIE_MS): taken and dropped, nothing to say.
         val recu = partages.prendre() ?: return
         viewModelScope.launch {
             dernier.value = try {
                 val creees = if (recu.notes.isEmpty()) {
                     emptyList()
                 } else {
-                    notes.importer(
-                        FolderEntity.INBOX_ID,
-                        recu.notes,
-                    )
+                    notes.importer(FolderEntity.INBOX_ID, recu.notes)
                 }
                 if (creees.size == 1 && recu.ignores == 0) {
                     ResultatDUnPartage.UneNote(creees.single().id)
@@ -121,6 +167,8 @@ class PartagesRecusViewModel @Inject constructor(
             }
         }
     }
+
+    fun abandonner() = partages.abandonner()
 
     fun vu() {
         dernier.value = null

@@ -535,7 +535,14 @@
         <item quantity="other">%1$d Notizen zum Posteingang hinzugefügt.</item>
     </plurals>
     <plurals name="share_result_ignored">
-        <item quantity="one">%1$d geteiltes Element konnte nicht gelesen werden: kein Text oder größer als 5 MB.</item>
-        <item quantity="other">%1$d geteilte Elemente konnten nicht gelesen werden: kein Text oder größer als 5 MB.</item>
+        <item quantity="one">%1$d geteiltes Element konnte nicht hinzugefügt werden: kein Text oder zu groß.</item>
+        <item quantity="other">%1$d geteilte Elemente konnten nicht hinzugefügt werden: kein Text, zu groß oder zu viele.</item>
+    </plurals>
+    <string name="share_confirm_title">Zu Notes Tech hinzufügen?</string>
+    <string name="share_confirm_one">„%1$s“ wird zum Posteingang hinzugefügt.</string>
+    <string name="share_confirm_add">Hinzufügen</string>
+    <plurals name="share_confirm_many">
+        <item quantity="one">%1$d Notiz wird zum Posteingang hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen werden zum Posteingang hinzugefügt.</item>
     </plurals>
 </resources>

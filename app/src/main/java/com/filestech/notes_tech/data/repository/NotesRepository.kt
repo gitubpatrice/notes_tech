@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -329,9 +330,14 @@ class NotesRepository @Inject constructor(
         require(!folders.isVaultFolder(folderId)) { "import refused into folder $folderId: a vault, or unknown" }
         notes.forEach { requireTitleWithinLimit(it.titre) }
         val now = clock.instant()
+
+        // A date from a file is believed only between 1970 and now (security review of 3.2.0, L2): a
+        // year 200 000 000 would keep a note above all others forever, and a larger one overflows the
+        // epoch milliseconds the database stores.
+        fun plausible(date: Instant?): Instant? = date?.takeIf { !it.isBefore(Instant.EPOCH) && !it.isAfter(now) }
         return inTransaction { database ->
             notes.map { lue ->
-                val creeeLe = lue.creeeLe ?: now
+                val creeeLe = plausible(lue.creeeLe) ?: now
                 val note = Note(
                     id = UUID.randomUUID().toString(),
                     title = lue.titre,
@@ -343,7 +349,7 @@ class NotesRepository @Inject constructor(
                     archived = false,
                     trashedAt = null,
                     createdAt = creeeLe,
-                    updatedAt = lue.modifieeLe ?: creeeLe,
+                    updatedAt = plausible(lue.modifieeLe) ?: creeeLe,
                     encrypted = null,
                     encVersion = EncryptedFormat.CONTENT_ONLY,
                 )

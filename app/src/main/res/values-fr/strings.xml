@@ -581,8 +581,16 @@
         <item quantity="other">%1$d notes ajoutées à la Boîte de réception.</item>
     </plurals>
     <plurals name="share_result_ignored">
-        <item quantity="one">%1$d élément partagé n\'a pas pu être lu : ce n\'est pas du texte, ou il dépasse 5 Mo.</item>
-        <item quantity="many">%1$d d\'éléments partagés n\'ont pas pu être lus : ce n\'est pas du texte, ou ils dépassent 5 Mo.</item>
-        <item quantity="other">%1$d éléments partagés n\'ont pas pu être lus : ce n\'est pas du texte, ou ils dépassent 5 Mo.</item>
+        <item quantity="one">%1$d élément partagé n\'a pas pu être ajouté : ce n\'est pas du texte, ou il est trop gros.</item>
+        <item quantity="many">%1$d d\'éléments partagés n\'ont pas pu être ajoutés : pas du texte, trop gros, ou trop nombreux.</item>
+        <item quantity="other">%1$d éléments partagés n\'ont pas pu être ajoutés : pas du texte, trop gros, ou trop nombreux.</item>
+    </plurals>
+    <string name="share_confirm_title">Ajouter à Notes Tech ?</string>
+    <string name="share_confirm_one">« %1$s » sera ajoutée à la Boîte de réception.</string>
+    <string name="share_confirm_add">Ajouter</string>
+    <plurals name="share_confirm_many">
+        <item quantity="one">%1$d note sera ajoutée à la Boîte de réception.</item>
+        <item quantity="many">%1$d de notes seront ajoutées à la Boîte de réception.</item>
+        <item quantity="other">%1$d notes seront ajoutées à la Boîte de réception.</item>
     </plurals>
 </resources>

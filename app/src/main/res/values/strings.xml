@@ -716,7 +716,14 @@
         <item quantity="other">%1$d notes added to the Inbox.</item>
     </plurals>
     <plurals name="share_result_ignored">
-        <item quantity="one">%1$d shared item could not be read: not text, or over 5 MB.</item>
-        <item quantity="other">%1$d shared items could not be read: not text, or over 5 MB.</item>
+        <item quantity="one">%1$d shared item could not be added: not text, or too large.</item>
+        <item quantity="other">%1$d shared items could not be added: not text, too large, or too many at once.</item>
+    </plurals>
+    <string name="share_confirm_title">Add to Notes Tech?</string>
+    <string name="share_confirm_one">“%1$s” will be added to the Inbox.</string>
+    <string name="share_confirm_add">Add</string>
+    <plurals name="share_confirm_many">
+        <item quantity="one">%1$d note will be added to the Inbox.</item>
+        <item quantity="other">%1$d notes will be added to the Inbox.</item>
     </plurals>
 </resources>

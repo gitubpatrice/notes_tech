@@ -8,8 +8,8 @@ import java.time.ZoneId
 /**
  * What "Share → Notes Tech" sent, turned into notes (3.2.0, `docs/13-VERSION-3.2.md` §4).
  *
- * Pure: the Android side reads the bytes (bounded) and hands them here; everything this decides — the
- * bounds, the text versus the files, the decoding — is tested on the JVM.
+ * Pure: the Android side reads the bytes and hands them here; everything this decides — the bounds,
+ * the text versus the files, the decoding — is tested on the JVM.
  *
  * - **Files win over text.** An app that shares a file often adds a text describing it; the file is
  *   what the user chose.
@@ -17,39 +17,28 @@ import java.time.ZoneId
  *   shared back keeps its title, tags and dates.
  * - **Strict UTF-8.** A file that is not text — a picture shared by mistake — is counted, never
  *   imported as a note full of replacement characters.
+ * - 🔴 **One file at a time, under one budget** (security review of 3.2.0, M2): 50 files of 5 MiB each
+ *   once made 250 MiB held at the same time, and an `OutOfMemoryError` — not an exception any `catch`
+ *   here sees — took the whole app down, a note being edited with it. Each file is read, decoded and
+ *   let go before the next; once [BUDGET] bytes are read, the rest is counted, not read.
  */
 object LectureDUnPartage {
 
     /** A shared text longer than this is refused, not cut: cutting would lose its end silently. */
     const val TEXTE_MAX = 1_048_576
 
-    /** Per file; the Android side stops reading at this many bytes plus one. */
+    /** Per file. */
     const val FICHIER_MAX = 5 * 1024 * 1024
 
-    /** Files in one share; the rest is counted as ignored. */
-    const val FICHIERS_MAX = 50
+    /** For the whole share: what is read, at most, all files together. */
+    const val BUDGET = 16 * 1024 * 1024
 
-    /**
-     * @param fichiers the files of the share, each read up to [FICHIER_MAX] + 1 bytes, or `null` bytes
-     *   when it could not be opened.
-     */
-    fun lire(
-        texte: String?,
-        sujet: String?,
-        fichiers: List<FichierPartage>,
-        zone: ZoneId = ZoneId.systemDefault(),
-    ): PartageRecu {
-        if (fichiers.isNotEmpty()) {
-            val pris = fichiers.take(FICHIERS_MAX)
-            val notes = pris.mapNotNull { fichier ->
-                val octets = fichier.octets?.takeIf { it.size <= FICHIER_MAX } ?: return@mapNotNull null
-                val contenu = utf8Strict(octets) ?: return@mapNotNull null
-                LecteurMarkdown.lire(contenu, fichier.nom, zone)
-            }
-            return PartageRecu(notes = notes, ignores = fichiers.size - notes.size)
-        }
-        if (texte.isNullOrBlank()) return PartageRecu(notes = emptyList(), ignores = 1)
-        if (texte.length > TEXTE_MAX) return PartageRecu(notes = emptyList(), ignores = 1)
+    /** Files in one share; the rest is counted as ignored. */
+    const val FICHIERS_MAX = 20
+
+    /** A shared text, with no file: one note titled by its subject, else its first line. */
+    fun lireUnTexte(texte: String?, sujet: String?): PartageRecu {
+        if (texte.isNullOrBlank() || texte.length > TEXTE_MAX) return PartageRecu(notes = emptyList(), ignores = 1)
         val note = NoteImportee(
             titre = LecteurMarkdown.titreDUnTexte(sujet, texte),
             contenu = texte,
@@ -61,6 +50,35 @@ object LectureDUnPartage {
             favorite = false,
         )
         return PartageRecu(notes = listOf(note), ignores = 0)
+    }
+
+    /**
+     * The [nombre] files of a share, read one by one through [lire].
+     *
+     * @param lire reads the file of that index — its name, and its first `maxOctets + 1` bytes at most
+     *   (one more than allowed is how an oversized file is told), or `null` bytes when it cannot be
+     *   opened. Called at most [FICHIERS_MAX] times, never once the budget is spent.
+     */
+    fun lireDesFichiers(
+        nombre: Int,
+        zone: ZoneId = ZoneId.systemDefault(),
+        lire: (index: Int, maxOctets: Int) -> FichierPartage,
+    ): PartageRecu {
+        val notes = mutableListOf<NoteImportee>()
+        var budget = BUDGET
+        val lus = minOf(nombre, FICHIERS_MAX)
+        for (index in 0 until lus) {
+            if (budget <= 0) break
+            val maxOctets = minOf(FICHIER_MAX, budget)
+            val fichier = lire(index, maxOctets)
+            val octets = fichier.octets
+            budget -= octets?.size ?: 0
+            val note = octets?.takeIf {
+                it.size <= maxOctets
+            }?.let(::utf8Strict)?.let { LecteurMarkdown.lire(it, fichier.nom, zone) }
+            if (note != null) notes += note
+        }
+        return PartageRecu(notes = notes, ignores = nombre - notes.size)
     }
 
     private fun utf8Strict(octets: ByteArray): String? = try {

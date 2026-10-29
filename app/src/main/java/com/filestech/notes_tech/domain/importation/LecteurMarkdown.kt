@@ -29,23 +29,34 @@ object LecteurMarkdown {
     /** The longest title the repository accepts (`NotesRepository.TITLE_MAX_LENGTH`). */
     const val TITRE_MAX = 200
 
+    /** The frontmatter must close within this many characters, or the file has none. */
+    const val ENTETE_MAX = 16 * 1024
+
+    /** Tags kept per note, and characters per tag. */
+    const val ETIQUETTES_MAX = 100
+    const val ETIQUETTE_MAX = 100
+
     /**
      * @param nomDuFichier the file's name, if there is one: the title when the frontmatter gives none.
      * @param zone the time zone of a date written without an offset — the export's own form.
      */
     fun lire(texte: String, nomDuFichier: String? = null, zone: ZoneId = ZoneId.systemDefault()): NoteImportee {
         val propre = texte.removePrefix("\uFEFF").replace("\r\n", "\n")
-        val (champs, corps) = separer(propre)
+        val (entete, corps) = separer(propre)
+        val champs = entete.champs
         val titre = champs["title"]?.let(::scalaire)?.takeIf { it.isNotBlank() }
             ?: nomDuFichier?.let(::titreDuNom)?.takeIf { it.isNotBlank() }
             ?: ""
+        val brutes = entete.listes["tags"]?.map(::scalaire) ?: champs["tags"]?.let(::liste).orEmpty()
         return NoteImportee(
             titre = tronquer(titre.trim()),
             contenu = corps,
             // ⚠️ Split on commas too: tags are stored comma-joined, unescaped (`TagCodec`), so a tag
             // carrying one would come back as two anyway — better now than half-broken in the database.
-            etiquettes = champs["tags"]?.let(::liste).orEmpty()
-                .flatMap { it.split(',') }.map(String::trim).filter(String::isNotEmpty).distinct(),
+            // Bounded: a file from another app must not hand a note a million tags.
+            etiquettes = brutes.asSequence()
+                .flatMap { it.split(',') }.map(String::trim).filter(String::isNotEmpty)
+                .map { it.take(ETIQUETTE_MAX) }.distinct().take(ETIQUETTES_MAX).toList(),
             dossier = champs["folder"]?.let(::scalaire)?.takeIf { it.isNotBlank() },
             creeeLe = champs["created"]?.let { date(scalaire(it), zone) },
             modifieeLe = champs["updated"]?.let { date(scalaire(it), zone) },
@@ -65,26 +76,36 @@ object LecteurMarkdown {
 
     // ── Frontmatter ─────────────────────────────────────────────────────────────────────────────
 
+    /** The frontmatter's values by key — a value is the rest of its line — and its block lists. */
+    private class Entete(val champs: Map<String, String>, val listes: Map<String, List<String>>)
+
+    private val SANS_ENTETE = Entete(emptyMap(), emptyMap())
+
     /**
-     * The raw values by key, and the body. A value is the rest of its line; a block list (`tags:` then
-     * `  - a` lines) is kept as its lines, joined by `\n`, for [liste].
+     * The frontmatter and the body.
+     *
+     * 🔴 **Bounded, and linear** (security review of 3.2.0, M1): the closing fence is looked for in the
+     * first [ENTETE_MAX] characters only, and a block list (`tags:` then `- a` lines) grows a list —
+     * appending each item to the string read so far copied it whole at every line, and a 5 MiB file of
+     * `- x` lines froze the phone for minutes.
      */
-    private fun separer(texte: String): Pair<Map<String, String>, String> {
-        if (!texte.startsWith("---\n")) return emptyMap<String, String>() to texte
+    private fun separer(texte: String): Pair<Entete, String> {
+        if (!texte.startsWith("---\n")) return SANS_ENTETE to texte
         val fin = texte.indexOf("\n---", startIndex = 3)
-        if (fin < 0) return emptyMap<String, String>() to texte
+        if (fin < 0 || fin > ENTETE_MAX) return SANS_ENTETE to texte
         val apresFin = texte.indexOf('\n', fin + 4).let { if (it < 0) texte.length else it + 1 }
         if (texte.substring(fin + 4, if (apresFin == texte.length) texte.length else apresFin - 1).isNotBlank()) {
-            return emptyMap<String, String>() to texte
+            return SANS_ENTETE to texte
         }
         val champs = linkedMapOf<String, String>()
+        val listes = linkedMapOf<String, MutableList<String>>()
         var cleCourante: String? = null
         for (ligne in texte.substring(4, fin + 1).lineSequence()) {
             val enListe = ligne.trimStart()
             val deuxPoints = ligne.indexOf(':')
             when {
                 cleCourante != null && enListe.startsWith("- ") ->
-                    champs[cleCourante] = champs[cleCourante].orEmpty() + "\n" + enListe.removePrefix("- ")
+                    listes.getOrPut(cleCourante) { mutableListOf() } += enListe.removePrefix("- ")
                 // Blank, a comment, or an indented line that is not a list item.
                 ligne.isBlank() || enListe.startsWith("#") || ligne.first().isWhitespace() -> Unit
                 deuxPoints <= 0 -> cleCourante = null
@@ -97,7 +118,7 @@ object LecteurMarkdown {
         // The export writes a blank line after the closing fence, and a final line break the note may
         // not have had.
         val corps = texte.substring(apresFin).removePrefix("\n").removeSuffix("\n")
-        return champs to corps
+        return Entete(champs, listes) to corps
     }
 
     /** A YAML scalar: double-quoted with escapes, single-quoted, or plain. */
@@ -112,12 +133,9 @@ object LecteurMarkdown {
         }
     }
 
-    /** `[a, "b, c"]`, a block list, or a single value. */
+    /** `[a, "b, c"]` or a single value; a block list is read by [separer]. */
     private fun liste(brut: String): List<String> {
         val valeur = brut.trim()
-        if (valeur.contains('\n')) {
-            return valeur.split('\n').map(String::trim).filter(String::isNotEmpty).map(::scalaire)
-        }
         if (!valeur.startsWith('[') ||
             !valeur.endsWith(']')
         ) {

@@ -270,8 +270,11 @@ private fun ContenuPrincipal(settings: AppSettings, appLock: AppLockManager, ver
                 ) { navController ->
                     NotesTechNavHost(navController = navController)
                     // 3.2.0 — here, inside the lock's content: a share becomes notes only once the
-                    // app is unlocked (`PartagesRecus`).
-                    PartagesRecus(onOuvrirLaNote = { navController.navigate(Destination.Editor(it).route) })
+                    // app is unlocked and the user has said yes (`PartagesRecus`) — and never while
+                    // the panic mode is destroying the database (security review of 3.2.0, L3).
+                    if (!paniqueDeclenchee) {
+                        PartagesRecus(onOuvrirLaNote = { navController.navigate(Destination.Editor(it).route) })
+                    }
                 }
             }
 

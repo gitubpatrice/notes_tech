@@ -548,8 +548,16 @@
         <item quantity="other">%1$d note aggiunte alla Posta in arrivo.</item>
     </plurals>
     <plurals name="share_result_ignored">
-        <item quantity="one">%1$d elemento condiviso non è stato letto: non è testo, o supera 5 MB.</item>
-        <item quantity="many">%1$d di elementi condivisi non sono stati letti: non sono testo, o superano 5 MB.</item>
-        <item quantity="other">%1$d elementi condivisi non sono stati letti: non sono testo, o superano 5 MB.</item>
+        <item quantity="one">%1$d elemento condiviso non è stato aggiunto: non è testo, o è troppo grande.</item>
+        <item quantity="many">%1$d di elementi condivisi non sono stati aggiunti: non testo, troppo grandi o troppi.</item>
+        <item quantity="other">%1$d elementi condivisi non sono stati aggiunti: non testo, troppo grandi o troppi.</item>
+    </plurals>
+    <string name="share_confirm_title">Aggiungere a Notes Tech?</string>
+    <string name="share_confirm_one">«%1$s» sarà aggiunta alla Posta in arrivo.</string>
+    <string name="share_confirm_add">Aggiungi</string>
+    <plurals name="share_confirm_many">
+        <item quantity="one">%1$d nota sarà aggiunta alla Posta in arrivo.</item>
+        <item quantity="many">%1$d di note saranno aggiunte alla Posta in arrivo.</item>
+        <item quantity="other">%1$d note saranno aggiunte alla Posta in arrivo.</item>
     </plurals>
 </resources>

@@ -106,6 +106,47 @@ class LecteurMarkdownTest {
         assertThat(lue.titre.length).isAtMost(LecteurMarkdown.TITRE_MAX)
     }
 
+    /**
+     * M1 of the 3.2.0 security review: a block list used to be appended to the string read so far —
+     * quadratic, minutes of CPU for a 5 MiB file of `- x` lines. Linear now, and the tags bounded.
+     */
+    @Test
+    fun `a huge block list is read in linear time and its tags are bounded`() {
+        val lignes = 200_000
+        val texte = buildString(lignes * 10) {
+            append("---\ntags:\n")
+            repeat(lignes) { append("  - t").append(it).append('\n') }
+            append("---\ncorps")
+        }
+        // Past ENTETE_MAX, so not a frontmatter at all: the whole text is the body, read at once.
+        val debut = System.nanoTime()
+        val lue = LecteurMarkdown.lire(texte, "liste.md", zone)
+        val millis = (System.nanoTime() - debut) / 1_000_000
+        assertThat(lue.etiquettes).isEmpty()
+        assertThat(lue.contenu).isEqualTo(texte)
+        assertThat(millis).isLessThan(2_000)
+
+        // Within ENTETE_MAX: read as a block list, and cut at ETIQUETTES_MAX tags of ETIQUETTE_MAX chars.
+        val court = buildString {
+            append("---\ntags:\n")
+            repeat(LecteurMarkdown.ETIQUETTES_MAX + 50) { append("  - ").append("e$it").append('\n') }
+            append("  - ").append("x".repeat(LecteurMarkdown.ETIQUETTE_MAX + 20)).append('\n')
+            append("---\ncorps")
+        }
+        assertThat(court.length).isLessThan(LecteurMarkdown.ENTETE_MAX)
+        val bornee = LecteurMarkdown.lire(court, null, zone)
+        assertThat(bornee.etiquettes).hasSize(LecteurMarkdown.ETIQUETTES_MAX)
+        assertThat(bornee.etiquettes.first()).isEqualTo("e0")
+        assertThat(bornee.contenu).isEqualTo("corps")
+    }
+
+    @Test
+    fun `a tag longer than the bound is cut`() {
+        val long = "y".repeat(LecteurMarkdown.ETIQUETTE_MAX + 20)
+        val lue = LecteurMarkdown.lire("---\ntags: [\"$long\"]\n---\n", null, zone)
+        assertThat(lue.etiquettes.single()).hasLength(LecteurMarkdown.ETIQUETTE_MAX)
+    }
+
     @Test
     fun `a shared text is titled by its subject, else its first non-blank line`() {
         assertThat(LecteurMarkdown.titreDUnTexte("Sujet", "corps")).isEqualTo("Sujet")

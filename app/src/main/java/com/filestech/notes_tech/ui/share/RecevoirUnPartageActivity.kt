@@ -13,8 +13,9 @@ import com.filestech.notes_tech.domain.importation.LectureDUnPartage
 import com.filestech.notes_tech.domain.importation.PartageRecu
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -26,15 +27,16 @@ import javax.inject.Inject
  *
  * 🔴 **`MainActivity` is not touched.** It keeps dropping every extra of its intent (audit of
  * 2026-09-26, E1): nothing an outside app sends reaches the navigation. What a share carries goes from
- * here to memory, and becomes notes only once the app lock is passed ([PartagesRecus]).
+ * here to memory, and becomes notes only once the app lock is passed AND the user has confirmed
+ * ([PartagesRecus]): any app can start this activity by name, without the user choosing Notes Tech.
  *
  * What is read, and what is refused:
  * - `ACTION_SEND` / `ACTION_SEND_MULTIPLE` only, any `text` type (the manifest's filters). ⚠️ Not
  *   written with its wildcard here: in Kotlin a slash-star opens a NESTED comment, and it turned the
  *   rest of this file into one (detekt saw every import unused).
  * - Files: **`content://` only**, never a provider of this app (a share must not make it read its own
- *   files — its export cache, for one), at most [LectureDUnPartage.FICHIERS_MAX] files, each read up to
- *   [LectureDUnPartage.FICHIER_MAX] + 1 bytes and no further.
+ *   files — its export cache, for one), read one by one under [LectureDUnPartage]'s bounds: a size per
+ *   file, a budget for the whole share, a number of files, and [DELAI_MAX_MS] in all.
  * - Extras come from any app: a malformed one is caught and counted, it does not crash the app.
  */
 @AndroidEntryPoint
@@ -52,7 +54,12 @@ class RecevoirUnPartageActivity : ComponentActivity() {
         }
         val recu = intent
         lifecycleScope.launch {
-            val partage = withContext(Dispatchers.IO) { lire(recu) }
+            // 🔴 Bounded in time too (security review of 3.2.0, M1): a provider that never answers
+            // must not keep this window over the sending app. The read goes on in the background if
+            // a read call blocks, its result dropped; the app opens without it.
+            val lecture = async(Dispatchers.IO) { lire(recu) }
+            val partage = withTimeoutOrNull(DELAI_MAX_MS) { lecture.await() }
+            if (partage == null) lecture.cancel()
             if (partage != null) enAttente.deposer(partage)
             ouvrirLAppli()
             finish()
@@ -70,9 +77,13 @@ class RecevoirUnPartageActivity : ComponentActivity() {
                 )
                 else -> IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
             }
-            val fichiers = flux.take(LectureDUnPartage.FICHIERS_MAX).map(::lireUnFichier) +
-                List((flux.size - LectureDUnPartage.FICHIERS_MAX).coerceAtLeast(0)) { FichierPartage(null, null) }
-            LectureDUnPartage.lire(texte, sujet, fichiers)
+            if (flux.isEmpty()) {
+                LectureDUnPartage.lireUnTexte(texte, sujet)
+            } else {
+                LectureDUnPartage.lireDesFichiers(flux.size) { index, maxOctets ->
+                    lireUnFichier(flux[index], maxOctets)
+                }
+            }
         } catch (e: RuntimeException) {
             // BadParcelableException, ClassCastException…: what another app put in its intent.
             Timber.w(e, "partage illisible")
@@ -80,21 +91,19 @@ class RecevoirUnPartageActivity : ComponentActivity() {
         }
     }
 
-    private fun lireUnFichier(uri: Uri): FichierPartage {
-        if (uri.scheme != ContentResolver.SCHEME_CONTENT || uri.authority.orEmpty().startsWith(packageName)) {
-            return FichierPartage(null, null)
-        }
-        return FichierPartage(nomAffiche(uri), lireBorne(uri))
+    private fun lireUnFichier(uri: Uri, maxOctets: Int): FichierPartage {
+        if (!estDUneAutreAppli(uri, packageName)) return FichierPartage(null, null)
+        return FichierPartage(nomAffiche(uri), lireBorne(uri, maxOctets))
     }
 
-    /** At most FICHIER_MAX + 1 bytes: one more than the bound is enough to know it is over. */
-    private fun lireBorne(uri: Uri): ByteArray? = try {
+    /** At most [maxOctets] + 1 bytes: one more than allowed is enough to know it is over. */
+    private fun lireBorne(uri: Uri, maxOctets: Int): ByteArray? = try {
         contentResolver.openInputStream(uri)?.use { flux ->
             val sortie = ByteArrayOutputStream()
             val tampon = ByteArray(TAMPON)
             var lus = 0
-            while (lus <= LectureDUnPartage.FICHIER_MAX) {
-                val n = flux.read(tampon, 0, minOf(tampon.size, LectureDUnPartage.FICHIER_MAX + 1 - lus))
+            while (lus <= maxOctets) {
+                val n = flux.read(tampon, 0, minOf(tampon.size, maxOctets + 1 - lus))
                 if (n < 0) break
                 sortie.write(tampon, 0, n)
                 lus += n
@@ -125,7 +134,21 @@ class RecevoirUnPartageActivity : ComponentActivity() {
         startActivity(lancement)
     }
 
-    private companion object {
-        const val TAMPON = 64 * 1024
+    internal companion object {
+        /**
+         * 🔴 **A `content://` of another app, never one of this app's own providers** — its export cache
+         * holds plaintext. Compared on the HOST, and any user-info refused (security review of 3.2.0,
+         * L1): `content://0@<this app>.exports/…` carries the authority `0@…`, which a `startsWith` on
+         * it let through, while the content resolver strips the `0@` and reaches this app's provider.
+         */
+        fun estDUneAutreAppli(uri: Uri, paquet: String): Boolean = uri.scheme == ContentResolver.SCHEME_CONTENT &&
+            uri.userInfo == null &&
+            '@' !in uri.authority.orEmpty() &&
+            !uri.host.orEmpty().startsWith(paquet, ignoreCase = true)
+
+        private const val TAMPON = 64 * 1024
+
+        /** Past this, a share is dropped: the app opens without it. */
+        private const val DELAI_MAX_MS = 20_000L
     }
 }

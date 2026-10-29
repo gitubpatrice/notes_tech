@@ -548,8 +548,16 @@
         <item quantity="other">%1$d notas añadidas a la Bandeja de entrada.</item>
     </plurals>
     <plurals name="share_result_ignored">
-        <item quantity="one">%1$d elemento compartido no se pudo leer: no es texto, o supera 5 MB.</item>
-        <item quantity="many">%1$d de elementos compartidos no se pudieron leer: no son texto, o superan 5 MB.</item>
-        <item quantity="other">%1$d elementos compartidos no se pudieron leer: no son texto, o superan 5 MB.</item>
+        <item quantity="one">%1$d elemento compartido no se pudo añadir: no es texto, o es demasiado grande.</item>
+        <item quantity="many">%1$d de elementos compartidos no se pudieron añadir: no son texto, demasiado grandes o demasiados.</item>
+        <item quantity="other">%1$d elementos compartidos no se pudieron añadir: no son texto, demasiado grandes o demasiados.</item>
+    </plurals>
+    <string name="share_confirm_title">¿Añadir a Notes Tech?</string>
+    <string name="share_confirm_one">«%1$s» se añadirá a la Bandeja de entrada.</string>
+    <string name="share_confirm_add">Añadir</string>
+    <plurals name="share_confirm_many">
+        <item quantity="one">%1$d nota se añadirá a la Bandeja de entrada.</item>
+        <item quantity="many">%1$d de notas se añadirán a la Bandeja de entrada.</item>
+        <item quantity="other">%1$d notas se añadirán a la Bandeja de entrada.</item>
     </plurals>
 </resources>
