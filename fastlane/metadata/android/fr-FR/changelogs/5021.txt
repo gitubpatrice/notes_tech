@@ -1,1 +1,1 @@
-Corrigé : un appui long dans une note en cours d'édition fermait l'appli ; impossible de coller, copier ou sélectionner du texte (#36). Textes juridiques précisés (responsabilité, e-mails).
+Corrigé : un appui long dans une note en cours d'édition fermait l'appli ; impossible de coller, copier ou sélectionner du texte (#36). Le menu de sélection ne propose plus « Traduire » d'Android, qui envoyait le texte sélectionné à une autre appli. Le modèle Whisper Tiny s'importe enfin. Nouveau : « Soutenir le projet » dans À propos. Textes juridiques précisés (responsabilité, e-mails).

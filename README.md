@@ -25,6 +25,13 @@ technically unable to send anything, and you can check that in its manifest.**
 - **Fixed**: in 3.1.0, a long press inside a note being edited closed the app, so text could not be
   pasted, copied or selected from the menu ([#36](https://github.com/gitubpatrice/notes_tech/issues/36)).
   What a vault note copies still goes the protected way.
+- **No more "Translate" in the selection menu.** Android added it, and one tap sent the selected text
+  to another app (Google's, which searched it online). The app now turns Android's text classifier
+  off; Cut, Copy, Paste and Select all remain.
+- **Fixed**: the Whisper Tiny dictation model could not be imported — the fingerprint the app checks it
+  against was wrong. Whisper Base, the recommended one, was not affected.
+- **Support the project**: a link in About to the donation page, opened in your browser (the app still
+  has no Internet permission).
 - Legal texts clarified: the liability clause, and what happens to an e-mail you send.
 
 ## What's new in 3.1.0

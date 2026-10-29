@@ -26,6 +26,13 @@ vérifier.**
 - **Corrigé** : en 3.1.0, un appui long dans une note en cours d'édition fermait l'appli ; impossible de
   coller, copier ou sélectionner du texte par le menu ([#36](https://github.com/gitubpatrice/notes_tech/issues/36)).
   Ce qu'on copie d'une note de coffre passe toujours par le presse-papiers protégé.
+- **Plus de « Traduire » dans le menu de sélection.** Android l'ajoutait, et un toucher envoyait le texte
+  sélectionné à une autre appli (celle de Google, qui le cherchait en ligne). L'appli coupe désormais le
+  classifieur de texte d'Android ; Couper, Copier, Coller et Tout sélectionner restent.
+- **Corrigé** : le modèle de dictée Whisper Tiny ne pouvait pas être importé — l'empreinte à laquelle
+  l'appli le compare était fausse. Whisper Base, le modèle conseillé, n'était pas touché.
+- **Soutenir le projet** : un lien dans À propos vers la page de dons, ouverte dans votre navigateur
+  (l'appli n'a toujours pas la permission Internet).
 - Textes juridiques précisés : la clause de responsabilité, et ce que devient un e-mail que vous envoyez.
 
 ## Nouveautés de la 3.1.0

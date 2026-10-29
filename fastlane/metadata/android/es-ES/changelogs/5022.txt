@@ -1,1 +1,1 @@
-Corregido: una pulsación larga en una nota en edición cerraba la app; no se podía pegar, copiar ni seleccionar texto (#36). Textos legales precisados (responsabilidad, correos).
+Corregido: una pulsación larga en una nota en edición cerraba la app; no se podía pegar, copiar ni seleccionar texto (#36). El menú de selección ya no ofrece «Traducir» de Android, que enviaba el texto seleccionado a otra app. El modelo Whisper Tiny ya se puede importar. Nuevo: «Apoyar el proyecto» en Acerca de. Textos legales precisados (responsabilidad, correos).
