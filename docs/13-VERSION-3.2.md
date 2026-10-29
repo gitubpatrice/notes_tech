@@ -160,6 +160,23 @@ octets   taille  champ
 - Toujours des **nouvelles** notes (nouveaux ids) : importer deux fois crée deux copies — c'est un
   import, pas une restauration.
 
+**Fait (2026-10-29)** — `domain/importation/LectureDUnImport.kt`, `data/importation/NoteImporter.kt`,
+`NotesRepository.importerDansDesDossiers`, Réglages → « Export et import ». Tranché en codant :
+- 🔴 **Les 100 Mio comptent tout octet lu, sauté compris** : un ZIP lu en flux décompresse le reste d'une
+  entrée pour atteindre la suivante, donc une entrée de zéros sautée sans compter tenait l'import des
+  heures. Une borne atteinte arrête l'import, qui garde ce qu'il a lu et le dit.
+- Le **bruit** n'est ni lu comme note ni compté : `__MACOSX/`, `.DS_Store`, tout nom commençant par un
+  point (`.obsidian/`). Le reste qui n'est pas une note est compté dans le bilan.
+- Le **README** reconnu à son titre (`NoteMarkdown.README_HEADING`, partagé avec l'export), à la racine.
+- Le dossier vient du **chemin**, pas du `folder:` du frontmatter : `inbox/` désigne la Boîte de réception
+  quelle que soit la langue de l'export, là où le frontmatter porte son nom traduit.
+- Un dossier ordinaire de même nom l'emporte sur un coffre ; un nom qui n'est que celui d'un coffre envoie
+  la note dans la Boîte de réception, compté et dit. Dossiers créés et notes écrites dans UNE transaction.
+- Sélecteur : `text/*`, ZIP et `application/octet-stream` (plusieurs fournisseurs typent ainsi un `.md`) ;
+  ce qui est lu se décide au nom et au contenu.
+Tests : 7 JVM (export réel relu, bombe, borne de fichiers, archive abîmée…), 3 sur SQLCipher réel ;
+sabotages tous vus rouges. Essayé sur émulateur par le vrai sélecteur.
+
 ## 3. Recherche dans la note
 
 ### D-033 — Une barre « Rechercher dans la note », et l'arrivée depuis un résultat

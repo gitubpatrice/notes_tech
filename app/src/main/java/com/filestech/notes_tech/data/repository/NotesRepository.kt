@@ -8,10 +8,13 @@ import com.filestech.notes_tech.data.local.OutgoingLink
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 import com.filestech.notes_tech.data.local.mapper.TagCodec
 import com.filestech.notes_tech.data.local.mapper.toDomain
+import com.filestech.notes_tech.domain.importation.BilanDImport
+import com.filestech.notes_tech.domain.importation.NoteAImporter
 import com.filestech.notes_tech.domain.importation.NoteImportee
 import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.links.WikiLinkParser
 import com.filestech.notes_tech.domain.model.EncryptedFormat
+import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.model.NoteSortMode
@@ -330,35 +333,76 @@ class NotesRepository @Inject constructor(
         require(!folders.isVaultFolder(folderId)) { "import refused into folder $folderId: a vault, or unknown" }
         notes.forEach { requireTitleWithinLimit(it.titre) }
         val now = clock.instant()
+        return inTransaction { database -> notes.map { inserer(database, it, folderId, now) } }
+    }
 
+    /**
+     * Adds the notes of the Settings' import (3.2.0, D-032), each to the ordinary folder its archive
+     * named — found by name, created when there is none — or the Inbox: all in one transaction, all
+     * or nothing, the folders created with it.
+     *
+     * 🔴 **Never into a vault**, here either: a name that is only a vault's sends the note to the Inbox,
+     * counted in [BilanDImport.versLaBoiteDeReception] for the summary to say it. An ordinary folder of
+     * the same name wins over a vault.
+     */
+    suspend fun importerDansDesDossiers(notes: List<NoteAImporter>): BilanDImport {
+        notes.forEach { requireTitleWithinLimit(it.note.titre) }
+        val now = clock.instant()
+        return inTransaction { database ->
+            val existants = database.folderDao().listAll().toDomain()
+            val parNom = HashMap<String, String?>()
+            var crees = 0
+            var versLaBoite = 0
+            val ecrites = notes.map { importee ->
+                val nom = importee.dossier
+                val dossier = when {
+                    nom == null -> Folder.INBOX_ID
+                    else -> parNom.getOrPut(nom) {
+                        val memeNom = existants.filter { it.name == nom }
+                        memeNom.firstOrNull { !it.isVault }?.id
+                            ?: if (memeNom.isNotEmpty()) {
+                                null
+                            } else {
+                                crees++
+                                folders.create(nom).id
+                            }
+                    } ?: Folder.INBOX_ID.also { versLaBoite++ }
+                }
+                inserer(database, importee.note, dossier, now)
+            }
+            BilanDImport(notes = ecrites, dossiersCrees = crees, versLaBoiteDeReception = versLaBoite)
+        }
+    }
+
+    /**
+     * One imported note, written: a new id, the dates and flags the file carries (now, otherwise), the
+     * links indexed like any write. Inside the caller's transaction.
+     */
+    private suspend fun inserer(database: NotesDatabase, lue: NoteImportee, folderId: String, now: Instant): Note {
         // A date from a file is believed only between 1970 and now (security review of 3.2.0, L2): a
         // year 200 000 000 would keep a note above all others forever, and a larger one overflows the
         // epoch milliseconds the database stores.
         fun plausible(date: Instant?): Instant? = date?.takeIf { !it.isBefore(Instant.EPOCH) && !it.isAfter(now) }
-        return inTransaction { database ->
-            notes.map { lue ->
-                val creeeLe = plausible(lue.creeeLe) ?: now
-                val note = Note(
-                    id = UUID.randomUUID().toString(),
-                    title = lue.titre,
-                    content = lue.contenu,
-                    folderId = folderId,
-                    tags = lue.etiquettes,
-                    pinned = lue.epinglee,
-                    favorite = lue.favorite,
-                    archived = false,
-                    trashedAt = null,
-                    createdAt = creeeLe,
-                    updatedAt = plausible(lue.modifieeLe) ?: creeeLe,
-                    encrypted = null,
-                    encVersion = EncryptedFormat.CONTENT_ONLY,
-                )
-                database.noteWriteDao().insert(note.toNewEntity())
-                reindexLinks(database, note)
-                resolveIncoming(database, note)
-                note
-            }
-        }
+        val creeeLe = plausible(lue.creeeLe) ?: now
+        val note = Note(
+            id = UUID.randomUUID().toString(),
+            title = lue.titre,
+            content = lue.contenu,
+            folderId = folderId,
+            tags = lue.etiquettes,
+            pinned = lue.epinglee,
+            favorite = lue.favorite,
+            archived = false,
+            trashedAt = null,
+            createdAt = creeeLe,
+            updatedAt = plausible(lue.modifieeLe) ?: creeeLe,
+            encrypted = null,
+            encVersion = EncryptedFormat.CONTENT_ONLY,
+        )
+        database.noteWriteDao().insert(note.toNewEntity())
+        reindexLinks(database, note)
+        resolveIncoming(database, note)
+        return note
     }
 
     /**

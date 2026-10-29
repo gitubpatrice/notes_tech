@@ -11,6 +11,9 @@ import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
 import com.filestech.notes_tech.data.local.NotesDatabase
 import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.data.local.SqlCipherRawKey
+import com.filestech.notes_tech.data.local.entity.FolderEntity
+import com.filestech.notes_tech.domain.importation.NoteAImporter
+import com.filestech.notes_tech.domain.importation.NoteImportee
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
@@ -104,6 +107,77 @@ class NotesRepositoryTest {
         provider.close()
         opened = null
         LegacyDatabaseLocation.SIDECAR_SUFFIXES.forEach { File(databaseFile.path + it).delete() }
+    }
+
+    // ── The Settings' import (3.2.0, D-032) ─────────────────────────────────
+
+    private fun importee(titre: String, dossier: String?) = NoteAImporter(
+        NoteImportee(
+            titre = titre,
+            contenu = "Le texte de $titre.",
+            etiquettes = emptyList(),
+            dossier = null,
+            creeeLe = null,
+            modifieeLe = null,
+            epinglee = false,
+            favorite = false,
+        ),
+        dossier,
+    )
+
+    /** 🔴 Filed by name, the missing folder created once — and never into a vault. */
+    @Test
+    fun l_import_range_par_nom_cree_ce_qui_manque_et_n_ecrit_jamais_dans_un_coffre(): Unit = runBlocking {
+        val bilan = notes.importerDansDesDossiers(
+            listOf(
+                importee("A", "Travail"),
+                importee("B", "Nouveau"),
+                importee("C", "Nouveau"),
+                importee("D", "Coffre"),
+                importee("E", null),
+            ),
+        )
+
+        val nouveaux = dossiers.listAll().filter { it.name == "Nouveau" }
+        assertThat(nouveaux).hasSize(1)
+        assertThat(nouveaux.single().isVault).isFalse()
+        assertThat(bilan.notes.associate { it.title to it.folderId }).containsExactly(
+            "A", LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            "B", nouveaux.single().id,
+            "C", nouveaux.single().id,
+            "D", FolderEntity.INBOX_ID,
+            "E", FolderEntity.INBOX_ID,
+        )
+        assertThat(bilan.dossiersCrees).isEqualTo(1)
+        assertThat(bilan.versLaBoiteDeReception).isEqualTo(1)
+        // Written in clear in the Inbox, nothing near the vault.
+        val dansLeCoffre = notes.listAllAlive().filter { it.folderId == LegacyDatabaseFixture.Fixtures.FOLDER_VAULT }
+        assertThat(dansLeCoffre.map { it.title }).doesNotContain("D")
+    }
+
+    @Test
+    fun un_dossier_ordinaire_du_meme_nom_qu_un_coffre_l_emporte(): Unit = runBlocking {
+        val ordinaire = dossiers.create("Coffre")
+
+        val bilan = notes.importerDansDesDossiers(listOf(importee("F", "Coffre")))
+
+        assertThat(bilan.notes.single().folderId).isEqualTo(ordinaire.id)
+        assertThat(bilan.versLaBoiteDeReception).isEqualTo(0)
+    }
+
+    /** All or nothing: a refused import leaves no note and no folder behind. */
+    @Test
+    fun un_import_refuse_n_ecrit_rien_pas_meme_ses_dossiers(): Unit = runBlocking {
+        val avant = notes.listAllAlive().size
+        val tropLong = "T".repeat(NotesRepository.TITLE_MAX_LENGTH + 1)
+
+        val echec = runCatching {
+            notes.importerDansDesDossiers(listOf(importee("G", "Autre"), importee(tropLong, "Autre")))
+        }.exceptionOrNull()
+
+        assertThat(echec).isInstanceOf(IllegalArgumentException::class.java)
+        assertThat(notes.listAllAlive()).hasSize(avant)
+        assertThat(dossiers.listAll().map { it.name }).doesNotContain("Autre")
     }
 
     // ── Indexation des liens dans la transaction d'écriture ──────────────────

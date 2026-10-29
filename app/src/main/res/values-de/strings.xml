@@ -297,6 +297,29 @@
     <string name="settings_vault_auto_lock_never">Nie</string>
     <string name="settings_export_all">Alle meine Notizen exportieren</string>
     <string name="settings_export_subtitle">Erstellt ein ZIP-Archiv mit Markdown-Dateien, nach Ordnern gegliedert.</string>
+    <string name="settings_section_export_import">Export und Import</string>
+    <string name="settings_import">Notizen importieren</string>
+    <string name="settings_import_subtitle">Markdown- oder Textdateien oder ein ZIP davon, etwa ein Export von Notes Tech.</string>
+    <string name="settings_import_result_title">Import</string>
+    <string name="settings_import_stopped">Der Import hat an einer Grenze angehalten (5.000 Dateien oder 100 MB gelesen): Der Rest wurde nicht importiert.</string>
+    <string name="settings_import_none">Es wurde keine Notiz importiert.</string>
+    <string name="settings_import_error">Import fehlgeschlagen, nichts wurde importiert: %1$s</string>
+    <plurals name="settings_import_done">
+        <item quantity="one">%1$d Notiz importiert.</item>
+        <item quantity="other">%1$d Notizen importiert.</item>
+    </plurals>
+    <plurals name="settings_import_ignored">
+        <item quantity="one">%1$d Datei wurde nicht importiert: keine Notiz, kein Text oder zu groß.</item>
+        <item quantity="other">%1$d Dateien wurden nicht importiert: keine Notizen, kein Text oder zu groß.</item>
+    </plurals>
+    <plurals name="settings_import_folders_created">
+        <item quantity="one">%1$d Ordner erstellt.</item>
+        <item quantity="other">%1$d Ordner erstellt.</item>
+    </plurals>
+    <plurals name="settings_import_to_inbox">
+        <item quantity="one">%1$d Notiz kam in den Eingang: Ihr Ordner trägt den Namen eines Tresors.</item>
+        <item quantity="other">%1$d Notizen kamen in den Eingang: Ihr Ordner trägt den Namen eines Tresors.</item>
+    </plurals>
     <string name="settings_export_done">Export abgeschlossen: %1$d Notizen</string>
     <string name="settings_export_done_partial">Export abgeschlossen: %1$d Notizen (%2$d in gesperrten Tresoren übersprungen)</string>
     <string name="settings_export_error">Export fehlgeschlagen: %1$s</string>

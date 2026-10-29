@@ -307,6 +307,33 @@
     <string name="settings_vault_auto_lock_never">Mai</string>
     <string name="settings_export_all">Esporta tutte le mie note</string>
     <string name="settings_export_subtitle">Genera un archivio ZIP di file Markdown organizzato per cartelle.</string>
+    <string name="settings_section_export_import">Esportazione e importazione</string>
+    <string name="settings_import">Importa note</string>
+    <string name="settings_import_subtitle">File Markdown o di testo, o un archivio ZIP di questi file, come un\'esportazione di Notes Tech.</string>
+    <string name="settings_import_result_title">Importazione</string>
+    <string name="settings_import_stopped">L\'importazione si è fermata a un limite (5.000 file, o 100 MB letti): il resto non è stato importato.</string>
+    <string name="settings_import_none">Nessuna nota è stata importata.</string>
+    <string name="settings_import_error">Importazione non riuscita, nulla è stato importato: %1$s</string>
+    <plurals name="settings_import_done">
+        <item quantity="one">%1$d nota importata.</item>
+        <item quantity="many">%1$d di note importate.</item>
+        <item quantity="other">%1$d note importate.</item>
+    </plurals>
+    <plurals name="settings_import_ignored">
+        <item quantity="one">%1$d file non è stato importato: non è una nota, non è testo, o è troppo grande.</item>
+        <item quantity="many">%1$d di file non sono stati importati: non note, non testo, o troppo grandi.</item>
+        <item quantity="other">%1$d file non sono stati importati: non note, non testo, o troppo grandi.</item>
+    </plurals>
+    <plurals name="settings_import_folders_created">
+        <item quantity="one">%1$d cartella creata.</item>
+        <item quantity="many">%1$d di cartelle create.</item>
+        <item quantity="other">%1$d cartelle create.</item>
+    </plurals>
+    <plurals name="settings_import_to_inbox">
+        <item quantity="one">%1$d nota è finita in In arrivo: la sua cartella ha il nome di una cassaforte.</item>
+        <item quantity="many">%1$d di note sono finite in In arrivo: la loro cartella ha il nome di una cassaforte.</item>
+        <item quantity="other">%1$d note sono finite in In arrivo: la loro cartella ha il nome di una cassaforte.</item>
+    </plurals>
     <string name="settings_export_done">Esportazione completata: %1$d note</string>
     <string name="settings_export_done_partial">Esportazione completata: %1$d note (%2$d saltate in casseforti bloccate)</string>
     <string name="settings_export_error">Esportazione non riuscita: %1$s</string>

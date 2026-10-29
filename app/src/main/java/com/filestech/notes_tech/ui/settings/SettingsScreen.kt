@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.settings
 
 import androidx.activity.compose.LocalActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocalFireDepartment
@@ -38,6 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
@@ -65,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.data.importation.NoteImporter
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.domain.model.NoteSortMode
@@ -78,6 +82,7 @@ import com.filestech.notes_tech.ui.common.MIME_ZIP
 import com.filestech.notes_tech.ui.common.TitreDeSection
 import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.partagerUnFichier
+import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
 import com.filestech.notes_tech.ui.panic.PanicConfirmDialog
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import kotlinx.coroutines.launch
@@ -169,6 +174,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
         onOpenVoiceSetup = onOpenVoiceSetup,
         snackbarHost = { HoteDeMessages(snackbars) },
         ligneDExport = { LigneDExport(snackbars) },
+        ligneDImport = { LigneDImport(snackbars) },
         sectionDeVerrouillage = { AppLockSection(snackbars) },
     )
 }
@@ -202,6 +208,8 @@ fun SettingsScreen(
     fenetreImposeeParLeVerrou: Boolean = false,
     snackbarHost: @Composable () -> Unit = {},
     ligneDExport: @Composable () -> Unit = {},
+    /** A slot, like [ligneDExport]: the import has its own ViewModel and the system picker. */
+    ligneDImport: @Composable () -> Unit = {},
     sectionDeVerrouillage: @Composable () -> Unit = {},
 ) {
     var choixDeTheme by remember { mutableStateOf(false) }
@@ -359,11 +367,17 @@ fun SettingsScreen(
             // The app lock (D-023): after the other protections, before the export.
             sectionDeVerrouillage()
 
-            // ⚠️ La section porte le libellé de son unique ligne, comme dans l'application
-            // publiée (`settings_screen.dart:121`). Inventer un titre demanderait une clé i18n
-            // nouvelle, donc une modification de l'ARB gelé de `notes_tech` — cf. docs/05-PARITE.md.
-            TitreDeSection(stringResource(R.string.settings_export_all))
-            CarteFilesTech { ligneDExport() }
+            // Until 3.2.0 the section bore the label of its only row, as in notes_tech 2.0.9
+            // (`settings_screen.dart:121`), whose strings were frozen. With the import (D-032) it has
+            // two, and a title of its own.
+            TitreDeSection(stringResource(R.string.settings_section_export_import))
+            CarteFilesTech {
+                Column {
+                    ligneDExport()
+                    HorizontalDivider()
+                    ligneDImport()
+                }
+            }
 
             TitreDeSection(stringResource(R.string.settings_panic))
             // 🔴 **La seule carte cerclée de rouge de l'écran**, comme dans la référence
@@ -594,6 +608,88 @@ private fun LigneDExport(snackbars: SnackbarHostState) {
         },
     )
 }
+
+/**
+ * The Settings' "Import" (3.2.0, D-032): the system picker, several documents at once, then a summary
+ * that stays until read — up to five lines, more than a message bar holds.
+ *
+ * Through the app's seam ([rememberAppResultLauncher]): the picker is another app, and without the
+ * seam the app lock would ask for the PIN on the way back, the chosen documents lost.
+ */
+@Composable
+private fun LigneDImport(snackbars: SnackbarHostState) {
+    val viewModel: ImportViewModel = hiltViewModel()
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val portee = rememberCoroutineScope()
+    val ressources = LocalResources.current
+    val selecteur = rememberAppResultLauncher(ActivityResultContracts.OpenMultipleDocuments(), viewModel::importer)
+
+    // Consumed before it is shown, as the export's (see [LigneDExport]): a rotation does not say it twice.
+    LaunchedEffect(state.error) {
+        val erreur = state.error ?: return@LaunchedEffect
+        val message = ressources.getString(R.string.settings_import_error, ressources.getString(erreur))
+        viewModel.consume()
+        portee.launch { snackbars.showSnackbar(message) }
+    }
+    state.result?.let { BilanDeLImport(it, onFermer = viewModel::consume) }
+
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.settings_import)) },
+        supportingContent = { Text(stringResource(R.string.settings_import_subtitle)) },
+        leadingContent = { Icon(Icons.Outlined.FileUpload, contentDescription = null) },
+        trailingContent = {
+            if (state.busy) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = Modifier.clickable(enabled = !state.busy) { selecteur.launch(TYPES_IMPORTABLES) },
+    )
+}
+
+@Composable
+private fun BilanDeLImport(bilan: NoteImporter.Resultat, onFermer: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onFermer,
+        title = { Text(stringResource(R.string.settings_import_result_title)) },
+        text = {
+            Text(
+                buildList {
+                    add(
+                        if (bilan.importees == 0) {
+                            stringResource(R.string.settings_import_none)
+                        } else {
+                            pluralStringResource(R.plurals.settings_import_done, bilan.importees, bilan.importees)
+                        },
+                    )
+                    if (bilan.dossiersCrees > 0) {
+                        val n = bilan.dossiersCrees
+                        add(pluralStringResource(R.plurals.settings_import_folders_created, n, n))
+                    }
+                    if (bilan.versLaBoiteDeReception > 0) {
+                        val n = bilan.versLaBoiteDeReception
+                        add(pluralStringResource(R.plurals.settings_import_to_inbox, n, n))
+                    }
+                    if (bilan.ignores > 0) {
+                        add(pluralStringResource(R.plurals.settings_import_ignored, bilan.ignores, bilan.ignores))
+                    }
+                    if (bilan.arrete) add(stringResource(R.string.settings_import_stopped))
+                }.joinToString("\n"),
+            )
+        },
+        confirmButton = { TextButton(onClick = onFermer) { Text(stringResource(R.string.common_ok)) } },
+    )
+}
+
+/**
+ * What the picker offers: text — Markdown is `text/markdown` or `text/x-markdown` depending on the
+ * provider — ZIPs, and `application/octet-stream`, which several providers give a `.md` file. What is
+ * read is decided by the file's name and content ([LectureDUnImport]), not by this list.
+ */
+private val TYPES_IMPORTABLES = arrayOf(
+    "text/*",
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/octet-stream",
+)
 
 /**
  * La ligne qui ouvre la confirmation du mode panique.

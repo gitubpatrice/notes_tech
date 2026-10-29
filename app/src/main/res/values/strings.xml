@@ -372,6 +372,29 @@
     <string name="settings_vault_auto_lock_never">Never</string>
     <string name="settings_export_all">Export all my notes</string>
     <string name="settings_export_subtitle">Generates a Markdown ZIP archive organized by folder.</string>
+    <string name="settings_section_export_import">Export and import</string>
+    <string name="settings_import">Import notes</string>
+    <string name="settings_import_subtitle">Markdown or text files, or a ZIP of them, such as a Notes Tech export.</string>
+    <string name="settings_import_result_title">Import</string>
+    <string name="settings_import_stopped">The import stopped at a limit (5,000 files, or 100 MB read): what came after was not imported.</string>
+    <string name="settings_import_none">No note was imported.</string>
+    <string name="settings_import_error">Import failed, nothing was imported: %1$s</string>
+    <plurals name="settings_import_done">
+        <item quantity="one">%1$d note imported.</item>
+        <item quantity="other">%1$d notes imported.</item>
+    </plurals>
+    <plurals name="settings_import_ignored">
+        <item quantity="one">%1$d file was not imported: not a note, not text, or too large.</item>
+        <item quantity="other">%1$d files were not imported: not notes, not text, or too large.</item>
+    </plurals>
+    <plurals name="settings_import_folders_created">
+        <item quantity="one">%1$d folder created.</item>
+        <item quantity="other">%1$d folders created.</item>
+    </plurals>
+    <plurals name="settings_import_to_inbox">
+        <item quantity="one">%1$d note went to the Inbox: its folder bears the name of a vault.</item>
+        <item quantity="other">%1$d notes went to the Inbox: their folder bears the name of a vault.</item>
+    </plurals>
     <string name="settings_export_done">Export complete: %1$d notes</string>
     <string name="settings_export_done_partial">Export complete: %1$d notes (%2$d skipped in locked vaults)</string>
     <string name="settings_export_error">Export failed: %1$s</string>

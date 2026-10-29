@@ -312,6 +312,33 @@
     <string name="settings_vault_auto_lock_never">Jamais</string>
     <string name="settings_export_all">Exporter toutes mes notes</string>
     <string name="settings_export_subtitle">Génère une archive ZIP Markdown organisée par dossier.</string>
+    <string name="settings_section_export_import">Export et import</string>
+    <string name="settings_import">Importer des notes</string>
+    <string name="settings_import_subtitle">Fichiers Markdown ou texte, ou une archive ZIP de ces fichiers, comme un export de Notes Tech.</string>
+    <string name="settings_import_result_title">Import</string>
+    <string name="settings_import_stopped">L\'import s\'est arrêté à une limite (5 000 fichiers, ou 100 Mo lus) : la suite n\'a pas été importée.</string>
+    <string name="settings_import_none">Aucune note n\'a été importée.</string>
+    <string name="settings_import_error">L\'import a échoué, rien n\'a été importé : %1$s</string>
+    <plurals name="settings_import_done">
+        <item quantity="one">%1$d note importée.</item>
+        <item quantity="many">%1$d de notes importées.</item>
+        <item quantity="other">%1$d notes importées.</item>
+    </plurals>
+    <plurals name="settings_import_ignored">
+        <item quantity="one">%1$d fichier n\'a pas été importé : ce n\'est pas une note, pas du texte, ou il est trop gros.</item>
+        <item quantity="many">%1$d de fichiers n\'ont pas été importés : pas des notes, pas du texte, ou trop gros.</item>
+        <item quantity="other">%1$d fichiers n\'ont pas été importés : pas des notes, pas du texte, ou trop gros.</item>
+    </plurals>
+    <plurals name="settings_import_folders_created">
+        <item quantity="one">%1$d dossier créé.</item>
+        <item quantity="many">%1$d de dossiers créés.</item>
+        <item quantity="other">%1$d dossiers créés.</item>
+    </plurals>
+    <plurals name="settings_import_to_inbox">
+        <item quantity="one">%1$d note est allée dans la Boîte de réception : son dossier porte le nom d\'un coffre.</item>
+        <item quantity="many">%1$d de notes sont allées dans la Boîte de réception : leur dossier porte le nom d\'un coffre.</item>
+        <item quantity="other">%1$d notes sont allées dans la Boîte de réception : leur dossier porte le nom d\'un coffre.</item>
+    </plurals>
     <string name="settings_export_done">Export terminé : %1$d notes</string>
     <string name="settings_export_done_partial">Export terminé : %1$d notes (%2$d ignorées dans des coffres verrouillés)</string>
     <string name="settings_export_error">L\'export a échoué : %1$s</string>

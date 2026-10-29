@@ -307,6 +307,33 @@
     <string name="settings_vault_auto_lock_never">Nunca</string>
     <string name="settings_export_all">Exportar todas mis notas</string>
     <string name="settings_export_subtitle">Genera un archivo ZIP con archivos Markdown organizados por carpetas.</string>
+    <string name="settings_section_export_import">Exportar e importar</string>
+    <string name="settings_import">Importar notas</string>
+    <string name="settings_import_subtitle">Archivos Markdown o de texto, o un ZIP con ellos, como una exportación de Notes Tech.</string>
+    <string name="settings_import_result_title">Importación</string>
+    <string name="settings_import_stopped">La importación se detuvo en un límite (5.000 archivos, o 100 MB leídos): el resto no se importó.</string>
+    <string name="settings_import_none">No se importó ninguna nota.</string>
+    <string name="settings_import_error">No se pudo importar, no se importó nada: %1$s</string>
+    <plurals name="settings_import_done">
+        <item quantity="one">%1$d nota importada.</item>
+        <item quantity="many">%1$d de notas importadas.</item>
+        <item quantity="other">%1$d notas importadas.</item>
+    </plurals>
+    <plurals name="settings_import_ignored">
+        <item quantity="one">%1$d archivo no se importó: no es una nota, no es texto o es demasiado grande.</item>
+        <item quantity="many">%1$d de archivos no se importaron: no son notas, no son texto o son demasiado grandes.</item>
+        <item quantity="other">%1$d archivos no se importaron: no son notas, no son texto o son demasiado grandes.</item>
+    </plurals>
+    <plurals name="settings_import_folders_created">
+        <item quantity="one">%1$d carpeta creada.</item>
+        <item quantity="many">%1$d de carpetas creadas.</item>
+        <item quantity="other">%1$d carpetas creadas.</item>
+    </plurals>
+    <plurals name="settings_import_to_inbox">
+        <item quantity="one">%1$d nota fue a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+        <item quantity="many">%1$d de notas fueron a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+        <item quantity="other">%1$d notas fueron a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+    </plurals>
     <string name="settings_export_done">Exportación completada: %1$d notas</string>
     <string name="settings_export_done_partial">Exportación completada: %1$d notas (%2$d omitidas en cajas fuertes bloqueadas)</string>
     <string name="settings_export_error">No se pudo exportar: %1$s</string>

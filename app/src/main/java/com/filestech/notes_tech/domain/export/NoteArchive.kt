@@ -35,8 +35,8 @@ object NoteArchive {
      */
     data class Summary(val exported: Int, val skippedLocked: Int)
 
-    /** Le nom du fichier d'accueil, à la racine de l'archive. */
-    private const val README_NAME = "README.md"
+    /** Le nom du fichier d'accueil, à la racine de l'archive — que l'import (3.2.0) reconnaît. */
+    const val README_NAME = "README.md"
 
     /**
      * Écrit l'archive dans [output], qui est **fermé** en sortie.

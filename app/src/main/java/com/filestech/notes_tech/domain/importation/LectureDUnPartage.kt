@@ -80,18 +80,22 @@ object LectureDUnPartage {
         }
         return PartageRecu(notes = notes, ignores = nombre - notes.size)
     }
+}
 
-    private fun utf8Strict(octets: ByteArray): String? = try {
-        Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(octets))
-            .toString()
-            // A NUL is what a binary file has and a text never does.
-            .takeIf { '\u0000' !in it }
-    } catch (_: CharacterCodingException) {
-        null
-    }
+/**
+ * [octets] as text if they are UTF-8 and nothing else — never a text full of replacement characters
+ * from a file that is not one. Shared by the share and the import (3.2.0).
+ */
+internal fun utf8Strict(octets: ByteArray): String? = try {
+    Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(octets))
+        .toString()
+        // A NUL is what a binary file has and a text never does.
+        .takeIf { '\u0000' !in it }
+} catch (_: CharacterCodingException) {
+    null
 }
 
 /** One file of a share: its display name, and its bytes (`null` when it could not be read). */
