@@ -2,9 +2,20 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.1.0 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.1.1 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.1.1 — the long press that closed the editor (2026-10-29)
+
+- **3.1.0 closed on every long press in the editor**, so no note could be pasted into, copied from or
+  selected with the toolbar ([#36](https://github.com/gitubpatrice/notes_tech/issues/36)). The cause is
+  the protected clipboard of the editor's fields (audit of 2026-09-26, F1): a plain Compose
+  `Clipboard`, which Compose 1.12, shipped with 3.1.0, refuses before it shows the selection toolbar.
+  It is now an `AndroidClipboard`. What a vault note copies still goes the protected way (marked,
+  cleared after 60 s, purged by the panic mode): the F1 tests are unchanged and pass.
+- An availability defect, not a leak: the app closed before anything was copied. New tests long-press
+  a real field, ordinary note and vault note; they fail on the 3.1.0 code.
 
 ## v3.1.0 — long press, reading mode, note colours (2026-10-10)
 

@@ -1,0 +1,1 @@
+Corregido: una pulsación larga en una nota en edición cerraba la app; no se podía pegar, copiar ni seleccionar texto (#36). Textos legales precisados (responsabilidad, correos).

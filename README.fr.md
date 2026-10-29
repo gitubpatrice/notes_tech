@@ -4,7 +4,7 @@
 
 🇬🇧 [English version](README.md)
 
-**v3.1.0 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
+**v3.1.1 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
 
 Application de prise de notes Markdown chiffrée pour Android, écrite en **Kotlin** avec Jetpack
 Compose. **100 % locale, sans permission Internet.** Interface en **anglais, français, allemand,
@@ -20,6 +20,13 @@ l'application est techniquement incapable d'envoyer quoi que ce soit, et son man
 vérifier.**
 
 ---
+
+## Nouveautés de la 3.1.1
+
+- **Corrigé** : en 3.1.0, un appui long dans une note en cours d'édition fermait l'appli ; impossible de
+  coller, copier ou sélectionner du texte par le menu ([#36](https://github.com/gitubpatrice/notes_tech/issues/36)).
+  Ce qu'on copie d'une note de coffre passe toujours par le presse-papiers protégé.
+- Textes juridiques précisés : la clause de responsabilité, et ce que devient un e-mail que vous envoyez.
 
 ## Nouveautés de la 3.1.0
 
@@ -149,7 +156,7 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 ## Installation
 
 1. **APK publié** — depuis les [Releases GitHub](https://github.com/gitubpatrice/notes_tech/releases),
-   l'APK universel (`notes-tech-universel-3.1.0.apk`, tous téléphones), ou le fichier plus léger de
+   l'APK universel (`notes-tech-universel-3.1.1.apk`, tous téléphones), ou le fichier plus léger de
    votre appareil (`arm64-v8a` convient à presque tous les téléphones depuis 2016). Vérifiez l'empreinte SHA-256 publiée dans les notes de version.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    construite et signée par F-Droid.

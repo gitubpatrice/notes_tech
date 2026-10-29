@@ -1,0 +1,1 @@
+Behoben: Langes Drücken in einer Notiz, die bearbeitet wird, schloss die App; Text ließ sich nicht einfügen, kopieren oder auswählen (#36). Rechtstexte präzisiert (Haftung, E-Mails).

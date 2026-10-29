@@ -1,0 +1,1 @@
+Corretto: una pressione prolungata in una nota in modifica chiudeva l'app; non si poteva incollare, copiare o selezionare il testo (#36). Testi legali precisati (responsabilità, e-mail).

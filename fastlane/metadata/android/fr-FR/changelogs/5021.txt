@@ -1,0 +1,1 @@
+Corrigé : un appui long dans une note en cours d'édition fermait l'appli ; impossible de coller, copier ou sélectionner du texte (#36). Textes juridiques précisés (responsabilité, e-mails).
