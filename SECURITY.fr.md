@@ -17,6 +17,19 @@ de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
   effacé après 60 s, purgé par le mode panique) : les tests de F1 sont inchangés et passent.
 - Un défaut de disponibilité, pas une fuite : l'appli se fermait avant toute copie. De nouveaux tests font
   un appui long sur un vrai champ, note ordinaire et note de coffre ; ils échouent sur le code de la 3.1.0.
+- **La barre de sélection proposait « Traduire »**, ajouté par le classifieur de texte du système ; un
+  toucher confiait le texte sélectionné à une autre appli — sur l'émulateur de test, l'appli Google, qui le
+  cherchait en ligne. Le texte d'une note de coffre sortait ainsi, hors du presse-papiers protégé : la
+  famille que l'audit du 2026-09-26 avait fermée en retirant les requêtes `PROCESS_TEXT`, atteinte par une
+  autre porte. Probablement présent depuis la 3.0.0 : Compose 1.11 porte déjà ces entrées (non mesuré) ;
+  la 3.1.0 les masquait en plantant avant. L'activité pose désormais `TextClassifier.NO_OP` sur son `TextClassificationManager`, celui que
+  Compose lit pour tous les champs de toutes les fenêtres, dialogues et feuilles compris. Perdus : la
+  sélection intelligente et les actions du classifieur. Testé sur l'activité réelle, avec un témoin ;
+  mesuré sur la build release.
+- **Le modèle Whisper Tiny n'avait jamais pu être importé** : son SHA-256 dans `SttModelCatalogue` ne
+  correspondait à aucun fichier publié. Le contrôle, lui, tenait — il refusait le vrai fichier. L'empreinte
+  est corrigée d'après l'oid LFS du fichier sur Hugging Face, recoupé avec le SHA-1 que publie le README du
+  dépôt ; le fichier n'a pas changé depuis 2023. L'empreinte de Whisper Base était juste.
 
 ## v3.1.0 — appui long, mode lecture, couleur des notes (2026-10-10)
 

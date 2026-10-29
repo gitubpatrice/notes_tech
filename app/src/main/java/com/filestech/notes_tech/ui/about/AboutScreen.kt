@@ -33,6 +33,7 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.SystemUpdateAlt
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.VolunteerActivism
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
@@ -350,6 +352,14 @@ private fun SectionContact(ouvrir: (String) -> Unit) {
         Column {
             LigneDeLien(null, URL_SITE, ouvrir, titreLitteral = NOM_EDITEUR, icone = Icons.Outlined.Public)
             LigneDeLien(R.string.about_contact_email, MAILTO_CONTACT, ouvrir, icone = Icons.Outlined.MailOutline)
+            // 3.1.1 — the site's donation page, opened in the browser like the other links (the app
+            // still has no Internet permission). As in SMS Tech 1.29.0.
+            LigneDeLien(
+                R.string.about_support,
+                urlPageDeDons(langueAffichee()),
+                ouvrir,
+                icone = Icons.Outlined.VolunteerActivism,
+            )
         }
     }
     CarteFilesTech(modifier = Modifier.padding(top = 8.dp)) {
@@ -523,6 +533,21 @@ private const val URL_WHISPER_CPP = "https://github.com/ggml-org/whisper.cpp"
 private const val URL_WHISPER = "https://huggingface.co/ggerganov/whisper.cpp"
 private const val URL_SITE = "https://www.files-tech.com"
 private const val MAILTO_CONTACT = "mailto:contact@files-tech.com"
+
+/** The languages in which files-tech.com publishes its donation page; English otherwise. */
+private val PAGES_DE_DONS = mapOf(
+    "fr" to "$URL_SITE/soutenir.php",
+    "de" to "$URL_SITE/de/soutenir.php",
+)
+private const val PAGE_DE_DONS_EN = "$URL_SITE/en/soutenir.php"
+
+/** The donation page in the language shown, when the site publishes it there. */
+internal fun urlPageDeDons(langue: String): String = PAGES_DE_DONS[langue] ?: PAGE_DE_DONS_EN
+
+/** The language the app is shown in — the one `attachBaseContext` applied, or the device's. */
+@Composable
+private fun langueAffichee(): String =
+    LocalConfiguration.current.locales.takeIf { !it.isEmpty }?.get(0)?.language.orEmpty()
 
 /** `AppConstants.appAuthor` et l'éditeur — littéraux côté Flutter, littéraux ici. */
 private const val AUTEUR = "Patrice Haltaya"

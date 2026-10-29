@@ -16,6 +16,19 @@ of the Flutter versions 1.x and 2.x is kept as it was, in
   cleared after 60 s, purged by the panic mode): the F1 tests are unchanged and pass.
 - An availability defect, not a leak: the app closed before anything was copied. New tests long-press
   a real field, ordinary note and vault note; they fail on the 3.1.0 code.
+- **The selection toolbar offered Android's "Translate"**, added by the system's text classifier; one
+  tap handed the selected text to another app — on the test emulator, the Google app, which searched it
+  online. A vault note's text left that way too, outside the protected clipboard: the family the audit
+  of 2026-09-26 closed by removing the `PROCESS_TEXT` queries, reached through another door. Likely
+  present since 3.0.0: Compose 1.11 already carries these items (not measured); 3.1.0 hid them by
+  crashing first. The activity now sets
+  `TextClassifier.NO_OP` on its `TextClassificationManager`, the one Compose reads for every field of
+  every window, dialogs and sheets included. Lost: smart selection and the classifier's actions.
+  Tested on the real activity, with a control; measured on the release build.
+- **The Whisper Tiny model could never be imported**: its SHA-256 in `SttModelCatalogue` matched no file
+  ever published. The check itself held — it refused the genuine file. The hash is corrected from the
+  file's LFS oid on Hugging Face, cross-checked against the SHA-1 the repository's README lists; the
+  file has not changed upstream since 2023. Whisper Base's hash was right.
 
 ## v3.1.0 — long press, reading mode, note colours (2026-10-10)
 

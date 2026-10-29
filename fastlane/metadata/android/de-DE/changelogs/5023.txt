@@ -1,1 +1,1 @@
-Behoben: Langes Drücken in einer Notiz, die bearbeitet wird, schloss die App; Text ließ sich nicht einfügen, kopieren oder auswählen (#36). Rechtstexte präzisiert (Haftung, E-Mails).
+Behoben: Langes Drücken in einer Notiz, die bearbeitet wird, schloss die App; Text ließ sich nicht einfügen, kopieren oder auswählen (#36). Das Auswahlmenü bietet „Übersetzen“ von Android nicht mehr an, das den ausgewählten Text an eine andere App schickte. Das Modell Whisper Tiny lässt sich jetzt importieren. Neu: „Das Projekt unterstützen“ unter Über. Rechtstexte präzisiert (Haftung, E-Mails).

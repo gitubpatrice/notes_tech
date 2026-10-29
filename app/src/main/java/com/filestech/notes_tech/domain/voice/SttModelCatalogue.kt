@@ -54,11 +54,19 @@ object SttModelCatalogue {
         fichierAmont = "ggml-base-q5_1.bin",
     )
 
-    /** Deux fois plus rapide et deux fois plus léger, au prix d'une qualité française approximative. */
+    /**
+     * Deux fois plus rapide et deux fois plus léger, au prix d'une qualité française approximative.
+     *
+     * 🔴 **3.1.1 — this hash was wrong from 3.0.0 on**: `be07e048…1b21` matched no file ever
+     * published, so the Tiny model could never be imported. The file has not changed upstream since
+     * 2023-09-06 (commit history of `ggerganov/whisper.cpp` on Hugging Face). Measured on 2026-10-29:
+     * the LFS oid of `ggml-tiny-q5_1.bin` (32 152 673 bytes) is the SHA-256 below, the file downloaded
+     * has it, and its SHA-1 is the `2827a03e…ee51` the repository's README lists for `tiny-q5_1`.
+     */
     val whisperTinyQ5 = SttModel(
         id = "whisper-tiny-q5_1",
         displayName = "Whisper Tiny",
-        expectedSha256 = "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
+        expectedSha256 = "818710568da3ca15689e31a743197b520007872ff9576237bda97bd1b469c3d7",
         sizeBytes = 32_200_000L,
         language = "auto",
         fichierAmont = "ggml-tiny-q5_1.bin",

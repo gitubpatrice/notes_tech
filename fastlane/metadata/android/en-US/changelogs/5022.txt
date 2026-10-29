@@ -1,1 +1,1 @@
-Fixed: a long press in a note being edited closed the app, so text could not be pasted, copied or selected (#36). Legal texts clarified (liability, e-mails).
+Fixed: a long press in a note being edited closed the app, so text could not be pasted, copied or selected (#36). The selection menu no longer offers Android's “Translate”, which sent the selected text to another app. The Whisper Tiny model can now be imported. New: “Support the project” in About. Legal texts clarified (liability, e-mails).
