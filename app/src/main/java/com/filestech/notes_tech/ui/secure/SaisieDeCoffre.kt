@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.secure
 
+import android.content.ClipboardManager
 import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -7,12 +8,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.AndroidClipboard
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.NativeClipboard
 import androidx.compose.ui.platform.PlatformTextInputMethodRequest
+import androidx.compose.ui.platform.nativeClipboardManager
 import androidx.core.view.inputmethod.EditorInfoCompat
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
@@ -76,15 +78,25 @@ fun SaisieDeCoffre(
     }
 }
 
-/** The clipboard of a vault note's fields: a text written goes through [deposer]; the rest is native. */
+/**
+ * The clipboard of a vault note's fields: a text written goes through [deposer]; the rest is native.
+ *
+ * 🔴🔴 **An [AndroidClipboard], not a bare [Clipboard] — 3.1.0 closed the app on every long press in
+ * the editor** (issue #36, 2026-10-27; measured on the published APK, 2026-10-29). Foundation 1.12
+ * asks, before showing the selection toolbar, whether the clipboard holds a text, through the
+ * `nativeClipboardManager` extension — which throws on anything but an [AndroidClipboard]. 1.11 read
+ * `Clipboard.nativeClipboard`, which this class overrode, and the BOM 2026.09 of 3.1.0 changed it in
+ * silence. Since this clipboard sits under EVERY note (see [SaisieDeCoffre]), no note could be
+ * pasted into, copied from or selected with the toolbar.
+ */
 internal class PressePapiersDeCoffre(
     private val natif: Clipboard,
     private val actif: () -> Boolean,
     private val deposer: suspend (String) -> Unit,
     private val surEchec: (String) -> Unit,
-) : Clipboard {
+) : AndroidClipboard {
 
-    override val nativeClipboard: NativeClipboard get() = natif.nativeClipboard
+    override val clipboardManager: ClipboardManager get() = natif.nativeClipboardManager
 
     override suspend fun getClipEntry(): ClipEntry? = natif.getClipEntry()
 
