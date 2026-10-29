@@ -3,7 +3,6 @@ package com.filestech.notes_tech.data.export
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.filestech.notes_tech.core.crypto.SecretBytes
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.LegacyDatabaseFixture
 import com.filestech.notes_tech.data.local.LegacyDatabaseLocation
@@ -15,12 +14,8 @@ import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.WritableKekSource
 import com.filestech.notes_tech.security.vault.FolderVaultService
-import com.filestech.notes_tech.security.vault.KeystoreUnavailableException
+import com.filestech.notes_tech.security.vault.KeystoreEnMemoire
 import com.filestech.notes_tech.security.vault.MonotonicClock
-import com.filestech.notes_tech.security.vault.SealedByKeystore
-import com.filestech.notes_tech.security.vault.VaultCrypto
-import com.filestech.notes_tech.security.vault.VaultKeystore
-import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.security.vault.VaultSessions
 import com.filestech.notes_tech.security.vault.VaultWipeJournal
 import com.google.common.truth.Truth.assertThat
@@ -338,39 +333,6 @@ class NoteExporteurTest {
 
     private class HorlogeMonotone : MonotonicClock {
         override fun elapsedMillis(): Long = 0L
-    }
-
-    private class KeystoreEnMemoire : VaultKeystore {
-        private val cles = mutableMapOf<String, ByteArray>()
-
-        override fun createKey(alias: String): Boolean {
-            if (cles.containsKey(alias)) return false
-            cles[alias] = SecretBytes.randomBytes(VaultParams.FOLDER_KEY_BYTES)
-            return true
-        }
-
-        override fun seal(alias: String, plaintext: ByteArray): SealedByKeystore {
-            val cle = cles[alias] ?: throw KeystoreUnavailableException()
-            val nonce = VaultCrypto.newNonce()
-            return SealedByKeystore(VaultCrypto.seal(cle, nonce, plaintext, ByteArray(0)), nonce)
-        }
-
-        override fun open(alias: String, sealed: SealedByKeystore): ByteArray {
-            val cle = cles[alias] ?: throw KeystoreUnavailableException()
-            return VaultCrypto.open(cle, sealed.nonce, sealed.ciphertext, ByteArray(0))
-        }
-
-        override fun deleteKey(alias: String) {
-            cles.remove(alias)
-        }
-
-        override fun deleteKeysWithPrefix(prefix: String): Int {
-            val vises = cles.keys.filter { it.startsWith(prefix) }
-            vises.forEach(cles::remove)
-            return vises.size
-        }
-
-        override fun hasKey(alias: String): Boolean = cles.containsKey(alias)
     }
 
     private companion object {

@@ -5,6 +5,7 @@ import com.filestech.notes_tech.core.text.DartTextSemantics
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.NotesDatabase
 import com.filestech.notes_tech.data.local.OutgoingLink
+import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 import com.filestech.notes_tech.data.local.mapper.TagCodec
 import com.filestech.notes_tech.data.local.mapper.toDomain
@@ -371,6 +372,37 @@ class NotesRepository @Inject constructor(
                 inserer(database, importee.note, dossier, now)
             }
             BilanDImport(notes = ecrites, dossiersCrees = crees, versLaBoiteDeReception = versLaBoite)
+        }
+    }
+
+    /**
+     * The restore of an encrypted backup (3.2.0, D-031): [ecrire] runs inside ONE transaction, rolled
+     * back if it throws — and it does throw when the file's tag does not hold at its very end, after
+     * everything was written: nothing unauthenticated is ever committed.
+     *
+     * 🔴 **Rows go in as the backup has them** — a vault's columns, a sealed blob — which no other write
+     * of this repository does: [sealIfVault] is not applied, each note having been checked against its
+     * real destination by the restore's plan (`PlanDeRestauration`). Nothing else may write through it.
+     */
+    suspend fun <T> restaurerDansUneTransaction(ecrire: suspend (EcritureDeRestauration) -> T): T =
+        inTransaction { database -> ecrire(EcritureDeRestauration(database)) }
+
+    /** What [restaurerDansUneTransaction] gives its block: reads and writes inside its transaction. */
+    inner class EcritureDeRestauration internal constructor(private val database: NotesDatabase) {
+        suspend fun dossiersDuTelephone(): List<FolderEntity> = database.folderDao().listAll()
+
+        suspend fun noteDuTelephone(id: String): NoteEntity? = database.noteDao().findById(id)
+
+        suspend fun dossier(dossier: FolderEntity) = database.folderDao().insert(dossier)
+
+        /** A note in clear has its links indexed, like any write; a sealed one's stay detached (D-009). */
+        suspend fun note(note: NoteEntity) {
+            database.noteWriteDao().insert(note)
+            if (note.encryptedContent == null) {
+                val enClair = note.toDomain()
+                reindexLinks(database, enClair)
+                resolveIncoming(database, enClair)
+            }
         }
     }
 
