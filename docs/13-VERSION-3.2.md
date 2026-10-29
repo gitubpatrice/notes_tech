@@ -29,7 +29,11 @@
   un fichier ne peut pas savoir ce qui sera supprimé après lui (R-2). L'écran de restauration le dit.
 - **Un code de sauvegarde GÉNÉRÉ, par défaut** (Patrice, 2026-10-29 : « fais ce qu'il y a de mieux » ;
   R-14) : 24 caractères en 6 groupes de 4 (`K7QM-T2XB-…`), tirés par `SecureRandom` dans un alphabet de
-  32 signes sans ambiguïté (ni `0`/`O`, ni `1`/`I`/`L`), soit 120 bits. Affiché **une fois**, à noter ;
+  32 signes sans ambiguïté, soit 120 bits. ⚠️ **Tranché en codant** : retirer `0`, `O`, `1`, `I` et `L`
+  ne laisse que 31 signes ; c'est donc la **base 32 de Crockford** (`0-9`, `A-Z` sans `I L O U`), dont la
+  lecture replie les sosies (`O`→`0`, `I`/`L`→`1`) — l'ambiguïté disparaît à la saisie, pas à l'affichage.
+  Une seule règle pour créer et restaurer (`SecretDeSauvegarde.octets`) : ce qui a la forme d'un code est
+  pris sous sa forme canonique, le reste comme une phrase en NFC. Affiché **une fois**, à noter ;
   la création exige de le **recopier** avant d'écrire le fichier — un code mal noté, c'est une sauvegarde
   perdue. À la restauration, la saisie ignore la casse, les espaces et les tirets. Le fichier quitte le
   téléphone et s'attaque hors ligne, sans limite d'essais : seul un secret tiré au hasard y résiste à
