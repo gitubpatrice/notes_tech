@@ -3,13 +3,33 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, **puis le 2026-10-10**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 📝 POUR LA PROCHAINE VERSION (noté le 2026-10-26)
+## 🧭 À LA REPRISE (écrit le 2026-10-29) — la 3.1.1 est PUBLIÉE
 
-Textes juridiques embarqués (`res/raw*/terms.md`, `privacy.md`, 5 langues, datés du 26/10) alignés sur ceux de
-Read Files Tech 3.0 : clause de responsabilité réécrite (gratuité, particulier ; dommages indirects et pertes
-dues aux fonctions irréversibles ou à un oubli, jamais la faute lourde ou dolosive — C. civ. 1231-3, 1171) et
-clause e-mail (RGPD art. 13 : finalité, gardé le temps de l'échange, accès, effacement, CNIL). Ils partent avec
-la prochaine version : le dire dans ses notes (« Textes juridiques précisés »).
+Patrice : « feu vert pour tout corriger et 3.1.1 », « corrige tout proprement », « fusionne ok go ». Fait :
+
+- **PR #37** (correctif de #36) et **#38** fusionnées ; `main` = `db7b03c`, CI + CodeQL verts **avant** le tag.
+  **Tag léger `v3.1.1`** sur `db7b03c`, **release Latest**, 4 APK signés EN LOCAL : cert `ddb385de…42e9`,
+  v2 + v3, versionCodes 5020-5023, mêmes 4 permissions que la 3.1.0 publiée, aucun bloc « Dependency
+  metadata » ; assets retéléchargés = SHA-256 identiques. Universel `b3effa8c…e537`, arm64 `03a42293…d97b`,
+  armeabi-v7a `8376c969…8de8`, x86_64 `1e94523e…ffea`.
+- **Ce que corrige la 3.1.1**, mesuré sur la release signée (émulateur API 34) :
+  1. **#36** : tout appui long dans l'éditeur fermait l'appli — `PressePapiersDeCoffre` n'était pas un
+     `AndroidClipboard`, qu'exige Compose foundation 1.12 (BOM 2026.09 de la 3.1.0).
+  2. **« Traduire »** du classifieur de texte d'Android dans la barre de sélection : un toucher envoyait le
+     texte, note de coffre comprise, à l'appli Google, qui le cherchait en ligne. `MainActivity` pose
+     `TextClassifier.NO_OP` (`ui/secure/SansClassificationDeTexte.kt`).
+  3. **Whisper Tiny** : empreinte fausse depuis la 3.0.0, jamais importable ; corrigée (oid LFS + SHA-1 du
+     README amont), import réel vu « Installé ».
+  4. **« Soutenir le projet »** dans À propos (comme SMS Tech 1.29.0). Textes juridiques du 26/10 livrés.
+- **Tests** : 501 instrumentés sur l'émulateur, échecs seulement Keystore/biométrie (environnement) ; les
+  tests Keystore sur le **S9 : 20/21**, le 21ᵉ exige une empreinte enregistrée. ⚠️ **La CI n'exécute aucun
+  test instrumenté** : les lancer en local avant chaque release (`ANDROID_SERIAL=emulator-5554`).
+- **Site** : PR `files-tech-site` **#33**, 9 pages vérifiées EN LIGNE (FR, EN, DE).
+- **F-Droid : rien à faire**, mise à jour automatique (tag + `version.properties` 502 → 5021/5022/5023).
+  Vérifier `https://f-droid.org/api/v1/packages/com.filestech.notes_tech` avant d'écrire qu'elle y est.
+- **Ensuite — 3.2.0** (décision de Patrice du 2026-10-29) : sauvegarde chiffrée + restauration et import
+  Markdown ; recherche dans la note avec surlignage (idée de hcarrega, #10) ; recevoir un texte partagé
+  depuis une autre appli.
 
 ## 🧭 À LA REPRISE (écrit le 2026-10-10 au soir) — la 3.1.0 est PUBLIÉE
 
