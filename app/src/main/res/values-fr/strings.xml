@@ -572,4 +572,17 @@
     <string name="startup_failure_key_unavailable">Le coffre-fort de clés de l\'appareil est momentanément indisponible. Relancez l\'application ; si le problème persiste, redémarrez l\'appareil.</string>
     <string name="startup_failure_retry">Réessayer</string>
 
+    <!-- 3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4) -->
+    <string name="share_result_title">Partagé avec Notes Tech</string>
+    <string name="share_result_failed">Ce qui a été partagé n\'a pas pu être enregistré. Rien n\'a été ajouté.</string>
+    <plurals name="share_result_added">
+        <item quantity="one">%1$d note ajoutée à la Boîte de réception.</item>
+        <item quantity="many">%1$d de notes ajoutées à la Boîte de réception.</item>
+        <item quantity="other">%1$d notes ajoutées à la Boîte de réception.</item>
+    </plurals>
+    <plurals name="share_result_ignored">
+        <item quantity="one">%1$d élément partagé n\'a pas pu être lu : ce n\'est pas du texte, ou il dépasse 5 Mo.</item>
+        <item quantity="many">%1$d d\'éléments partagés n\'ont pas pu être lus : ce n\'est pas du texte, ou ils dépassent 5 Mo.</item>
+        <item quantity="other">%1$d éléments partagés n\'ont pas pu être lus : ce n\'est pas du texte, ou ils dépassent 5 Mo.</item>
+    </plurals>
 </resources>

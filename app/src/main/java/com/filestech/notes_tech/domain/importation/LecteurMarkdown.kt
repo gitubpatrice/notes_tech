@@ -55,8 +55,13 @@ object LecteurMarkdown {
     }
 
     /** A title for a shared text: its subject if it has one, otherwise its first non-blank line. */
-    fun titreDUnTexte(sujet: String?, texte: String): String =
-        tronquer((sujet?.takeIf { it.isNotBlank() } ?: texte.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()).trim())
+    fun titreDUnTexte(sujet: String?, texte: String): String = tronquer(
+        (
+            sujet?.takeIf {
+                it.isNotBlank()
+            } ?: texte.lineSequence().firstOrNull { it.isNotBlank() }.orEmpty()
+            ).trim(),
+    )
 
     // ── Frontmatter ─────────────────────────────────────────────────────────────────────────────
 
@@ -76,18 +81,18 @@ object LecteurMarkdown {
         var cleCourante: String? = null
         for (ligne in texte.substring(4, fin + 1).lineSequence()) {
             val enListe = ligne.trimStart()
-            if (cleCourante != null && enListe.startsWith("- ")) {
-                champs[cleCourante] = champs[cleCourante].orEmpty() + "\n" + enListe.removePrefix("- ")
-                continue
-            }
-            if (ligne.isBlank() || ligne.trimStart().startsWith("#") || ligne.first().isWhitespace()) continue
             val deuxPoints = ligne.indexOf(':')
-            if (deuxPoints <= 0) {
-                cleCourante = null
-                continue
+            when {
+                cleCourante != null && enListe.startsWith("- ") ->
+                    champs[cleCourante] = champs[cleCourante].orEmpty() + "\n" + enListe.removePrefix("- ")
+                // Blank, a comment, or an indented line that is not a list item.
+                ligne.isBlank() || enListe.startsWith("#") || ligne.first().isWhitespace() -> Unit
+                deuxPoints <= 0 -> cleCourante = null
+                else -> {
+                    cleCourante = ligne.substring(0, deuxPoints).trim()
+                    champs[cleCourante] = ligne.substring(deuxPoints + 1).trim()
+                }
             }
-            cleCourante = ligne.substring(0, deuxPoints).trim()
-            champs[cleCourante] = ligne.substring(deuxPoints + 1).trim()
         }
         // The export writes a blank line after the closing fence, and a final line break the note may
         // not have had.
@@ -113,18 +118,37 @@ object LecteurMarkdown {
         if (valeur.contains('\n')) {
             return valeur.split('\n').map(String::trim).filter(String::isNotEmpty).map(::scalaire)
         }
-        if (!valeur.startsWith('[') || !valeur.endsWith(']')) return listOfNotNull(valeur.takeIf { it.isNotEmpty() }?.let(::scalaire))
+        if (!valeur.startsWith('[') ||
+            !valeur.endsWith(']')
+        ) {
+            return listOfNotNull(valeur.takeIf { it.isNotEmpty() }?.let(::scalaire))
+        }
         val elements = mutableListOf<String>()
         val courant = StringBuilder()
         var guillemet: Char? = null
         var echappe = false
         for (c in valeur.substring(1, valeur.length - 1)) {
             when {
-                echappe -> { courant.append(c); echappe = false }
-                guillemet == '"' && c == '\\' -> { courant.append(c); echappe = true }
-                guillemet != null && c == guillemet -> { courant.append(c); guillemet = null }
-                guillemet == null && (c == '"' || c == '\'') -> { courant.append(c); guillemet = c }
-                guillemet == null && c == ',' -> { elements += courant.toString(); courant.clear() }
+                echappe -> {
+                    courant.append(c)
+                    echappe = false
+                }
+                guillemet == '"' && c == '\\' -> {
+                    courant.append(c)
+                    echappe = true
+                }
+                guillemet != null && c == guillemet -> {
+                    courant.append(c)
+                    guillemet = null
+                }
+                guillemet == null && (c == '"' || c == '\'') -> {
+                    courant.append(c)
+                    guillemet = c
+                }
+                guillemet == null && c == ',' -> {
+                    elements += courant.toString()
+                    courant.clear()
+                }
                 else -> courant.append(c)
             }
         }
@@ -136,33 +160,30 @@ object LecteurMarkdown {
     private fun desechapper(s: String): String {
         val sortie = StringBuilder(s.length)
         var i = 0
-        while (i < s.length) {
-            val c = s[i]
-            if (c != '\\' || i + 1 >= s.length) {
-                sortie.append(c)
-                i++
-                continue
-            }
-            when (val suivant = s[i + 1]) {
-                '\\' -> sortie.append('\\')
-                '"' -> sortie.append('"')
-                'n' -> sortie.append('\n')
-                'r' -> sortie.append('\r')
-                't' -> sortie.append('\t')
-                'x' -> {
-                    val code = s.substring(i + 2, minOf(i + 4, s.length)).toIntOrNull(16)
-                    if (code != null && i + 4 <= s.length) {
-                        sortie.append(code.toChar())
-                        i += 4
-                        continue
-                    }
-                    sortie.append('\\').append(suivant)
-                }
-                else -> sortie.append('\\').append(suivant)
-            }
-            i += 2
-        }
+        while (i < s.length) i += lireUnCaractere(s, i, sortie)
         return sortie.toString()
+    }
+
+    /** Appends what starts at [i] — one character, or one escape — and returns how many it consumed. */
+    private fun lireUnCaractere(s: String, i: Int, sortie: StringBuilder): Int {
+        if (s[i] != '\\' || i + 1 >= s.length) {
+            sortie.append(s[i])
+            return 1
+        }
+        val simple = when (s[i + 1]) {
+            '\\' -> '\\'
+            '"' -> '"'
+            'n' -> '\n'
+            'r' -> '\r'
+            't' -> '\t'
+            else -> null
+        }
+        val code = if (s[i + 1] == 'x' && i + 4 <= s.length) s.substring(i + 2, i + 4).toIntOrNull(16) else null
+        return when {
+            simple != null -> 2.also { sortie.append(simple) }
+            code != null -> 4.also { sortie.append(code.toChar()) }
+            else -> 2.also { sortie.append('\\').append(s[i + 1]) }
+        }
     }
 
     /** The export's local form first, then an offset, then a date alone (at midnight). Else none. */

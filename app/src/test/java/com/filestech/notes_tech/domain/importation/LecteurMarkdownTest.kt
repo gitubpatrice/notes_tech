@@ -109,7 +109,9 @@ class LecteurMarkdownTest {
     @Test
     fun `a shared text is titled by its subject, else its first non-blank line`() {
         assertThat(LecteurMarkdown.titreDUnTexte("Sujet", "corps")).isEqualTo("Sujet")
-        assertThat(LecteurMarkdown.titreDUnTexte(null, "\n\n  Première vraie ligne \nsuite")).isEqualTo("Première vraie ligne")
+        assertThat(
+            LecteurMarkdown.titreDUnTexte(null, "\n\n  Première vraie ligne \nsuite"),
+        ).isEqualTo("Première vraie ligne")
         assertThat(LecteurMarkdown.titreDUnTexte(" ", "")).isEmpty()
     }
 

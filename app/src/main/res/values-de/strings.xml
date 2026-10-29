@@ -527,4 +527,15 @@
     <string name="startup_failure_unknown">Der Schlüssel wurde gefunden, konnte aber nicht verwendet werden. Versuchen Sie es erneut; wenn das Problem weiter besteht, melden Sie es – Ihre Notizen werden nicht verändert.</string>
     <string name="startup_failure_retry">Erneut versuchen</string>
 
+    <!-- 3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4) -->
+    <string name="share_result_title">Mit Notes Tech geteilt</string>
+    <string name="share_result_failed">Das Geteilte konnte nicht gespeichert werden. Es wurde nichts hinzugefügt.</string>
+    <plurals name="share_result_added">
+        <item quantity="one">%1$d Notiz zum Posteingang hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen zum Posteingang hinzugefügt.</item>
+    </plurals>
+    <plurals name="share_result_ignored">
+        <item quantity="one">%1$d geteiltes Element konnte nicht gelesen werden: kein Text oder größer als 5 MB.</item>
+        <item quantity="other">%1$d geteilte Elemente konnten nicht gelesen werden: kein Text oder größer als 5 MB.</item>
+    </plurals>
 </resources>

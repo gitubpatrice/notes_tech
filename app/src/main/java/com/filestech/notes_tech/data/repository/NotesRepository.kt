@@ -8,6 +8,7 @@ import com.filestech.notes_tech.data.local.OutgoingLink
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 import com.filestech.notes_tech.data.local.mapper.TagCodec
 import com.filestech.notes_tech.data.local.mapper.toDomain
+import com.filestech.notes_tech.domain.importation.NoteImportee
 import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.links.WikiLinkParser
 import com.filestech.notes_tech.domain.model.EncryptedFormat
@@ -311,6 +312,46 @@ class NotesRepository @Inject constructor(
             reindexLinks(database, persisted)
             resolveIncoming(database, persisted)
             persisted
+        }
+    }
+
+    /**
+     * Adds [notes] read from files or a share (3.2.0, `docs/13-VERSION-3.2.md` §2 and §4) to the
+     * ordinary folder [folderId]: new ids, the dates and flags the file carries (now, otherwise), the
+     * links indexed like any write — all in one transaction, all or nothing.
+     *
+     * 🔴 **Never into a vault, and refused rather than sealed.** An imported text is plaintext that
+     * came from elsewhere; quietly sealing it into a vault would hide where it went. The caller picks
+     * an ordinary folder; [FoldersRepository.isVaultFolder] answers "vault" for an unknown id too, so a
+     * folder deleted meanwhile is refused the same way.
+     */
+    suspend fun importer(folderId: String, notes: List<NoteImportee>): List<Note> {
+        require(!folders.isVaultFolder(folderId)) { "import refused into folder $folderId: a vault, or unknown" }
+        notes.forEach { requireTitleWithinLimit(it.titre) }
+        val now = clock.instant()
+        return inTransaction { database ->
+            notes.map { lue ->
+                val creeeLe = lue.creeeLe ?: now
+                val note = Note(
+                    id = UUID.randomUUID().toString(),
+                    title = lue.titre,
+                    content = lue.contenu,
+                    folderId = folderId,
+                    tags = lue.etiquettes,
+                    pinned = lue.epinglee,
+                    favorite = lue.favorite,
+                    archived = false,
+                    trashedAt = null,
+                    createdAt = creeeLe,
+                    updatedAt = lue.modifieeLe ?: creeeLe,
+                    encrypted = null,
+                    encVersion = EncryptedFormat.CONTENT_ONLY,
+                )
+                database.noteWriteDao().insert(note.toNewEntity())
+                reindexLinks(database, note)
+                resolveIncoming(database, note)
+                note
+            }
         }
     }
 

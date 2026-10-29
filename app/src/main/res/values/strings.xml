@@ -708,4 +708,15 @@
     <string name="startup_failure_unknown">The key was found but could not be used. Try again; if the problem persists, report it — your notes are not modified.</string>
     <string name="startup_failure_retry">Try again</string>
 
+    <!-- 3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4) -->
+    <string name="share_result_title">Shared with Notes Tech</string>
+    <string name="share_result_failed">What was shared could not be saved. Nothing was added.</string>
+    <plurals name="share_result_added">
+        <item quantity="one">%1$d note added to the Inbox.</item>
+        <item quantity="other">%1$d notes added to the Inbox.</item>
+    </plurals>
+    <plurals name="share_result_ignored">
+        <item quantity="one">%1$d shared item could not be read: not text, or over 5 MB.</item>
+        <item quantity="other">%1$d shared items could not be read: not text, or over 5 MB.</item>
+    </plurals>
 </resources>

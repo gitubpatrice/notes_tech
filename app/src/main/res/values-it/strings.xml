@@ -539,4 +539,17 @@
     <string name="startup_failure_unknown">La chiave è stata trovata, ma non è stato possibile usarla. Riprovi; se il problema persiste, lo segnali: le sue note non vengono modificate.</string>
     <string name="startup_failure_retry">Riprova</string>
 
+    <!-- 3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4) -->
+    <string name="share_result_title">Condiviso con Notes Tech</string>
+    <string name="share_result_failed">Ciò che è stato condiviso non è stato salvato. Non è stato aggiunto nulla.</string>
+    <plurals name="share_result_added">
+        <item quantity="one">%1$d nota aggiunta alla Posta in arrivo.</item>
+        <item quantity="many">%1$d di note aggiunte alla Posta in arrivo.</item>
+        <item quantity="other">%1$d note aggiunte alla Posta in arrivo.</item>
+    </plurals>
+    <plurals name="share_result_ignored">
+        <item quantity="one">%1$d elemento condiviso non è stato letto: non è testo, o supera 5 MB.</item>
+        <item quantity="many">%1$d di elementi condivisi non sono stati letti: non sono testo, o superano 5 MB.</item>
+        <item quantity="other">%1$d elementi condivisi non sono stati letti: non sono testo, o superano 5 MB.</item>
+    </plurals>
 </resources>

@@ -539,4 +539,17 @@
     <string name="startup_failure_unknown">Se encontró la clave, pero no se pudo usar. Vuelva a intentarlo; si el problema persiste, notifíquelo: sus notas no se modifican.</string>
     <string name="startup_failure_retry">Volver a intentarlo</string>
 
+    <!-- 3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4) -->
+    <string name="share_result_title">Compartido con Notes Tech</string>
+    <string name="share_result_failed">No se pudo guardar lo compartido. No se añadió nada.</string>
+    <plurals name="share_result_added">
+        <item quantity="one">%1$d nota añadida a la Bandeja de entrada.</item>
+        <item quantity="many">%1$d de notas añadidas a la Bandeja de entrada.</item>
+        <item quantity="other">%1$d notas añadidas a la Bandeja de entrada.</item>
+    </plurals>
+    <plurals name="share_result_ignored">
+        <item quantity="one">%1$d elemento compartido no se pudo leer: no es texto, o supera 5 MB.</item>
+        <item quantity="many">%1$d de elementos compartidos no se pudieron leer: no son texto, o superan 5 MB.</item>
+        <item quantity="other">%1$d elementos compartidos no se pudieron leer: no son texto, o superan 5 MB.</item>
+    </plurals>
 </resources>
