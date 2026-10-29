@@ -45,6 +45,7 @@ import com.filestech.notes_tech.ui.panic.RecouvrementDePanique
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
+import com.filestech.notes_tech.ui.secure.sansClassificationDeTexte
 import com.filestech.notes_tech.ui.splash.SplashScreen
 import com.filestech.notes_tech.ui.startup.StartupFailureScreen
 import com.filestech.notes_tech.ui.startup.StartupState
@@ -102,6 +103,9 @@ class MainActivity : FragmentActivity() {
         // Before anything is composed, and synchronously: the first frame must already be the lock
         // screen when a lock is configured. Once per process — a recreated activity keeps the state.
         appLock.resolveAtLaunch()
+        // 🔴 Before the first field exists: the selection toolbar's "Translate" sent the selected text
+        // of a note to another app (3.1.1) — see `sansClassificationDeTexte`.
+        sansClassificationDeTexte()
         enableEdgeToEdge()
         setContent {
             CompositionLocalProvider(
