@@ -31,7 +31,7 @@ coroutines = "1.11.0"
 # SQLCipher — même artefact que celui embarqué par `sqflite_sqlcipher` côté Flutter, qui est en
 # 4.10.0. Le format de fichier est stable sur toute la série 4.x et `PRAGMA cipher_compatibility = 4`
 # est posé explicitement à l'ouverture : une base écrite par la 4.10 s'ouvre avec la 4.16.
-sqlcipher = "4.16.0"
+sqlcipher = "4.19.1"
 
 # Bouncy Castle — uniquement pour `Argon2BytesGenerator` (RFC 9106), qui n'a pas d'équivalent
 # dans la plateforme. On utilise l'API bas niveau `org.bouncycastle.crypto.*`, PAS le fournisseur
