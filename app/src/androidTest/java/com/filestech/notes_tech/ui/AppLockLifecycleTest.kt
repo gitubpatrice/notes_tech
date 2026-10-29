@@ -4,7 +4,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -62,6 +62,12 @@ class AppLockLifecycleTest {
     @get:Rule(order = 0)
     val hilt = HiltAndroidRule(this)
 
+    /**
+     * The **v2** rule: composition queued on the main thread, as in the app. The v1 rule composes
+     * through an unconfined dispatcher, so the unlocked state, published from `AppLockManager`'s IO
+     * thread, could recompose the `NavHost` right there — `addObserver must be called on the main
+     * thread`, once on the CI emulator (2026-10-29), never locally.
+     */
     @get:Rule(order = 1)
     val compose = createEmptyComposeRule()
 
