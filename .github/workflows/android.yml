@@ -46,10 +46,10 @@ jobs:
 
       # The local gate, in one command, so CI and a developer's machine agree on what "green" means.
       #
-      # `compileDebugAndroidTestKotlin`: the instrumented tests run on real phones, not here (see the
-      # end of this file), so nothing else would notice their source set no longer compiles. It
-      # happened in 2026-08: a key interface gained a member, five test doubles did not follow, and
-      # the instrumented suite could not run without anyone being told.
+      # `compileDebugAndroidTestKotlin`: the gate fails fast when the instrumented source set no longer
+      # compiles, without waiting for the emulator job. It happened in 2026-08: a key interface gained
+      # a member, five test doubles did not follow, and the instrumented suite could not run without
+      # anyone being told.
       - name: Gate
         run: >
           ./gradlew --no-daemon :app:assembleDebug testDebugUnitTest :app:lintDebug detekt ktlintCheck
@@ -135,8 +135,78 @@ jobs:
       - name: Assert the permissions of the merged release manifest
         run: python3 tools/check-manifest-permissions.py
 
-# Instrumented tests (484 on 2026-09-26) run on real phones, not here: many need a screen lock, a
-# hardware Keystore and, for some, a fingerprint — an emulator without them fails for its own reasons.
-# Locally, always by serial, never with connectedAndroidTest (it targets every attached device):
-#   adb -s <serial> shell am instrument -w -r \
-#     com.filestech.notes_tech.next.debug.test/com.filestech.notes_tech.HiltTestRunner
+  # 🔴 Added in 3.1.1. Until then the instrumented tests (501 on 2026-10-29) ran on phones only, and
+  # nothing ran them: the long press that closed 3.1.0 (#36) and the "Translate" that sent a note's
+  # text out were both visible only there.
+  #
+  # An emulator still lacks a hardware Keystore, a fingerprint and the dictation model, so the Gradle
+  # task fails whatever happens; `tools/check-instrumented-results.py` judges each test instead, and
+  # lets through only what the emulator cannot provide, reason by reason — including the hardware
+  # Keystore witness, which MUST fail here with KeystoreSoftwareOnlyException. The screen lock is set
+  # first: without one, every PIN-vault test fails for that reason alone.
+  #
+  # API 29 matches the physical test device (Galaxy S9, Android 10).
+  instrumented:
+    name: Instrumented tests (emulator, API 29)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Install the pinned NDK and CMake
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$NDK_VERSION" "cmake;$CMAKE_VERSION" > /dev/null
+
+      - name: Does the judge still refuse what it must?
+        run: python3 tools/check-instrumented-results.py --self-test
+
+      # Built before the emulator boots, so it does not sit idle through the native build.
+      - name: Build the app and its tests
+        run: ./gradlew --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
+
+      # KVM has to be enabled explicitly on GitHub-hosted runners for the emulator to boot.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # ⚠️ `connectedDebugAndroidTest` is used HERE ONLY, where the emulator is the sole attached device:
+      # it targets EVERY connected device and uninstalls the app at the end. Locally, by serial:
+      #   adb -s <serial> shell am instrument -w -r \
+      #     com.filestech.notes_tech.next.debug.test/com.filestech.notes_tech.HiltTestRunner
+      - name: Run the instrumented tests on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb shell locksettings set-pin 1234
+            adb shell svc power stayon true
+            ./gradlew --no-daemon :app:connectedDebugAndroidTest || echo "::notice::the task fails on what the emulator cannot do; the next step judges each test"
+
+      - name: Judge the results, test by test
+        run: python3 tools/check-instrumented-results.py app/build/outputs/androidTest-results/connected/debug
+
+      - name: Upload instrumented reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: instrumented-reports
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 14
+          if-no-files-found: ignore
