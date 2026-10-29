@@ -47,8 +47,19 @@
   Argon2) en flux.
 - **Écrit où l'utilisateur veut** par `ACTION_CREATE_DOCUMENT` — toujours un **nouveau** document, jamais
   par-dessus un ancien (R-12). Aucun fichier intermédiaire en clair.
+- 🔴 **Écrite AVANT d'ouvrir le sélecteur** (corrigé le 2026-10-29, mesuré sur le S9) : le sélecteur
+  envoie l'appli en arrière-plan, où **tous les coffres se referment** (`NotesTechApplication`, la
+  protection principale — on n'y touche pas). Écrite au retour, la sauvegarde laissait de côté le coffre à
+  code que l'aperçu venait d'annoncer ouvert : un fichier de 294 octets, « 0 note ». Désormais la
+  sauvegarde est chiffrée et relue dans `cache/sauvegarde/` pendant que les coffres sont tels que
+  l'aperçu les a vus, puis **recopiée** dans le document choisi et relue contre elle (même SHA-256).
+  Pendant le sélecteur, seul ce fichier **chiffré** attend : ni le secret ni une clé de coffre ne sont
+  gardés. Il est effacé dans tous les cas (Retour, échec, écran quitté), et sinon par la purge du
+  démarrage et par le mode panique (`ClairDuCache`, même définition que les exports). Si l'appli est
+  tuée pendant le sélecteur, le document vide qu'il a créé est supprimé et l'écran dit l'échec.
 - **Le succès n'est annoncé qu'après relecture** : le fichier écrit est rouvert, déchiffré en entier et
-  son étiquette vérifiée. En cas d'échec, le document créé est supprimé si le fournisseur le permet.
+  son étiquette vérifiée. En cas d'échec, le document créé est supprimé si le fournisseur le permet. Ce
+  qui a été laissé de côté (coffre à code fermé) est redit dans le message final.
 - **Lecture cohérente** : dossiers et notes lus dans **une seule transaction** de lecture ; les clés des
   coffres à code ouverts sont **copiées** avant d'écrire (une copie propre à la sauvegarde, que le
   verrouillage automatique n'efface pas), puis effacées (R-7).
@@ -138,7 +149,20 @@ octets   taille  champ
   transaction ; si elle échoue, elles sont supprimées. Jamais une clé d'un coffre déjà présent.
 - Les liens `[[…]]` des notes en clair sont réindexés dans la transaction (D-009) ; ceux des notes
   scellées restent détachés, comme à l'ouverture de la base.
-- **Mauvaise phrase et fichier abîmé** se présentent pareil (l'étiquette ne passe pas).
+- **Mauvaise phrase et fichier abîmé** se présentent pareil (l'étiquette ne passe pas) : le code est
+  **redemandé sur place**, le fichier gardé, comme au déverrouillage d'un coffre.
+- **Examen avant tout secret**, dès le fichier choisi : taille annoncée par le fournisseur au-delà de
+  64 Mio, en-tête qui n'est pas celui d'une sauvegarde (ou plus court qu'un en-tête), version future —
+  refusés avec leur raison, sans faire taper de code pour rien.
+
+### Écrans (2026-10-29)
+
+- Chaque dialogue porte le titre de la ligne qui l'a ouvert : « Créer une sauvegarde » de l'aperçu au
+  message final, « Restaurer une sauvegarde » du code au bilan — attente et échec compris. Boutons
+  constants : Annuler / action, OK pour finir. Bilan au futur avant, au passé après.
+- Aucun sélecteur de documents sur l'appareil : `AppResultLauncher.launch` rend `false` au lieu de
+  laisser `ActivityNotFoundException` faire planter l'appli, et chacun des quatre sélecteurs le dit
+  (sauvegarde ×2 dans leur dialogue, import et modèle vocal par un bandeau).
 
 ### Effacement
 

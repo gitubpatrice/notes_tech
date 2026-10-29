@@ -14,6 +14,7 @@ import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.WritableKekSource
+import com.filestech.notes_tech.security.sauvegarde.FichierDeSauvegarde
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.security.vault.KeystoreEnMemoire
 import com.filestech.notes_tech.security.vault.MonotonicClock
@@ -103,6 +104,9 @@ class SauvegardeChiffreeTest {
 
     private val document: Uri get() = Uri.fromFile(fichier)
 
+    /** A backup made as the screen makes it: written first, then put into the document. */
+    private suspend fun creer(): SauvegardeChiffree.Creation = sauvegarde.deposer(sauvegarde.preparer(CODE), document)
+
     /** A PIN vault, open, holding one note sealed under its key. */
     private suspend fun unCoffreACode(): Pair<String, String> {
         val dossier = dossiers.create("Codes")
@@ -121,7 +125,7 @@ class SauvegardeChiffreeTest {
                 content = "pain",
             )
 
-            val creee = sauvegarde.creer(document, CODE)
+            val creee = creer()
             assertThat(creee.omises).isEqualTo(0)
 
             // Lost: a note in clear, and the PIN vault with its note and its Keystore key.
@@ -153,7 +157,7 @@ class SauvegardeChiffreeTest {
     @Test
     fun un_secret_faux_ou_une_fin_de_fichier_changee_ne_restaurent_rien(): Unit = runBlocking {
         val (coffre, _) = unCoffreACode()
-        sauvegarde.creer(document, CODE)
+        creer()
         sessions.lock(coffre)
         dossiers.delete(coffre)
         coffres.deletePinKey(coffre)
@@ -175,7 +179,7 @@ class SauvegardeChiffreeTest {
     @Test
     fun restaurer_deux_fois_n_ajoute_rien_la_seconde(): Unit = runBlocking {
         notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Courses", content = "pain")
-        sauvegarde.creer(document, CODE)
+        creer()
         val avant = notes.listAllAlive().size
 
         val fait = restauration.restaurer(document, CODE, emptyMap())
@@ -193,15 +197,85 @@ class SauvegardeChiffreeTest {
         sessions.lock(coffre)
 
         val apercu = sauvegarde.apercu()
-        val creee = sauvegarde.creer(document, CODE)
+        val creee = creer()
 
         assertThat(apercu.coffresACodeFermes).containsExactly("Codes")
         assertThat(creee.omises).isEqualTo(1)
         assertThat(restauration.essayer(document, CODE).coffresACode).isEmpty()
     }
 
+    /**
+     * 🔴 The system picker sends the app to the background, where every vault locks: the backup is
+     * written before it, and an open PIN vault locked in between keeps its notes in the file. Written
+     * after the picker, the backup of a S9 held none (2026-10-29).
+     */
+    @Test
+    fun un_coffre_a_code_ferme_pendant_le_selecteur_garde_ses_notes_dans_la_sauvegarde(): Unit = runBlocking {
+        val (coffre, _) = unCoffreACode()
+
+        val preparee = sauvegarde.preparer(CODE)
+        sessions.lockAll() // what the picker does to the app
+        val creee = sauvegarde.deposer(preparee, document)
+
+        assertThat(creee.omises).isEqualTo(0)
+        assertThat(preparee.fichier.exists()).isFalse()
+        dossiers.delete(coffre)
+        coffres.deletePinKey(coffre)
+        val essai = restauration.essayer(document, CODE)
+        assertThat(essai.coffresACode.map { it.id }).containsExactly(coffre)
+        assertThat(essai.notesAjoutees).isEqualTo(1)
+    }
+
+    /**
+     * Everything lost, as on a new phone: a passphrase vault and its sealed note, a subfolder and its
+     * note in the trash, a PIN vault — all back, the passphrase vault opening with its own passphrase.
+     */
+    @Test
+    fun ce_qui_est_perdu_revient_coffre_a_passphrase_sous_dossier_et_corbeille_compris(): Unit = runBlocking {
+        val parent = dossiers.create("Projets")
+        val enfant = dossiers.create("2026", parentId = parent.id)
+        val jetee = notes.create(folderId = enfant.id, title = "Brouillon", content = "à jeter")
+        notes.moveToTrash(jetee.id)
+        val journal = dossiers.create("Journal")
+        coffres.createPassphraseVault(journal.id, PASSPHRASE)
+        val intime = notes.create(folderId = journal.id, title = "Lundi", content = "rien de neuf")
+        val (coffre, _) = unCoffreACode()
+        assertThat(creer().omises).isEqualTo(0)
+
+        sessions.lockAll()
+        listOf(enfant.id, parent.id, journal.id, coffre).forEach { dossiers.delete(it) }
+        coffres.deletePinKey(coffre)
+        val fait = restauration.restaurer(document, CODE, mapOf(coffre to NOUVEAU_CODE))
+
+        assertThat(fait.dossiersCrees).isEqualTo(4)
+        assertThat(fait.notesIgnorees).isEmpty()
+        assertThat(fait.notesALaCorbeille).isEqualTo(1)
+        assertThat(dossiers.find(enfant.id)?.parentId).isEqualTo(parent.id)
+        assertThat(notes.find(jetee.id)?.isTrashed).isTrue()
+        coffres.unlockWithPassphrase(journal.id, PASSPHRASE)
+        assertThat(coffres.decrypt(requireNotNull(notes.find(intime.id))).content).isEqualTo("rien de neuf")
+    }
+
+    /** Before any secret is asked: what is not a backup, or one of a newer version, is refused as such. */
+    @Test
+    fun l_examen_refuse_sans_secret_ce_qui_n_est_pas_une_sauvegarde_lisible_ici(): Unit = runBlocking {
+        creer()
+        val vraie = fichier.readBytes()
+        suspend fun refus(octets: ByteArray): FichierDeSauvegarde.Refus? {
+            fichier.writeBytes(octets)
+            val echec = runCatching { restauration.examiner(document) }.exceptionOrNull()
+            return (echec as? FichierDeSauvegarde.SauvegardeRefuseeException)?.refus
+        }
+
+        assertThat(refus(vraie)).isNull()
+        assertThat(refus(ByteArray(100) { 'x'.code.toByte() })).isEqualTo(FichierDeSauvegarde.Refus.PAS_UNE_SAUVEGARDE)
+        assertThat(refus(vraie.copyOf(10))).isEqualTo(FichierDeSauvegarde.Refus.PAS_UNE_SAUVEGARDE)
+        assertThat(refus(vraie.copyOf().also { it[9] = 2 })).isEqualTo(FichierDeSauvegarde.Refus.VERSION_INCONNUE)
+    }
+
     private companion object {
         const val CODE = "K7QM-T2XB-0R1A-ZZ9P-HHJK-MN4V"
+        const val PASSPHRASE = "un jardin bleu sous la pluie"
         const val CODE_DU_COFFRE = "1234"
         const val NOUVEAU_CODE = "5678"
         const val AUTRE_CODE = "AUTR-ECOD-E000-0000-0000-0000"

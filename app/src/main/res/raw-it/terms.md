@@ -1,6 +1,6 @@
 # Condizioni d'uso — Notes Tech
 
-_Ultimo aggiornamento: 26 ottobre 2026_
+_Ultimo aggiornamento: 29 ottobre 2026_
 
 ## Licenza
 
@@ -18,13 +18,15 @@ L'app è messa a disposizione **gratuitamente** da un privato, a titolo personal
 
 ## Modalità panico e perdita di dati
 
-La **modalità panico** cancella in modo definitivo e irreversibile le sue note, la sua chiave di cifratura e i suoi modelli. **Nessun recupero è possibile**: è voluto. Prima di usarla, esporti ciò che vuole conservare con `Impostazioni → Esporta tutte le mie note`.
+La **modalità panico** cancella in modo definitivo e irreversibile le sue note, la sua chiave di cifratura e i suoi modelli. **Nessun recupero è possibile**: è voluto. Prima di usarla, metta ciò che vuole conservare in un backup cifrato (`Impostazioni → Backup cifrato`) o in un'esportazione (`Impostazioni → Esporta tutte le mie note`).
 
 Una nota **spostata nel cestino** può essere ripristinata per 30 giorni. Una nota **eliminata definitivamente** — dal cestino, o con una pressione prolungata nell'elenco delle note, dopo una conferma — non passa dal cestino e **non può più essere recuperata**.
 
 Allo stesso modo, **dimenticare la passphrase di una cassaforte rende le sue note illeggibili per sempre**: la passphrase non viene mai memorizzata, serve solo a derivare la chiave tramite Argon2id. Non esiste alcuna procedura di recupero.
 
 Per le casseforti con **PIN**, **5 errori consecutivi attivano una cancellazione automatica** (eliminazione della chiave del Keystore). È lo stesso comportamento del normale blocco schermo di Android, ma solo da Android 9: prima, Android non può legare questa chiave allo sblocco del telefono, l'app non vi crea casseforti con PIN, e una cassaforte con PIN creata in precedenza non rispetta questo limite di cinque tentativi su un telefono sequestrato.
+
+Un **backup cifrato** si apre solo con il suo codice o la sua passphrase, che Notes Tech non conserva: senza di esso, il file resta **illeggibile per sempre**. La modalità panico non raggiunge un backup salvato fuori dall'app: lo elimini lei stesso.
 
 ## Modello di dettatura vocale
 
@@ -68,7 +70,7 @@ Gli aggiornamenti sono pubblicati sul repository GitHub ufficiale e su F-Droid. 
 
 ## Responsabilità
 
-L'app è fornita gratuitamente, da un privato. Nella misura consentita dalla legge, l'editore non è responsabile dei danni indiretti, né delle perdite di dati dovute all'uso di funzioni concepite per essere irreversibili (modalità panico, cancellazione di una cassaforte con PIN dopo cinque codici errati, eliminazione definitiva, disinstallazione) o a una passphrase o un PIN dimenticati (licenza Apache 2.0, sezione 8). Questo limite non si applica né in caso di colpa grave o dolo, né ai danni che la legge vieta di escludere.
+L'app è fornita gratuitamente, da un privato. Nella misura consentita dalla legge, l'editore non è responsabile dei danni indiretti, né delle perdite di dati dovute all'uso di funzioni concepite per essere irreversibili (modalità panico, cancellazione di una cassaforte con PIN dopo cinque codici errati, eliminazione definitiva, disinstallazione) o a una passphrase, un PIN o un codice di backup dimenticati (licenza Apache 2.0, sezione 8). Questo limite non si applica né in caso di colpa grave o dolo, né ai danni che la legge vieta di escludere.
 
 ## Legge applicabile
 

@@ -13,6 +13,7 @@
     <!-- ── Commun — boutons et libellés partagés ───────────────────────── -->
     <string name="common_cancel">Annuler</string>
     <string name="common_ok">OK</string>
+    <string name="common_no_picker">Aucune application de cet appareil ne permet de choisir un fichier.</string>
     <string name="common_close">Fermer</string>
     <string name="common_delete">Supprimer</string>
     <string name="common_remove">Retirer</string>
@@ -338,6 +339,107 @@
         <item quantity="one">%1$d note est allée dans la Boîte de réception : son dossier porte le nom d\'un coffre.</item>
         <item quantity="many">%1$d de notes sont allées dans la Boîte de réception : leur dossier porte le nom d\'un coffre.</item>
         <item quantity="other">%1$d notes sont allées dans la Boîte de réception : leur dossier porte le nom d\'un coffre.</item>
+    </plurals>
+    <string name="settings_section_backup">Sauvegarde chiffrée</string>
+    <string name="backup_create">Créer une sauvegarde</string>
+    <string name="backup_create_subtitle">Vos notes et dossiers, corbeille comprise, dans un seul fichier chiffré.</string>
+    <string name="backup_restore">Restaurer une sauvegarde</string>
+    <string name="backup_restore_subtitle">Rajoute ce que contient une sauvegarde. Rien n\'est écrasé sur ce téléphone.</string>
+    <string name="backup_create_panic">Le mode panique n\'atteint pas ce fichier : gardez-le en lieu sûr, et supprimez-le vous-même quand il ne sert plus.</string>
+    <string name="backup_code_intro">Notez ce code : c\'est le seul moyen d\'ouvrir la sauvegarde. Notes Tech ne le garde pas.</string>
+    <string name="backup_code_retype">Retapez le code</string>
+    <string name="backup_use_phrase">Choisir ma propre passphrase</string>
+    <string name="backup_use_code">Utiliser un code généré</string>
+    <string name="backup_phrase">Passphrase</string>
+    <string name="backup_phrase_confirm">Confirmer la passphrase</string>
+    <string name="backup_phrase_too_short">Au moins %1$d caractères.</string>
+    <string name="backup_phrase_obvious">Trop facile à deviner : les répétitions, les suites et les mots de passe courants sont refusés.</string>
+    <string name="backup_phrase_mismatch">Les deux passphrases ne correspondent pas.</string>
+    <string name="backup_save">Enregistrer</string>
+    <string name="backup_working">En cours…</string>
+    <string name="backup_restore_secret">Code ou passphrase de la sauvegarde</string>
+    <string name="backup_restore_check">Continuer</string>
+    <string name="backup_restore_nothing">Rien à ajouter depuis cette sauvegarde.</string>
+    <string name="backup_restore_deleted_since">Les notes supprimées de ce téléphone depuis la sauvegarde reviennent aussi.</string>
+    <string name="backup_restore_pin_vault">Coffre à PIN « %1$s » : choisissez son nouveau PIN</string>
+    <string name="backup_restore_pin">Nouveau PIN</string>
+    <string name="backup_restore_pin_confirm">Confirmer le nouveau PIN</string>
+    <string name="backup_restore_pin_rule">Chaque PIN : de %1$d à %2$d chiffres, tapé deux fois à l\'identique.</string>
+    <string name="backup_restore_do">Restaurer</string>
+    <string name="backup_error_wrong_secret">Ce code ou cette passphrase n\'ouvre pas cette sauvegarde, ou le fichier est abîmé. Rien n\'a été restauré.</string>
+    <string name="backup_error_not_a_backup">Ce fichier n\'est pas une sauvegarde de Notes Tech.</string>
+    <string name="backup_error_newer">Cette sauvegarde vient d\'une version plus récente de Notes Tech : mettez l\'application à jour pour la restaurer.</string>
+    <string name="backup_error_too_large">Trop gros : une sauvegarde fait au plus 64 Mo.</string>
+    <string name="backup_error_readback">Le fichier écrit ne se relit pas, il n\'a donc pas été gardé. Essayez un autre emplacement.</string>
+    <string name="backup_error_generic">L\'opération n\'a pas pu aboutir. Réessayez.</string>
+    <plurals name="backup_create_notes">
+        <item quantity="one">Cette sauvegarde contiendra %1$d note, corbeille comprise.</item>
+        <item quantity="many">Cette sauvegarde contiendra %1$d de notes, corbeille comprise.</item>
+        <item quantity="other">Cette sauvegarde contiendra %1$d notes, corbeille comprise.</item>
+    </plurals>
+    <plurals name="backup_created">
+        <item quantity="one">Sauvegarde enregistrée : %1$d note.</item>
+        <item quantity="many">Sauvegarde enregistrée : %1$d de notes.</item>
+        <item quantity="other">Sauvegarde enregistrée : %1$d notes.</item>
+    </plurals>
+    <plurals name="backup_restore_add_notes">
+        <item quantity="one">%1$d note sera ajoutée.</item>
+        <item quantity="many">%1$d de notes seront ajoutées.</item>
+        <item quantity="other">%1$d notes seront ajoutées.</item>
+    </plurals>
+    <plurals name="backup_restore_add_folders">
+        <item quantity="one">%1$d dossier sera créé.</item>
+        <item quantity="many">%1$d de dossiers seront créés.</item>
+        <item quantity="other">%1$d dossiers seront créés.</item>
+    </plurals>
+    <plurals name="backup_restore_trash">
+        <item quantity="one">Dont %1$d dans la corbeille, comme dans la sauvegarde.</item>
+        <item quantity="many">Dont %1$d dans la corbeille, comme dans la sauvegarde.</item>
+        <item quantity="other">Dont %1$d dans la corbeille, comme dans la sauvegarde.</item>
+    </plurals>
+    <plurals name="backup_restore_beside">
+        <item quantity="one">%1$d note diffère de sa version sur ce téléphone : elle est ajoutée en copie à côté.</item>
+        <item quantity="many">%1$d de notes diffèrent de leur version sur ce téléphone : elles sont ajoutées en copie à côté.</item>
+        <item quantity="other">%1$d notes diffèrent de leur version sur ce téléphone : elles sont ajoutées en copie à côté.</item>
+    </plurals>
+    <plurals name="backup_restore_already">
+        <item quantity="one">%1$d note est déjà sur ce téléphone, laissée telle quelle.</item>
+        <item quantity="many">%1$d de notes sont déjà sur ce téléphone, laissées telles quelles.</item>
+        <item quantity="other">%1$d notes sont déjà sur ce téléphone, laissées telles quelles.</item>
+    </plurals>
+    <plurals name="backup_restore_ignored">
+        <item quantity="one">%1$d note est laissée de côté : abîmée, ou en désaccord avec les coffres de ce téléphone.</item>
+        <item quantity="many">%1$d de notes sont laissées de côté : abîmées, ou en désaccord avec les coffres de ce téléphone.</item>
+        <item quantity="other">%1$d notes sont laissées de côté : abîmées, ou en désaccord avec les coffres de ce téléphone.</item>
+    </plurals>
+    <plurals name="backup_restored">
+        <item quantity="one">Restauration faite : %1$d note ajoutée.</item>
+        <item quantity="many">Restauration faite : %1$d de notes ajoutées.</item>
+        <item quantity="other">Restauration faite : %1$d notes ajoutées.</item>
+    </plurals>
+    <string name="backup_code_show">Afficher le code</string>
+    <string name="backup_code_hide">Masquer le code</string>
+    <string name="backup_secret_show">Afficher le code ou la passphrase</string>
+    <string name="backup_secret_hide">Masquer le code ou la passphrase</string>
+    <plurals name="backup_create_closed_pin">
+        <item quantity="one">Coffre à PIN fermé, laissé de côté avec ses notes : %1$s. Ouvrez-le d\'abord pour l\'inclure.</item>
+        <item quantity="many">Coffres à PIN fermés, laissés de côté avec leurs notes : %1$s. Ouvrez-les d\'abord pour les inclure.</item>
+        <item quantity="other">Coffres à PIN fermés, laissés de côté avec leurs notes : %1$s. Ouvrez-les d\'abord pour les inclure.</item>
+    </plurals>
+    <plurals name="backup_create_open_pin">
+        <item quantity="one">Coffre à PIN ouvert, sauvegardé avec sa clé : %1$s. Dans le fichier, c\'est le secret de la sauvegarde qui le protège, pas son PIN.</item>
+        <item quantity="many">Coffres à PIN ouverts, sauvegardés avec leur clé : %1$s. Dans le fichier, c\'est le secret de la sauvegarde qui les protège, pas leur PIN.</item>
+        <item quantity="other">Coffres à PIN ouverts, sauvegardés avec leur clé : %1$s. Dans le fichier, c\'est le secret de la sauvegarde qui les protège, pas leur PIN.</item>
+    </plurals>
+    <plurals name="backup_created_left_out">
+        <item quantity="one">%1$d note laissée de côté : son coffre ne pouvait pas voyager (un coffre à PIN ne voyage qu\'ouvert).</item>
+        <item quantity="many">%1$d de notes laissées de côté : leur coffre ne pouvait pas voyager (un coffre à PIN ne voyage qu\'ouvert).</item>
+        <item quantity="other">%1$d notes laissées de côté : leur coffre ne pouvait pas voyager (un coffre à PIN ne voyage qu\'ouvert).</item>
+    </plurals>
+    <plurals name="backup_restored_folders">
+        <item quantity="one">%1$d dossier créé.</item>
+        <item quantity="many">%1$d de dossiers créés.</item>
+        <item quantity="other">%1$d dossiers créés.</item>
     </plurals>
     <string name="settings_export_done">Export terminé : %1$d notes</string>
     <string name="settings_export_done_partial">Export terminé : %1$d notes (%2$d ignorées dans des coffres verrouillés)</string>

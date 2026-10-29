@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.vault
 
 import android.os.Build
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -558,12 +559,18 @@ internal fun FeuilleDePhraseSecrete(
  * confirmation ne révèle pas la phrase au-dessus.
  */
 @Composable
-private fun ChampDePhraseSecrete(
+internal fun ChampDePhraseSecrete(
     valeur: String,
     onValeurChange: (String) -> Unit,
     label: String,
     actionClavier: ImeAction,
     actif: Boolean,
+    // `Password` or `NumberPassword`: either way a keyboard that does not learn what is typed. The
+    // encrypted backup (3.2.0) uses this field too, for its code, its phrase and a vault's new PIN —
+    // and names the eye after what the field holds.
+    typeDeClavier: KeyboardType = KeyboardType.Password,
+    @StringRes afficher: Int = R.string.passphrase_show_tooltip,
+    @StringRes masquer: Int = R.string.passphrase_hide_tooltip,
 ) {
     var visible by remember { mutableStateOf(false) }
 
@@ -574,14 +581,12 @@ private fun ChampDePhraseSecrete(
         singleLine = true,
         enabled = actif,
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = actionClavier),
+        keyboardOptions = KeyboardOptions(keyboardType = typeDeClavier, imeAction = actionClavier),
         trailingIcon = {
             IconButton(onClick = { visible = !visible }) {
                 Icon(
                     imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    contentDescription = stringResource(
-                        if (visible) R.string.passphrase_hide_tooltip else R.string.passphrase_show_tooltip,
-                    ),
+                    contentDescription = stringResource(if (visible) masquer else afficher),
                 )
             }
         },

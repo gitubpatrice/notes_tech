@@ -2,6 +2,7 @@ package com.filestech.notes_tech.data.sauvegarde
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import com.filestech.notes_tech.core.crypto.wipe
 import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.local.entity.NoteEntity
@@ -61,6 +62,32 @@ class RestaurationDeSauvegarde @Inject constructor(
 
     class CodeManquantException(val dossierId: String) :
         IllegalArgumentException("aucun code pour le coffre $dossierId")
+
+    /**
+     * What can be refused before any secret is asked: a file too large by the size its provider gives,
+     * and a header that is not a backup's, or one of a newer version. Nothing is decrypted.
+     *
+     * @throws FichierDeSauvegarde.SauvegardeRefuseeException the file is refused, and why.
+     */
+    suspend fun examiner(document: Uri) = withContext(Dispatchers.IO) {
+        val taille = context.contentResolver.query(document, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
+            if (it.moveToFirst() && !it.isNull(0)) it.getLong(0) else null
+        }
+        // A size the provider does not give is not refused here: the reading counts what it reads.
+        if (taille != null && taille > FichierDeSauvegarde.TAILLE_MAX) {
+            throw FichierDeSauvegarde.SauvegardeRefuseeException(FichierDeSauvegarde.Refus.TROP_GROS)
+        }
+        val entree = context.contentResolver.openInputStream(document)
+            ?: throw IOException("sauvegarde impossible a ouvrir")
+        try {
+            entree.use { FichierDeSauvegarde.lireLEnTete(it) }
+        } catch (e: FichierDeSauvegarde.SauvegardeRefuseeException) {
+            // Shorter than a header: not a backup — no secret could be at fault yet.
+            if (e.refus != FichierDeSauvegarde.Refus.TRONQUE) throw e
+            throw FichierDeSauvegarde.SauvegardeRefuseeException(FichierDeSauvegarde.Refus.PAS_UNE_SAUVEGARDE)
+        }
+        Unit
+    }
 
     /**
      * The trial pass. Throws an [IOException] when the file cannot be read with [secret]: a wrong

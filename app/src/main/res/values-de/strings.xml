@@ -12,6 +12,7 @@
     <!-- Common -->
     <string name="common_cancel">Abbrechen</string>
     <string name="common_ok">OK</string>
+    <string name="common_no_picker">Keine App auf diesem Gerät kann eine Datei auswählen.</string>
     <string name="common_close">Schließen</string>
     <string name="common_delete">Löschen</string>
     <string name="common_remove">Entfernen</string>
@@ -319,6 +320,94 @@
     <plurals name="settings_import_to_inbox">
         <item quantity="one">%1$d Notiz kam in den Eingang: Ihr Ordner trägt den Namen eines Tresors.</item>
         <item quantity="other">%1$d Notizen kamen in den Eingang: Ihr Ordner trägt den Namen eines Tresors.</item>
+    </plurals>
+    <string name="settings_section_backup">Verschlüsselte Sicherung</string>
+    <string name="backup_create">Sicherung erstellen</string>
+    <string name="backup_create_subtitle">Ihre Notizen und Ordner, Papierkorb inbegriffen, in einer einzigen verschlüsselten Datei.</string>
+    <string name="backup_restore">Sicherung wiederherstellen</string>
+    <string name="backup_restore_subtitle">Fügt hinzu, was eine Sicherung enthält. Auf diesem Telefon wird nichts überschrieben.</string>
+    <string name="backup_create_panic">Der Panikmodus erreicht diese Datei nicht: Bewahren Sie sie sicher auf und löschen Sie sie selbst, wenn Sie sie nicht mehr brauchen.</string>
+    <string name="backup_code_intro">Notieren Sie diesen Code: Nur mit ihm lässt sich die Sicherung öffnen. Notes Tech bewahrt ihn nicht auf.</string>
+    <string name="backup_code_retype">Code erneut eingeben</string>
+    <string name="backup_use_phrase">Eigene Passphrase verwenden</string>
+    <string name="backup_use_code">Generierten Code verwenden</string>
+    <string name="backup_phrase">Passphrase</string>
+    <string name="backup_phrase_confirm">Passphrase bestätigen</string>
+    <string name="backup_phrase_too_short">Mindestens %1$d Zeichen.</string>
+    <string name="backup_phrase_obvious">Zu leicht zu erraten: Wiederholungen, Folgen und gängige Passwörter werden abgelehnt.</string>
+    <string name="backup_phrase_mismatch">Die beiden Passphrasen stimmen nicht überein.</string>
+    <string name="backup_save">Speichern</string>
+    <string name="backup_working">Wird ausgeführt…</string>
+    <string name="backup_restore_secret">Code oder Passphrase der Sicherung</string>
+    <string name="backup_restore_check">Weiter</string>
+    <string name="backup_restore_nothing">Aus dieser Sicherung ist nichts hinzuzufügen.</string>
+    <string name="backup_restore_deleted_since">Seit der Sicherung von diesem Telefon gelöschte Notizen kommen ebenfalls zurück.</string>
+    <string name="backup_restore_pin_vault">PIN-Tresor „%1$s“: Wählen Sie seine neue PIN</string>
+    <string name="backup_restore_pin">Neue PIN</string>
+    <string name="backup_restore_pin_confirm">Neue PIN bestätigen</string>
+    <string name="backup_restore_pin_rule">Jede PIN: %1$d bis %2$d Ziffern, zweimal gleich eingegeben.</string>
+    <string name="backup_restore_do">Wiederherstellen</string>
+    <string name="backup_error_wrong_secret">Dieser Code oder diese Passphrase öffnet diese Sicherung nicht, oder die Datei ist beschädigt. Es wurde nichts wiederhergestellt.</string>
+    <string name="backup_error_not_a_backup">Diese Datei ist keine Sicherung von Notes Tech.</string>
+    <string name="backup_error_newer">Diese Sicherung stammt aus einer neueren Version von Notes Tech: Aktualisieren Sie die App, um sie wiederherzustellen.</string>
+    <string name="backup_error_too_large">Zu groß: Eine Sicherung umfasst höchstens 64 MB.</string>
+    <string name="backup_error_readback">Die geschriebene Datei ließ sich nicht zurücklesen und wurde daher nicht behalten. Versuchen Sie einen anderen Speicherort.</string>
+    <string name="backup_error_generic">Der Vorgang konnte nicht abgeschlossen werden. Versuchen Sie es erneut.</string>
+    <plurals name="backup_create_notes">
+        <item quantity="one">Diese Sicherung wird %1$d Notiz enthalten, Papierkorb inbegriffen.</item>
+        <item quantity="other">Diese Sicherung wird %1$d Notizen enthalten, Papierkorb inbegriffen.</item>
+    </plurals>
+    <plurals name="backup_created">
+        <item quantity="one">Sicherung gespeichert: %1$d Notiz.</item>
+        <item quantity="other">Sicherung gespeichert: %1$d Notizen.</item>
+    </plurals>
+    <plurals name="backup_restore_add_notes">
+        <item quantity="one">%1$d Notiz wird hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen werden hinzugefügt.</item>
+    </plurals>
+    <plurals name="backup_restore_add_folders">
+        <item quantity="one">%1$d Ordner wird erstellt.</item>
+        <item quantity="other">%1$d Ordner werden erstellt.</item>
+    </plurals>
+    <plurals name="backup_restore_trash">
+        <item quantity="one">Davon %1$d im Papierkorb, wie in der Sicherung.</item>
+        <item quantity="other">Davon %1$d im Papierkorb, wie in der Sicherung.</item>
+    </plurals>
+    <plurals name="backup_restore_beside">
+        <item quantity="one">%1$d Notiz weicht von ihrer Fassung auf diesem Telefon ab: Sie wird als Kopie daneben hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen weichen von ihrer Fassung auf diesem Telefon ab: Sie werden als Kopien daneben hinzugefügt.</item>
+    </plurals>
+    <plurals name="backup_restore_already">
+        <item quantity="one">%1$d Notiz ist bereits auf diesem Telefon und bleibt unverändert.</item>
+        <item quantity="other">%1$d Notizen sind bereits auf diesem Telefon und bleiben unverändert.</item>
+    </plurals>
+    <plurals name="backup_restore_ignored">
+        <item quantity="one">%1$d Notiz wird ausgelassen: beschädigt oder unvereinbar mit den Tresoren dieses Telefons.</item>
+        <item quantity="other">%1$d Notizen werden ausgelassen: beschädigt oder unvereinbar mit den Tresoren dieses Telefons.</item>
+    </plurals>
+    <plurals name="backup_restored">
+        <item quantity="one">Wiederhergestellt: %1$d Notiz hinzugefügt.</item>
+        <item quantity="other">Wiederhergestellt: %1$d Notizen hinzugefügt.</item>
+    </plurals>
+    <string name="backup_code_show">Code anzeigen</string>
+    <string name="backup_code_hide">Code ausblenden</string>
+    <string name="backup_secret_show">Code oder Passphrase anzeigen</string>
+    <string name="backup_secret_hide">Code oder Passphrase ausblenden</string>
+    <plurals name="backup_create_closed_pin">
+        <item quantity="one">Geschlossener PIN-Tresor, mit seinen Notizen ausgelassen: %1$s. Öffnen Sie ihn zuerst, um ihn einzuschließen.</item>
+        <item quantity="other">Geschlossene PIN-Tresore, mit ihren Notizen ausgelassen: %1$s. Öffnen Sie sie zuerst, um sie einzuschließen.</item>
+    </plurals>
+    <plurals name="backup_create_open_pin">
+        <item quantity="one">Offener PIN-Tresor, mit seinem Schlüssel gesichert: %1$s. In der Datei schützt ihn das Geheimnis der Sicherung, nicht seine PIN.</item>
+        <item quantity="other">Offene PIN-Tresore, mit ihren Schlüsseln gesichert: %1$s. In der Datei schützt sie das Geheimnis der Sicherung, nicht ihre PIN.</item>
+    </plurals>
+    <plurals name="backup_created_left_out">
+        <item quantity="one">%1$d Notiz ausgelassen: Ihr Tresor konnte nicht mitgenommen werden (ein PIN-Tresor wird nur offen mitgenommen).</item>
+        <item quantity="other">%1$d Notizen ausgelassen: Ihr Tresor konnte nicht mitgenommen werden (ein PIN-Tresor wird nur offen mitgenommen).</item>
+    </plurals>
+    <plurals name="backup_restored_folders">
+        <item quantity="one">%1$d Ordner erstellt.</item>
+        <item quantity="other">%1$d Ordner erstellt.</item>
     </plurals>
     <string name="settings_export_done">Export abgeschlossen: %1$d Notizen</string>
     <string name="settings_export_done_partial">Export abgeschlossen: %1$d Notizen (%2$d in gesperrten Tresoren übersprungen)</string>

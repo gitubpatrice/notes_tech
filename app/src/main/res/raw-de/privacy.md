@@ -1,6 +1,6 @@
 # Datenschutzerklärung — Notes Tech
 
-_Zuletzt aktualisiert: 26. Oktober 2026_
+_Zuletzt aktualisiert: 29. Oktober 2026_
 
 ## In einem Satz
 
@@ -15,6 +15,7 @@ Notes Tech erhebt, überträgt und speichert keinerlei Daten auf entfernten Serv
 - **Tags und Farbe einer Tresornotiz**: Sie bleiben in der von SQLCipher verschlüsselten Datenbank, aber **außerhalb der eigenen Verschlüsselung des Tresors** — nur Titel und Inhalt fallen darunter. In den Listen zeigt eine Tresornotiz nie ihre Tags und ihre Farbe nur, solange dieser Tresor entsperrt ist.
 - **App-Sperre (optional)**: Die PIN selbst wird nie gespeichert. Aufbewahrt wird ein mit **Argon2id** daraus abgeleiteter Wert, der per **HMAC-SHA256** an einen Schlüssel des **Android Keystore** gebunden ist, der das Telefon nie verlässt — er kann also nirgendwo anders geprüft werden. Nach fünf falschen PINs wartet jeder neue Versuch länger (30 Sekunden, verdoppelt bis zu einer Stunde); falsche Versuche löschen nie etwas. **Entsperren per Fingerabdruck oder Gesicht** wird vollständig von Android übernommen: Notes Tech erhält keine biometrischen Daten, nur die Bestätigung, dass ein Keystore-Schlüssel verwendet werden durfte, und nur starke Biometrie (Klasse 3) wird akzeptiert.
 - **Rückverweise `[[Titel]]`**: lokaler invertierter Index, nie übertragen.
+- **Verschlüsselte Sicherung (optional)**: eine `.ntbackup`-Datei, die Sie selbst erstellen, an dem Ort, den Sie über die Android-Dokumentauswahl wählen. Sie enthält Ihre Ordner und Notizen, Papierkorb inbegriffen, verschlüsselt mit **AES-256-GCM** unter einem Schlüssel, der mit **Argon2id** (m=64MB, t=3) aus einem von der App gezogenen Code, den Sie notieren, oder aus einer eigenen Passphrase abgeleitet wird — Notes Tech bewahrt keines von beiden auf. Sie wird zuerst, bereits verschlüsselt, im privaten Speicher der App geschrieben, dann an den gewählten Ort kopiert und aus dem Speicher der App gelöscht. Die Notizen eines Passphrase-Tresors bleiben in der Datei durch seine Passphrase versiegelt. Ein PIN-Tresor wird nur offen mitgenommen, mit seinem Schlüssel: In der Datei schützt ihn allein das Geheimnis der Sicherung; ein geschlossener wird ausgelassen. Die Wiederherstellung fügt hinzu, was fehlt, und überschreibt nichts.
 - **Diktiermodell (Whisper `.bin`)**: Sie beschaffen es selbst — die App zeigt den Dateinamen und seine Quelle an — und importieren es dann über die Android-Dokumentauswahl. Notes Tech hat keine Internetberechtigung und **bietet keine Möglichkeit, etwas herunterzuladen**. Sein SHA-256 wird beim Import und vor jedem Laden geprüft.
 - **Beim Diktat aufgenommenes Audio**: in eine temporäre Datei im privaten Speicher der App geschrieben — die Transkriptions-Engine liest eine Datei, anders geht es nicht — und **gelöscht, sobald die Transkription vorliegt**. Es wird außerdem beim Start der App und durch den Panikmodus gelöscht, sodass ein abruptes Beenden nichts zurücklässt.
 - **Einstellungen (Design, Sortierung, aktiviertes Diktat, automatische Tresorsperre, Optionen der App-Sperre)**: unverschlüsselt in den lokalen Einstellungen gespeichert (keine sensiblen Daten).
@@ -33,7 +34,7 @@ Die aktiven Berechtigungen dienen ausschließlich der Funktion:
 - `RECORD_AUDIO` (Diktat: Das Audio wird in eine private temporäre Datei geschrieben und gelöscht, sobald die Transkription vorliegt).
 - `USE_BIOMETRIC` und `USE_FINGERPRINT` (optionales Entsperren der App-Sperre per Fingerabdruck oder Gesicht; von der AndroidX-Biometrie-Bibliothek deklariert — `USE_FINGERPRINT` ist der Name derselben Berechtigung unter Android 8 und älter).
 
-Dies sind die **einzigen** angeforderten Berechtigungen. Die Auswahl der Modelldatei erfolgt über die Android-Dokumentauswahl, die keine benötigt.
+Dies sind die **einzigen** angeforderten Berechtigungen. Die Auswahl einer Datei — das Diktiermodell, zu importierende Notizen, eine Sicherung — erfolgt über die Android-Dokumentauswahl, die keine benötigt.
 
 ### Panikmodus
 
@@ -48,12 +49,15 @@ Das Menü **Einstellungen → Panikmodus** löscht in einem Durchgang:
 - das in der Sandbox installierte Whisper-Modell,
 - die Einstellungen (außer `db_encrypted_v1` und `secure_window_enabled`, die für einen konsistenten Neustart erhalten bleiben).
 
+Der Panikmodus erreicht keine verschlüsselte Sicherung, die außerhalb der App gespeichert ist, wo auch immer Sie sie abgelegt haben: Löschen Sie sie selbst.
+
 Das Löschen ist **nicht atomar**, und die Reihenfolge der Schritte ist darauf ausgelegt: Der Verschlüsselungsschlüssel wird **vor** den langen Löschvorgängen zerstört, dann die unverschlüsselten Dateien, dann der Rest. Ein abruptes Beenden zu jedem beliebigen Zeitpunkt hinterlässt daher den sichersten Zustand, der zu diesem Zeitpunkt erreichbar ist — schlimmstenfalls eine auf Rauschen reduzierte Datenbank. Der letzte Bildschirm nennt, was fehlgeschlagen ist, und **ob etwas Lesbares übrig bleiben kann**.
 
 ### Ihre Rechte
 
 Ihre Daten bleiben auf Ihrem Telefon, unter Ihrer alleinigen Kontrolle, und der Herausgeber hat keinerlei Zugriff darauf: Er verarbeitet also keine personenbezogenen Daten über Sie. Die CNIL, die französische Datenschutzbehörde, beschreibt diesen Fall als „einfache Software, die dem Nutzer zur Verfügung gestellt wird“, auf die die DSGVO nicht anwendbar ist (Empfehlung zu mobilen Apps, Abschnitt 3.3). Sie behalten die Kontrolle über Ihre Daten und können jederzeit:
 - Ihre Notizen als Markdown oder ZIP exportieren (`Einstellungen → Alle meine Notizen exportieren`),
+- eine verschlüsselte Sicherung davon erstellen und wiederherstellen (`Einstellungen → Verschlüsselte Sicherung`),
 - eine Notiz endgültig löschen, aus dem Papierkorb oder mit langem Drücken in der Notizliste,
 - alle Daten über den Panikmodus löschen,
 - die App deinstallieren — Android löscht dann automatisch alle privaten Daten.

@@ -13,6 +13,7 @@
     <!-- Common -->
     <string name="common_cancel">Cancelar</string>
     <string name="common_ok">Aceptar</string>
+    <string name="common_no_picker">Ninguna aplicación de este dispositivo permite elegir un archivo.</string>
     <string name="common_close">Cerrar</string>
     <string name="common_delete">Eliminar</string>
     <string name="common_remove">Quitar</string>
@@ -333,6 +334,107 @@
         <item quantity="one">%1$d nota fue a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
         <item quantity="many">%1$d de notas fueron a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
         <item quantity="other">%1$d notas fueron a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+    </plurals>
+    <string name="settings_section_backup">Copia de seguridad cifrada</string>
+    <string name="backup_create">Crear una copia de seguridad</string>
+    <string name="backup_create_subtitle">Tus notas y carpetas, papelera incluida, en un solo archivo cifrado.</string>
+    <string name="backup_restore">Restaurar una copia de seguridad</string>
+    <string name="backup_restore_subtitle">Añade lo que contiene una copia. No se sobrescribe nada en este teléfono.</string>
+    <string name="backup_create_panic">El modo pánico no alcanza este archivo: guárdalo en un lugar seguro y bórralo tú cuando ya no lo necesites.</string>
+    <string name="backup_code_intro">Anota este código: es la única forma de abrir la copia. Notes Tech no lo guarda.</string>
+    <string name="backup_code_retype">Vuelve a escribir el código</string>
+    <string name="backup_use_phrase">Usar mi propia frase de contraseña</string>
+    <string name="backup_use_code">Usar un código generado</string>
+    <string name="backup_phrase">Frase de contraseña</string>
+    <string name="backup_phrase_confirm">Confirmar la frase de contraseña</string>
+    <string name="backup_phrase_too_short">Al menos %1$d caracteres.</string>
+    <string name="backup_phrase_obvious">Demasiado fácil de adivinar: se rechazan las repeticiones, las secuencias y las contraseñas comunes.</string>
+    <string name="backup_phrase_mismatch">Las dos frases de contraseña no coinciden.</string>
+    <string name="backup_save">Guardar</string>
+    <string name="backup_working">En curso…</string>
+    <string name="backup_restore_secret">Código o frase de contraseña de la copia</string>
+    <string name="backup_restore_check">Continuar</string>
+    <string name="backup_restore_nothing">Nada que añadir desde esta copia.</string>
+    <string name="backup_restore_deleted_since">También vuelven las notas borradas de este teléfono desde la copia.</string>
+    <string name="backup_restore_pin_vault">Caja fuerte con PIN «%1$s»: elige su nuevo PIN</string>
+    <string name="backup_restore_pin">Nuevo PIN</string>
+    <string name="backup_restore_pin_confirm">Confirmar el nuevo PIN</string>
+    <string name="backup_restore_pin_rule">Cada PIN: de %1$d a %2$d cifras, escrito dos veces igual.</string>
+    <string name="backup_restore_do">Restaurar</string>
+    <string name="backup_error_wrong_secret">Este código o esta frase de contraseña no abre esta copia, o el archivo está dañado. No se ha restaurado nada.</string>
+    <string name="backup_error_not_a_backup">Este archivo no es una copia de seguridad de Notes Tech.</string>
+    <string name="backup_error_newer">Esta copia viene de una versión más reciente de Notes Tech: actualiza la aplicación para restaurarla.</string>
+    <string name="backup_error_too_large">Demasiado grande: una copia ocupa como máximo 64 MB.</string>
+    <string name="backup_error_readback">El archivo escrito no se puede releer, así que no se ha conservado. Prueba otra ubicación.</string>
+    <string name="backup_error_generic">No se pudo completar la operación. Inténtalo de nuevo.</string>
+    <plurals name="backup_create_notes">
+        <item quantity="one">Esta copia contendrá %1$d nota, papelera incluida.</item>
+        <item quantity="many">Esta copia contendrá %1$d de notas, papelera incluida.</item>
+        <item quantity="other">Esta copia contendrá %1$d notas, papelera incluida.</item>
+    </plurals>
+    <plurals name="backup_created">
+        <item quantity="one">Copia guardada: %1$d nota.</item>
+        <item quantity="many">Copia guardada: %1$d de notas.</item>
+        <item quantity="other">Copia guardada: %1$d notas.</item>
+    </plurals>
+    <plurals name="backup_restore_add_notes">
+        <item quantity="one">Se añadirá %1$d nota.</item>
+        <item quantity="many">Se añadirán %1$d de notas.</item>
+        <item quantity="other">Se añadirán %1$d notas.</item>
+    </plurals>
+    <plurals name="backup_restore_add_folders">
+        <item quantity="one">Se creará %1$d carpeta.</item>
+        <item quantity="many">Se crearán %1$d de carpetas.</item>
+        <item quantity="other">Se crearán %1$d carpetas.</item>
+    </plurals>
+    <plurals name="backup_restore_trash">
+        <item quantity="one">De ellas, %1$d en la papelera, como en la copia.</item>
+        <item quantity="many">De ellas, %1$d en la papelera, como en la copia.</item>
+        <item quantity="other">De ellas, %1$d en la papelera, como en la copia.</item>
+    </plurals>
+    <plurals name="backup_restore_beside">
+        <item quantity="one">%1$d nota difiere de su versión en este teléfono: se añade como copia a su lado.</item>
+        <item quantity="many">%1$d de notas difieren de su versión en este teléfono: se añaden como copias a su lado.</item>
+        <item quantity="other">%1$d notas difieren de su versión en este teléfono: se añaden como copias a su lado.</item>
+    </plurals>
+    <plurals name="backup_restore_already">
+        <item quantity="one">%1$d nota ya está en este teléfono y se deja como está.</item>
+        <item quantity="many">%1$d de notas ya están en este teléfono y se dejan como están.</item>
+        <item quantity="other">%1$d notas ya están en este teléfono y se dejan como están.</item>
+    </plurals>
+    <plurals name="backup_restore_ignored">
+        <item quantity="one">%1$d nota queda fuera: dañada, o en conflicto con las cajas fuertes de este teléfono.</item>
+        <item quantity="many">%1$d de notas quedan fuera: dañadas, o en conflicto con las cajas fuertes de este teléfono.</item>
+        <item quantity="other">%1$d notas quedan fuera: dañadas, o en conflicto con las cajas fuertes de este teléfono.</item>
+    </plurals>
+    <plurals name="backup_restored">
+        <item quantity="one">Restauración hecha: %1$d nota añadida.</item>
+        <item quantity="many">Restauración hecha: %1$d de notas añadidas.</item>
+        <item quantity="other">Restauración hecha: %1$d notas añadidas.</item>
+    </plurals>
+    <string name="backup_code_show">Mostrar el código</string>
+    <string name="backup_code_hide">Ocultar el código</string>
+    <string name="backup_secret_show">Mostrar el código o la frase de contraseña</string>
+    <string name="backup_secret_hide">Ocultar el código o la frase de contraseña</string>
+    <plurals name="backup_create_closed_pin">
+        <item quantity="one">Caja fuerte con PIN cerrada, excluida con sus notas: %1$s. Ábrela antes para incluirla.</item>
+        <item quantity="many">Cajas fuertes con PIN cerradas, excluidas con sus notas: %1$s. Ábrelas antes para incluirlas.</item>
+        <item quantity="other">Cajas fuertes con PIN cerradas, excluidas con sus notas: %1$s. Ábrelas antes para incluirlas.</item>
+    </plurals>
+    <plurals name="backup_create_open_pin">
+        <item quantity="one">Caja fuerte con PIN abierta, guardada con su clave: %1$s. En el archivo la protege el secreto de la copia, no su PIN.</item>
+        <item quantity="many">Cajas fuertes con PIN abiertas, guardadas con sus claves: %1$s. En el archivo las protege el secreto de la copia, no su PIN.</item>
+        <item quantity="other">Cajas fuertes con PIN abiertas, guardadas con sus claves: %1$s. En el archivo las protege el secreto de la copia, no su PIN.</item>
+    </plurals>
+    <plurals name="backup_created_left_out">
+        <item quantity="one">%1$d nota excluida: su caja fuerte no podía viajar (una caja fuerte con PIN solo viaja abierta).</item>
+        <item quantity="many">%1$d de notas excluidas: su caja fuerte no podía viajar (una caja fuerte con PIN solo viaja abierta).</item>
+        <item quantity="other">%1$d notas excluidas: su caja fuerte no podía viajar (una caja fuerte con PIN solo viaja abierta).</item>
+    </plurals>
+    <plurals name="backup_restored_folders">
+        <item quantity="one">%1$d carpeta creada.</item>
+        <item quantity="many">%1$d de carpetas creadas.</item>
+        <item quantity="other">%1$d carpetas creadas.</item>
     </plurals>
     <string name="settings_export_done">Exportación completada: %1$d notas</string>
     <string name="settings_export_done_partial">Exportación completada: %1$d notas (%2$d omitidas en cajas fuertes bloqueadas)</string>

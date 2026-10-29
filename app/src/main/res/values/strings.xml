@@ -16,6 +16,7 @@
     <!-- ── Commun — boutons et libellés partagés ───────────────────────── -->
     <string name="common_cancel">Cancel</string>
     <string name="common_ok">OK</string>
+    <string name="common_no_picker">No app on this device can pick a file.</string>
     <string name="common_close">Close</string>
     <string name="common_delete">Delete</string>
     <string name="common_remove">Remove</string>
@@ -394,6 +395,94 @@
     <plurals name="settings_import_to_inbox">
         <item quantity="one">%1$d note went to the Inbox: its folder bears the name of a vault.</item>
         <item quantity="other">%1$d notes went to the Inbox: their folder bears the name of a vault.</item>
+    </plurals>
+    <string name="settings_section_backup">Encrypted backup</string>
+    <string name="backup_create">Create a backup</string>
+    <string name="backup_create_subtitle">Your notes and folders, trash included, in one encrypted file.</string>
+    <string name="backup_restore">Restore a backup</string>
+    <string name="backup_restore_subtitle">Adds back what a backup holds. Nothing on this phone is overwritten.</string>
+    <string name="backup_create_panic">Panic mode does not reach this file: keep it somewhere safe, and delete it yourself when you no longer need it.</string>
+    <string name="backup_code_intro">Write down this code: it is the only way to open the backup. Notes Tech does not keep it.</string>
+    <string name="backup_code_retype">Type the code again</string>
+    <string name="backup_use_phrase">Use a passphrase of my own</string>
+    <string name="backup_use_code">Use a generated code</string>
+    <string name="backup_phrase">Passphrase</string>
+    <string name="backup_phrase_confirm">Confirm passphrase</string>
+    <string name="backup_phrase_too_short">At least %1$d characters.</string>
+    <string name="backup_phrase_obvious">Too easy to guess: repetitions, sequences and common passwords are refused.</string>
+    <string name="backup_phrase_mismatch">The two passphrases do not match.</string>
+    <string name="backup_save">Save</string>
+    <string name="backup_working">Working…</string>
+    <string name="backup_restore_secret">The backup\'s code or passphrase</string>
+    <string name="backup_restore_check">Continue</string>
+    <string name="backup_restore_nothing">Nothing to add from this backup.</string>
+    <string name="backup_restore_deleted_since">Notes deleted from this phone since the backup come back too.</string>
+    <string name="backup_restore_pin_vault">PIN vault “%1$s”: choose its new PIN</string>
+    <string name="backup_restore_pin">New PIN</string>
+    <string name="backup_restore_pin_confirm">Confirm the new PIN</string>
+    <string name="backup_restore_pin_rule">Each PIN: %1$d to %2$d digits, typed twice the same.</string>
+    <string name="backup_restore_do">Restore</string>
+    <string name="backup_error_wrong_secret">This code or passphrase does not open this backup, or the file is damaged. Nothing was restored.</string>
+    <string name="backup_error_not_a_backup">This file is not a Notes Tech backup.</string>
+    <string name="backup_error_newer">This backup comes from a newer version of Notes Tech: update the app to restore it.</string>
+    <string name="backup_error_too_large">Too large: a backup holds at most 64 MB.</string>
+    <string name="backup_error_readback">The file written could not be read back, so it was not kept. Try another location.</string>
+    <string name="backup_error_generic">The operation could not be completed. Try again.</string>
+    <plurals name="backup_create_notes">
+        <item quantity="one">This backup will hold %1$d note, trash included.</item>
+        <item quantity="other">This backup will hold %1$d notes, trash included.</item>
+    </plurals>
+    <plurals name="backup_created">
+        <item quantity="one">Backup saved: %1$d note.</item>
+        <item quantity="other">Backup saved: %1$d notes.</item>
+    </plurals>
+    <plurals name="backup_restore_add_notes">
+        <item quantity="one">%1$d note will be added.</item>
+        <item quantity="other">%1$d notes will be added.</item>
+    </plurals>
+    <plurals name="backup_restore_add_folders">
+        <item quantity="one">%1$d folder will be created.</item>
+        <item quantity="other">%1$d folders will be created.</item>
+    </plurals>
+    <plurals name="backup_restore_trash">
+        <item quantity="one">Of these, %1$d is in the trash, as in the backup.</item>
+        <item quantity="other">Of these, %1$d are in the trash, as in the backup.</item>
+    </plurals>
+    <plurals name="backup_restore_beside">
+        <item quantity="one">%1$d note differs from its version on this phone: it is added as a copy beside it.</item>
+        <item quantity="other">%1$d notes differ from their version on this phone: they are added as copies beside them.</item>
+    </plurals>
+    <plurals name="backup_restore_already">
+        <item quantity="one">%1$d note is already on this phone, left as it is.</item>
+        <item quantity="other">%1$d notes are already on this phone, left as they are.</item>
+    </plurals>
+    <plurals name="backup_restore_ignored">
+        <item quantity="one">%1$d note is left out: damaged, or at odds with this phone\'s vaults.</item>
+        <item quantity="other">%1$d notes are left out: damaged, or at odds with this phone\'s vaults.</item>
+    </plurals>
+    <plurals name="backup_restored">
+        <item quantity="one">Restored: %1$d note added.</item>
+        <item quantity="other">Restored: %1$d notes added.</item>
+    </plurals>
+    <string name="backup_code_show">Show the code</string>
+    <string name="backup_code_hide">Hide the code</string>
+    <string name="backup_secret_show">Show the code or passphrase</string>
+    <string name="backup_secret_hide">Hide the code or passphrase</string>
+    <plurals name="backup_create_closed_pin">
+        <item quantity="one">Closed PIN vault, left out with its notes: %1$s. Open it first to include it.</item>
+        <item quantity="other">Closed PIN vaults, left out with their notes: %1$s. Open them first to include them.</item>
+    </plurals>
+    <plurals name="backup_create_open_pin">
+        <item quantity="one">Open PIN vault, saved with its key: %1$s. In the file, the backup\'s secret protects it, not its PIN.</item>
+        <item quantity="other">Open PIN vaults, saved with their keys: %1$s. In the file, the backup\'s secret protects them, not their PIN.</item>
+    </plurals>
+    <plurals name="backup_created_left_out">
+        <item quantity="one">%1$d note left out: its vault could not travel (a PIN vault only travels open).</item>
+        <item quantity="other">%1$d notes left out: their vault could not travel (a PIN vault only travels open).</item>
+    </plurals>
+    <plurals name="backup_restored_folders">
+        <item quantity="one">%1$d folder created.</item>
+        <item quantity="other">%1$d folders created.</item>
     </plurals>
     <string name="settings_export_done">Export complete: %1$d notes</string>
     <string name="settings_export_done_partial">Export complete: %1$d notes (%2$d skipped in locked vaults)</string>

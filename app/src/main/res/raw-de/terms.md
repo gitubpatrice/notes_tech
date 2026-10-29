@@ -1,6 +1,6 @@
 # Nutzungsbedingungen — Notes Tech
 
-_Zuletzt aktualisiert: 26. Oktober 2026_
+_Zuletzt aktualisiert: 29. Oktober 2026_
 
 ## Lizenz
 
@@ -18,13 +18,15 @@ Die App wird von einer Privatperson **kostenlos**, privat und nicht kommerziell 
 
 ## Panikmodus und Datenverlust
 
-Der **Panikmodus** löscht Ihre Notizen, Ihren Verschlüsselungsschlüssel und Ihre Modelle endgültig und unwiderruflich. **Keine Wiederherstellung ist möglich** — das ist so gewollt. Exportieren Sie vor der Verwendung, was Sie behalten möchten, über `Einstellungen → Alle meine Notizen exportieren`.
+Der **Panikmodus** löscht Ihre Notizen, Ihren Verschlüsselungsschlüssel und Ihre Modelle endgültig und unwiderruflich. **Keine Wiederherstellung ist möglich** — das ist so gewollt. Legen Sie vor der Verwendung, was Sie behalten möchten, in einer verschlüsselten Sicherung (`Einstellungen → Verschlüsselte Sicherung`) oder einem Export (`Einstellungen → Alle meine Notizen exportieren`) ab.
 
 Eine **in den Papierkorb verschobene** Notiz kann 30 Tage lang wiederhergestellt werden. Eine **endgültig gelöschte** Notiz — aus dem Papierkorb oder mit langem Drücken in der Notizliste, nach einer Bestätigung — geht nicht durch den Papierkorb und **kann nicht mehr wiederhergestellt werden**.
 
 Ebenso **macht eine vergessene Tresor-Passphrase dessen Notizen für immer unlesbar**: Die Passphrase wird nie gespeichert, sie dient nur dazu, den Schlüssel über Argon2id abzuleiten. Es gibt kein Wiederherstellungsverfahren.
 
 Bei **PIN**-Tresoren **lösen 5 aufeinanderfolgende Fehlversuche ein automatisches Löschen aus** (Löschen des Keystore-Schlüssels). Dies entspricht dem Verhalten der üblichen Android-Displaysperre – erst ab Android 9: Davor kann Android diesen Schlüssel nicht an das Entsperren des Telefons binden, die App erstellt dort keinen PIN-Tresor, und ein zuvor erstellter PIN-Tresor hält diese Grenze von fünf Versuchen auf einem beschlagnahmten Telefon nicht ein.
+
+Eine **verschlüsselte Sicherung** öffnet sich nur mit ihrem Code oder ihrer Passphrase, die Notes Tech nicht aufbewahrt: Ohne dieses Geheimnis bleibt die Datei **für immer unlesbar**. Der Panikmodus erreicht keine außerhalb der App gespeicherte Sicherung: Löschen Sie sie selbst.
 
 ## Diktiermodell
 
@@ -68,7 +70,7 @@ Updates werden im offiziellen GitHub-Repository und auf F-Droid veröffentlicht.
 
 ## Haftung
 
-Die App wird kostenlos von einer Privatperson bereitgestellt. Soweit gesetzlich zulässig, haftet der Herausgeber nicht für indirekte Schäden und nicht für Datenverluste, die auf die Nutzung bewusst unwiderruflicher Funktionen (Panikmodus, Löschen eines PIN-Tresors nach fünf falschen Codes, endgültiges Löschen, Deinstallation) oder auf eine vergessene Passphrase oder PIN zurückgehen (Apache-Lizenz 2.0, Abschnitt 8). Diese Beschränkung gilt weder bei grober Fahrlässigkeit oder Vorsatz noch für Schäden, deren Ausschluss das Gesetz verbietet.
+Die App wird kostenlos von einer Privatperson bereitgestellt. Soweit gesetzlich zulässig, haftet der Herausgeber nicht für indirekte Schäden und nicht für Datenverluste, die auf die Nutzung bewusst unwiderruflicher Funktionen (Panikmodus, Löschen eines PIN-Tresors nach fünf falschen Codes, endgültiges Löschen, Deinstallation) oder auf eine vergessene Passphrase, PIN oder einen vergessenen Sicherungscode zurückgehen (Apache-Lizenz 2.0, Abschnitt 8). Diese Beschränkung gilt weder bei grober Fahrlässigkeit oder Vorsatz noch für Schäden, deren Ausschluss das Gesetz verbietet.
 
 ## Anwendbares Recht
 

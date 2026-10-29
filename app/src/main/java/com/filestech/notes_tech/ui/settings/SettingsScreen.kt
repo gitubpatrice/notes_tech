@@ -175,6 +175,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
         snackbarHost = { HoteDeMessages(snackbars) },
         ligneDExport = { LigneDExport(snackbars) },
         ligneDImport = { LigneDImport(snackbars) },
+        lignesDeSauvegarde = { LignesDeSauvegarde() },
         sectionDeVerrouillage = { AppLockSection(snackbars) },
     )
 }
@@ -210,6 +211,8 @@ fun SettingsScreen(
     ligneDExport: @Composable () -> Unit = {},
     /** A slot, like [ligneDExport]: the import has its own ViewModel and the system picker. */
     ligneDImport: @Composable () -> Unit = {},
+    /** A slot, like [ligneDExport]: the encrypted backup's two rows and their dialogs (D-029). */
+    lignesDeSauvegarde: @Composable () -> Unit = {},
     sectionDeVerrouillage: @Composable () -> Unit = {},
 ) {
     var choixDeTheme by remember { mutableStateOf(false) }
@@ -378,6 +381,9 @@ fun SettingsScreen(
                     ligneDImport()
                 }
             }
+
+            TitreDeSection(stringResource(R.string.settings_section_backup))
+            CarteFilesTech { lignesDeSauvegarde() }
 
             TitreDeSection(stringResource(R.string.settings_panic))
             // 🔴 **La seule carte cerclée de rouge de l'écran**, comme dans la référence
@@ -641,7 +647,11 @@ private fun LigneDImport(snackbars: SnackbarHostState) {
             if (state.busy) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(enabled = !state.busy) { selecteur.launch(TYPES_IMPORTABLES) },
+        modifier = Modifier.clickable(enabled = !state.busy) {
+            if (!selecteur.launch(TYPES_IMPORTABLES)) {
+                portee.launch { snackbars.showSnackbar(ressources.getString(R.string.common_no_picker)) }
+            }
+        },
     )
 }
 
