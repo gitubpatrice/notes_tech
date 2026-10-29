@@ -59,7 +59,6 @@ class ApercuDeBoutEnBoutTest {
     @get:Rule(order = 0)
     val hilt = HiltAndroidRule(this)
 
-    /** The **v2** rule, for the reason given in `AppLockLifecycleTest`: the real app publishes from IO. */
     @get:Rule(order = 1)
     val compose = createEmptyComposeRule()
 

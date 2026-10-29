@@ -248,7 +248,13 @@ android {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
-        unitTests.all { test -> test.useJUnitPlatform() }
+        unitTests.all { test ->
+            test.useJUnitPlatform()
+            // `ComposeTestRulesAreV2Test` reads the instrumented tests' sources, which nothing else
+            // makes an input of this task: without this line, a v1 rule added there left the previous
+            // run's result in place (measured: the sabotage passed, the task up to date).
+            test.inputs.dir("src/androidTest").withPathSensitivity(PathSensitivity.RELATIVE)
+        }
     }
 
     lint {
