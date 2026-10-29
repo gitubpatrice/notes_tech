@@ -173,6 +173,23 @@ octets   taille  champ
 - Rien n'est indexé ni écrit : la recherche porte sur le texte affiché (une note de coffre ouverte
   aussi — elle n'est déjà déchiffrée qu'en mémoire).
 
+**Fait (2026-10-29)** — `domain/recherche/RechercheDansLeTexte.kt`, `ui/editor/RechercheDansLaNote.kt`.
+Tranché en codant :
+- « Texte affiché » au pied de la lettre : en **écriture**, le titre et le Markdown tel que tapé (l'adresse
+  d'un lien comprise) ; en **lecture**, le titre et le Markdown **dessiné** (ni `**`, ni l'adresse d'un lien).
+  Le compte peut donc différer d'un mode à l'autre, et c'est juste : il compte ce qu'on voit.
+- Dans les mots aussi (« budget » trouve « budgets »), comme une recherche dans la page. Apostrophes
+  typographiques repliées sur `'` : FTS5 traite l'apostrophe comme un séparateur, une note trouvée par
+  « l'été » doit montrer « l’été », pas « 0 / 0 ».
+- Au plus **1 000 occurrences** (« 1000+ ») ; calcul hors du fil principal, annulable, positions dans le
+  texte d'origine, jamais appliquées à un autre texte que celui calculé.
+- La barre ne déplace curseur ou liste que **sur demande** (nouvelle recherche, précédente, suivante,
+  arrivée) : taper dans le corps barre ouverte ne ramène pas le curseur à chaque frappe.
+- Depuis **deux** résultats de recherche : l'écran Recherche et la liste de l'accueil filtrée par son
+  champ — c'est la même recherche plein texte (`search.observe`). Argument `recherche` de la route.
+- Le Retour ferme la barre avant de quitter la note ; la barre se ferme si le coffre se referme dessous.
+Tests : 8 + 3 JVM, 5 écran, 2 de bout en bout (appli réelle), chacun vu échouer sous sabotage.
+
 ## 4. Partage entrant
 
 - « Partager → Notes Tech » depuis une autre appli : un **texte** (`text/plain`) crée une note dans la

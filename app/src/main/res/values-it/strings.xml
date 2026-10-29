@@ -179,6 +179,15 @@
     <string name="note_editor_menu_move">Sposta in un\'altra cartella</string>
     <string name="move_to_folder_title">Sposta in un\'altra cartella</string>
     <string name="note_editor_menu_info">Info</string>
+    <string name="note_editor_menu_find">Cerca nella nota</string>
+    <string name="note_find_previous">Occorrenza precedente</string>
+    <string name="note_find_next">Occorrenza successiva</string>
+    <string name="note_find_close">Chiudi la ricerca</string>
+    <string name="note_find_count_description">Occorrenza %1$d di %2$d</string>
+    <string name="note_find_count_more_description">Occorrenza %1$d di oltre %2$d</string>
+    <string name="note_find_none">Nessuna occorrenza</string>
+    <string name="note_find_count">%1$d / %2$d</string>
+    <string name="note_find_count_more">%1$d / %2$d+</string>
     <string name="note_info_title">Info sulla nota</string>
     <string name="note_info_folder">Cartella</string>
     <string name="note_info_created">Creata</string>

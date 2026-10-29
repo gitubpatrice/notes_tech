@@ -28,7 +28,9 @@ fun NotesTechNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Destination.Home.route) {
         composable(Destination.Home.route) {
             HomeRoute(
-                onOpenNote = { navController.navigate(Destination.Editor(it.id).route) },
+                onOpenNote = { note, recherche ->
+                    navController.navigate(Destination.Editor(note.id, recherche = recherche).route)
+                },
                 onEditNote = { navController.navigate(Destination.Editor(it.id, ecrire = true).route) },
                 onOpenSearch = { navController.navigate(Destination.Search.route) },
                 onOpenTrash = { navController.navigate(Destination.Trash.route) },
@@ -44,6 +46,11 @@ fun NotesTechNavHost(navController: NavHostController) {
                 navArgument(Destination.ARG_ECRIRE) {
                     type = NavType.BoolType
                     defaultValue = false
+                },
+                navArgument(Destination.ARG_RECHERCHE) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
                 },
             ),
         ) {
@@ -65,7 +72,10 @@ fun NotesTechNavHost(navController: NavHostController) {
         composable(Destination.Search.route) {
             SearchRoute(
                 onBack = { navController.popBackStack() },
-                onOpenNote = { navController.navigate(Destination.Editor(it.id).route) },
+                // The note opens with "Find in note" on what was searched (3.2.0, D-033).
+                onOpenNote = { note, recherche ->
+                    navController.navigate(Destination.Editor(note.id, recherche = recherche).route)
+                },
             )
         }
 

@@ -184,6 +184,15 @@
     <string name="note_editor_menu_move">Déplacer vers un autre dossier</string>
     <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
     <string name="note_editor_menu_info">Infos</string>
+    <string name="note_editor_menu_find">Rechercher dans la note</string>
+    <string name="note_find_previous">Occurrence précédente</string>
+    <string name="note_find_next">Occurrence suivante</string>
+    <string name="note_find_close">Fermer la recherche</string>
+    <string name="note_find_count_description">Occurrence %1$d sur %2$d</string>
+    <string name="note_find_count_more_description">Occurrence %1$d sur plus de %2$d</string>
+    <string name="note_find_none">Aucune occurrence</string>
+    <string name="note_find_count">%1$d / %2$d</string>
+    <string name="note_find_count_more">%1$d / %2$d+</string>
     <string name="note_info_title">Infos de la note</string>
     <string name="note_info_folder">Dossier</string>
     <string name="note_info_created">Créée le</string>

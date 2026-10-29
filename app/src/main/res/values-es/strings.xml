@@ -179,6 +179,15 @@
     <string name="note_editor_menu_move">Mover a otra carpeta</string>
     <string name="move_to_folder_title">Mover a otra carpeta</string>
     <string name="note_editor_menu_info">Información</string>
+    <string name="note_editor_menu_find">Buscar en la nota</string>
+    <string name="note_find_previous">Coincidencia anterior</string>
+    <string name="note_find_next">Coincidencia siguiente</string>
+    <string name="note_find_close">Cerrar la búsqueda</string>
+    <string name="note_find_count_description">Coincidencia %1$d de %2$d</string>
+    <string name="note_find_count_more_description">Coincidencia %1$d de más de %2$d</string>
+    <string name="note_find_none">Sin coincidencias</string>
+    <string name="note_find_count">%1$d / %2$d</string>
+    <string name="note_find_count_more">%1$d / %2$d+</string>
     <string name="note_info_title">Información de la nota</string>
     <string name="note_info_folder">Carpeta</string>
     <string name="note_info_created">Creada</string>

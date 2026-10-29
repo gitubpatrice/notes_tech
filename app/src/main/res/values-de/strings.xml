@@ -171,6 +171,15 @@
     <string name="note_editor_menu_move">In einen anderen Ordner verschieben</string>
     <string name="move_to_folder_title">In einen anderen Ordner verschieben</string>
     <string name="note_editor_menu_info">Info</string>
+    <string name="note_editor_menu_find">In der Notiz suchen</string>
+    <string name="note_find_previous">Vorheriger Treffer</string>
+    <string name="note_find_next">Nächster Treffer</string>
+    <string name="note_find_close">Suche schließen</string>
+    <string name="note_find_count_description">Treffer %1$d von %2$d</string>
+    <string name="note_find_count_more_description">Treffer %1$d von mehr als %2$d</string>
+    <string name="note_find_none">Keine Treffer</string>
+    <string name="note_find_count">%1$d / %2$d</string>
+    <string name="note_find_count_more">%1$d / %2$d+</string>
     <string name="note_info_title">Notizinfo</string>
     <string name="note_info_folder">Ordner</string>
     <string name="note_info_created">Erstellt</string>

@@ -216,6 +216,15 @@
       from the text on screen, so a vault note is counted as the user reads it.
     -->
     <string name="note_editor_menu_info">Info</string>
+    <string name="note_editor_menu_find">Find in note</string>
+    <string name="note_find_previous">Previous match</string>
+    <string name="note_find_next">Next match</string>
+    <string name="note_find_close">Close search</string>
+    <string name="note_find_count_description">Match %1$d of %2$d</string>
+    <string name="note_find_count_more_description">Match %1$d of more than %2$d</string>
+    <string name="note_find_none">No match</string>
+    <string name="note_find_count">%1$d / %2$d</string>
+    <string name="note_find_count_more">%1$d / %2$d+</string>
     <string name="note_info_title">Note info</string>
     <string name="note_info_folder">Folder</string>
     <string name="note_info_created">Created</string>

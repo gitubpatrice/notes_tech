@@ -66,16 +66,26 @@ sealed interface Destination {
      * [ecrire]: open the note to be written rather than read (3.1.0) — the long press's "Edit". Absent
      * from the route when false, so every other way into the editor keeps the route it had.
      */
-    data class Editor(val noteId: String, val ecrire: Boolean = false) : Destination {
-        override val route = "$EDITOR_PREFIX/${Uri.encode(noteId)}" + if (ecrire) "?$ARG_ECRIRE=true" else ""
+    /**
+     * [recherche]: the search of the result the note is opened from (3.2.0), which "Find in note"
+     * opens with. Encoded, like [noteId]: it is whatever the user typed. Absent when null or blank.
+     */
+    data class Editor(val noteId: String, val ecrire: Boolean = false, val recherche: String? = null) : Destination {
+        override val route = "$EDITOR_PREFIX/${Uri.encode(noteId)}" +
+            listOfNotNull(
+                "$ARG_ECRIRE=true".takeIf { ecrire },
+                recherche?.takeIf { it.isNotBlank() }?.let { "$ARG_RECHERCHE=${Uri.encode(it)}" },
+            ).joinToString("&").let { if (it.isEmpty()) "" else "?$it" }
     }
 
     companion object {
         const val EDITOR_PREFIX = "editor"
         const val ARG_NOTE_ID = "noteId"
         const val ARG_ECRIRE = "ecrire"
+        const val ARG_RECHERCHE = "recherche"
 
         /** Le motif déclaré au `NavHost`. Une seule déclaration, ici. */
-        const val EDITOR_PATTERN = "$EDITOR_PREFIX/{$ARG_NOTE_ID}?$ARG_ECRIRE={$ARG_ECRIRE}"
+        const val EDITOR_PATTERN =
+            "$EDITOR_PREFIX/{$ARG_NOTE_ID}?$ARG_ECRIRE={$ARG_ECRIRE}&$ARG_RECHERCHE={$ARG_RECHERCHE}"
     }
 }

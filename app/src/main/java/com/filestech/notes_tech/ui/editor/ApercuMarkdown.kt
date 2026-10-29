@@ -117,6 +117,42 @@ private fun typeDeContenu(element: ElementDApercu): String = when (element.bloc)
     else -> "bloc"
 }
 
+/**
+ * The texts [Element] draws for [element], in the order it draws them, each with the key its drawing
+ * reads its highlight by (3.2.0, "Find in note"): a paragraph's runs, a code block itself. Walks the
+ * blocks as [Element] and [Bloc] do — keep the two together; their `when`s are both exhaustive, so a
+ * new kind of block does not compile until both know it.
+ */
+internal fun textesDeLElement(element: ElementDApercu, ajouter: (cle: Any, texte: String) -> Unit) {
+    when (val bloc = element.bloc) {
+        is PreviewBlock.ListBlock -> bloc.items[element.partie].blocks.forEach { textesDuBloc(it, ajouter) }
+        is PreviewBlock.Table -> {
+            val cellules = if (element.partie == 0) bloc.header else bloc.rows[element.partie - 1]
+            cellules.forEach { ajouter(it, texteDesRuns(it)) }
+        }
+        else -> textesDuBloc(bloc, ajouter)
+    }
+}
+
+private fun textesDuBloc(bloc: PreviewBlock, ajouter: (cle: Any, texte: String) -> Unit) {
+    when (bloc) {
+        is PreviewBlock.Heading -> ajouter(bloc.runs, texteDesRuns(bloc.runs))
+        is PreviewBlock.Paragraph -> ajouter(bloc.runs, texteDesRuns(bloc.runs))
+        is PreviewBlock.ListBlock -> bloc.items.forEach { item -> item.blocks.forEach { textesDuBloc(it, ajouter) } }
+        is PreviewBlock.Quote -> bloc.blocks.forEach { textesDuBloc(it, ajouter) }
+        is PreviewBlock.Code -> ajouter(bloc, bloc.text)
+        is PreviewBlock.RawHtml -> ajouter(bloc, bloc.text)
+        is PreviewBlock.Table -> (listOf(bloc.header) + bloc.rows).forEach { ligne ->
+            ligne.forEach { ajouter(it, texteDesRuns(it)) }
+        }
+        PreviewBlock.Rule -> Unit
+        is PreviewBlock.AsWritten -> ajouter(bloc, bloc.text)
+    }
+}
+
+/** What [texteDe] writes for [runs]: their texts, end to end. */
+private fun texteDesRuns(runs: List<TextRun>): String = runs.joinToString("") { it.text }
+
 @Composable
 private fun Element(element: ElementDApercu, onLien: (LinkTarget) -> Unit) {
     when (val bloc = element.bloc) {
@@ -158,33 +194,38 @@ private fun Lecture(modifier: Modifier) {
 private fun Bloc(bloc: PreviewBlock, onLien: (LinkTarget) -> Unit) {
     // ⚠️ Exhaustive, no `else`: a new kind of block must not compile until it is drawn.
     when (bloc) {
-        is PreviewBlock.Heading -> Text(
-            text = texteDe(bloc.runs, onLien),
+        is PreviewBlock.Heading -> TexteSurligne(
+            texte = texteDe(bloc.runs, onLien),
+            cle = bloc.runs,
             style = styleDeTitre(bloc.level),
             modifier = Modifier.semantics { heading() },
         )
-        is PreviewBlock.Paragraph -> Text(text = texteDe(bloc.runs, onLien), style = MaterialTheme.typography.bodyLarge)
+        is PreviewBlock.Paragraph -> TexteSurligne(
+            texte = texteDe(bloc.runs, onLien),
+            cle = bloc.runs,
+            style = MaterialTheme.typography.bodyLarge,
+        )
         is PreviewBlock.ListBlock -> Liste(bloc, onLien)
         is PreviewBlock.Quote -> Citation(bloc, onLien)
-        is PreviewBlock.Code -> BlocDeCode(bloc.text)
+        is PreviewBlock.Code -> BlocDeCode(bloc.text, cle = bloc)
         // Shown as written, like code: it is markup the preview does not interpret.
-        is PreviewBlock.RawHtml -> BlocDeCode(bloc.text)
+        is PreviewBlock.RawHtml -> BlocDeCode(bloc.text, cle = bloc)
         is PreviewBlock.Table -> Tableau(bloc, onLien)
         PreviewBlock.Rule -> HorizontalDivider(Modifier.padding(vertical = 4.dp))
-        is PreviewBlock.AsWritten -> TelQuel(bloc.text)
+        is PreviewBlock.AsWritten -> TelQuel(bloc)
     }
 }
 
 /** A note the preview did not parse — see [MarkdownPreviewReader.read] — with the reason, then its text. */
 @Composable
-private fun TelQuel(texte: String) {
+private fun TelQuel(bloc: PreviewBlock.AsWritten) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = stringResource(R.string.note_preview_as_written),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        BlocDeCode(texte)
+        BlocDeCode(bloc.text, cle = bloc)
     }
 }
 
@@ -266,14 +307,15 @@ private fun Citation(citation: PreviewBlock.Quote, onLien: (LinkTarget) -> Unit)
  * sideways; on a phone that hides the end of every line behind a gesture nothing announces.
  */
 @Composable
-private fun BlocDeCode(texte: String) {
+private fun BlocDeCode(texte: String, cle: PreviewBlock) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(
-            text = texte,
+        TexteSurligne(
+            texte = remember(texte) { AnnotatedString(texte) },
+            cle = cle,
             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
             modifier = Modifier.padding(12.dp),
         )
@@ -304,8 +346,9 @@ private fun LigneDeTableau(
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
         cellules.forEachIndexed { index, cellule ->
             Box(Modifier.weight(1f).fillMaxHeight().border(0.5.dp, bord).padding(6.dp)) {
-                Text(
-                    text = texteDe(cellule, onLien),
+                TexteSurligne(
+                    texte = texteDe(cellule, onLien),
+                    cle = cellule,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = if (entete) FontWeight.Bold else null,
                     ),

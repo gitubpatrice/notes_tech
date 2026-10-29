@@ -181,6 +181,7 @@ class EditeurTest {
                             lectureCourante.value = true
                         },
                         onLienDeLApercu = { liensDeLApercu += it },
+                        rechercheALOuverture = null,
                     )
                 }
             }

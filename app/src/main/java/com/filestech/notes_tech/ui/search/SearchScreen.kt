@@ -50,7 +50,7 @@ import com.filestech.notes_tech.ui.home.couleurVisible
  * l'index. Cf. `04-PIEGES.md` §76.
  */
 @Composable
-fun SearchRoute(onBack: () -> Unit, onOpenNote: (Note) -> Unit) {
+fun SearchRoute(onBack: () -> Unit, onOpenNote: (Note, recherche: String) -> Unit) {
     val viewModel: SearchViewModel = hiltViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -58,7 +58,8 @@ fun SearchRoute(onBack: () -> Unit, onOpenNote: (Note) -> Unit) {
         state = state,
         onQueryChange = viewModel::onQueryChange,
         onBack = onBack,
-        onOpenNote = onOpenNote,
+        // With the search typed: the note opens with it in its "Find in note" bar (3.2.0).
+        onOpenNote = { note -> onOpenNote(note, state.query) },
     )
 }
 
