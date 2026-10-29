@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.voice
 
+import android.content.res.Configuration
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.getValue
@@ -12,7 +13,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isEnabled
 import androidx.compose.ui.test.isNotEnabled
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -24,9 +25,11 @@ import com.filestech.notes_tech.domain.voice.SttModelCatalogue
 import com.filestech.notes_tech.ui.actionnablesSansNom
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.Locale
 
 /**
  * **Ce que l'écran d'installation du modèle DIT dans chacun de ses états.**
@@ -152,9 +155,17 @@ class EcranDInstallationVocaleTest {
     fun l_echec_d_empreinte_dit_que_le_fichier_a_ete_supprime() {
         poser(VoiceSetupState(erreur = ErreurImport.EMPREINTE))
 
-        val message = texte(R.string.voice_setup_error_checksum)
-        assertThat(message).contains("supprimé")
-        regle.onNodeWithText(message).assertIsDisplayed()
+        regle.onNodeWithText(texte(R.string.voice_setup_error_checksum)).assertIsDisplayed()
+        // In every language of the app, each read in its own configuration: the check used to read
+        // the device's language only, and a CI emulator in English failed on the French word (3.1.1).
+        mapOf("en" to "deleted", "fr" to "supprimé", "de" to "gelöscht", "it" to "eliminato", "es" to "eliminado")
+            .forEach { (langue, mot) ->
+                val configuration = Configuration(regle.activity.resources.configuration)
+                configuration.setLocale(Locale.forLanguageTag(langue))
+                val message = regle.activity.createConfigurationContext(configuration)
+                    .getString(R.string.voice_setup_error_checksum)
+                assertWithMessage(langue).that(message).contains(mot)
+            }
     }
 
     /** Fermer le dialogue rend la main une fois — pas zéro, pas deux. */
