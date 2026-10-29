@@ -1,0 +1,1 @@
+Fixed: a long press in a note being edited closed the app, so text could not be pasted, copied or selected (#36). Legal texts clarified (liability, e-mails).

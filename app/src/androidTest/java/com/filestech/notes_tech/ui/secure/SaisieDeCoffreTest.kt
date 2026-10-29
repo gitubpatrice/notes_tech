@@ -13,15 +13,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.InterceptPlatformTextInput
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.nativeClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.AccessibilityAction
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInputSelection
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.core.view.inputmethod.EditorInfoCompat
@@ -102,7 +107,57 @@ class SaisieDeCoffreTest {
         assertThat(natif.primaryClip?.getItemAt(0)?.text?.toString()).isEqualTo("before")
     }
 
+    /**
+     * 🔴🔴 **Issue #36: the long press that closed 3.1.0.** The tests above go through the fields'
+     * semantic actions, which never show the selection toolbar — and showing it is what threw, for
+     * every note: foundation 1.12 asks the clipboard, through `nativeClipboardManager`, whether it
+     * holds a text to paste, and that extension throws on anything but an `AndroidClipboard`. Here,
+     * the gesture of the issue on a real field, ordinary note and vault note, with a text to paste.
+     */
+    @Test
+    fun a_long_press_in_an_ordinary_note_field_shows_the_toolbar_without_crashing() {
+        appuiLong(actif = false)
+    }
+
+    @Test
+    fun a_long_press_in_a_vault_note_field_shows_the_toolbar_without_crashing() {
+        appuiLong(actif = true)
+    }
+
+    /** What the toolbar reads to offer Paste is the phone's own clipboard, under both kinds of note. */
+    @Test
+    fun the_fields_clipboard_hands_compose_the_system_clipboard() {
+        val lus = mutableMapOf<Boolean, ClipboardManager>()
+        regle.setContent {
+            listOf(true, false).forEach { actif ->
+                SaisieDeCoffre(actif = actif, deposer = { deposes += it }, surEchec = { echecs += it }) {
+                    lus[actif] = LocalClipboard.current.nativeClipboardManager
+                }
+            }
+        }
+        regle.waitForIdle()
+        assertThat(lus.keys).containsExactly(true, false)
+        lus.values.forEach { assertThat(it).isSameInstanceAs(pressePapiersNatif()) }
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────────────────────────
+
+    private fun appuiLong(actif: Boolean) {
+        pressePapiersNatif().setPrimaryClip(ClipData.newPlainText("to paste", "pasted"))
+        regle.setContent {
+            SaisieDeCoffre(actif = actif, deposer = { deposes += it }, surEchec = { echecs += it }) {
+                var valeur by remember { mutableStateOf(TextFieldValue("Groceries for Sunday")) }
+                TextField(value = valeur, onValueChange = { valeur = it }, modifier = Modifier.testTag(CHAMP))
+            }
+        }
+        regle.onNodeWithTag(CHAMP).performClick()
+        regle.onNodeWithTag(CHAMP).performTouchInput { longClick(center) }
+        regle.waitForIdle()
+        // The long press selected a word: the gesture went through to the end, toolbar included.
+        val selection = regle.onNodeWithTag(CHAMP).fetchSemanticsNode()
+            .config[SemanticsProperties.TextSelectionRange]
+        assertThat(selection.collapsed).isFalse()
+    }
 
     @OptIn(ExperimentalComposeUiApi::class)
     private fun optionsDuClavier(actif: Boolean): Int {

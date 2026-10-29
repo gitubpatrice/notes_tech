@@ -4,7 +4,7 @@
 
 🇫🇷 [Version française](README.fr.md)
 
-**v3.1.0 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
+**v3.1.1 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
 
 Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpack Compose.
 **100% local, no Internet permission.** Interface in **English, French, German, Italian and
@@ -19,6 +19,13 @@ sensitive or dense notes without them ever leaving their phone.
 technically unable to send anything, and you can check that in its manifest.**
 
 ---
+
+## What's new in 3.1.1
+
+- **Fixed**: in 3.1.0, a long press inside a note being edited closed the app, so text could not be
+  pasted, copied or selected from the menu ([#36](https://github.com/gitubpatrice/notes_tech/issues/36)).
+  What a vault note copies still goes the protected way.
+- Legal texts clarified: the liability clause, and what happens to an e-mail you send.
 
 ## What's new in 3.1.0
 
@@ -143,7 +150,7 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 ## Installation
 
 1. **Published APK** — from [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases),
-   the universal APK (`notes-tech-universel-3.1.0.apk`, any phone), or the lighter one for your device
+   the universal APK (`notes-tech-universel-3.1.1.apk`, any phone), or the lighter one for your device
    (`arm64-v8a` fits almost every phone since 2016). Check the SHA-256 published in the release notes.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    built and signed by F-Droid.

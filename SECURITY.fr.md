@@ -2,9 +2,21 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.1.0 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.1.1 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.1.1 — l'appui long qui fermait l'éditeur (2026-10-29)
+
+- **La 3.1.0 se fermait à chaque appui long dans l'éditeur** : impossible de coller, de copier ou de
+  sélectionner du texte par la barre de sélection, dans aucune note
+  ([#36](https://github.com/gitubpatrice/notes_tech/issues/36)). En cause, le presse-papiers protégé des
+  champs de l'éditeur (audit du 2026-09-26, F1) : un `Clipboard` Compose ordinaire, que Compose 1.12,
+  livré avec la 3.1.0, refuse avant d'afficher la barre de sélection. C'est désormais un
+  `AndroidClipboard`. Ce qu'on copie d'une note de coffre passe toujours par la voie protégée (marqué,
+  effacé après 60 s, purgé par le mode panique) : les tests de F1 sont inchangés et passent.
+- Un défaut de disponibilité, pas une fuite : l'appli se fermait avant toute copie. De nouveaux tests font
+  un appui long sur un vrai champ, note ordinaire et note de coffre ; ils échouent sur le code de la 3.1.0.
 
 ## v3.1.0 — appui long, mode lecture, couleur des notes (2026-10-10)
 
