@@ -4,6 +4,7 @@ import android.util.Base64
 import android.util.JsonReader
 import android.util.JsonToken
 import android.util.JsonWriter
+import com.filestech.notes_tech.security.vault.VaultParams
 import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
@@ -182,36 +183,64 @@ internal object LectureDuContenu {
         var format: String? = null
         var version = -1L
         var dossiersVus = false
-        json.beginObject()
-        while (json.hasNext()) {
-            when (json.nextName()) {
-                "format" -> format = json.nextString()
-                "version" -> version = json.nextLong()
+        val vus = HashSet<String>()
+        illisible { json.beginObject() }
+        while (illisible { json.hasNext() }) {
+            val nom = illisible { json.nextName() }
+            // Once each, as every object's fields: a second `folders` would have the trial and the
+            // writing pass decide on two different trees (GPT-5.6 review, 2026-10-29).
+            if (!vus.add(nom)) throw ContenuIllisibleException("champ $nom en double")
+            when (nom) {
+                "format" -> format = illisible { json.nextString() }
+                "version" -> version = illisible { json.nextLong() }
                 "folders" -> {
                     exigerLEnTete(format, version)
-                    val dossiers = ArrayList<DossierSauvegarde>()
-                    json.beginArray()
-                    while (json.hasNext()) dossiers += lireUnDossier(json)
-                    json.endArray()
+                    val dossiers = illisible {
+                        ArrayList<DossierSauvegarde>().apply {
+                            json.beginArray()
+                            while (json.hasNext()) add(lireUnDossier(json))
+                            json.endArray()
+                        }
+                    }
                     surLesDossiers(dossiers)
                     dossiersVus = true
                 }
                 "notes" -> {
                     if (!dossiersVus) throw ContenuIllisibleException("notes avant les dossiers")
-                    json.beginArray()
-                    while (json.hasNext()) surUneNote(lireUneNote(json))
-                    json.endArray()
+                    illisible { json.beginArray() }
+                    while (illisible { json.hasNext() }) surUneNote(illisible { lireUneNote(json) })
+                    illisible { json.endArray() }
                 }
-                else -> json.skipValue()
+                else -> illisible { json.skipValue() }
             }
         }
-        json.endObject()
+        illisible { json.endObject() }
         if (!dossiersVus) throw ContenuIllisibleException("aucun dossier")
-        // The JSON is over: whatever follows must be nothing — and reaching the end checks the tag.
-        if (json.peek() != JsonToken.END_DOCUMENT) throw ContenuIllisibleException("octets apres le contenu")
+        exigerLaFin(json, entree)
+    }
+
+    /** The JSON is over: whatever follows must be nothing — and reaching the end checks the tag. */
+    private fun exigerLaFin(json: JsonReader, entree: InputStream) {
+        val apres = illisible { json.peek() }
+        if (apres != JsonToken.END_DOCUMENT) throw ContenuIllisibleException("octets apres le contenu")
         // END_DOCUMENT means the reader met the end of [entree]; read it once more all the same: the
         // check that the tag was reached must not depend on how a JSON reader buffers.
         if (entree.read() >= 0) throw ContenuIllisibleException("octets apres le contenu")
+    }
+
+    /**
+     * [lecture] of the JSON, its runtime refusals made what they are here: an unreadable content. A
+     * wrong secret decrypts to noise, which begins with `[`, `"` or a digit about once in twenty:
+     * `JsonReader` then throws `IllegalStateException` or `NumberFormatException`, not an
+     * [IOException], and the screen said "failed" instead of asking for the code again (GPT-5.6
+     * review, 2026-10-29). Never around the callbacks: what the database throws stays what it is.
+     */
+    private inline fun <T> illisible(lecture: () -> T): T = try {
+        lecture()
+    } catch (e: IllegalStateException) {
+        throw ContenuIllisibleException("json").apply { initCause(e) }
+    } catch (e: NumberFormatException) {
+        throw ContenuIllisibleException("json").apply { initCause(e) }
     }
 
     private fun exigerLEnTete(format: String?, version: Long) {
@@ -247,7 +276,14 @@ internal object LectureDuContenu {
                 iv = champs.octets("iv"),
                 verificateur = champs.octets("verifier"),
             )
-            MODE_CODE -> CoffreSauvegarde.ACode(champs.octets("folderKey"))
+            // The raw folder key, this format's own: any other length would make a vault that no PIN
+            // ever opens. (A passphrase vault's columns are copied as the phone has them — a vault
+            // migrated from 2.x does not have 3.x's lengths.)
+            MODE_CODE -> CoffreSauvegarde.ACode(
+                champs.octets("folderKey").also {
+                    if (it.size != VaultParams.FOLDER_KEY_BYTES) throw ContenuIllisibleException("cle de coffre")
+                },
+            )
             else -> throw ContenuIllisibleException("mode de coffre inconnu")
         }
     }

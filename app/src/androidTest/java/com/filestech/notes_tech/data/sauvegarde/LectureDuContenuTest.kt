@@ -60,4 +60,39 @@ class LectureDuContenuTest {
         assertThat(echec).isNotNull()
         assertThat(echec is ContenuIllisibleException || echec is java.io.IOException).isTrue()
     }
+
+    /**
+     * Noise from a wrong secret that happens to begin like JSON of another shape — `[`, a digit — is
+     * an unreadable content like any other, an [java.io.IOException]: the screen asks for the code
+     * again. `JsonReader` threw `IllegalStateException` for some of them (GPT-5.6 review).
+     */
+    @Test
+    fun un_debut_d_une_autre_forme_est_un_contenu_illisible(): Unit = runBlocking {
+        for (debut in listOf("[1,2]", "42", "\"x\"", "{\"version\":\"x\"}")) {
+            val echec = runCatching {
+                LectureDuContenu.lire(ByteArrayInputStream(debut.toByteArray()), surLesDossiers = {}, surUneNote = {})
+            }.exceptionOrNull()
+            assertThat(echec).isInstanceOf(java.io.IOException::class.java)
+        }
+    }
+
+    /** A second `folders` would have the trial and the writing pass decide on two trees: refused. */
+    @Test
+    fun un_champ_de_la_racine_en_double_le_fait_refuser(): Unit = runBlocking {
+        val texte = contenu().decodeToString()
+        val dossiers = texte.substring(texte.indexOf("\"folders\""), texte.indexOf("\"notes\""))
+        val double = texte.replace("\"notes\"", dossiers + "\"notes\"")
+        var appels = 0
+
+        val echec = runCatching {
+            LectureDuContenu.lire(
+                ByteArrayInputStream(double.toByteArray()),
+                surLesDossiers = { appels++ },
+                surUneNote = {},
+            )
+        }.exceptionOrNull()
+
+        assertThat(echec).isInstanceOf(ContenuIllisibleException::class.java)
+        assertThat(appels).isEqualTo(1)
+    }
 }

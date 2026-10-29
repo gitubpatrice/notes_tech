@@ -372,6 +372,8 @@
     <string name="backup_error_too_large">Trop gros : une sauvegarde fait au plus 64 Mo.</string>
     <string name="backup_error_readback">Le fichier écrit ne se relit pas, il n\'a donc pas été gardé. Essayez un autre emplacement.</string>
     <string name="backup_error_generic">L\'opération n\'a pas pu aboutir. Réessayez.</string>
+    <string name="backup_error_vault_closed">Le coffre à PIN « %1$s » s\'est refermé entre-temps : rien n\'a été enregistré. Rouvrez-le, puis recommencez.</string>
+    <string name="backup_error_changed">Le fichier a changé depuis sa vérification : rien n\'a été restauré. Choisissez-le de nouveau.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">Cette sauvegarde contiendra %1$d note, corbeille comprise.</item>
         <item quantity="many">Cette sauvegarde contiendra %1$d de notes, corbeille comprise.</item>

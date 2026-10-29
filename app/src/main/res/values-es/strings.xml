@@ -367,6 +367,8 @@
     <string name="backup_error_too_large">Demasiado grande: una copia ocupa como máximo 64 MB.</string>
     <string name="backup_error_readback">El archivo escrito no se puede releer, así que no se ha conservado. Prueba otra ubicación.</string>
     <string name="backup_error_generic">No se pudo completar la operación. Inténtalo de nuevo.</string>
+    <string name="backup_error_vault_closed">La caja fuerte con PIN «%1$s» se ha cerrado mientras tanto: no se ha guardado nada. Vuelve a abrirla y empieza de nuevo.</string>
+    <string name="backup_error_changed">El archivo ha cambiado desde la comprobación: no se ha restaurado nada. Vuelve a elegirlo.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">Esta copia contendrá %1$d nota, papelera incluida.</item>
         <item quantity="many">Esta copia contendrá %1$d de notas, papelera incluida.</item>

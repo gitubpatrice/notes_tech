@@ -104,8 +104,13 @@ class SauvegardeChiffreeTest {
 
     private val document: Uri get() = Uri.fromFile(fichier)
 
-    /** A backup made as the screen makes it: written first, then put into the document. */
-    private suspend fun creer(): SauvegardeChiffree.Creation = sauvegarde.deposer(sauvegarde.preparer(CODE), document)
+    /** A backup made as the screen makes it: previewed, written, then put into the document. */
+    private suspend fun creer(): SauvegardeChiffree.Creation =
+        sauvegarde.deposer(sauvegarde.preparer(CODE, sauvegarde.apercu().idsDesCoffresACodeOuverts), document)
+
+    /** A restore made as the screen makes it: the trial, then the writing held to the trial's bytes. */
+    private suspend fun restaurer(codes: Map<String, String>): RestaurationDeSauvegarde.Resultat =
+        restauration.restaurer(document, CODE, codes, restauration.essayer(document, CODE))
 
     /** A PIN vault, open, holding one note sealed under its key. */
     private suspend fun unCoffreACode(): Pair<String, String> {
@@ -139,7 +144,7 @@ class SauvegardeChiffreeTest {
             assertThat(essai.notesAjoutees).isEqualTo(2)
             assertThat(notes.find(enClair.id)).isNull()
 
-            val fait = restauration.restaurer(document, CODE, mapOf(coffre to NOUVEAU_CODE))
+            val fait = restauration.restaurer(document, CODE, mapOf(coffre to NOUVEAU_CODE), essai)
 
             assertThat(fait.notesAjoutees).isEqualTo(2)
             assertThat(fait.notesIgnorees).isEmpty()
@@ -162,12 +167,13 @@ class SauvegardeChiffreeTest {
         dossiers.delete(coffre)
         coffres.deletePinKey(coffre)
         val avant = notes.listAllAlive().map { it.id }.toSet()
+        val essai = restauration.essayer(document, CODE)
 
-        val faux = runCatching { restauration.restaurer(document, AUTRE_CODE, mapOf(coffre to NOUVEAU_CODE)) }
+        val faux = runCatching { restauration.restaurer(document, AUTRE_CODE, mapOf(coffre to NOUVEAU_CODE), essai) }
         // The last byte is the tag's: every note parses, every row is written, and the end refuses it.
         val octets = fichier.readBytes()
         fichier.writeBytes(octets.copyOf().also { it[it.lastIndex] = (it[it.lastIndex] + 1).toByte() })
-        val abime = runCatching { restauration.restaurer(document, CODE, mapOf(coffre to NOUVEAU_CODE)) }
+        val abime = runCatching { restauration.restaurer(document, CODE, mapOf(coffre to NOUVEAU_CODE), essai) }
 
         assertThat(faux.exceptionOrNull()).isInstanceOf(IOException::class.java)
         assertThat(abime.exceptionOrNull()).isInstanceOf(IOException::class.java)
@@ -182,7 +188,7 @@ class SauvegardeChiffreeTest {
         creer()
         val avant = notes.listAllAlive().size
 
-        val fait = restauration.restaurer(document, CODE, emptyMap())
+        val fait = restaurer(emptyMap())
 
         assertThat(fait.notesAjoutees).isEqualTo(0)
         assertThat(fait.notesACote).isEqualTo(0)
@@ -213,7 +219,7 @@ class SauvegardeChiffreeTest {
     fun un_coffre_a_code_ferme_pendant_le_selecteur_garde_ses_notes_dans_la_sauvegarde(): Unit = runBlocking {
         val (coffre, _) = unCoffreACode()
 
-        val preparee = sauvegarde.preparer(CODE)
+        val preparee = sauvegarde.preparer(CODE, sauvegarde.apercu().idsDesCoffresACodeOuverts)
         sessions.lockAll() // what the picker does to the app
         val creee = sauvegarde.deposer(preparee, document)
 
@@ -245,7 +251,7 @@ class SauvegardeChiffreeTest {
         sessions.lockAll()
         listOf(enfant.id, parent.id, journal.id, coffre).forEach { dossiers.delete(it) }
         coffres.deletePinKey(coffre)
-        val fait = restauration.restaurer(document, CODE, mapOf(coffre to NOUVEAU_CODE))
+        val fait = restaurer(mapOf(coffre to NOUVEAU_CODE))
 
         assertThat(fait.dossiersCrees).isEqualTo(4)
         assertThat(fait.notesIgnorees).isEmpty()
@@ -254,6 +260,39 @@ class SauvegardeChiffreeTest {
         assertThat(notes.find(jetee.id)?.isTrashed).isTrue()
         coffres.unlockWithPassphrase(journal.id, PASSPHRASE)
         assertThat(coffres.decrypt(requireNotNull(notes.find(intime.id))).content).isEqualTo("rien de neuf")
+    }
+
+    /**
+     * The other side of the picker: a PIN vault the preview said open, locked BEFORE the writing (the
+     * user left the app to note the code) — nothing written, the vault named, no file left waiting.
+     */
+    @Test
+    fun un_coffre_annonce_ouvert_puis_referme_avant_l_ecriture_arrete_la_sauvegarde(): Unit = runBlocking {
+        unCoffreACode()
+        val apercu = sauvegarde.apercu()
+        sessions.lockAll()
+
+        val refus = runCatching { sauvegarde.preparer(CODE, apercu.idsDesCoffresACodeOuverts) }.exceptionOrNull()
+
+        assertThat((refus as? SauvegardeChiffree.CoffreRefermeException)?.nom).isEqualTo("Codes")
+        assertThat(SauvegardeChiffree.repertoireDAttente(context).listFiles().orEmpty()).isEmpty()
+    }
+
+    /** The writing pass is held to the trial's bytes: another valid backup in their place writes nothing. */
+    @Test
+    fun un_fichier_change_entre_l_essai_et_l_ecriture_ne_restaure_rien(): Unit = runBlocking {
+        val premiere = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Un", content = "1")
+        creer()
+        val essai = restauration.essayer(document, CODE)
+        notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Deux", content = "2")
+        creer() // another valid backup, same code, in the file the trial read
+        notes.deletePermanently(premiere.id)
+        val avant = notes.listAllAlive().map { it.id }.toSet()
+
+        val refus = runCatching { restauration.restaurer(document, CODE, emptyMap(), essai) }.exceptionOrNull()
+
+        assertThat(refus).isInstanceOf(RestaurationDeSauvegarde.FichierChangeException::class.java)
+        assertThat(notes.listAllAlive().map { it.id }.toSet()).isEqualTo(avant)
     }
 
     /** Before any secret is asked: what is not a backup, or one of a newer version, is refused as such. */

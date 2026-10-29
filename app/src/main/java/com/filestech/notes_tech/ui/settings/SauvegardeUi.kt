@@ -123,7 +123,11 @@ internal fun LignesDeSauvegarde() {
             message = texteDuBilan(e.resultat, apres = true),
             onFermer = viewModel::fermer,
         )
-        is SauvegardeViewModel.Etape.Echec -> DialogueDeFin(e.titre, stringResource(e.message), viewModel::fermer)
+        is SauvegardeViewModel.Etape.Echec -> DialogueDeFin(
+            titre = e.titre,
+            message = e.argument?.let { stringResource(e.message, it) } ?: stringResource(e.message),
+            onFermer = viewModel::fermer,
+        )
     }
 }
 
@@ -265,9 +269,13 @@ private fun DialogueDeCreation(
     )
 }
 
-/** The chosen file's code or passphrase — asked again, field empty, after a wrong one ([erreur]). */
+/**
+ * The chosen file's code or passphrase — asked again, field empty, after a wrong one ([erreur]).
+ * Secured window, as at the creation: the field can show what it holds (GPT-5.6 review, 2026-10-29).
+ */
 @Composable
 private fun DialogueDeSecret(@StringRes erreur: Int?, onEssayer: (String) -> Unit, onAnnuler: () -> Unit) {
+    SecureWindowGuard(active = true)
     var secret by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onAnnuler,
@@ -297,7 +305,7 @@ private fun DialogueDeSecret(@StringRes erreur: Int?, onEssayer: (String) -> Uni
 
 /**
  * The trial pass's answer: what the restore will add, what it leaves and why — and a new PIN, twice,
- * for each PIN vault it brings back (D-030).
+ * for each PIN vault it brings back (D-030). Secured window: those fields can show the new PINs.
  */
 @Composable
 private fun DialogueDEssai(
@@ -305,6 +313,7 @@ private fun DialogueDEssai(
     onRestaurer: (Map<String, String>) -> Unit,
     onAnnuler: () -> Unit,
 ) {
+    SecureWindowGuard(active = true)
     val codes = remember { mutableStateMapOf<String, String>() }
     val confirmations = remember { mutableStateMapOf<String, String>() }
     val rienAAjouter = resultat.notesAjoutees + resultat.notesACote + resultat.dossiersCrees == 0

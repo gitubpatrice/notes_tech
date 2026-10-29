@@ -28,8 +28,8 @@ import javax.inject.Inject
  *   the picker sends the app to the background, where every vault locks. Only the encrypted file waits
  *   for the picker's answer; the secret is not kept.
  * - Restoring one: the secret is held here between the trial and the restore, never in the state the
- *   screen saves — a rotation keeps it (this ViewModel survives it), a process death forgets it, and
- *   the user types it again, which is the safe side.
+ *   screen saves — a rotation keeps it (this ViewModel survives it). A process death forgets the whole
+ *   flow, the chosen file included: the user starts it again, which is the safe side.
  */
 @HiltViewModel
 class SauvegardeViewModel @Inject constructor(
@@ -65,7 +65,8 @@ class SauvegardeViewModel @Inject constructor(
 
         data class Restauree(val resultat: RestaurationDeSauvegarde.Resultat) : Etape
 
-        data class Echec(@StringRes val titre: Int, @StringRes val message: Int) : Etape
+        /** [argument]: what [message] names, when it names something — a vault locked since the preview. */
+        data class Echec(@StringRes val titre: Int, @StringRes val message: Int, val argument: String? = null) : Etape
     }
 
     private val _etape = MutableStateFlow<Etape>(Etape.Repos)
@@ -79,10 +80,13 @@ class SauvegardeViewModel @Inject constructor(
         Etape.AvantLaCreation(sauvegarde.apercu(), SecretDeSauvegarde.nouveauCode())
     }
 
-    /** The secret is chosen: the backup is written now, while the vaults are as the preview saw them. */
-    fun secretChoisi(choisi: String) = executer(CREATION, enLecture = false) {
-        preparee = sauvegarde.preparer(choisi)
-        Etape.PreteADeposer
+    /** The secret is chosen: the backup is written now, held to the vaults the preview said open. */
+    fun secretChoisi(choisi: String) {
+        val ouverts = (_etape.value as? Etape.AvantLaCreation)?.apercu?.idsDesCoffresACodeOuverts ?: return fermer()
+        executer(CREATION, enLecture = false) {
+            preparee = sauvegarde.preparer(choisi, ouverts)
+            Etape.PreteADeposer
+        }
     }
 
     fun selecteurOuvert() {
@@ -98,17 +102,21 @@ class SauvegardeViewModel @Inject constructor(
 
     /** The system picker's answer — `null`: the user went back, and the waiting backup goes. */
     fun documentCree(cree: Uri?) {
-        val enAttente = preparee
-        preparee = null
         when {
-            cree == null -> fermer(enAttente)
+            cree == null -> fermer()
             // The process died while the picker was open (the startup purge took the waiting file): the
             // document it created stays empty — deleted, and the backup said not made.
-            enAttente == null -> executer(CREATION, enLecture = false) {
+            preparee == null -> executer(CREATION, enLecture = false) {
                 sauvegarde.oublier(cree)
                 Etape.Echec(CREATION, R.string.backup_error_generic)
             }
-            else -> executer(CREATION, enLecture = false) { Etape.Creee(sauvegarde.deposer(enAttente, cree)) }
+            // Handed over inside the step: cancelled before it ran, the waiting file is still this
+            // ViewModel's, and [onCleared] lets it go (GPT-5.6 review, 2026-10-29).
+            else -> executer(CREATION, enLecture = false) {
+                val enAttente = checkNotNull(preparee)
+                preparee = null
+                Etape.Creee(sauvegarde.deposer(enAttente, cree))
+            }
         }
     }
 
@@ -135,13 +143,15 @@ class SauvegardeViewModel @Inject constructor(
     fun restaurer(codes: Map<String, String>) {
         val ouvert = document ?: return fermer()
         val saisi = secret ?: return fermer()
-        executer(RESTAURATION, oublierApres = true) { Etape.Restauree(restauration.restaurer(ouvert, saisi, codes)) }
+        // The writing pass is held to the bytes this trial read.
+        val essai = (_etape.value as? Etape.Essayee)?.resultat ?: return fermer()
+        executer(RESTAURATION, oublierApres = true) {
+            Etape.Restauree(restauration.restaurer(ouvert, saisi, codes, essai))
+        }
     }
 
-    fun fermer() = fermer(preparee)
-
-    private fun fermer(enAttente: SauvegardeChiffree.Preparee?) {
-        enAttente?.let(sauvegarde::abandonner)
+    fun fermer() {
+        preparee?.let(sauvegarde::abandonner)
         preparee = null
         secret = null
         document = null
@@ -171,7 +181,7 @@ class SauvegardeViewModel @Inject constructor(
                 Timber.w(e, "sauvegarde chiffree")
                 val message = messageDe(e, enLecture)
                 siLeSecretEstFaux?.takeIf { message == R.string.backup_error_wrong_secret }
-                    ?: Etape.Echec(titre, message)
+                    ?: Etape.Echec(titre, message, (e as? SauvegardeChiffree.CoffreRefermeException)?.nom)
             } finally {
                 if (oublierApres) {
                     secret = null
@@ -200,6 +210,8 @@ class SauvegardeViewModel @Inject constructor(
                 Refus.TROP_GROS -> R.string.backup_error_too_large
                 Refus.TRONQUE -> R.string.backup_error_wrong_secret
             }
+            is SauvegardeChiffree.CoffreRefermeException -> R.string.backup_error_vault_closed
+            is RestaurationDeSauvegarde.FichierChangeException -> R.string.backup_error_changed
             is SauvegardeChiffree.SauvegardeTropGrosseException -> R.string.backup_error_too_large
             is SauvegardeChiffree.RelectureEchoueeException -> R.string.backup_error_readback
             // Reading: a wrong secret and a damaged file look the same — the tag, or the content before it.

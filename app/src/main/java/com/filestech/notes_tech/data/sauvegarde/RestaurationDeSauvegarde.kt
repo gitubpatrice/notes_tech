@@ -13,11 +13,15 @@ import com.filestech.notes_tech.data.sauvegarde.PlanDeRestauration.DossierDuTele
 import com.filestech.notes_tech.security.sauvegarde.FichierDeSauvegarde
 import com.filestech.notes_tech.security.sauvegarde.SecretDeSauvegarde
 import com.filestech.notes_tech.security.vault.FolderVaultService
+import com.filestech.notes_tech.security.vault.VaultParams
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import timber.log.Timber
 import java.io.IOException
+import java.security.DigestInputStream
+import java.security.MessageDigest
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -58,7 +62,15 @@ class RestaurationDeSauvegarde @Inject constructor(
         /** Among the notes added, those that go back to the trash, with their date. */
         val notesALaCorbeille: Int,
         val coffresACode: List<CoffreACode>,
+        /** SHA-256 of the file's bytes as this pass read them: what [restaurer] holds the writing to. */
+        val empreinte: String,
     )
+
+    /**
+     * The file the writing pass read is not the one the trial read: replaced in between, or served
+     * differently by its provider. Rolled back — the user approved a summary of another file.
+     */
+    class FichierChangeException : IOException("le fichier a change depuis l'essai")
 
     class CodeManquantException(val dossierId: String) :
         IllegalArgumentException("aucun code pour le coffre $dossierId")
@@ -79,12 +91,25 @@ class RestaurationDeSauvegarde @Inject constructor(
         }
         val entree = context.contentResolver.openInputStream(document)
             ?: throw IOException("sauvegarde impossible a ouvrir")
-        try {
-            entree.use { FichierDeSauvegarde.lireLEnTete(it) }
-        } catch (e: FichierDeSauvegarde.SauvegardeRefuseeException) {
-            // Shorter than a header: not a backup — no secret could be at fault yet.
-            if (e.refus != FichierDeSauvegarde.Refus.TRONQUE) throw e
-            throw FichierDeSauvegarde.SauvegardeRefuseeException(FichierDeSauvegarde.Refus.PAS_UNE_SAUVEGARDE)
+        val pasUneSauvegarde =
+            FichierDeSauvegarde.SauvegardeRefuseeException(FichierDeSauvegarde.Refus.PAS_UNE_SAUVEGARDE)
+        entree.use {
+            try {
+                FichierDeSauvegarde.lireLEnTete(it)
+            } catch (e: FichierDeSauvegarde.SauvegardeRefuseeException) {
+                // Shorter than a header: not a backup — no secret could be at fault yet.
+                if (e.refus != FichierDeSauvegarde.Refus.TRONQUE) throw e
+                throw pasUneSauvegarde
+            }
+            // And at least the tag after it: a header alone would cost the user a derivation for nothing.
+            // Read, not skipped: `skip` may skip less than it could on some providers' streams.
+            val etiquette = ByteArray(VaultParams.TAG_BYTES)
+            var lus = 0
+            while (lus < etiquette.size) {
+                val n = it.read(etiquette, lus, etiquette.size - lus)
+                if (n < 0) throw pasUneSauvegarde
+                lus += n
+            }
         }
         Unit
     }
@@ -93,52 +118,80 @@ class RestaurationDeSauvegarde @Inject constructor(
      * The trial pass. Throws an [IOException] when the file cannot be read with [secret]: a wrong
      * secret and a damaged file look the same, both failing the tag or the content before it.
      */
-    suspend fun essayer(document: Uri, secret: String): Resultat = parcourir(document, secret, codes = null)
+    suspend fun essayer(document: Uri, secret: String): Resultat =
+        parcourir(document, secret, codes = null, essai = null)
 
     /**
-     * The writing pass, [codes] the new PIN of each PIN vault [essayer] listed, by folder id.
+     * The writing pass, [codes] the new PIN of each PIN vault [essai] listed, by folder id — on the
+     * very bytes [essai] read ([Resultat.empreinte]).
      *
      * @throws CodeManquantException a PIN vault the restore creates has no PIN in [codes].
+     * @throws FichierChangeException the file is not the one [essai] read: nothing is written.
      */
-    suspend fun restaurer(document: Uri, secret: String, codes: Map<String, String>): Resultat =
-        parcourir(document, secret, codes)
+    suspend fun restaurer(document: Uri, secret: String, codes: Map<String, String>, essai: Resultat): Resultat =
+        parcourir(document, secret, codes, essai.empreinte)
 
-    private suspend fun parcourir(document: Uri, secret: String, codes: Map<String, String>?): Resultat =
-        withContext(Dispatchers.IO) {
-            val entree = context.contentResolver.openInputStream(document)
-                ?: throw IOException("sauvegarde impossible a ouvrir")
-            entree.use { brut ->
-                val borne = FichierDeSauvegarde.borne(brut)
-                // Before any derivation: a header version 1 does not write is refused here (R-10).
-                val (enTete, octetsDeLEnTete) = FichierDeSauvegarde.lireLEnTete(borne)
-                val octetsDuSecret = SecretDeSauvegarde.octets(secret)
-                val cle = try {
-                    FichierDeSauvegarde.cle(octetsDuSecret, enTete)
-                } finally {
-                    octetsDuSecret.wipe()
-                }
-                val passage = Passage(codes)
-                try {
-                    FichierDeSauvegarde.ouvrir(borne, cle, enTete, octetsDeLEnTete).use { contenu ->
-                        notes.restaurerDansUneTransaction { ecriture ->
-                            LectureDuContenu.lire(
-                                contenu,
-                                surLesDossiers = { passage.surLesDossiers(ecriture, it) },
-                                surUneNote = { passage.surUneNote(ecriture, it) },
-                            )
+    private suspend fun parcourir(
+        document: Uri,
+        secret: String,
+        codes: Map<String, String>?,
+        essai: String?,
+    ): Resultat = withContext(Dispatchers.IO) {
+        val entree = context.contentResolver.openInputStream(document)
+            ?: throw IOException("sauvegarde impossible a ouvrir")
+        val condense = MessageDigest.getInstance("SHA-256")
+        DigestInputStream(entree, condense).use { brut ->
+            val borne = FichierDeSauvegarde.borne(brut)
+            // Before any derivation: a header version 1 does not write is refused here (R-10).
+            val (enTete, octetsDeLEnTete) = FichierDeSauvegarde.lireLEnTete(borne)
+            val octetsDuSecret = SecretDeSauvegarde.octets(secret)
+            val cle = try {
+                FichierDeSauvegarde.cle(octetsDuSecret, enTete)
+            } finally {
+                octetsDuSecret.wipe()
+            }
+            val passage = Passage(codes)
+            try {
+                val empreinte = FichierDeSauvegarde.ouvrir(borne, cle, enTete, octetsDeLEnTete).use { contenu ->
+                    notes.restaurerDansUneTransaction { ecriture ->
+                        LectureDuContenu.lire(
+                            contenu,
+                            surLesDossiers = { passage.surLesDossiers(ecriture, it) },
+                            surUneNote = { passage.surUneNote(ecriture, it) },
+                        )
+                        // The file is read to its end here: the digest covers every byte. Still in
+                        // the transaction, so a file that is not the trial's commits nothing.
+                        condense.digest().joinToString("") { "%02x".format(it) }.also {
+                            if (essai != null && it != essai) throw FichierChangeException()
                         }
                     }
-                    passage.resultat()
-                } catch (e: Throwable) {
-                    // The transaction is rolled back: the keys its PIN vaults were sealed with go too.
-                    withContext(NonCancellable) { passage.clesCreees.forEach { vaults.deletePinKey(it) } }
-                    throw e
-                } finally {
-                    cle.wipe()
-                    passage.effacerLesCles()
                 }
+                passage.resultat(empreinte)
+            } catch (e: Throwable) {
+                withContext(NonCancellable) { oublierLesClesSansCoffre(passage.clesCreees) }
+                throw e
+            } finally {
+                cle.wipe()
+                passage.effacerLesCles()
             }
         }
+    }
+
+    /**
+     * The Keystore keys created for the PIN vaults of a pass that failed — deleted, each on its own, but
+     * only where the vault is NOT in the database. The failure says nothing of the transaction: a
+     * cancellation can arrive after its commit, and deleting those keys then would lock the restored
+     * vaults for good (GPT-5.6 review, 2026-10-29). A key that does not exist deletes as nothing.
+     */
+    private suspend fun oublierLesClesSansCoffre(cles: List<String>) {
+        for (id in cles) {
+            try {
+                if (!vaults.isVault(id)) vaults.deletePinKey(id)
+            } catch (e: Exception) {
+                Timber.w(e, "cle d'un coffre restaure non supprimee")
+            }
+        }
+    }
 
     /** One pass over a file; [codes] `null` for the trial, which writes nothing. */
     private inner class Passage(private val codes: Map<String, String>?) {
@@ -226,8 +279,11 @@ class RestaurationDeSauvegarde @Inject constructor(
                     MODE_PHRASE,
                 )
                 is CoffreSauvegarde.ACode -> {
-                    val materiel = vaults.materielDUnCoffreACode(d.id, coffre.cleDuDossier, codes.getValue(d.id))
+                    // Listed BEFORE its key exists: a sealing that throws after the key's creation
+                    // still leaves it to the cleanup. A folder created here is new: its alias is no
+                    // live vault's (GPT-5.6 review, 2026-10-29).
                     clesCreees += d.id
+                    val materiel = vaults.materielDUnCoffreACode(d.id, coffre.cleDuDossier, codes.getValue(d.id))
                     entite(
                         sel = materiel.sel,
                         iv = materiel.iv,
@@ -240,7 +296,7 @@ class RestaurationDeSauvegarde @Inject constructor(
             }
         }
 
-        fun resultat() = Resultat(
+        fun resultat(empreinte: String) = Resultat(
             dossiersCrees = plan.aCreer.size,
             dossiersReutilises = plan.reutilises,
             notesAjoutees = ajoutees,
@@ -249,6 +305,7 @@ class RestaurationDeSauvegarde @Inject constructor(
             notesIgnorees = ignorees.toMap(),
             notesALaCorbeille = aLaCorbeille,
             coffresACode = plan.coffresACodeACreer.map { CoffreACode(it.id, it.nom) },
+            empreinte = empreinte,
         )
 
         /** The PIN vaults' folder keys read from the file: wiped once the pass is over, whatever its end. */

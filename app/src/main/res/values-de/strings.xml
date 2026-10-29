@@ -353,6 +353,8 @@
     <string name="backup_error_too_large">Zu groß: Eine Sicherung umfasst höchstens 64 MB.</string>
     <string name="backup_error_readback">Die geschriebene Datei ließ sich nicht zurücklesen und wurde daher nicht behalten. Versuchen Sie einen anderen Speicherort.</string>
     <string name="backup_error_generic">Der Vorgang konnte nicht abgeschlossen werden. Versuchen Sie es erneut.</string>
+    <string name="backup_error_vault_closed">Der PIN-Tresor „%1$s“ hat sich inzwischen geschlossen: Es wurde nichts gespeichert. Öffnen Sie ihn erneut und beginnen Sie von vorn.</string>
+    <string name="backup_error_changed">Die Datei hat sich seit der Prüfung geändert: Es wurde nichts wiederhergestellt. Wählen Sie sie erneut.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">Diese Sicherung wird %1$d Notiz enthalten, Papierkorb inbegriffen.</item>
         <item quantity="other">Diese Sicherung wird %1$d Notizen enthalten, Papierkorb inbegriffen.</item>

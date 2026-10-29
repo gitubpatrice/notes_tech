@@ -428,6 +428,8 @@
     <string name="backup_error_too_large">Too large: a backup holds at most 64 MB.</string>
     <string name="backup_error_readback">The file written could not be read back, so it was not kept. Try another location.</string>
     <string name="backup_error_generic">The operation could not be completed. Try again.</string>
+    <string name="backup_error_vault_closed">The PIN vault “%1$s” locked in the meantime: nothing was saved. Open it again, then start over.</string>
+    <string name="backup_error_changed">The file changed since it was checked: nothing was restored. Choose it again.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">This backup will hold %1$d note, trash included.</item>
         <item quantity="other">This backup will hold %1$d notes, trash included.</item>

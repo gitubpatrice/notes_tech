@@ -367,6 +367,8 @@
     <string name="backup_error_too_large">Troppo grande: un backup contiene al massimo 64 MB.</string>
     <string name="backup_error_readback">Il file scritto non si rilegge, quindi non è stato conservato. Prova un altro percorso.</string>
     <string name="backup_error_generic">Non è stato possibile completare l\'operazione. Riprova.</string>
+    <string name="backup_error_vault_closed">La cassaforte con PIN «%1$s» si è chiusa nel frattempo: non è stato salvato nulla. Riaprila, poi ricomincia.</string>
+    <string name="backup_error_changed">Il file è cambiato dopo la verifica: non è stato ripristinato nulla. Sceglilo di nuovo.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">Questo backup conterrà %1$d nota, cestino compreso.</item>
         <item quantity="many">Questo backup conterrà %1$d di note, cestino compreso.</item>

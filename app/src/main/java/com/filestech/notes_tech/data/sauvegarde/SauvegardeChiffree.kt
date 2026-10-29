@@ -65,6 +65,8 @@ class SauvegardeChiffree @Inject constructor(
         val coffresACodeFermes: List<String>,
         /** Saved with their key: protected, in the file, by the backup's secret only. */
         val coffresACodeOuverts: List<String>,
+        /** Their ids: what [preparer] holds the writing to ([CoffreRefermeException]). */
+        val idsDesCoffresACodeOuverts: Set<String>,
     )
 
     /** What was written, and read back. */
@@ -80,6 +82,13 @@ class SauvegardeChiffree @Inject constructor(
 
     class RelectureEchoueeException(cause: Throwable?) : IOException("la sauvegarde ecrite ne se relit pas", cause)
 
+    /**
+     * A PIN vault the preview said open has locked since — the user left the app to note the code,
+     * and every vault locks in the background. Written anyway, the backup would not be the one
+     * announced: nothing is written, and the screen names the vault.
+     */
+    class CoffreRefermeException(val nom: String) : IllegalStateException("coffre a code referme depuis l'apercu")
+
     suspend fun apercu(): Apercu = withContext(Dispatchers.IO) {
         val database = databases.get()
         database.withTransaction {
@@ -89,48 +98,54 @@ class SauvegardeChiffree @Inject constructor(
                 .partition { sessions.hasLiveSession(it.id) }
             // The same rule as the writing's ([coffreDe]): what cannot travel is left out, here counted.
             val omis = dossiers.filter { it.vaultSalt != null && !peutVoyager(it) }.map { it.id }.toSet()
-            var notes = 0
-            parPages(database) { page -> notes += page.count { it.folderId !in omis } }
             Apercu(
                 dossiers = dossiers.size - omis.size,
-                notes = notes,
+                // Counted from each note's folder alone: no title, no content read to count them.
+                notes = database.sauvegardeDao().poidsDesNotes().count { it.dossierId !in omis },
                 coffresACodeFermes = fermes.map { it.name },
                 coffresACodeOuverts = ouverts.map { it.name },
+                idsDesCoffresACodeOuverts = ouverts.map { it.id }.toSet(),
             )
         }
     }
 
     /**
      * Writes the backup under [secret] into the app's cache, while the vaults are as the preview saw
-     * them, then reads it back whole.
+     * them — [coffresOuverts], the PIN vaults it said open — then reads it back whole. A [Preparee]
+     * lost to a cancellation on the way back is purged at the next startup.
      *
+     * @throws CoffreRefermeException one of [coffresOuverts] has locked since: nothing is kept.
      * @throws SauvegardeTropGrosseException past [FichierDeSauvegarde.TAILLE_MAX]: nothing is kept.
      * @throws RelectureEchoueeException the file written does not read back: nothing is kept.
      */
-    suspend fun preparer(secret: String): Preparee = withContext(Dispatchers.IO) {
+    suspend fun preparer(secret: String, coffresOuverts: Set<String>): Preparee = withContext(Dispatchers.IO) {
         val repertoire = repertoireDAttente(context)
         val pret = repertoire.isDirectory || repertoire.mkdirs()
         if (!pret) {
             throw IOException("attente de sauvegarde impossible a creer")
         }
         val fichier = File.createTempFile("sauvegarde", ".ntbackup", repertoire)
-        val enTete = FichierDeSauvegarde.nouvelEnTete()
-        val octetsDuSecret = SecretDeSauvegarde.octets(secret)
-        val cle = try {
-            FichierDeSauvegarde.cle(octetsDuSecret, enTete)
-        } finally {
-            octetsDuSecret.wipe()
-        }
+        // From here every exit deletes the file and wipes what was derived — the derivation itself
+        // (64 MiB) included, which is the step most likely to fail.
+        var cle: ByteArray? = null
         val clesDesCoffres = HashMap<String, ByteArray>()
         try {
-            val ecrite = ecrire(FileOutputStream(fichier), cle, enTete, clesDesCoffres)
-            relire(cle, ecrite) { FileInputStream(fichier) }
+            val enTete = FichierDeSauvegarde.nouvelEnTete()
+            val octetsDuSecret = SecretDeSauvegarde.octets(secret)
+            val derivee = try {
+                FichierDeSauvegarde.cle(octetsDuSecret, enTete)
+            } finally {
+                octetsDuSecret.wipe()
+            }
+            cle = derivee
+            val ecrite = ecrire(FileOutputStream(fichier), derivee, enTete, clesDesCoffres, coffresOuverts)
+            relire(derivee, ecrite) { FileInputStream(fichier) }
             Preparee(fichier, ecrite)
         } catch (e: Throwable) {
             fichier.delete()
             throw e
         } finally {
-            cle.wipe()
+            cle?.wipe()
             clesDesCoffres.values.forEach { it.wipe() }
         }
     }
@@ -142,26 +157,30 @@ class SauvegardeChiffree @Inject constructor(
      *
      * @throws RelectureEchoueeException the document does not hold those bytes: it is deleted.
      */
-    suspend fun deposer(preparee: Preparee, document: Uri): Creation = withContext(Dispatchers.IO) {
-        try {
-            val sortie = context.contentResolver.openOutputStream(document, "w")
-                ?: throw IOException("document de sauvegarde impossible a ouvrir")
-            val ecrite = sortie.use { FileInputStream(preparee.fichier).use { entree -> empreinte(entree, it) } }
-            val relue = try {
-                val entree = context.contentResolver.openInputStream(document)
-                    ?: throw IOException("sauvegarde ecrite impossible a rouvrir")
-                entree.use { empreinte(it, sortie = null) }
-            } catch (e: IOException) {
-                throw RelectureEchoueeException(e)
+    suspend fun deposer(preparee: Preparee, document: Uri): Creation = try {
+        withContext(Dispatchers.IO) {
+            try {
+                val sortie = context.contentResolver.openOutputStream(document, "w")
+                    ?: throw IOException("document de sauvegarde impossible a ouvrir")
+                val ecrite = sortie.use { FileInputStream(preparee.fichier).use { entree -> empreinte(entree, it) } }
+                val relue = try {
+                    val entree = context.contentResolver.openInputStream(document)
+                        ?: throw IOException("sauvegarde ecrite impossible a rouvrir")
+                    entree.use { empreinte(it, sortie = null) }
+                } catch (e: IOException) {
+                    throw RelectureEchoueeException(e)
+                }
+                if (!MessageDigest.isEqual(ecrite, relue)) throw RelectureEchoueeException(null)
+                preparee.creation
+            } catch (e: Throwable) {
+                supprimer(document)
+                throw e
             }
-            if (!MessageDigest.isEqual(ecrite, relue)) throw RelectureEchoueeException(null)
-            preparee.creation
-        } catch (e: Throwable) {
-            supprimer(document)
-            throw e
-        } finally {
-            abandonner(preparee)
         }
+    } finally {
+        // Outside the dispatcher's block: a call cancelled before that block ever ran still lets the
+        // waiting file go (GPT-5.6 review, 2026-10-29).
+        abandonner(preparee)
     }
 
     /** The waiting file, deleted: the user went back from the picker, or the screen is gone. */
@@ -180,6 +199,7 @@ class SauvegardeChiffree @Inject constructor(
         cle: ByteArray,
         enTete: FichierDeSauvegarde.EnTete,
         clesDesCoffres: MutableMap<String, ByteArray>,
+        coffresOuverts: Set<String>,
     ): Creation {
         var dossiers = 0
         var notes = 0
@@ -191,13 +211,16 @@ class SauvegardeChiffree @Inject constructor(
                     database.withTransaction {
                         val sauvegardes = HashSet<String>()
                         for (dossier in database.folderDao().listAll()) {
-                            val coffre =
-                                coffreDe(dossier, clesDesCoffres) ?: if (dossier.vaultSalt != null) continue else null
+                            val coffre = coffreDe(dossier, clesDesCoffres)
+                            if (coffre == null && dossier.vaultSalt != null) {
+                                if (dossier.id in coffresOuverts) throw CoffreRefermeException(dossier.name)
+                                continue
+                            }
                             contenu.dossier(dossier.versLaSauvegarde(coffre))
                             sauvegardes += dossier.id
                             dossiers++
                         }
-                        parPages(database) { page ->
+                        parLots(database) { page ->
                             for (note in page) {
                                 if (note.folderId in sauvegardes) {
                                     contenu.note(note.versLaSauvegarde())
@@ -298,14 +321,24 @@ class SauvegardeChiffree @Inject constructor(
         }
     }
 
-    private suspend inline fun parPages(database: NotesDatabase, action: (List<NoteEntity>) -> Unit) {
-        var decalage = 0
-        while (true) {
+    /**
+     * Every note, in lots of at most [LOT_MAX] notes and [POIDS_MAX] characters — a note heavier than
+     * that alone in its lot. Counted by notes alone, a lot of imported notes (up to 5 MiB each) could
+     * hold more text than the heap (GPT-5.6 review, 2026-10-29). In the caller's read transaction.
+     */
+    private suspend inline fun parLots(database: NotesDatabase, action: (List<NoteEntity>) -> Unit) {
+        val poids = database.sauvegardeDao().poidsDesNotes()
+        var debut = 0
+        while (debut < poids.size) {
             coroutineContext.ensureActive()
-            val page = database.sauvegardeDao().pageDeNotes(PAGE, decalage)
-            if (page.isEmpty()) return
-            action(page)
-            decalage += page.size
+            var fin = debut + 1
+            var cumul = poids[debut].poids
+            while (fin < poids.size && fin - debut < LOT_MAX && cumul + poids[fin].poids <= POIDS_MAX) {
+                cumul += poids[fin].poids
+                fin++
+            }
+            action(database.sauvegardeDao().notes(poids.subList(debut, fin).map { it.id }))
+            debut = fin
         }
     }
 
@@ -359,7 +392,8 @@ class SauvegardeChiffree @Inject constructor(
     )
 
     companion object {
-        private const val PAGE = 200
+        private const val LOT_MAX = 200
+        private const val POIDS_MAX = 1L shl 20
         private const val TAMPON = 64 * 1024
 
         /**
