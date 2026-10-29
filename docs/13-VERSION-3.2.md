@@ -27,11 +27,17 @@
   corbeille, avec sa date. Pas les réglages, pas le modèle de dictée, pas le verrou de l'appli.
 - **Restaurer ramène ce que contient le fichier**, y compris ce qui a été supprimé depuis sa création :
   un fichier ne peut pas savoir ce qui sera supprimé après lui (R-2). L'écran de restauration le dit.
-- **Phrase de passe** saisie deux fois, **normalisée en Unicode NFC** avant usage (un même « é » tapé
-  sur deux claviers donne deux suites d'octets ; R-15), **12 caractères au moins**, et refusée si elle
-  est évidente : un seul caractère répété, une suite (`123456789012`, `abcdefghijkl`), ou une phrase de
-  la courte liste des plus courantes (R-14). L'écran dit pourquoi : le fichier peut être attaqué hors
-  ligne, sans limite d'essais.
+- **Un code de sauvegarde GÉNÉRÉ, par défaut** (Patrice, 2026-10-29 : « fais ce qu'il y a de mieux » ;
+  R-14) : 24 caractères en 6 groupes de 4 (`K7QM-T2XB-…`), tirés par `SecureRandom` dans un alphabet de
+  32 signes sans ambiguïté (ni `0`/`O`, ni `1`/`I`/`L`), soit 120 bits. Affiché **une fois**, à noter ;
+  la création exige de le **recopier** avant d'écrire le fichier — un code mal noté, c'est une sauvegarde
+  perdue. À la restauration, la saisie ignore la casse, les espaces et les tirets. Le fichier quitte le
+  téléphone et s'attaque hors ligne, sans limite d'essais : seul un secret tiré au hasard y résiste à
+  coup sûr.
+- **Ou une phrase choisie**, en option : saisie deux fois, **normalisée en Unicode NFC** avant usage (un
+  même « é » tapé sur deux claviers donne deux suites d'octets ; R-15), **12 caractères au moins**, et
+  refusée si elle est évidente : un seul caractère répété, une suite (`123456789012`, `abcdefghijkl`), ou
+  une phrase de la courte liste des plus courantes. L'écran dit pourquoi.
 - **Argon2id v1.3, t = 3, m = 64 Mio, p = 1**, sortie 32 octets (les paramètres des coffres à phrase,
   `VaultParams`) ; **AES-256-GCM, étiquette de 128 bits**, par Bouncy Castle (déjà dans l'appli pour
   Argon2) en flux.
