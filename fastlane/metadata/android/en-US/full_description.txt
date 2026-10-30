@@ -23,8 +23,10 @@ Notes Tech: 100% local Markdown note-taking, encrypted at rest. Written in Kotli
 • Long press on a note: edit, move to trash with Undo, or delete permanently
 • A pastel colour per note in the lists (a vault note's only while its vault is open)
 • <code>[[Title]]</code> backlinks with autocomplete + "notes linking here" panel
-• Instant FTS5 search, configurable sort
+• Instant FTS5 search, find in note with highlighted matches, configurable sort
 • Markdown export, one note or a ZIP (YAML frontmatter, Obsidian/Logseq compatible)
+• Import of Markdown, text and ZIP files; share text or files from other apps
+• Encrypted backup of your notes and vaults, restored without overwriting anything
 
 <b>Five languages</b>
 • English, French, German, Italian, Spanish — chosen in Settings

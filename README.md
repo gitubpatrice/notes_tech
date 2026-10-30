@@ -4,7 +4,7 @@
 
 🇫🇷 [Version française](README.fr.md)
 
-**v3.1.1 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
+**v3.2.0 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
 
 Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpack Compose.
 **100% local, no Internet permission.** Interface in **English, French, German, Italian and
@@ -19,6 +19,24 @@ sensitive or dense notes without them ever leaving their phone.
 technically unable to send anything, and you can check that in its manifest.**
 
 ---
+
+## What's new in 3.2.0
+
+- **Encrypted backup** (Settings → Encrypted backup): your notes and folders, trash included, in one
+  `.ntbackup` file, encrypted (Argon2id, AES-256-GCM) by a generated code or a passphrase you choose.
+  A passphrase vault travels as it is, still sealed by its own passphrase; an open PIN vault travels
+  inside the backup's encryption and gets a new PIN when restored. Restoring adds and never
+  overwrites: the whole file is checked first, then written in one transaction.
+- **Import** Markdown or text files, or a ZIP of them — a Notes Tech export, an Obsidian vault:
+  folders kept, frontmatter read, never into a vault. At most 500,000 characters per note.
+- **Find in note**: matches highlighted, "3 / 12", previous and next, while reading and writing; a
+  note opened from a search result opens with its search.
+- **Share to Notes Tech** from another app: a text becomes a note in the Inbox, text files are
+  imported — after the app lock, when it is on.
+- **Long notes**: the body is now written in Android's own text field, which draws only the lines on
+  screen — on a Galaxy S9, from about 1 s per keystroke at 100,000 characters to about 20 ms. The
+  keyboard reads only the text around the cursor, scrolling flings, and reading a very long note no
+  longer freezes.
 
 ## What's new in 3.1.1
 
@@ -127,6 +145,11 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 ### Search
 - Instant **FTS5** full-text search (`unicode61` tokenizer, diacritics folded). Deleted text is
   erased from the index too (`secure-delete`).
+- **Find in note**: the matches of a search highlighted in the note on screen, one after the other.
+
+### Backup, import and sharing
+- **Encrypted backup** to a `.ntbackup` file you keep, restored on this phone or another one.
+- **Import** of Markdown or text files and ZIP archives; **share** text or files from other apps.
 
 ### Whisper voice dictation
 - **whisper.cpp 1.8.3**, compiled into the app from source and run on the device.
@@ -157,7 +180,7 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
 ## Installation
 
 1. **Published APK** — from [GitHub Releases](https://github.com/gitubpatrice/notes_tech/releases),
-   the universal APK (`notes-tech-universel-3.1.1.apk`, any phone), or the lighter one for your device
+   the universal APK (`notes-tech-universel-3.2.0.apk`, any phone), or the lighter one for your device
    (`arm64-v8a` fits almost every phone since 2016). Check the SHA-256 published in the release notes.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    built and signed by F-Droid.

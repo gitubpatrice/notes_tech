@@ -2,9 +2,37 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.1.1 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.2.0 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.2.0 — encrypted backup, import, incoming share, the body field (2026-10-30)
+
+- **Encrypted backup** (`.ntbackup` v1): a 48-byte header authenticated as associated data (format
+  version, Argon2id parameters — t = 3, m = 64 MiB, p = 1, refused before any derivation if different —,
+  salt, nonce), then AES-256-GCM in streaming mode; the content is read to the end of its stream, so the
+  tag is always checked. Bounded to 64 MiB on what is really read. The file is written in the app's
+  cache BEFORE the system picker opens — every vault locks when the app goes to the background —, then
+  copied and read back, compared by SHA-256; the cache copy is deleted on every way out, at each start
+  and by the panic mode. Restoring is a trial pass, then a writing pass in one Room transaction, bound
+  to the trial's bytes by SHA-256; the Keystore keys a failed pass created for PIN vaults are deleted
+  only when their vault is not in the database. The panic mode cannot reach a backup saved outside the
+  app, and the screen says so. Two external reviews (GPT-5.6), of the design and of the code; every
+  finding handled.
+- **Import and incoming share**: strict UTF-8, at most 500,000 characters per note; 5,000 files and
+  100 MiB inflated per import (a ZIP bomb stops it), 20 files and 16 MiB per share, read one file at a
+  time; never into a vault. The share activity is exported but has no interface: it bounds what it
+  receives and hands it in memory to the app. `MainActivity` still drops every extra, and the note is
+  created only after the app lock.
+- **The note's body is an `EditText`** — Compose draws every line of a text at each frame, and a long
+  note could not be written in. What an `EditText` opens, closed: the selection toolbar keeps cut, copy,
+  paste and select all (no Share, no Autofill, no `PROCESS_TEXT` app — Android 10 and below list them
+  all); Copy and Cut go through a vault note's protected clipboard, and a Cut removes its text only
+  once written; no autofill, no content capture (Android 11 and later; a vault note's window is
+  `FLAG_SECURE`), no spell checker, nothing in the saved state. A vault note asks the keyboard not to
+  learn, and its selection cannot be dragged to another app. The keyboard reads 5,000 characters
+  around the cursor, never the whole note — a long selection, nothing. Reviewed by GPT-5.6; every new
+  defence seen failing when removed.
 
 ## v3.1.1 — the long press that closed the editor (2026-10-29)
 

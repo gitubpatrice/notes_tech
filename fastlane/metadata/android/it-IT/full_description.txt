@@ -23,8 +23,10 @@ Notes Tech: note Markdown 100% locali, cifrate a riposo. Scritta in Kotlin.
 • Pressione prolungata su una nota: modificarla, spostarla nel cestino con Annulla o eliminarla definitivamente
 • Un colore pastello per nota negli elenchi (per una nota in cassaforte, solo a cassaforte sbloccata)
 • Collegamenti inversi <code>[[Titolo]]</code> con completamento automatico e pannello «note che rimandano qui»
-• Ricerca FTS5 istantanea, ordinamento regolabile
+• Ricerca FTS5 istantanea, ricerca nella nota con occorrenze evidenziate, ordinamento regolabile
 • Esportazione Markdown, di una nota o in ZIP (frontmatter YAML compatibile con Obsidian/Logseq)
+• Importazione di file Markdown, di testo e ZIP; condivisione di testi o file da altre app
+• Backup cifrato di note e casseforti, ripristinato senza sovrascrivere nulla
 
 <b>Cinque lingue</b>
 • Inglese, francese, tedesco, italiano, spagnolo — a scelta nelle Impostazioni

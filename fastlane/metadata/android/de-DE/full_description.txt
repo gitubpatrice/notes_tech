@@ -23,8 +23,10 @@ Notes Tech: Markdown-Notizen, 100 % lokal und im Ruhezustand verschlüsselt. In 
 • Langes Drücken auf eine Notiz: bearbeiten, in den Papierkorb mit Rückgängig oder endgültig löschen
 • Eine Pastellfarbe pro Notiz in den Listen (bei einer Tresornotiz nur bei entsperrtem Tresor)
 • Rückverweise <code>[[Titel]]</code> mit Autovervollständigung und Bereich „Notizen, die hierher verlinken“
-• Sofortige FTS5-Suche, einstellbare Sortierung
+• Sofortige FTS5-Suche, Suche in der Notiz mit hervorgehobenen Treffern, einstellbare Sortierung
 • Markdown-Export, eine Notiz oder als ZIP (YAML-Frontmatter, kompatibel mit Obsidian/Logseq)
+• Import von Markdown-, Text- und ZIP-Dateien; Texte oder Dateien aus anderen Apps teilen
+• Verschlüsselte Sicherung Ihrer Notizen und Tresore, wiederhergestellt, ohne etwas zu überschreiben
 
 <b>Fünf Sprachen</b>
 • Englisch, Französisch, Deutsch, Italienisch, Spanisch — in den Einstellungen wählbar
