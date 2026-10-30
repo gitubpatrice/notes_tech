@@ -18,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -112,6 +113,9 @@ class HomeViewModel @Inject constructor(
     private val events = MutableSharedFlow<HomeEvent>(extraBufferCapacity = 4)
     val eventFlow = events.asSharedFlow()
 
+    /** The note creation running, if any — see [createNote]. */
+    private var creation: Job? = null
+
     /**
      * Le texte de recherche **freiné**, et lui seul déclenche une requête.
      *
@@ -185,9 +189,17 @@ class HomeViewModel @Inject constructor(
      * Le contrôle `isUnlocked` ci-dessous n'est donc PAS la protection, seulement la **courtoisie**
      * qui propose la saisie du secret au lieu d'un message d'erreur. La protection, c'est la
      * transaction.
+     *
+     * 🔴 **One creation at a time** (3.2.1): two quick taps on « Nouvelle note » created two notes,
+     * the second one left empty in the list (measured, `DoubleToucherTest`). The tap that comes once
+     * the editor is opening is dropped by the screen (`HomeRoute`, `dropUnlessResumed`); the one that
+     * comes while the creation still runs is dropped here, as `ImportViewModel` and `ExportViewModel`
+     * drop theirs. ⚠️ No test reaches this second case: on the emulator the creation is over before
+     * any second tap. It is kept for slow phones, where the database write takes longer.
      */
     fun createNote() {
-        viewModelScope.launch {
+        if (creation?.isActive == true) return
+        creation = viewModelScope.launch {
             val cible = folderId.value ?: Folder.INBOX_ID
             val dossier = folders.find(cible)
             if (dossier?.isVault == true && !vaults.isUnlocked(cible)) {
