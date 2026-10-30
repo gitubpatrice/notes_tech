@@ -201,6 +201,7 @@
       partage plus.
     -->
     <string name="note_editor_copy_empty">Nothing to copy: this note is empty</string>
+    <string name="note_editor_copy_failed">Couldn\'t copy: the clipboard refused this text, probably too long.</string>
     <!--
       Ajout du portage. La feuille de deplacement reutilisait `note_card_locked` pour signaler
       un dossier coffre : elle disait donc « Note verrouillee » a propos d un DOSSIER, sur

@@ -163,7 +163,7 @@ class FermetureDuCoffreTest {
         withContext(Dispatchers.Main) {
             editeur.onContentChange(TextFieldValue("abc PIN def", selection = TextRange(4, 7))) // selected
             editeur.onContentChange(TextFieldValue("abc  def", selection = TextRange(4))) // what Cut leaves
-            editeur.copieProtegeeRefusee("PIN")
+            editeur.copieRefusee("PIN")
         }
 
         val etat = editeur.state.value
@@ -181,7 +181,7 @@ class FermetureDuCoffreTest {
 
         withContext(Dispatchers.Main) {
             editeur.onContentChange(TextFieldValue("abc PIN def", selection = TextRange(4, 7)))
-            editeur.copieProtegeeRefusee("PIN")
+            editeur.copieRefusee("PIN")
         }
 
         assertThat(editeur.state.value.content.text).isEqualTo("abc PIN def")
@@ -198,7 +198,7 @@ class FermetureDuCoffreTest {
         withContext(Dispatchers.Main) {
             editeur.onTitleChange(TextFieldValue(titre, selection = TextRange(0, 5))) // "Bank " selected
             editeur.onTitleChange(TextFieldValue(titre.removePrefix("Bank "), selection = TextRange(0)))
-            editeur.copieProtegeeRefusee("Bank ")
+            editeur.copieRefusee("Bank ")
         }
 
         assertThat(editeur.state.value.title).isEqualTo(titre)
@@ -219,7 +219,7 @@ class FermetureDuCoffreTest {
             editeur.onContentChange(TextFieldValue("PIN and PIN", selection = TextRange(0, 3))) // "PIN" selected
             editeur.onContentChange(TextFieldValue(" and PIN", selection = TextRange(0))) // deleted by hand
             editeur.onContentChange(TextFieldValue(" and PIN", selection = TextRange(5, 8))) // the other "PIN"
-            editeur.copieProtegeeRefusee("PIN") // copied, refused
+            editeur.copieRefusee("PIN") // copied, refused
         }
 
         assertThat(editeur.state.value.content.text).isEqualTo(" and PIN")
@@ -236,7 +236,7 @@ class FermetureDuCoffreTest {
             editeur.onTitleChange(TextFieldValue("PIN and PIN", selection = TextRange(0, 3)))
             editeur.onTitleChange(TextFieldValue(" and PIN", selection = TextRange(0)))
             editeur.onTitleChange(TextFieldValue(" and PIN", selection = TextRange(5, 8)))
-            editeur.copieProtegeeRefusee("PIN")
+            editeur.copieRefusee("PIN")
         }
 
         assertThat(editeur.state.value.title).isEqualTo(" and PIN")

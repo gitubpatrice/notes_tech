@@ -18,18 +18,19 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -204,6 +205,12 @@ class EditeurTest {
         poser(noteChargee())
 
         assertThat(regle.champsDeSaisieSansNom()).isEmpty()
+        // The body is an EditText since 3.2.0, which the sweep — Compose's semantics — does not see:
+        // its name is read where TalkBack reads it, note filled.
+        val nom = regle.runOnUiThread {
+            checkNotNull(champDuCorpsDe(regle.activity)).createAccessibilityNodeInfo().hintText
+        }
+        assertThat(nom?.toString()).isEqualTo(texte(R.string.note_editor_content))
     }
 
     /** Le balayage §71, sur l'état qui porte le plus d'actionnables. */
@@ -331,9 +338,12 @@ class EditeurTest {
 
         regle.onNodeWithContentDescription(texte(R.string.common_loading)).assertIsDisplayed()
         assertThat(regle.onAllNodes(hasSetTextAction()).fetchSemanticsNodes()).isEmpty()
+        champDuCorps().assertDoesNotExist()
 
         poser(noteChargee())
-        assertThat(regle.onAllNodes(hasSetTextAction()).fetchSemanticsNodes()).hasSize(2)
+        // The title, a Compose field; the body, Android's own (3.2.0).
+        assertThat(regle.onAllNodes(hasSetTextAction()).fetchSemanticsNodes()).hasSize(1)
+        champDuCorps().assertExists()
     }
 
     /**
@@ -688,8 +698,10 @@ class EditeurTest {
         regle.onNodeWithText(texte(R.string.note_editor_mode_edit)).performClick()
         regle.waitForIdle()
         assertThat(basculements).containsExactly(true, false).inOrder()
-        // "Edit" means "write": the cursor is in the body.
-        champDuCorps().assertIsFocused()
+        // "Edit" means "write": the cursor is in the body — its own EditText since 3.2.0.
+        regle.waitUntil(DELAI_DU_FOCUS_MS) {
+            regle.runOnUiThread { champDuCorpsDe(regle.activity)?.hasFocus() } == true
+        }
     }
 
     /**
@@ -818,8 +830,7 @@ class EditeurTest {
         assertThat(hauteurDuCorps).isAtLeast(with(regle.density) { HAUTEUR_MINIMALE_DU_CORPS.roundToPx() })
         // What no longer fits, the links panel, is reached by scrolling the editor to its end — the
         // column holding the body, not the panel's own scroll, which `performScrollTo` would pick.
-        val corps = hasSetTextAction() and hasText(texte(R.string.note_editor_content))
-        regle.onNode(hasScrollAction() and hasAnyDescendant(corps))
+        regle.onNode(hasScrollAction() and hasAnyDescendant(hasTestTag(TAG_DU_CHAMP_DU_CORPS)))
             .performSemanticsAction(SemanticsActions.ScrollBy) { defiler -> defiler(0f, DEFILEMENT_JUSQU_AU_BOUT) }
         regle.onNodeWithText(TITRE_MENTION).performScrollTo().assertIsDisplayed()
     }
@@ -845,7 +856,8 @@ class EditeurTest {
 
     private fun champDuTitre() = regle.onNode(hasSetTextAction() and hasText(texte(R.string.note_editor_title)))
 
-    private fun champDuCorps() = regle.onNode(hasSetTextAction() and hasText(texte(R.string.note_editor_content)))
+    /** The body field (3.2.0): Android's own EditText, in a Compose node carrying this tag. */
+    private fun champDuCorps() = regle.onNodeWithTag(TAG_DU_CHAMP_DU_CORPS)
 
     /** The preview is read off the main thread: wait for [texteAttendu] to be composed. */
     private fun attendre(texteAttendu: String) {
@@ -921,6 +933,8 @@ class EditeurTest {
     )
 
     private companion object {
+        const val DELAI_DU_FOCUS_MS = 5_000L
+
         val INDICATEUR_D_ACTIVITE = SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo)
 
         /** Les quatre actions de barre d'une note ouverte, dans l'ordre où elles apparaissent. */

@@ -636,8 +636,11 @@ class NoteEditorViewModel @Inject constructor(
      * current one. Every change reaches here, a mere selection change included, for both fields: a
      * text deleted by hand, then another selection copied, leaves a previous value whose selection
      * is the copied one — nothing is put back. A Copy changed nothing and is only said.
+     *
+     * The body field (3.2.0, `ChampDuCorps`) removes a Cut only once written: its refusals — a vault
+     * note's, or a plain clip too long for the clipboard — reach here with nothing to undo.
      */
-    fun copieProtegeeRefusee(texte: String) {
+    fun copieRefusee(texte: String) {
         val etat = _state.value
         val avant = contenuPrecedent
         val titreAvant = titrePrecedent
@@ -653,7 +656,13 @@ class NoteEditorViewModel @Inject constructor(
         }
         if (!_action.value.enCours) {
             _action.value = ActionDEditeur(
-                erreur = R.string.error_clipboard_secure_unavailable,
+                // The body field (3.2.0) writes a plain clip outside a vault, and reports a refusal too:
+                // a selection too long for one Binder transaction.
+                erreur = if (etat.isVaultNote) {
+                    R.string.error_clipboard_secure_unavailable
+                } else {
+                    R.string.note_editor_copy_failed
+                },
                 origine = ActionDEditeur.OrigineDErreur.COPIE,
             )
         }

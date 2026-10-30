@@ -79,8 +79,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.Layout
@@ -351,7 +349,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         SaisieDeCoffre(
             actif = state.isVaultNote,
             deposer = viewModel::deposerDansLePressePapiers,
-            surEchec = viewModel::copieProtegeeRefusee,
+            surEchec = viewModel::copieRefusee,
         ) {
             FeuilleDAutocompletion(
                 suggestions = suggestions,
@@ -403,7 +401,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     SaisieDeCoffre(
         actif = state.isVaultNote,
         deposer = viewModel::deposerDansLePressePapiers,
-        surEchec = viewModel::copieProtegeeRefusee,
+        surEchec = viewModel::copieRefusee,
     ) {
         NoteEditorScreen(
             state = state,
@@ -520,14 +518,8 @@ fun NoteEditorScreen(
     val focus = LocalFocusManager.current
     // Leaving the reading puts the cursor in the body, and with it the keyboard: "Edit" means "write".
     // Only after that button — a note created blank opens to be written, as before, without forcing it.
-    val focusDuCorps = remember { FocusRequester() }
+    // Taken by the body field once it is there (see `ChampDuCorps`).
     var focaliserLeCorps by remember { mutableStateOf(false) }
-    LaunchedEffect(lecture, focaliserLeCorps) {
-        if (!lecture && focaliserLeCorps) {
-            focaliserLeCorps = false
-            focusDuCorps.requestFocus()
-        }
-    }
     val noteOuverte = state.note != null && state.lockedVault == null && state.loadError == null && !state.loading
 
     // Above the Edit / Preview branch, not inside it: the branch leaving the composition took the
@@ -826,18 +818,15 @@ fun NoteEditorScreen(
                         if (lecture) {
                             FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu)
                         } else {
-                            TextField(
-                                value = state.content,
-                                onValueChange = onContenuChange,
-                                // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
-                                // part** — le publié en fait le `labelText` de ce champ exactement. Même
-                                // discriminant que §79, appliqué au même écran le même jour.
-                                label = { Text(stringResource(R.string.note_editor_content)) },
-                                placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
-                                textStyle = MaterialTheme.typography.bodyLarge,
-                                visualTransformation = surlignageDuChamp(CleDuCorps),
-                                colors = champSansDecor(),
-                                modifier = Modifier.fillMaxSize().focusRequester(focusDuCorps),
+                            // 🔴 Android's own text field, not Compose's: a long note was unusable to
+                            // write in — see `ChampDuCorps`. Its label is `note_editor_content`, as
+                            // the published app's `labelText`.
+                            ChampDuCorps(
+                                valeur = state.content,
+                                onValeurChange = onContenuChange,
+                                focaliser = focaliserLeCorps,
+                                onFocalise = { focaliserLeCorps = false },
+                                modifier = Modifier.fillMaxSize(),
                             )
                         }
                     }

@@ -181,6 +181,7 @@
     <string name="note_editor_mode_edit">Éditer</string>
     <string name="note_editor_preview_empty">Rien à afficher pour l\'instant.</string>
     <string name="note_editor_copy_empty">Rien à copier : cette note est vide</string>
+    <string name="note_editor_copy_failed">Copie impossible : le presse-papiers a refusé ce texte, sans doute trop long.</string>
     <string name="move_to_folder_vault">Dossier coffre : la note sera chiffrée</string>
     <string name="note_editor_menu_move">Déplacer vers un autre dossier</string>
     <string name="move_to_folder_title">Déplacer vers un autre dossier</string>

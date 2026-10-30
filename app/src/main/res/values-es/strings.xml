@@ -176,6 +176,7 @@
     <string name="note_editor_mode_edit">Editar</string>
     <string name="note_editor_preview_empty">Todavía no hay nada que previsualizar.</string>
     <string name="note_editor_copy_empty">Nada que copiar: esta nota está vacía</string>
+    <string name="note_editor_copy_failed">No se pudo copiar: el portapapeles rechazó este texto, probablemente demasiado largo.</string>
     <string name="move_to_folder_vault">Carpeta de caja fuerte: la nota se cifrará</string>
     <string name="note_editor_menu_move">Mover a otra carpeta</string>
     <string name="move_to_folder_title">Mover a otra carpeta</string>

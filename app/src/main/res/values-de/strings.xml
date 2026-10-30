@@ -168,6 +168,7 @@
     <string name="note_editor_mode_edit">Bearbeiten</string>
     <string name="note_editor_preview_empty">Noch nichts für die Vorschau.</string>
     <string name="note_editor_copy_empty">Nichts zu kopieren: Diese Notiz ist leer</string>
+    <string name="note_editor_copy_failed">Kopieren nicht möglich: Die Zwischenablage hat diesen Text abgelehnt, vermutlich ist er zu lang.</string>
     <string name="move_to_folder_vault">Tresorordner: Die Notiz wird verschlüsselt</string>
     <string name="note_editor_menu_move">In einen anderen Ordner verschieben</string>
     <string name="move_to_folder_title">In einen anderen Ordner verschieben</string>
