@@ -3,11 +3,13 @@ package com.filestech.notes_tech.ui.editor
 import android.content.Intent
 import android.os.Build
 import android.os.Parcelable
+import android.os.SystemClock
 import android.text.style.BackgroundColorSpan
 import android.util.SparseArray
 import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
@@ -287,6 +289,42 @@ class ChampDuCorpsTest {
         }
     }
 
+    // ------------------------------------------------------------------ scrolling
+
+    /**
+     * 🔴 A fling keeps the text going once the finger is lifted: an EditText scrolls by the finger's
+     * distance only, and a long note "rame" (Patrice, S24 and S9, 2026-10-30). Discriminating: without
+     * the fling, the text moves by the drag and stops.
+     */
+    @Test
+    fun a_fling_keeps_the_text_going() {
+        poser((0 until 4_000).joinToString("\n") { "Ligne $it" })
+        val avant = surLeChamp {
+            scrollTo(0, layout.height + totalPaddingTop + totalPaddingBottom - height)
+            scrollY
+        }
+
+        val trajet = 600
+        surLeChamp {
+            val x = width / 2f
+            val depart = height / 4f
+            val instant = SystemClock.uptimeMillis()
+            fun evenement(action: Int, dt: Long, y: Float) =
+                MotionEvent.obtain(instant, instant + dt, action, x, y, 0).also { onTouchEvent(it) }.recycle()
+            evenement(MotionEvent.ACTION_DOWN, 0, depart)
+            for (pas in 1..6) evenement(MotionEvent.ACTION_MOVE, pas * 10L, depart + pas * trajet / 6f)
+            evenement(MotionEvent.ACTION_UP, 60, depart + trajet)
+        }
+        val apresLeDoigt = surLeChamp { scrollY }
+        SystemClock.sleep(DUREE_DE_L_ELAN_MS)
+        regle.waitForIdle()
+        val apres = surLeChamp { scrollY }
+
+        // The drag itself, then far more: the text kept going.
+        assertThat(avant - apresLeDoigt).isAtLeast(trajet / 2)
+        assertThat(avant - apres).isGreaterThan(3 * trajet)
+    }
+
     // ------------------------------------------------------------------ closed doors
 
     /**
@@ -405,5 +443,8 @@ class ChampDuCorpsTest {
     private companion object {
         /** The field's window, `ChampNatifDuCorps.FENETRE_DU_CLAVIER`. */
         const val FENETRE = 5_000
+
+        /** Long enough for a fling of a few thousand pixels per second to travel. */
+        const val DUREE_DE_L_ELAN_MS = 1_500L
     }
 }

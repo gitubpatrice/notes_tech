@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.editor
 
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,8 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -815,6 +818,26 @@ class EditeurTest {
     }
 
     /**
+     * 🔴 **A long body scrolls under the finger, all the way** (3.2.0). The editor's own column took
+     * every vertical drag on the native field: the field received ACTION_CANCEL 40 to 90 px into each
+     * gesture (logged on the S24, 2026-10-30), the text stopped mid-gesture and never flung —
+     * "ça rame, ça bloque même". Through Compose's pointer input, as a finger: a test handing the
+     * events to the field itself could not see it.
+     */
+    @Test
+    fun a_long_body_scrolls_under_the_finger_all_the_way() {
+        poser(noteChargee(corps = (0 until LIGNES_D_UNE_TRES_LONGUE_NOTE).joinToString("\n") { "Line $it" }))
+        val hauteur = champDuCorps().fetchSemanticsNode().size.height
+
+        champDuCorps().performTouchInput { swipeUp(startY = bottom - 2f, endY = top + 2f, durationMillis = 200) }
+        SystemClock.sleep(DUREE_D_UN_ELAN_MS)
+        regle.waitForIdle()
+
+        val defilement = regle.runOnUiThread { checkNotNull(champDuCorpsDe(regle.activity)).scrollY }
+        assertThat(defilement).isGreaterThan(hauteur / 2)
+    }
+
+    /**
      * 🔴 **In a short window, the body keeps room to type and the editor scrolls** (Gemini review,
      * 2026-09-25). With 2.0.9's layout alone, the header took all the height the keyboard left in
      * landscape: on the S9 the body field was 40 dp tall, and 0 dp with the keyboard up. A short
@@ -954,6 +977,9 @@ class EditeurTest {
         const val HORODATAGE = 1_700_000_000_000L
         const val PARAGRAPHES_D_UNE_LONGUE_NOTE = 3_000
         const val LIGNES_D_UNE_TRES_LONGUE_NOTE = 5_000
+
+        /** Long enough for a fling to run its course. */
+        const val DUREE_D_UN_ELAN_MS = 1_500L
         const val PARAGRAPHE_DU_MILIEU = "Paragraph 1500"
         const val ATTENTE_DE_L_APERCU_MS = 10_000L
 

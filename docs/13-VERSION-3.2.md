@@ -293,6 +293,19 @@ champ en écriture est redessiné à chaque frappe et à chaque clignotement du 
   de l'ancien éditeur, puis proposé de monter « si c'est fluide » : mesuré fluide à 450 000 sur le S9. Une
   note tapée ou collée dans l'appli n'a pas de borne.
 
+**Défilement en écriture (2026-10-30, essais de Patrice sur S24 et S9 : « ça rame, ça bloque même »)** :
+deux défauts, chaque image pourtant dessinée en moins de 12 ms.
+- Un `EditText` défile de la seule distance du doigt, sans élan : ajouté (`VelocityTracker` + `Scroller`), arrêté
+  par un toucher ou une frappe.
+- **La colonne de l'éditeur volait le geste** : journalisé sur le S24, le champ recevait ACTION_CANCEL 40 à
+  90 px après chaque appui — le texte s'arrêtait net, l'élan ne partait jamais. Le champ garde désormais le geste
+  dès que son texte peut défiler (`requestDisallowInterceptTouchEvent`). Mesuré, 8 gestes sur `note-450k` : S24
+  24 → 862 images, 5 ms (médiane), 10 ms au pire, clavier ouvert ou non ; S9 540 images, 21 ms au pire — l'à-coup
+  d'environ 1 s vu sur le S9 clavier ouvert, d'abord pris pour une limite du clavier Samsung, venait de ce geste
+  coupé et a disparu. Un test instrumenté qui donnait les événements au champ lui-même ne pouvait pas le voir :
+  `EditeurTest.a_long_body_scrolls_under_the_finger_all_the_way` passe par l'entrée de Compose (vu rouge sans le
+  correctif : 135 px au lieu de plus de 904).
+
 ## 6. Tests et relectures
 
 - JVM : format de sauvegarde (aller-retour, en-tête modifié, bornes, mauvaise phrase, troncature),

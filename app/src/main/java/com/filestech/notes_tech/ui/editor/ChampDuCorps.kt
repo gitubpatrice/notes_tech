@@ -19,7 +19,9 @@ import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedText
 import android.view.inputmethod.ExtractedTextRequest
@@ -30,6 +32,7 @@ import android.view.inputmethod.SurroundingText
 import android.view.inputmethod.TextSnapshot
 import android.view.textclassifier.TextClassifier
 import android.widget.EditText
+import android.widget.Scroller
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -321,7 +324,10 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
         addTextChangedListener(Surveillance())
         setOnFocusChangeListener { _, focus -> onFocus(focus) }
         // A press the listener consumes is not the platform's: no drag starts (see [glisserRetenu]).
-        setOnLongClickListener { glisserRetenu(protegee, selectionStart, selectionEnd, dernierToucher) }
+        setOnLongClickListener {
+            appuiLong = true
+            glisserRetenu(protegee, selectionStart, selectionEnd, dernierToucher)
+        }
         ViewCompat.setAccessibilityDelegate(
             this,
             object : AccessibilityDelegateCompat() {
@@ -398,6 +404,8 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
             enModification = true
             version++
+            // Typing brings the cursor into view: a fling still running would take it away again.
+            elan.forceFinished(true)
         }
 
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
@@ -576,10 +584,69 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
         return true
     }
 
+    // ------------------------------------------------------------------ fling
+
+    /**
+     * 🔴 **A scroll keeps going once the finger is lifted, as in Compose's field.** An `EditText`
+     * scrolls by the finger's distance only — `Touch.onTouchEvent` has no fling —, and a long note
+     * stopped dead at each lift: "ça rame, même sans le clavier" (Patrice, S24 and S9, 2026-10-30),
+     * while every frame took 12 ms. Started only after a drag that scrolled the text, never after a
+     * long press — selecting or dragging handles —; stopped by a touch or a change of the text.
+     */
+    private val elan = Scroller(context)
+    private var vitesse: VelocityTracker? = null
+    private var defilementAuToucher = 0
+    private var appuiLong = false
+    private val reglages = ViewConfiguration.get(context)
+
+    /**
+     * 🔴 **The gesture stays the field's while its text can scroll.** The editor's column scrolls too
+     * (a window too short for the header, the body and the links), and Compose gave it every vertical
+     * drag on the field: the field received ACTION_CANCEL 40 to 90 px into each gesture — logged on
+     * the S24, 2026-10-30 —, so the text stopped mid-gesture ("ça bloque") and never flung. A short
+     * text that cannot scroll leaves the gesture to the column, as before.
+     */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) dernierToucher = getOffsetForPosition(event.x, event.y)
-        return super.onTouchEvent(event)
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            dernierToucher = getOffsetForPosition(event.x, event.y)
+            elan.forceFinished(true)
+            defilementAuToucher = scrollY
+            appuiLong = false
+            vitesse?.recycle()
+            vitesse = VelocityTracker.obtain()
+            if (canScrollVertically(1) || canScrollVertically(-1)) parent?.requestDisallowInterceptTouchEvent(true)
+        }
+        vitesse?.addMovement(event)
+        val traite = super.onTouchEvent(event)
+        when (event.actionMasked) {
+            MotionEvent.ACTION_UP -> lancer()
+            MotionEvent.ACTION_CANCEL -> Unit
+            else -> return traite
+        }
+        vitesse?.recycle()
+        vitesse = null
+        return traite
+    }
+
+    private fun lancer() {
+        val suivi = vitesse ?: return
+        suivi.computeCurrentVelocity(MILLISECONDES_PAR_SECONDE, reglages.scaledMaximumFlingVelocity.toFloat())
+        val vy = suivi.yVelocity
+        val aDefile = kotlin.math.abs(scrollY - defilementAuToucher) > reglages.scaledTouchSlop
+        if (!aDefile || appuiLong || kotlin.math.abs(vy) < reglages.scaledMinimumFlingVelocity) return
+        val bas = ((layout?.height ?: 0) + totalPaddingTop + totalPaddingBottom - height).coerceAtLeast(0)
+        elan.fling(scrollX, scrollY, 0, -vy.toInt(), scrollX, scrollX, 0, bas)
+        postInvalidateOnAnimation()
+    }
+
+    /** Through [scrollTo], not by setting the offsets: the handles and the toolbar follow the text. */
+    override fun computeScroll() {
+        super.computeScroll()
+        if (elan.computeScrollOffset()) {
+            scrollTo(elan.currX, elan.currY)
+            postInvalidateOnAnimation()
+        }
     }
 
     /**
@@ -705,6 +772,7 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
         /** Echoes kept: far more than the keystrokes one frame can hold. */
         const val ENVOYEES_MAX = 64
         const val LARGEUR_DU_CURSEUR_DP = 2f
+        const val MILLISECONDES_PAR_SECONDE = 1_000
 
         /** Characters on each side of the cursor the keyboard may read: 20 KB at most. */
         const val FENETRE_DU_CLAVIER = 5_000
