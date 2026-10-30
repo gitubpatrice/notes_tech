@@ -317,3 +317,38 @@ deux défauts, chaque image pourtant dessinée en moins de 12 ms.
   (restauration avec nouveau code), partage entrant, barre de recherche.
 - Chaque nouveau test vu échouer une fois, sabotage à l'appui.
 - Relecture externe (GPT) du format et du code de la sauvegarde ; audit de sécurité avant la release.
+
+## 7. 3.2.1 — le double toucher (2026-10-30)
+
+### D-035 — Seul l'écran du dessus navigue ; « Nouvelle note » ne crée qu'une note à la fois
+
+**Le défaut, publié** (3.1.1 et 3.2.0, sans doute depuis la 3.0.0) : deux touchers rapides sur « Fermer » d'une
+note, à moins d'environ 0,5 s, laissaient un **écran blanc**. Chaque `onBack` du `NavHost` appelait
+`popBackStack()` sans garde ; pendant l'animation de sortie, l'éditeur est encore dessiné et prend le second
+toucher, qui dépilait aussi la liste — un `NavHost` vide. Retour fermait l'appli, rien n'était perdu. Mesuré sur
+la 3.2.0 publiée (émulateur) : 0,4 s → blanc, 0,7 s → normal. Vu pendant le test de mise à jour de la 3.2.0, mis à
+tort sur le compte des touches envoyées par adb, et publié quand même : la règle est désormais qu'une anomalie
+vue en testant se diagnostique AVANT le tag.
+
+Même famille, mesurée : un double toucher sur une note l'empilait deux fois ; un double toucher sur
+« Nouvelle note » empilait deux éditeurs (S9) et créait **deux notes**, la seconde vide (`DoubleToucherTest`).
+Mesuré SANS défaut : deux Retour système rapides, et la flèche suivie d'un Retour — le `BackHandler` de l'éditeur
+part avec son entrée ; l'import (un seul sélecteur ouvert, S9) ; la sauvegarde, les coffres, les actions du menu
+d'une note (déjà gardés) ; corbeille, gestes de la liste, suppression de dossier (un second appui ne trouve plus
+rien à faire, ou le dialogue est déjà fermé).
+
+**Décision** :
+- `NotesTechNavHost` : toute navigation passe par `depuis(entree)` — elle n'a lieu que si l'entrée du composable
+  qui la demande est encore `currentBackStackEntry`. **Pas `dropUnlessResumed`** : il jetterait aussi ce que
+  l'éditeur navigue de lui-même (suppression réussie, feuille de déverrouillage fermée, note liée créée) tant que
+  son entrée n'est pas `RESUMED`, par exemple pendant sa propre animation d'entrée, et la note resterait affichée.
+- `HomeViewModel.createNote` : une création à la fois (`Job` en vol, comme l'import et l'export).
+- `HomeRoute` : le toucher sur « Nouvelle note » passe par `dropUnlessResumed` — une fois la note créée et
+  l'éditeur en train de s'ouvrir, la liste n'est plus `RESUMED` et un second toucher ne crée plus de note vide.
+
+**Preuve** : `DoubleToucherTest` (horloge de Compose arrêtée entre les deux gestes), quatre tests, chacun vu
+rouge (« Fermer » et la note sur le code de la 3.2.0), verts avec les gardes. Retirée seule, la garde de navigation fait tomber ses deux tests, celle de
+l'écran les deux de « Nouvelle note ». ⚠️ **Celle du ViewModel, aucun** : sur l'émulateur la création est finie
+avant tout second toucher. Elle reste pour les téléphones lents, comme celles de l'import et de l'export. Suite
+instrumentée complète : 547 tests, les 12 échecs habituels de l'émulateur (Keystore logiciel, biométrie, modèle
+Whisper).
