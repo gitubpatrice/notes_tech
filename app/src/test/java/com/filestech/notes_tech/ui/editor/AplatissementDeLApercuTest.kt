@@ -53,4 +53,57 @@ class AplatissementDeLApercuTest {
     fun `nothing to read is no item`() {
         assertThat(aplatir(emptyList())).isEmpty()
     }
+
+    /**
+     * 🔴 A note shown as written was ONE item holding all of it: a 5 MiB note froze the app on
+     * opening (2026-10-29). Its pieces are items, numbered, and none exceeds the maximum.
+     */
+    @Test
+    fun `a note shown as written is one item per piece, none longer than the maximum`() {
+        val ligne = "x".repeat(60)
+        val texte = (1..200).joinToString("\n") { "$it $ligne" }
+
+        val elements = aplatir(listOf(PreviewBlock.AsWritten(texte)))
+
+        assertThat(elements.size).isGreaterThan(1)
+        assertThat(elements.map { it.partie }).isEqualTo(elements.indices.toList())
+        elements.forEach { element ->
+            val morceau = (element.bloc as PreviewBlock.AsWritten).text
+            assertThat(morceau.length).isAtMost(MORCEAU_TEL_QUEL_MAX)
+        }
+        // Cut at line breaks: the pieces, joined by the breaks they dropped, are the note.
+        assertThat(elements.joinToString("\n") { (it.bloc as PreviewBlock.AsWritten).text }).isEqualTo(texte)
+    }
+
+    @Test
+    fun `a short note shown as written stays one item`() {
+        val bloc = PreviewBlock.AsWritten("[a](")
+        assertThat(aplatir(listOf(bloc))).containsExactly(ElementDApercu(bloc, 0))
+    }
+
+    /** One line longer than a piece — no break to cut at — is cut at the maximum, whole characters. */
+    @Test
+    fun `a line longer than a piece is cut at the maximum, never inside a surrogate pair`() {
+        val ligne = "a".repeat(9) + "😀".repeat(10)
+
+        val morceaux = morceauxTelQuel(ligne, max = 10)
+
+        assertThat(morceaux.joinToString("")).isEqualTo(ligne)
+        morceaux.forEach { morceau ->
+            assertThat(morceau.length).isAtMost(10)
+            assertThat(Character.isLowSurrogate(morceau.first())).isFalse()
+            assertThat(Character.isHighSurrogate(morceau.last())).isFalse()
+        }
+    }
+
+    /** A break in the first half of a piece would make pieces tiny: there, the cut is at the maximum. */
+    @Test
+    fun `a break early in a piece is not a place to cut`() {
+        val texte = "ab\n" + "c".repeat(20)
+
+        val morceaux = morceauxTelQuel(texte, max = 10)
+
+        assertThat(morceaux.first()).hasLength(10)
+        assertThat(morceaux.joinToString("")).isEqualTo(texte)
+    }
 }

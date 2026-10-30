@@ -26,8 +26,9 @@ sealed interface LectureDeLApercu {
  * One item of the preview's lazy list: a whole block — or one item of a top-level list, or one row of
  * a top-level table, so that a long list or table is laid out as it scrolls, not all at once.
  *
- * @param partie the item's index, in a list; in a table, 0 for the header and n for the n-th row;
- *   0 for any other block. An element whose [partie] is 0 starts its block.
+ * @param partie the item's index, in a list; in a table, 0 for the header and n for the n-th row; in
+ *   a note shown as written, the piece's index ([morceauxTelQuel]); 0 for any other block. An element
+ *   whose [partie] is 0 starts its block.
  */
 data class ElementDApercu(val bloc: PreviewBlock, val partie: Int)
 
@@ -42,6 +43,12 @@ data class ElementDApercu(val bloc: PreviewBlock, val partie: Int)
 fun aplatir(blocs: List<PreviewBlock>): List<ElementDApercu> {
     val elements = ArrayList<ElementDApercu>(blocs.size)
     blocs.forEach { bloc ->
+        if (bloc is PreviewBlock.AsWritten) {
+            morceauxTelQuel(bloc.text).forEachIndexed { partie, morceau ->
+                elements += ElementDApercu(PreviewBlock.AsWritten(morceau), partie)
+            }
+            return@forEach
+        }
         val parties = when (bloc) {
             is PreviewBlock.ListBlock -> bloc.items.size
             is PreviewBlock.Table -> 1 + bloc.rows.size
@@ -51,6 +58,38 @@ fun aplatir(blocs: List<PreviewBlock>): List<ElementDApercu> {
     }
     return elements
 }
+
+/**
+ * 🔴 **A note shown as written ([PreviewBlock.AsWritten]), in pieces of at most [max] characters —
+ * one lazy item each.** Whole, it was ONE text, which Compose lays out and draws entirely, every line:
+ * a 5 MiB note — the import's bound until 2026-10-30 — froze the app on opening, the heap full (measured on
+ * the emulator, 2026-10-29). Past [MarkdownPreviewReader.MAX_LENGTH] every note is shown this way.
+ *
+ * A piece ends at a line break where there is one in its second half — the break itself, which the
+ * next item's start already shows, is not kept —, else at [max], never inside a surrogate pair. A
+ * search finds what the pieces draw: a word cut across two pieces is not found, as across two blocks.
+ */
+internal fun morceauxTelQuel(texte: String, max: Int = MORCEAU_TEL_QUEL_MAX): List<String> {
+    if (texte.length <= max) return listOf(texte)
+    val morceaux = ArrayList<String>(texte.length / max + 1)
+    var debut = 0
+    while (texte.length - debut > max) {
+        val saut = texte.lastIndexOf('\n', debut + max - 1)
+        if (saut >= debut + max / 2) {
+            morceaux += texte.substring(debut, saut)
+            debut = saut + 1
+        } else {
+            val fin = if (Character.isHighSurrogate(texte[debut + max - 1])) debut + max - 1 else debut + max
+            morceaux += texte.substring(debut, fin)
+            debut = fin
+        }
+    }
+    morceaux += texte.substring(debut)
+    return morceaux
+}
+
+/** Characters per piece of a note shown as written: a screen or two of monospace text. */
+internal const val MORCEAU_TEL_QUEL_MAX = 2_000
 
 /**
  * Reads [source] for the preview, **off the main thread**: a pasted note can run to megabytes, and

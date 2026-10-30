@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -105,13 +107,16 @@ fun LazyListScope.apercuMarkdown(lecture: LectureDeLApercu, onLien: (LinkTarget)
                     // The rows of a table touch: their cells' borders make the grid.
                     else -> 0.dp
                 }
-                Box(marges.padding(top = ecart)) { Element(element, onLien) }
+                // A note shown as written is cut in pieces (see [aplatir]): its last one closes the block.
+                val dernier = index == elements.lastIndex || elements[index + 1].partie == 0
+                Box(marges.padding(top = ecart)) { Element(element, dernier, onLien) }
             }
         }
     }
 }
 
 private fun typeDeContenu(element: ElementDApercu): String = when (element.bloc) {
+    is PreviewBlock.AsWritten -> "morceau-tel-quel"
     is PreviewBlock.ListBlock -> "element-de-liste"
     is PreviewBlock.Table -> "ligne-de-tableau"
     else -> "bloc"
@@ -153,9 +158,11 @@ private fun textesDuBloc(bloc: PreviewBlock, ajouter: (cle: Any, texte: String) 
 /** What [texteDe] writes for [runs]: their texts, end to end. */
 private fun texteDesRuns(runs: List<TextRun>): String = runs.joinToString("") { it.text }
 
+/** @param dernier the last element of its block — for a note shown as written, its last piece. */
 @Composable
-private fun Element(element: ElementDApercu, onLien: (LinkTarget) -> Unit) {
+private fun Element(element: ElementDApercu, dernier: Boolean, onLien: (LinkTarget) -> Unit) {
     when (val bloc = element.bloc) {
+        is PreviewBlock.AsWritten -> TelQuel(bloc, premier = element.partie == 0, dernier = dernier)
         is PreviewBlock.ListBlock -> ElementDeListe(bloc, element.partie, onLien)
         is PreviewBlock.Table -> {
             val cellules = if (element.partie == 0) bloc.header else bloc.rows[element.partie - 1]
@@ -212,20 +219,40 @@ private fun Bloc(bloc: PreviewBlock, onLien: (LinkTarget) -> Unit) {
         is PreviewBlock.RawHtml -> BlocDeCode(bloc.text, cle = bloc)
         is PreviewBlock.Table -> Tableau(bloc, onLien)
         PreviewBlock.Rule -> HorizontalDivider(Modifier.padding(vertical = 4.dp))
-        is PreviewBlock.AsWritten -> TelQuel(bloc)
+        // Top level only, where [Element] draws it piece by piece: here, whole.
+        is PreviewBlock.AsWritten -> TelQuel(bloc, premier = true, dernier = true)
     }
 }
 
-/** A note the preview did not parse — see [MarkdownPreviewReader.read] — with the reason, then its text. */
+/**
+ * A note the preview did not parse — see [MarkdownPreviewReader.read] — with the reason, then its
+ * text, one piece of it per lazy item ([morceauxTelQuel]): the pieces touch, and only the first and
+ * the last round the block's corners.
+ */
 @Composable
-private fun TelQuel(bloc: PreviewBlock.AsWritten) {
+private fun TelQuel(bloc: PreviewBlock.AsWritten, premier: Boolean, dernier: Boolean) {
+    val arrondi = 8.dp
+    val forme = RoundedCornerShape(
+        topStart = if (premier) arrondi else 0.dp,
+        topEnd = if (premier) arrondi else 0.dp,
+        bottomStart = if (dernier) arrondi else 0.dp,
+        bottomEnd = if (dernier) arrondi else 0.dp,
+    )
+    val marges = PaddingValues(
+        start = 12.dp,
+        end = 12.dp,
+        top = if (premier) 12.dp else 0.dp,
+        bottom = if (dernier) 12.dp else 0.dp,
+    )
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.note_preview_as_written),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        BlocDeCode(bloc.text, cle = bloc)
+        if (premier) {
+            Text(
+                text = stringResource(R.string.note_preview_as_written),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        BlocDeCode(bloc.text, cle = bloc, forme = forme, marges = marges)
     }
 }
 
@@ -307,17 +334,22 @@ private fun Citation(citation: PreviewBlock.Quote, onLien: (LinkTarget) -> Unit)
  * sideways; on a phone that hides the end of every line behind a gesture nothing announces.
  */
 @Composable
-private fun BlocDeCode(texte: String, cle: PreviewBlock) {
+private fun BlocDeCode(
+    texte: String,
+    cle: PreviewBlock,
+    forme: Shape = RoundedCornerShape(8.dp),
+    marges: PaddingValues = PaddingValues(12.dp),
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shape = RoundedCornerShape(8.dp),
+        shape = forme,
         modifier = Modifier.fillMaxWidth(),
     ) {
         TexteSurligne(
             texte = remember(texte) { AnnotatedString(texte) },
             cle = cle,
             style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(marges),
         )
     }
 }
