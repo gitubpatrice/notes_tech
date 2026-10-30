@@ -63,28 +63,43 @@ class LectureDUnPartageTest {
         assertThat(ouverts).hasSize(LectureDUnPartage.FICHIERS_MAX)
     }
 
-    /** M2 of the 3.2.0 review: four full files spend the budget; the fifth is not even opened. */
+    /** M2 of the 3.2.0 review: full files spend the budget; the ones after are not even opened. */
     @Test
     fun `once the budget is spent, nothing more is read`() {
+        val pleins = LectureDUnPartage.BUDGET / LectureDUnPartage.FICHIER_MAX
+        val reste = LectureDUnPartage.BUDGET - pleins * LectureDUnPartage.FICHIER_MAX
         val ouverts = mutableListOf<Int>()
         val bornes = mutableListOf<Int>()
-        val recu = LectureDUnPartage.lireDesFichiers(6, zone) { index, maxOctets ->
+        val recu = LectureDUnPartage.lireDesFichiers(pleins + 3, zone) { index, maxOctets ->
             ouverts += index
             bornes += maxOctets
             // A reader that honours the bound: the file is as large as it is allowed to be.
-            FichierPartage("plein$index.txt", ByteArray(maxOctets) { 'a'.code.toByte() })
+            FichierPartage("plein$index.txt", texteDe(maxOctets))
         }
-        // 16 MiB = three files of 5 MiB, then a fourth of the 1 MiB left.
-        assertThat(bornes).containsExactly(
-            LectureDUnPartage.FICHIER_MAX,
-            LectureDUnPartage.FICHIER_MAX,
-            LectureDUnPartage.FICHIER_MAX,
-            LectureDUnPartage.BUDGET - 3 * LectureDUnPartage.FICHIER_MAX,
-        ).inOrder()
-        assertThat(ouverts).containsExactly(0, 1, 2, 3).inOrder()
-        assertThat(recu.notes).hasSize(4)
+        // Full files while they fit, then one of what is left, then nothing.
+        assertThat(reste).isGreaterThan(0)
+        assertThat(bornes).isEqualTo(List(pleins) { LectureDUnPartage.FICHIER_MAX } + reste)
+        assertThat(ouverts).isEqualTo((0..pleins).toList())
+        assertThat(recu.notes).hasSize(pleins + 1)
         assertThat(recu.ignores).isEqualTo(2)
     }
+
+    /**
+     * 🔴 A note brought in is at most [LongueurDUneNote.CARACTERES_MAX] characters (2026-10-30): a file
+     * within the bytes read but one character longer is counted, not kept.
+     */
+    @Test
+    fun `a file one character longer than a note is counted, one at the bound kept`() {
+        val recu = lire(
+            FichierPartage("long.txt", "a".repeat(LongueurDUneNote.CARACTERES_MAX + 1).toByteArray()),
+            FichierPartage("juste.txt", "a".repeat(LongueurDUneNote.CARACTERES_MAX).toByteArray()),
+        )
+        assertThat(recu.notes.map { it.titre }).containsExactly("juste")
+        assertThat(recu.ignores).isEqualTo(1)
+    }
+
+    /** [octets] bytes of valid UTF-8 in characters of 3 bytes each: as many bytes, a third as many characters. */
+    private fun texteDe(octets: Int) = ("€".repeat(octets / 3) + "a".repeat(octets % 3)).toByteArray()
 
     private fun lire(vararg fichiers: FichierPartage) =
         LectureDUnPartage.lireDesFichiers(fichiers.size, zone) { index, _ -> fichiers[index] }

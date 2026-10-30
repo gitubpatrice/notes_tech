@@ -323,8 +323,9 @@ class SauvegardeChiffree @Inject constructor(
 
     /**
      * Every note, in lots of at most [LOT_MAX] notes and [POIDS_MAX] characters — a note heavier than
-     * that alone in its lot. Counted by notes alone, a lot of imported notes (up to 5 MiB each) could
-     * hold more text than the heap (GPT-5.6 review, 2026-10-29). In the caller's read transaction.
+     * that alone in its lot. Counted by notes alone, a lot of long notes — an import brings in up to
+     * 500 000 characters each, and a note typed or pasted has no bound — could hold more text than the
+     * heap (GPT-5.6 review, 2026-10-29). In the caller's read transaction.
      */
     private suspend inline fun parLots(database: NotesDatabase, action: (List<NoteEntity>) -> Unit) {
         val poids = database.sauvegardeDao().poidsDesNotes()

@@ -23,7 +23,8 @@ import java.util.zip.ZipInputStream
  *   (`inbox/`, the export's own name for the Inbox, the Inbox); a file at the root, the Inbox.
  * - The export's `README.md` is left out; so is what is not a document — `__MACOSX/`, `.DS_Store`, a
  *   `.obsidian/` folder: anything hidden, by a name starting with a dot. Neither counts as ignored.
- * - **Strict UTF-8**, 5 MiB per file: a file that is not text, or too long, is counted as ignored.
+ * - **Strict UTF-8**, [LongueurDUneNote] characters per file: a file that is not text, or too long, is
+ *   counted as ignored.
  * - 🔴 **Bounded on what is really read** — 100 MiB for the whole import, [FICHIERS_MAX] files.
  *   A ZIP read as a stream inflates the rest of an entry to reach the next one: an entry skipped is
  *   read all the same, so its bytes count too. Without that, one entry of zeros, a few kilobytes
@@ -89,7 +90,7 @@ class LectureDUnImport(private val zone: ZoneId = ZoneId.systemDefault()) {
     }
 
     private fun lireUneNote(nom: String, flux: InputStream, dossier: String?, racine: Boolean = false) {
-        val texte = lireBorne(flux, FICHIER_MAX)?.let(::utf8Strict)
+        val texte = lireBorne(flux, FICHIER_MAX)?.let(::texteDUneNote)
         when {
             arrete -> Unit
             texte == null -> ignores++
@@ -143,8 +144,8 @@ class LectureDUnImport(private val zone: ZoneId = ZoneId.systemDefault()) {
         /** Files considered in one import, the documents chosen and the entries of their archives. */
         const val FICHIERS_MAX = 5_000
 
-        /** Per file. */
-        const val FICHIER_MAX = 5 * 1024 * 1024
+        /** Bytes read per file, before its text is counted — see [LongueurDUneNote]. */
+        const val FICHIER_MAX = LongueurDUneNote.OCTETS_MAX
 
         /** Bytes read in all, inflated ones included: an archive is bounded by what it holds, not its size. */
         const val LUS_MAX = 100L * 1024 * 1024

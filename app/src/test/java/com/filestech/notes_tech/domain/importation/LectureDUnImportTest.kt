@@ -113,6 +113,21 @@ class LectureDUnImportTest {
         assertThat(lu.ignores).isEqualTo(1)
     }
 
+    /**
+     * 🔴 A note brought in is at most [LongueurDUneNote.CARACTERES_MAX] characters (2026-10-30): read in
+     * full — within the bytes allowed — but one character longer, a file is counted, not kept.
+     */
+    @Test
+    fun `a file one character longer than a note is counted, one at the bound kept`() {
+        val lu = lire(
+            "Long.md" to "a".repeat(LongueurDUneNote.CARACTERES_MAX + 1).toByteArray(),
+            "Juste.md" to "a".repeat(LongueurDUneNote.CARACTERES_MAX).toByteArray(),
+        )
+
+        assertThat(lu.notes.map { it.note.titre }).containsExactly("Juste")
+        assertThat(lu.ignores).isEqualTo(1)
+    }
+
     /** 🔴 A few hundred kilobytes that inflate past the bound: read once, counted, and the import stops. */
     @Test
     fun `an archive bomb stops the import on what it inflates, skipped entries included`() {

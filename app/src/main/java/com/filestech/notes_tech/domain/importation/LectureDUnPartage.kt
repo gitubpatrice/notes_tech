@@ -24,11 +24,14 @@ import java.time.ZoneId
  */
 object LectureDUnPartage {
 
-    /** A shared text longer than this is refused, not cut: cutting would lose its end silently. */
-    const val TEXTE_MAX = 1_048_576
+    /**
+     * A shared text longer than this is refused, not cut: cutting would lose its end silently. See
+     * [LongueurDUneNote].
+     */
+    const val TEXTE_MAX = LongueurDUneNote.CARACTERES_MAX
 
-    /** Per file. */
-    const val FICHIER_MAX = 5 * 1024 * 1024
+    /** Bytes read per file, before its text is counted — see [LongueurDUneNote]. */
+    const val FICHIER_MAX = LongueurDUneNote.OCTETS_MAX
 
     /** For the whole share: what is read, at most, all files together. */
     const val BUDGET = 16 * 1024 * 1024
@@ -75,7 +78,7 @@ object LectureDUnPartage {
             budget -= octets?.size ?: 0
             val note = octets?.takeIf {
                 it.size <= maxOctets
-            }?.let(::utf8Strict)?.let { LecteurMarkdown.lire(it, fichier.nom, zone) }
+            }?.let(::texteDUneNote)?.let { LecteurMarkdown.lire(it, fichier.nom, zone) }
             if (note != null) notes += note
         }
         return PartageRecu(notes = notes, ignores = nombre - notes.size)

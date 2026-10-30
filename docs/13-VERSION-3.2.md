@@ -183,7 +183,8 @@ octets   taille  champ
   (réutilisé s'il existe, créé sinon). **Jamais un coffre** : un nom qui correspond à un coffre envoie
   la note dans la Boîte de réception (et le résumé le dit). Fichier seul : Boîte de réception.
 - Le `README.md` à la racine d'un export Notes Tech est reconnu et ignoré.
-- **Bornes** : 5 000 fichiers, 5 Mio par fichier, 100 Mio décompressés au total (archive piégée) ;
+- **Bornes** : 5 000 fichiers, **500 000 caractères par note** (5 Mio par fichier jusqu'au 2026-10-30, voir
+  D-034), 100 Mio décompressés au total (archive piégée) ;
   UTF-8 strict, sinon fichier ignoré et compté.
 - Toujours des **nouvelles** notes (nouveaux ids) : importer deux fois crée deux copies — c'est un
   import, pas une restauration.
@@ -240,13 +241,59 @@ Tests : 8 + 3 JVM, 5 écran, 2 de bout en bout (appli réelle), chacun vu échou
 - « Partager → Notes Tech » depuis une autre appli : un **texte** (`text/plain`) crée une note dans la
   Boîte de réception (titre = sujet du partage, sinon première ligne) ; un ou plusieurs **fichiers**
   texte ou Markdown passent par l'import (§2).
-- **Une activité dédiée**, exportée, sans interface : elle lit le partage, le borne (1 Mio de texte,
-  5 Mio par fichier) et le confie en mémoire à l'appli, puis ouvre `MainActivity`, qui **continue de
+- **Une activité dédiée**, exportée, sans interface : elle lit le partage, le borne (500 000 caractères
+  par note, texte ou fichier — D-034 ; 1 Mio de texte et 5 Mio par fichier jusqu'au 2026-10-30) et le
+  confie en mémoire à l'appli, puis ouvre `MainActivity`, qui **continue de
   jeter tous les extras** (audit E1) : aucune donnée extérieure n'atteint la navigation.
 - **Verrou de l'appli** : la note n'est créée qu'après déverrouillage.
 - Jamais dans un coffre.
 
-## 5. Tests et relectures
+## 5. Notes longues
+
+### D-034 — Le corps s'écrit dans le champ d'Android, la lecture va par morceaux, 500 000 caractères à l'entrée
+
+Constaté le 2026-10-29 en vérifiant qu'une note de 5 Mio (la borne de l'import) tenait : la base la tient
+(la `CursorWindow` de SQLCipher 4.16 part de 16 Kio et grandit), mais **l'appli la montrait figée** et
+l'**éditeur était inutilisable bien avant**. Mesuré sur le S9 (Android 10), build release :
+
+| Note | Lecture | Écriture (champ Compose) : temps par image, médiane |
+|---|---|---|
+| 20 000 car. | immédiate | 9 ms |
+| 50 000 | immédiate | 150 ms |
+| 100 000 | immédiate | 950 ms |
+| 200 000 | immédiate | 3,35 s — clavier après 9 s |
+| > 500 000 | **figée** (un seul `Text`, tas plein) | — |
+
+Cause, lue dans le bytecode de Compose ui-text 1.12.1 : `TextAndroidCanvas.getClipBounds` répond une
+hauteur infinie, donc **Compose dessine toutes les lignes d'un texte** à chaque nouvel enregistrement ; un
+champ en écriture est redessiné à chaque frappe et à chaque clignotement du curseur. Le champ
+`TextFieldState` de Compose ne fait pas mieux (1,2 s à 100 000, mesuré).
+
+**Décidé (Patrice, 2026-10-30 : « dans la 3.2.0 », « que tout soit fluide »)** :
+- **Le corps en écriture est l'`EditText` d'Android** (`ui/editor/ChampDuCorps.kt`) : il ne remet en page
+  que les paragraphes touchés et ne dessine que les lignes visibles — 23 ms par image à 2 000 comme à
+  200 000 caractères sur le S9, l'ancien champ faisant 30 ms à 2 000. L'état reste le `TextFieldValue` du
+  ViewModel (liens, dictée, recherche, enregistrement inchangés) ; le champ lui renvoie texte et sélection
+  et applique ses changements par le plus petit remplacement. Ce qu'un `EditText` ouvre et que le champ
+  Compose n'ouvrait pas est fermé : barre de sélection restreinte (ni Partager, ni Saisie automatique, ni
+  les actions `PROCESS_TEXT` d'autres applis), classifieur `NO_OP`, ni saisie automatique ni capture de
+  contenu, pas de correcteur orthographique, rien dans l'état sauvegardé, pas de clavier plein écran,
+  pas de glisser hors d'une note de coffre, dépôt et collage en texte brut ; Copier et Couper passent par
+  le presse-papiers de `SaisieDeCoffre` et une coupe n'efface qu'une fois copiée.
+- **Le clavier ne lit qu'une fenêtre de 5 000 caractères autour du curseur** : le clavier Samsung redemande
+  le texte extrait après CHAQUE frappe, et un `TextView` le donne entier — 900 Ko à 450 000 caractères,
+  refusé par le Binder, 2 s d'attente à chaque frappe (mesuré sur le S9). Après correction : 450 000
+  caractères se tapent comme une note courte.
+- **Le clavier part avec le champ** (la coche, la flèche, un lien ouvert) : un `EditText` retiré de la
+  fenêtre le laissait ouvert sur la liste (mesuré).
+- **La lecture d'une note non analysée (> 500 000 caractères) va par morceaux** de 2 000 caractères, un
+  élément paresseux chacun (`morceauxTelQuel`), au lieu d'un seul texte.
+- **Import, fichier partagé, texte partagé : 500 000 caractères au plus** (`LongueurDUneNote`), la borne de
+  l'aperçu — toute note importée est montrée dessinée. Patrice avait d'abord choisi 50 000 sur les mesures
+  de l'ancien éditeur, puis proposé de monter « si c'est fluide » : mesuré fluide à 450 000 sur le S9. Une
+  note tapée ou collée dans l'appli n'a pas de borne.
+
+## 6. Tests et relectures
 
 - JVM : format de sauvegarde (aller-retour, en-tête modifié, bornes, mauvaise phrase, troncature),
   fusion (conflits, coffre différent, restaurer deux fois), import (frontmatter, bornes, ZIP piégé),
