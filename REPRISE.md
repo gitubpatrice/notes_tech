@@ -1,7 +1,32 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, **puis le 2026-10-30**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, **puis le 2026-10-30 (deux fois)**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
+
+## 🧭 À LA REPRISE (écrit le 2026-10-30 après-midi) — la 3.2.1 est PUBLIÉE
+
+Un correctif, demandé par Patrice (« corrige », puis « fusionne, tag, site, release ») :
+
+- **Le défaut, publié en 3.1.1 et 3.2.0** : deux touchers rapides sur « Fermer » d'une note (moins de ~0,5 s)
+  laissaient un ÉCRAN BLANC — `popBackStack()` sans garde, le second toucher dépilait aussi la liste. Même
+  famille : double toucher sur une note (ouverte deux fois), sur « Nouvelle note » (deux éditeurs, deux notes).
+  Vu pendant le test de mise à jour de la 3.2.0 et publié quand même : une anomalie vue en testant se
+  diagnostique désormais AVANT le tag. Détail et décision : `docs/13-VERSION-3.2.md`, D-035.
+- **Correctif** : `depuis(entree)` dans `NotesTechNavHost` (seul l'écran du dessus navigue — pas
+  `dropUnlessResumed`, qui jetterait ce que l'éditeur navigue de lui-même) ; `dropUnlessResumed` sur
+  « Nouvelle note » ; une création à la fois dans `HomeViewModel`. `DoubleToucherTest` (4 tests, sabotages faits).
+- **PR #43** fusionnée (`5423ea8`, arbre = branche testée) ; CI de `main` verte AVANT le tag (instrumentés API 29 :
+  549 cas, 537 réussis, 11 ignorés, 1 échec Keystore attendu). **Tag léger `v3.2.1`**, release **Latest**, 4 APK
+  signés en local : cert `ddb385de…42e9`, 5040-5043, mêmes 4 permissions que la 3.2.0 publiée ; retéléchargés =
+  SHA-256 identiques. Universel `aaae30a2…de93`, arm64 `78cad2ef…74ec`, armeabi-v7a `b779e72e…abbb`, x86_64
+  `6cdd12c9…1976`.
+- **Mise à jour vérifiée** sur l'émulateur : 3.2.0 PUBLIÉE (retéléchargée), puis 3.2.1 par-dessus — note gardée,
+  À propos en v3.2.1. Mesuré aussi : appli tuée pendant le sélecteur de sauvegarde → message, fichier vide effacé.
+- **Site** : PR `files-tech-site` **#35** (une ligne, `includes/apps.php`), 9 pages vérifiées EN LIGNE.
+- **F-Droid** : rien à faire (tag + `version.properties` 504 → 5041/5042/5043). La 3.2.0 n'y est peut-être pas
+  encore : `checkupdates` prend le dernier tag. Vérifier l'API avant d'écrire quoi que ce soit.
+- **Ensuite (proposé, non urgent)** : parcours au clavier physique (DeX, tablette) ; très grande police et mode
+  sombre sur les écrans de la 3.2.0, en allemand.
 
 ## 🧭 À LA REPRISE (écrit le 2026-10-30) — la 3.2.0 est PUBLIÉE
 
