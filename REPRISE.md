@@ -1,7 +1,37 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, **puis le 2026-10-10**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, **puis le 2026-10-30**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
+
+## 🧭 À LA REPRISE (écrit le 2026-10-30) — la 3.2.0 est PUBLIÉE
+
+Patrice : « carte blanche et toutes les autorisations », « fais aussi la release », « tu peux fusionner ». Fait :
+
+- **PR #41** fusionnée (`8488e7d`, arbre = celui de la branche testée) ; CI de `main` verte AVANT le tag — porte,
+  **tests instrumentés sur émulateur API 29** (dans la CI depuis la PR #40), build release R8, zéro réseau,
+  CodeQL. **Tag léger `v3.2.0`** sur `8488e7d`, release **Latest**, 4 APK signés EN LOCAL : cert `ddb385de…42e9`,
+  v2 + v3, versionCodes 5030-5033, mêmes 4 permissions que la 3.1.1 publiée, aucun bloc « Dependency
+  metadata » ; assets retéléchargés = SHA-256 identiques. Universel `78325be5…73a6`, arm64 `869baf65…aba0`,
+  armeabi-v7a `ba76527b…2c29`, x86_64 `e922c8e9…c26`. ⚠️ Construire avec
+  `-Pnotestech.replaceInstalledApp=true` : sans lui le paquet est `….next` — le script de signature l'a arrêté.
+- **Mise à jour vérifiée** sur l'émulateur : 3.1.1 PUBLIÉE installée, une note créée, puis la 3.2.0 signée par-dessus
+  — note gardée, sauvegarde dans les Réglages, écriture, clavier, lecture.
+- **Ce qu'apporte la 3.2.0** (`docs/13-VERSION-3.2.md`, D-029 à D-034) : sauvegarde chiffrée et restauration,
+  import Markdown/ZIP, rechercher dans la note, partage entrant ; le corps des notes dans l'`EditText` d'Android
+  (Compose dessine toutes les lignes d'un texte : 100 000 caractères ≈ 1 s par frappe sur le S9), fenêtre bornée
+  pour le clavier, geste gardé et élan ; lecture d'une longue note par morceaux ; 500 000 caractères par note
+  importée.
+- **Contrôles** : audit 3 axes (aucun critique/élevé ; le moyen et 4 faibles corrigés), contrôle i18n (registre
+  Lei/usted, « Eingang », « In arrivo »), relectures GPT-5.6 de la sauvegarde (×2) et du champ du corps ; chaque
+  nouvelle défense vue rouge sous sabotage ; essais à la main de Patrice sur S9 et S24 (défilement).
+- **Site** : PR `files-tech-site` **#34**, 9 pages vérifiées EN LIGNE (FR, EN, DE), lien de l'APK 3.2.0 en 200.
+- **Issue #10** : réponse (rechercher dans la note livrée), laissée ouverte.
+- **F-Droid : rien à faire**, mise à jour automatique (tag + `version.properties` 503 → 5031/5032/5033). Vérifier
+  `https://f-droid.org/api/v1/packages/com.filestech.notes_tech` avant d'écrire qu'elle y est.
+- **À regarder ensuite** : avec un clavier PHYSIQUE (ou des touches adb) et aucun champ sélectionné, une suite de
+  touches a mené à un écran blanc — vu aussi sur la 3.1.1 publiée, donc antérieur ; la barre d'espace « appuie »
+  sur le bouton focalisé (Fermer), c'est le comportement de Compose. Limite assumée : une sauvegarde de plus de
+  64 Mio est refusée.
 
 ## 🧭 À LA REPRISE (écrit le 2026-10-29) — la 3.1.1 est PUBLIÉE
 
