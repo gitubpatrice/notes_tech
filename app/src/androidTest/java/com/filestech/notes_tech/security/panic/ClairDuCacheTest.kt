@@ -3,6 +3,7 @@ package com.filestech.notes_tech.security.panic
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.filestech.notes_tech.data.sauvegarde.SauvegardeChiffree
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Before
@@ -57,6 +58,17 @@ class ClairDuCacheTest {
         heritages.forEach { assertThat(it.exists()).isFalse() }
         assertThat(File(context.cacheDir, "share_plus").exists()).isFalse()
         neutres.forEach { assertThat(it.exists()).isTrue() }
+    }
+
+    /** 3.2.0: a backup left waiting for the picker's document by a process killed meanwhile. */
+    @Test
+    fun a_backup_left_waiting_for_its_document_is_purged() {
+        val enAttente = File(SauvegardeChiffree.repertoireDAttente(context), "sauvegarde1.ntbackup")
+        enAttente.parentFile?.mkdirs()
+        enAttente.writeBytes(ByteArray(48))
+
+        assertThat(ClairDuCache.purger(context)).isEmpty()
+        assertThat(enAttente.exists()).isFalse()
     }
 
     @Test

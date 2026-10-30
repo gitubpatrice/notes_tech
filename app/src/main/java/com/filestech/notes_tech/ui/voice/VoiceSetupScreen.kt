@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,6 +53,7 @@ import com.filestech.notes_tech.domain.voice.SttModelCatalogue
 import com.filestech.notes_tech.ui.common.ActionDeDialogue
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
+import kotlinx.coroutines.launch
 
 /**
  * L'installation du modèle de dictée.
@@ -136,6 +138,8 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
     }
 
     val messageLienCopie = stringResource(R.string.voice_setup_link_copied)
+    val messageSansSelecteur = stringResource(R.string.common_no_picker)
+    val portee = rememberCoroutineScope()
     val modeleInstalle = etat.installeAvecSucces
     val messageInstalle = modeleInstalle?.let { stringResource(R.string.voice_setup_install_ok, it) }
 
@@ -170,7 +174,10 @@ fun VoiceSetupRoute(onBack: () -> Unit) {
             // plusieurs fournisseurs le servent en `application/octet-stream` quand ils ne le
             // servent pas comme inconnu. Filtrer ici rendrait le fichier **invisible** dans le
             // sélecteur, sans aucun message.
-            selecteur.launch(arrayOf("*/*"))
+            if (!selecteur.launch(arrayOf("*/*"))) {
+                modeleVise = null
+                portee.launch { snackbars.showSnackbar(messageSansSelecteur) }
+            }
         },
         onDemanderLeRetrait = { aRetirer = it.id },
         onConfirmerLeRetrait = {

@@ -2,6 +2,7 @@ package com.filestech.notes_tech.security.panic
 
 import android.content.Context
 import com.filestech.notes_tech.data.export.NoteExporter
+import com.filestech.notes_tech.data.sauvegarde.SauvegardeChiffree
 import com.filestech.notes_tech.data.voice.VoiceCapture
 import java.io.File
 
@@ -28,7 +29,7 @@ import java.io.File
  *   startup only.
  *
  * ⚠️ Only the **first level** is looked at by name: a directory is judged by its own name, never by
- * what it holds. `share_plus` and the two directories of 3.x are named here for that reason.
+ * what it holds. `share_plus` and the directories of 3.x are named here for that reason.
  */
 internal object ClairDuCache {
 
@@ -44,8 +45,11 @@ internal object ClairDuCache {
         //
         // ⚠️⚠️ The two names are **asked of those who write these directories**, never copied: two
         // definitions, and the panic would watch a directory the export no longer uses.
+        // The backup waiting for its document (3.2.0) is encrypted, but carries every note: it goes
+        // with them — at startup, after a process killed while the picker was open, and in a panic.
         return n == NoteExporter.repertoireDExport(context).name.lowercase() ||
             n == VoiceCapture.repertoireDeCapture(context).name.lowercase() ||
+            n == SauvegardeChiffree.repertoireDAttente(context).name.lowercase() ||
             n == COPIES_DE_SHARE_PLUS ||
             n.endsWith(".zip") ||
             n.endsWith(".md") ||

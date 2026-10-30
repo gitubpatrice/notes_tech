@@ -1,6 +1,6 @@
 # Informativa sulla privacy — Notes Tech
 
-_Ultimo aggiornamento: 26 ottobre 2026_
+_Ultimo aggiornamento: 30 ottobre 2026_
 
 ## In una frase
 
@@ -15,6 +15,8 @@ Notes Tech non raccoglie, non trasmette e non conserva alcun dato su server remo
 - **Tag e colore di una nota in cassaforte**: restano nel database cifrato da SQLCipher, ma **fuori dalla cifratura propria della cassaforte** — solo il titolo e il contenuto vi rientrano. Negli elenchi, una nota in cassaforte non mostra mai i suoi tag, e mostra il suo colore solo mentre la cassaforte è sbloccata.
 - **Blocco dell'app (facoltativo)**: il PIN non viene mai memorizzato. Viene conservato un valore derivato da esso con **Argon2id** e legato tramite **HMAC-SHA256** a una chiave dell'**Android Keystore** che non lascia mai il telefono, quindi non può essere verificato altrove. Dopo cinque PIN errati, ogni nuovo tentativo attende più a lungo (30 secondi, raddoppiando fino a un'ora); i tentativi errati non cancellano mai nulla. Lo **sblocco con impronta digitale o volto** è gestito interamente da Android: Notes Tech non riceve alcun dato biometrico, solo la conferma che l'uso di una chiave del Keystore è stato consentito, e viene accettata solo la biometria forte (classe 3).
 - **Collegamenti inversi `[[Titolo]]`**: indice invertito locale, mai trasmesso.
+- **Backup cifrato (facoltativo)**: un file `.ntbackup` che crea lei stesso, nel punto che sceglie tramite il selettore di documenti di Android. Contiene le sue cartelle e le sue note, cestino compreso, cifrate con **AES-256-GCM** con una chiave derivata tramite **Argon2id** (m=64MB, t=3) da un codice estratto dall'app e che lei annota, o da una passphrase di sua scelta — Notes Tech non conserva né l'uno né l'altra. Viene prima scritto, già cifrato, nella memoria privata dell'app, poi copiato nel punto scelto e cancellato dalla memoria dell'app. Le note di una cassaforte con passphrase restano sigillate dalla sua passphrase nel file. Una cassaforte con PIN viaggia solo aperta, con la sua chiave: nel file la protegge soltanto il segreto del backup; chiusa, viene esclusa. Il ripristino aggiunge ciò che manca e non sovrascrive nulla.
+- **Note importate e condivise**: i file Markdown o di testo — o un archivio ZIP che li contiene — che lei sceglie nel selettore di documenti di Android, e i testi o i file che condivide con Notes Tech da un'altra app, diventano note ordinarie nelle sue cartelle, mai in una cassaforte. Vengono letti una volta, sul telefono; gli originali non vengono modificati e nulla viene conservato oltre alle note create. Al massimo 500.000 caratteri per nota.
 - **Modello di dettatura vocale (Whisper `.bin`)**: se lo procura lei stesso — l'app mostra il nome del file e la sua origine — e poi lo importa tramite il selettore di documenti di Android. Notes Tech non ha l'autorizzazione di accesso a Internet e **non offre alcun modo di scaricare nulla**. Il suo SHA-256 viene verificato all'importazione e prima di ogni caricamento.
 - **Audio acquisito durante la dettatura**: scritto in un file temporaneo nello spazio privato dell'app — il motore di trascrizione legge un file, non c'è altro modo — e **cancellato appena arriva la trascrizione**. Viene cancellato anche all'avvio dell'app e dalla modalità panico, così una chiusura improvvisa non lascia nulla.
 - **Impostazioni (tema, ordinamento, dettatura attivata, blocco automatico delle casseforti, opzioni del blocco dell'app)**: conservate in chiaro nelle preferenze locali (nessun dato sensibile).
@@ -33,7 +35,7 @@ Le autorizzazioni attive sono strettamente funzionali:
 - `RECORD_AUDIO` (dettatura: l'audio viene scritto in un file temporaneo privato, poi cancellato appena arriva la trascrizione).
 - `USE_BIOMETRIC` e `USE_FINGERPRINT` (sblocco facoltativo del blocco dell'app con impronta digitale o volto; dichiarate dalla libreria biometrica di AndroidX — `USE_FINGERPRINT` è il nome della stessa autorizzazione su Android 8 e versioni precedenti).
 
-Sono le **uniche** autorizzazioni richieste. La scelta del file del modello passa dal selettore di documenti di Android, che non ne richiede alcuna.
+Sono le **uniche** autorizzazioni richieste. La scelta di un file — il modello di dettatura, note da importare, un backup — passa dal selettore di documenti di Android, che non ne richiede alcuna.
 
 ### Modalità panico
 
@@ -48,12 +50,15 @@ Il menu **Impostazioni → Modalità panico** cancella in blocco:
 - il modello Whisper installato nella sandbox,
 - le preferenze (tranne `db_encrypted_v1` e `secure_window_enabled`, conservate per un riavvio coerente).
 
+La modalità panico non raggiunge un backup cifrato salvato fuori dall'app, ovunque lo abbia messo: lo elimini lei stesso.
+
 La cancellazione **non è atomica**, e l'ordine dei passaggi è pensato di conseguenza: la chiave di cifratura viene distrutta **prima** delle cancellazioni lunghe, poi i file in chiaro, poi il resto. Una chiusura improvvisa in qualsiasi istante lascia quindi lo stato più sicuro raggiungibile in quell'istante: nel peggiore dei casi, un database ridotto a rumore. La schermata finale indica che cosa non è riuscito e **se può restare qualcosa di leggibile**.
 
 ### I suoi diritti
 
 I suoi dati restano sul suo telefono, sotto il suo esclusivo controllo, e l'editore non ha alcun modo di accedervi: non tratta quindi alcun dato personale che la riguardi. È il caso che la CNIL, l'autorità francese per la protezione dei dati, descrive come un «semplice software messo a disposizione dell'utente», al quale il GDPR non si applica (raccomandazione sulle applicazioni mobili, paragrafo 3.3). Mantiene il controllo dei suoi dati e in qualsiasi momento può:
 - esportare le sue note in Markdown o ZIP (`Impostazioni → Esporta tutte le mie note`),
+- farne un backup cifrato e ripristinarlo (`Impostazioni → Backup cifrato`),
 - eliminare definitivamente una nota, dal cestino o con una pressione prolungata nell'elenco delle note,
 - cancellare tutti i dati con la modalità panico,
 - disinstallare l'app: Android cancellerà automaticamente tutti i dati privati.

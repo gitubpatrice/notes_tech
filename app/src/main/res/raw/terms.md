@@ -1,6 +1,6 @@
 # Terms of use — Notes Tech
 
-_Last updated: 26 October 2026_
+_Last updated: 29 October 2026_
 
 ## License
 
@@ -18,13 +18,15 @@ The app is made available **free of charge** by an individual, on a personal and
 
 ## Panic mode and data loss
 
-The **panic mode** permanently and irreversibly wipes your notes, encryption key, and models. **No recovery is possible** — it is by design. Before using it, export what you want to keep via `Settings → Export all my notes`.
+The **panic mode** permanently and irreversibly wipes your notes, encryption key, and models. **No recovery is possible** — it is by design. Before using it, put what you want to keep in an encrypted backup (`Settings → Encrypted backup`) or an export (`Settings → Export all my notes`).
 
 A note **moved to the trash** can be restored for 30 days. A note **deleted permanently** — from the trash, or with a long press in the list of notes, after a confirmation — does not go through the trash and **can no longer be recovered**.
 
 Likewise, **forgetting a vault passphrase makes its notes unreadable forever**: the passphrase is never stored, it only derives the key via Argon2id. No recovery procedure exists.
 
 For **PIN** vaults, **5 successive failures trigger an auto-wipe** (Keystore key deletion). Aligned with the standard Android lock screen behaviour — from Android 9 only: before it, Android cannot tie that key to the phone being unlocked, the app creates no PIN vault there, and a PIN vault created earlier does not hold that five-attempt limit on a seized phone.
+
+An **encrypted backup** opens only with its code or passphrase, which Notes Tech does not keep: without it, the file stays **unreadable forever**. Panic mode does not reach a backup saved outside the app: delete it yourself.
 
 ## Voice dictation model
 
@@ -71,7 +73,7 @@ Updates are published on the official GitHub repository and on F-Droid. The app 
 
 ## Liability
 
-The app is provided free of charge, by a private individual. To the extent permitted by law, the publisher is not liable for indirect damage, nor for data loss caused by using functions designed to be irreversible (panic mode, the erasure of a PIN vault after five wrong codes, permanent deletion, uninstalling) or by a forgotten passphrase or PIN (Apache 2.0 license, section 8). This limit applies neither to gross negligence or wilful misconduct, nor to damage the law forbids excluding.
+The app is provided free of charge, by a private individual. To the extent permitted by law, the publisher is not liable for indirect damage, nor for data loss caused by using functions designed to be irreversible (panic mode, the erasure of a PIN vault after five wrong codes, permanent deletion, uninstalling) or by a forgotten passphrase, PIN or backup code (Apache 2.0 license, section 8). This limit applies neither to gross negligence or wilful misconduct, nor to damage the law forbids excluding.
 
 ## Governing law
 

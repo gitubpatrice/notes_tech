@@ -23,8 +23,10 @@ Notes Tech : prise de notes Markdown 100 % locale, chiffrée au repos. Écrite e
 • Appui long sur une note : éditer, mettre à la corbeille avec Annuler, ou supprimer définitivement
 • Une couleur pastel par note dans les listes (celle d'une note de coffre, seulement coffre ouvert)
 • Rétroliens <code>[[Titre]]</code> avec autocomplétion + panneau « notes qui mentionnent celle-ci »
-• Recherche FTS5 instantanée, tri réglable
+• Recherche FTS5 instantanée, recherche dans la note avec occurrences surlignées, tri réglable
 • Export Markdown, d'une note ou en ZIP (en-tête YAML compatible Obsidian/Logseq)
+• Import de fichiers Markdown, texte et ZIP ; partage de textes ou de fichiers depuis d'autres applis
+• Sauvegarde chiffrée de vos notes et coffres, restaurée sans rien écraser
 
 <b>Cinq langues</b>
 • Anglais, français, allemand, italien, espagnol — au choix dans les Réglages

@@ -2,9 +2,38 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.1.1 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.2.0 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.2.0 — sauvegarde chiffrée, import, partage entrant, le champ du corps (2026-10-30)
+
+- **Sauvegarde chiffrée** (`.ntbackup` v1) : un en-tête de 48 octets authentifié comme données associées
+  (version du format, paramètres Argon2id — t = 3, m = 64 Mio, p = 1, refusés avant toute dérivation
+  s'ils diffèrent —, sel, nonce), puis AES-256-GCM en flux ; le contenu est lu jusqu'à la fin de son
+  flux, donc l'étiquette est toujours vérifiée. Bornée à 64 Mio sur ce qui est réellement lu. Le fichier
+  est écrit dans le cache de l'appli AVANT l'ouverture du sélecteur — tout coffre se verrouille quand
+  l'appli passe en arrière-plan —, puis copié et relu, comparé par SHA-256 ; la copie du cache est
+  effacée à chaque sortie, à chaque démarrage et par le mode panique. Restaurer, c'est une passe d'essai
+  puis une passe d'écriture dans une seule transaction Room, liée aux octets de l'essai par SHA-256 ; les
+  clés Keystore qu'une passe échouée a créées pour des coffres à code ne sont supprimées que si leur
+  coffre n'est pas en base. Le mode panique n'atteint pas une sauvegarde rangée hors de l'appli, et
+  l'écran le dit. Deux relectures externes (GPT-5.6), de la conception et du code ; chaque constat traité.
+- **Import et partage entrant** : UTF-8 strict, 500 000 caractères au plus par note ; 5 000 fichiers et
+  100 Mio décompressés par import (une bombe ZIP l'arrête), 20 fichiers et 16 Mio par partage, lus un
+  fichier à la fois ; jamais dans un coffre. L'activité de partage est exportée mais sans interface :
+  elle borne ce qu'elle reçoit et le confie en mémoire à l'appli. `MainActivity` jette toujours tous
+  les extras, et la note n'est créée qu'après le verrou de l'appli.
+- **Le corps d'une note est un `EditText`** — Compose dessine toutes les lignes d'un texte à chaque
+  image, et une longue note devenait impossible à écrire. Ce qu'un `EditText` ouvre, refermé : la barre
+  de sélection garde couper, copier, coller et tout sélectionner (ni Partager, ni Saisie automatique, ni
+  appli `PROCESS_TEXT` — Android 10 et avant les listent toutes) ; Copier et Couper passent par le
+  presse-papiers protégé d'une note de coffre, et une coupe n'efface son texte qu'une fois copié ; ni
+  saisie automatique, ni capture de contenu (Android 11 et suivants ; la fenêtre d'une note de coffre est
+  en `FLAG_SECURE`), ni correcteur orthographique, rien dans l'état sauvegardé. Une note de coffre
+  demande au clavier de ne pas apprendre, et sa sélection ne peut pas être glissée vers une autre appli.
+  Le clavier lit 5 000 caractères autour du curseur, jamais la note entière — une longue sélection, rien.
+  Relu par GPT-5.6 ; chaque nouvelle défense vue échouer une fois retirée.
 
 ## v3.1.1 — l'appui long qui fermait l'éditeur (2026-10-29)
 

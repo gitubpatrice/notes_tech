@@ -37,4 +37,14 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar" tools:targetApi="23">false</item>
     </style>
+
+    <!--
+      3.2.0 — the share receiver (`RecevoirUnPartageActivity`) has no screen: translucent, no
+      animation, so the app it was shared from stays in view the moment it reads, then Notes Tech
+      opens. Not `Theme.NoDisplay`: that one must finish before `onResume`, and reading a shared file
+      takes longer.
+    -->
+    <style name="Theme.NotesTech.Partage" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

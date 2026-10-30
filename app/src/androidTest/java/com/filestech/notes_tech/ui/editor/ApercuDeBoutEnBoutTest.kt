@@ -7,14 +7,15 @@ import androidx.compose.ui.test.filter
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -156,7 +157,7 @@ class ApercuDeBoutEnBoutTest {
 
         // The note opens to be read (3.1.0): "Edit" first, which puts the cursor in the body.
         compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
-        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content))).performClick()
+        compose.onNodeWithTag(TAG_DU_CHAMP_DU_CORPS).performClick()
         assumeTrue("No soft keyboard showed on this device", attendreLeClavier(affiche = true))
         compose.waitUntilDoesNotExist(lienFantome, TIMEOUT_MILLIS)
 
@@ -181,8 +182,9 @@ class ApercuDeBoutEnBoutTest {
         attendreLaLecture()
 
         compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
-        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
-            .performTextInput(AJOUT)
+        // The body is Android's own EditText (3.2.0): typed in as a keyboard does.
+        compose.waitUntilAtLeastOneExists(hasTestTag(TAG_DU_CHAMP_DU_CORPS), TIMEOUT_MILLIS)
+        checkNotNull(scenario).onActivity { checkNotNull(champDuCorpsDe(it)).taper(AJOUT) }
         compose.onNodeWithContentDescription(context.getString(R.string.note_editor_tooltip_done)).performClick()
 
         val depart = SystemClock.uptimeMillis()
@@ -194,8 +196,30 @@ class ApercuDeBoutEnBoutTest {
         assertThat(enregistre).isTrue()
         // And it is the reading that shows it: no field left to write in.
         compose.waitUntilAtLeastOneExists(hasText(AJOUT, substring = true), TIMEOUT_MILLIS)
-        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
-            .assertDoesNotExist()
+        compose.onNodeWithTag(TAG_DU_CHAMP_DU_CORPS).assertDoesNotExist()
+    }
+
+    /**
+     * 🔴 **The keyboard leaves with the body field** (3.2.0). The body is an EditText, and one taken out
+     * of the window left the keyboard open — over the reading after the tick, over the list after the
+     * arrow (measured on the emulator, 2026-10-30). "Edit" opens it; the tick must close it.
+     */
+    @Test
+    fun the_keyboard_leaves_with_the_body_field() {
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasText(titreSource), TIMEOUT_MILLIS)
+        compose.onNodeWithText(titreSource).performClick()
+        attendreLaLecture()
+
+        compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
+        // A touch, as a finger: the instrumentation is not in touch mode, where a keyboard asked for by
+        // the app alone may not show.
+        compose.onNodeWithTag(TAG_DU_CHAMP_DU_CORPS).performClick()
+        assumeTrue("No soft keyboard showed on this device", attendreLeClavier(affiche = true))
+        compose.onNodeWithContentDescription(context.getString(R.string.note_editor_tooltip_done)).performClick()
+        compose.waitUntilDoesNotExist(hasTestTag(TAG_DU_CHAMP_DU_CORPS), TIMEOUT_MILLIS)
+
+        assertThat(attendreLeClavier(affiche = false)).isTrue()
     }
 
     /** Whether the system reaches [affiche] — a soft keyboard shown or not — within [TIMEOUT_MILLIS]. */
@@ -218,8 +242,7 @@ class ApercuDeBoutEnBoutTest {
     /** The note is shown to be read: its rendering is there, and no field to write in. */
     private fun attendreLaLecture() {
         compose.waitUntilAtLeastOneExists(hasText(texteAffiche), TIMEOUT_MILLIS)
-        compose.onNode(hasSetTextAction() and hasText(context.getString(R.string.note_editor_content)))
-            .assertDoesNotExist()
+        compose.onNodeWithTag(TAG_DU_CHAMP_DU_CORPS).assertDoesNotExist()
     }
 
     private fun toucherLeLien() {

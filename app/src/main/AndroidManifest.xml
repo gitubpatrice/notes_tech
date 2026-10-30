@@ -73,6 +73,32 @@
         </activity>
 
         <!--
+          3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4). The only component that reads what
+          another app sends: no screen, it reads, bounds and hands over in memory, then opens the app.
+          MainActivity keeps dropping every extra of its intent (audit of 2026-09-26, E1).
+          `noHistory` + `excludeFromRecents` + `taskAffinity=""`: it never shows in the recents nor
+          stays in the sending app's task.
+        -->
+        <activity
+            android:name=".ui.share.RecevoirUnPartageActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NotesTech.Partage">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+        </activity>
+
+        <!--
           Le seul moyen par lequel un fichier de cette application sort vers une autre.
 
           `exported="false"` + `grantUriPermissions="true"` : aucune application ne peut interroger

@@ -1,0 +1,1 @@
+New: encrypted backup (Settings) — your notes, folders and vaults in one file, protected by a code or a passphrase, restored without overwriting anything. Import of Markdown or text files and ZIP archives, a Notes Tech export included. Find in note, matches highlighted. Share text or files to Notes Tech from other apps. Long notes now scroll and type smoothly.

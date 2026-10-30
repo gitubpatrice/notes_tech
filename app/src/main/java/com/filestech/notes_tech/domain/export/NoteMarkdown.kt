@@ -34,6 +34,9 @@ object NoteMarkdown {
      */
     const val INBOX_DIR_NAME = "inbox"
 
+    /** The first line of the export's README: how the import (3.2.0) knows it, and leaves it out. */
+    const val README_HEADING = "# Notes Tech export"
+
     /**
      * The name of a folder that cleaning left unusable — empty, dots only, reserved by Windows.
      *
@@ -283,7 +286,7 @@ object NoteMarkdown {
      */
     fun readme(noteCount: Int, exportedAt: Instant, zone: ZoneId = ZoneId.systemDefault()): String =
         """
-        |# Notes Tech export
+        |$README_HEADING
         |
         |- Exported: ${iso(exportedAt, zone)}
         |- Notes: $noteCount

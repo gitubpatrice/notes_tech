@@ -5,12 +5,17 @@ import com.filestech.notes_tech.core.text.DartTextSemantics
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.NotesDatabase
 import com.filestech.notes_tech.data.local.OutgoingLink
+import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 import com.filestech.notes_tech.data.local.mapper.TagCodec
 import com.filestech.notes_tech.data.local.mapper.toDomain
+import com.filestech.notes_tech.domain.importation.BilanDImport
+import com.filestech.notes_tech.domain.importation.NoteAImporter
+import com.filestech.notes_tech.domain.importation.NoteImportee
 import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.links.WikiLinkParser
 import com.filestech.notes_tech.domain.model.EncryptedFormat
+import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.model.NoteSortMode
@@ -24,6 +29,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.Clock
+import java.time.Instant
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -312,6 +318,123 @@ class NotesRepository @Inject constructor(
             resolveIncoming(database, persisted)
             persisted
         }
+    }
+
+    /**
+     * Adds [notes] read from files or a share (3.2.0, `docs/13-VERSION-3.2.md` §2 and §4) to the
+     * ordinary folder [folderId]: new ids, the dates and flags the file carries (now, otherwise), the
+     * links indexed like any write — all in one transaction, all or nothing.
+     *
+     * 🔴 **Never into a vault, and refused rather than sealed.** An imported text is plaintext that
+     * came from elsewhere; quietly sealing it into a vault would hide where it went. The caller picks
+     * an ordinary folder; [FoldersRepository.isVaultFolder] answers "vault" for an unknown id too, so a
+     * folder deleted meanwhile is refused the same way.
+     */
+    suspend fun importer(folderId: String, notes: List<NoteImportee>): List<Note> {
+        require(!folders.isVaultFolder(folderId)) { "import refused into folder $folderId: a vault, or unknown" }
+        notes.forEach { requireTitleWithinLimit(it.titre) }
+        val now = clock.instant()
+        return inTransaction { database -> notes.map { inserer(database, it, folderId, now) } }
+    }
+
+    /**
+     * Adds the notes of the Settings' import (3.2.0, D-032), each to the ordinary folder its archive
+     * named — found by name, created when there is none — or the Inbox: all in one transaction, all
+     * or nothing, the folders created with it.
+     *
+     * 🔴 **Never into a vault**, here either: a name that is only a vault's sends the note to the Inbox,
+     * counted in [BilanDImport.versLaBoiteDeReception] for the summary to say it. An ordinary folder of
+     * the same name wins over a vault.
+     */
+    suspend fun importerDansDesDossiers(notes: List<NoteAImporter>): BilanDImport {
+        notes.forEach { requireTitleWithinLimit(it.note.titre) }
+        val now = clock.instant()
+        return inTransaction { database ->
+            val existants = database.folderDao().listAll().toDomain()
+            val parNom = HashMap<String, String?>()
+            var crees = 0
+            var versLaBoite = 0
+            val ecrites = notes.map { importee ->
+                val nom = importee.dossier
+                val dossier = when {
+                    nom == null -> Folder.INBOX_ID
+                    else -> parNom.getOrPut(nom) {
+                        val memeNom = existants.filter { it.name == nom }
+                        memeNom.firstOrNull { !it.isVault }?.id
+                            ?: if (memeNom.isNotEmpty()) {
+                                null
+                            } else {
+                                crees++
+                                folders.create(nom).id
+                            }
+                    } ?: Folder.INBOX_ID.also { versLaBoite++ }
+                }
+                inserer(database, importee.note, dossier, now)
+            }
+            BilanDImport(notes = ecrites, dossiersCrees = crees, versLaBoiteDeReception = versLaBoite)
+        }
+    }
+
+    /**
+     * The restore of an encrypted backup (3.2.0, D-031): [ecrire] runs inside ONE transaction, rolled
+     * back if it throws — and it does throw when the file's tag does not hold at its very end, after
+     * everything was written: nothing unauthenticated is ever committed.
+     *
+     * 🔴 **Rows go in as the backup has them** — a vault's columns, a sealed blob — which no other write
+     * of this repository does: [sealIfVault] is not applied, each note having been checked against its
+     * real destination by the restore's plan (`PlanDeRestauration`). Nothing else may write through it.
+     */
+    suspend fun <T> restaurerDansUneTransaction(ecrire: suspend (EcritureDeRestauration) -> T): T =
+        inTransaction { database -> ecrire(EcritureDeRestauration(database)) }
+
+    /** What [restaurerDansUneTransaction] gives its block: reads and writes inside its transaction. */
+    inner class EcritureDeRestauration internal constructor(private val database: NotesDatabase) {
+        suspend fun dossiersDuTelephone(): List<FolderEntity> = database.folderDao().listAll()
+
+        suspend fun noteDuTelephone(id: String): NoteEntity? = database.noteDao().findById(id)
+
+        suspend fun dossier(dossier: FolderEntity) = database.folderDao().insert(dossier)
+
+        /** A note in clear has its links indexed, like any write; a sealed one's stay detached (D-009). */
+        suspend fun note(note: NoteEntity) {
+            database.noteWriteDao().insert(note)
+            if (note.encryptedContent == null) {
+                val enClair = note.toDomain()
+                reindexLinks(database, enClair)
+                resolveIncoming(database, enClair)
+            }
+        }
+    }
+
+    /**
+     * One imported note, written: a new id, the dates and flags the file carries (now, otherwise), the
+     * links indexed like any write. Inside the caller's transaction.
+     */
+    private suspend fun inserer(database: NotesDatabase, lue: NoteImportee, folderId: String, now: Instant): Note {
+        // A date from a file is believed only between 1970 and now (security review of 3.2.0, L2): a
+        // year 200 000 000 would keep a note above all others forever, and a larger one overflows the
+        // epoch milliseconds the database stores.
+        fun plausible(date: Instant?): Instant? = date?.takeIf { !it.isBefore(Instant.EPOCH) && !it.isAfter(now) }
+        val creeeLe = plausible(lue.creeeLe) ?: now
+        val note = Note(
+            id = UUID.randomUUID().toString(),
+            title = lue.titre,
+            content = lue.contenu,
+            folderId = folderId,
+            tags = lue.etiquettes,
+            pinned = lue.epinglee,
+            favorite = lue.favorite,
+            archived = false,
+            trashedAt = null,
+            createdAt = creeeLe,
+            updatedAt = plausible(lue.modifieeLe) ?: creeeLe,
+            encrypted = null,
+            encVersion = EncryptedFormat.CONTENT_ONLY,
+        )
+        database.noteWriteDao().insert(note.toNewEntity())
+        reindexLinks(database, note)
+        resolveIncoming(database, note)
+        return note
     }
 
     /**

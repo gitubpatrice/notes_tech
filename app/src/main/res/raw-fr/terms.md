@@ -1,6 +1,6 @@
 # Conditions d'utilisation — Notes Tech
 
-_Dernière mise à jour : 26 octobre 2026_
+_Dernière mise à jour : 29 octobre 2026_
 
 ## Licence
 
@@ -18,13 +18,15 @@ L'application est mise à disposition **gratuitement** par un particulier, à ti
 
 ## Mode panique et perte de données
 
-Le **mode panique** efface définitivement et irréversiblement vos notes, votre clé de chiffrement et vos modèles. **Aucune récupération n'est possible** — c'est par conception. Avant de l'utiliser, exportez ce que vous voulez conserver via `Réglages → Exporter toutes mes notes`.
+Le **mode panique** efface définitivement et irréversiblement vos notes, votre clé de chiffrement et vos modèles. **Aucune récupération n'est possible** — c'est par conception. Avant de l'utiliser, mettez ce que vous voulez conserver dans une sauvegarde chiffrée (`Réglages → Sauvegarde chiffrée`) ou un export (`Réglages → Exporter toutes mes notes`).
 
 Une note **mise à la corbeille** peut être restaurée pendant 30 jours. Une note **supprimée définitivement** — depuis la corbeille, ou par un appui long dans la liste des notes, après confirmation — ne passe pas par la corbeille et **ne peut plus être récupérée**.
 
 De même, **oublier la passphrase d'un coffre rend ses notes illisibles à jamais** : la passphrase n'est jamais stockée, elle ne sert qu'à dériver la clé via Argon2id. Aucune procédure de récupération n'existe.
 
 Pour les coffres en mode **PIN**, **5 échecs successifs déclenchent un auto-wipe** (suppression de la clé Keystore). Aligné sur le comportement standard d'un écran de verrouillage Android — à partir d'Android 9 seulement : avant, Android ne sait pas lier cette clé au déverrouillage du téléphone, l'application n'y crée aucun coffre PIN, et un coffre PIN créé auparavant ne tient pas cette limite de cinq essais sur un téléphone saisi.
+
+Une **sauvegarde chiffrée** ne s'ouvre qu'avec son code ou sa passphrase, que Notes Tech ne garde pas : sans eux, le fichier reste **illisible à jamais**. Le mode panique n'atteint pas une sauvegarde enregistrée hors de l'application : supprimez-la vous-même.
 
 ## Modèle de dictée vocale
 
@@ -72,7 +74,7 @@ Les mises à jour sont publiées sur le dépôt GitHub officiel et sur F-Droid. 
 
 ## Responsabilité
 
-L'application est fournie gratuitement, par un particulier. Dans la mesure permise par la loi, l'éditeur n'est pas responsable des dommages indirects, ni des pertes de données dues à l'usage de fonctions conçues pour être irréversibles (mode panique, effacement d'un coffre PIN après cinq codes erronés, suppression définitive, désinstallation) ou à une passphrase ou un code PIN oublié (licence Apache 2.0, section 8). Cette limite ne s'applique ni en cas de faute lourde ou dolosive, ni aux dommages que la loi interdit d'exclure.
+L'application est fournie gratuitement, par un particulier. Dans la mesure permise par la loi, l'éditeur n'est pas responsable des dommages indirects, ni des pertes de données dues à l'usage de fonctions conçues pour être irréversibles (mode panique, effacement d'un coffre PIN après cinq codes erronés, suppression définitive, désinstallation) ou à une passphrase, un code PIN ou un code de sauvegarde oublié (licence Apache 2.0, section 8). Cette limite ne s'applique ni en cas de faute lourde ou dolosive, ni aux dommages que la loi interdit d'exclure.
 
 ## Loi applicable
 

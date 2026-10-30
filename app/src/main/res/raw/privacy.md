@@ -1,6 +1,6 @@
 # Privacy policy — Notes Tech
 
-_Last updated: 26 October 2026_
+_Last updated: 30 October 2026_
 
 ## In one sentence
 
@@ -15,6 +15,8 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 - **Tags and colour of a vault note**: they stay in the database encrypted by SQLCipher, but **outside the vault's own encryption** — only the title and the content fall under it. In the lists, a vault note never shows its tags, and shows its colour only while that vault is open.
 - **App lock (optional)**: the PIN itself is never stored. What is kept is a value derived from it with **Argon2id** and bound by **HMAC-SHA256** to a key of the **Android Keystore** that never leaves the phone — so it cannot be checked anywhere else. After five wrong PINs, each new attempt waits longer (30 seconds, doubling up to one hour); wrong attempts never erase anything. **Fingerprint or face unlock** is handled entirely by Android: Notes Tech receives no biometric data, only the confirmation that a Keystore key was allowed to work, and only strong (Class 3) biometrics are accepted.
 - **Backlinks `[[Title]]`**: local inverted index, never transmitted.
+- **Encrypted backup (optional)**: a `.ntbackup` file you create yourself, where you choose through the Android document picker. It holds your folders and notes, trash included, encrypted with **AES-256-GCM** under a key derived by **Argon2id** (m=64MB, t=3) from a code the app draws and you write down, or from a passphrase of your own — Notes Tech keeps neither. It is first written, already encrypted, in the app's private storage, then copied where you chose and erased from the app's storage. A passphrase vault's notes stay sealed by its passphrase in the file. A PIN vault travels only open, with its key: in the file, only the backup's secret protects it; a closed one is left out. Restoring adds what is missing and overwrites nothing.
+- **Imported and shared notes**: Markdown or text files — or a ZIP of them — you choose in the Android document picker, and text or files you share to Notes Tech from another app, become ordinary notes in your folders, never in a vault. They are read once, on the phone; the originals are left untouched and nothing is kept beside the notes created. At most 500,000 characters per note.
 - **Voice dictation model (Whisper `.bin`)**: you obtain it yourself — the app shows the file name and its source — then import it through the Android document picker. Notes Tech has no Internet permission and **exposes no way to download anything**. Its SHA-256 is verified on import and before every load.
 - **Audio captured during dictation**: written to a temporary file in the app's private storage — the transcription engine reads a file, there is no way around it — then **wiped as soon as the transcription is returned**. It is also wiped on app start and by panic mode, so an abrupt shutdown leaves nothing behind.
 - **Settings (theme, sort, dictation enabled, vault auto-lock, app lock options)**: stored in clear in local preferences (no sensitive data).
@@ -33,7 +35,7 @@ Active permissions are strictly utilitarian:
 - `RECORD_AUDIO` (dictation: audio is written to a private temporary file, then wiped as soon as the transcription is returned).
 - `USE_BIOMETRIC` and `USE_FINGERPRINT` (optional fingerprint or face unlock of the app lock; declared by the AndroidX biometric library — `USE_FINGERPRINT` is the name the same permission has on Android 8 and older).
 
-These are the **only** permissions requested. Picking the model file goes through the Android document picker, which requires none.
+These are the **only** permissions requested. Picking a file — the dictation model, notes to import, a backup — goes through the Android document picker, which requires none.
 
 ### Panic mode
 
@@ -48,12 +50,15 @@ The **Settings → Panic mode** menu wipes in bulk:
 - the Whisper model installed in the sandbox,
 - the preferences (except `db_encrypted_v1` and `secure_window_enabled` kept for restart consistency).
 
+Panic mode does not reach an encrypted backup saved outside the app, wherever you put it: delete it yourself.
+
 The wipe is **not atomic**, and the step order is designed around that: the encryption key is destroyed **before** the long erasures, then the cleartext files, then the rest. An abrupt shutdown at any instant therefore leaves the safest state reachable at that instant — at worst a database reduced to noise. The final screen states what failed, and **whether anything readable may remain**.
 
 ### Your rights
 
 Your data stays on your phone, under your sole control, and the publisher has no way to access it, and therefore processes no personal data about you. This is what the CNIL, the French data protection authority, describes as "software simply made available to the user", to which the GDPR does not apply (recommendation on mobile apps, section 3.3). You remain in control of your data and may at any time:
 - export your notes in Markdown or ZIP (`Settings → Export all my notes`),
+- make an encrypted backup of them and restore it (`Settings → Encrypted backup`),
 - delete a note permanently, from the trash or with a long press in the list of notes,
 - delete all data via panic mode,
 - uninstall the app — Android will automatically delete all private data.

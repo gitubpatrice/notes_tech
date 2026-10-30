@@ -9,6 +9,7 @@ import com.filestech.notes_tech.data.local.dao.NoteDao
 import com.filestech.notes_tech.data.local.dao.NoteLinkDao
 import com.filestech.notes_tech.data.local.dao.NoteSearchDao
 import com.filestech.notes_tech.data.local.dao.NoteWriteDao
+import com.filestech.notes_tech.data.local.dao.SauvegardeDao
 import com.filestech.notes_tech.data.local.entity.FolderEntity
 import com.filestech.notes_tech.data.local.entity.NoteEntity
 
@@ -70,6 +71,9 @@ abstract class NotesDatabase : RoomDatabase() {
     abstract fun noteWriteDao(): NoteWriteDao
 
     abstract fun noteSearchDao(): NoteSearchDao
+
+    /** The encrypted backup's reads (3.2.0). */
+    abstract fun sauvegardeDao(): SauvegardeDao
 
     /**
      * Lectures de `note_links` uniquement. Les écritures passent par [NoteLinkWriter] — la table

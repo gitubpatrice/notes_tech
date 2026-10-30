@@ -41,11 +41,13 @@ import com.filestech.notes_tech.ui.applock.AppLockRoute
 import com.filestech.notes_tech.ui.applock.RecentsGuard
 import com.filestech.notes_tech.ui.common.ExternalActivityGuard
 import com.filestech.notes_tech.ui.common.LocalExternalActivityGuard
+import com.filestech.notes_tech.ui.navigation.Destination
 import com.filestech.notes_tech.ui.panic.RecouvrementDePanique
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
 import com.filestech.notes_tech.ui.secure.sansClassificationDeTexte
+import com.filestech.notes_tech.ui.share.PartagesRecus
 import com.filestech.notes_tech.ui.splash.SplashScreen
 import com.filestech.notes_tech.ui.startup.StartupFailureScreen
 import com.filestech.notes_tech.ui.startup.StartupState
@@ -265,7 +267,15 @@ private fun ContenuPrincipal(settings: AppSettings, appLock: AppLockManager, ver
                 LockedAppHost(
                     locked = verrouille != null && (verrouConfigure || paniqueDeclenchee),
                     lockScreen = { AppLockRoute(epoch = verrouille?.epoch ?: 0) },
-                ) { navController -> NotesTechNavHost(navController = navController) }
+                ) { navController ->
+                    NotesTechNavHost(navController = navController)
+                    // 3.2.0 — here, inside the lock's content: a share becomes notes only once the
+                    // app is unlocked and the user has said yes (`PartagesRecus`) — and never while
+                    // the panic mode is destroying the database (security review of 3.2.0, L3).
+                    if (!paniqueDeclenchee) {
+                        PartagesRecus(onOuvrirLaNote = { navController.navigate(Destination.Editor(it).route) })
+                    }
+                }
             }
 
             // 🔴 A panic cut before its end is finished before anything is opened (audit 2026-09-26,

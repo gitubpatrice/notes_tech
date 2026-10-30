@@ -1,12 +1,15 @@
 package com.filestech.notes_tech.ui.secure
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.AndroidClipboard
 import androidx.compose.ui.platform.ClipEntry
@@ -58,7 +61,14 @@ fun SaisieDeCoffre(
     val pressePapiers = remember(natif) {
         PressePapiersDeCoffre(natif, { estActif }, { deposerCourant(it) }, { surEchecCourant(it) })
     }
-    CompositionLocalProvider(LocalClipboard provides pressePapiers) {
+    val copie: suspend (String) -> Boolean = remember(natif) {
+        { texte -> copierDepuisUnChamp(texte, estActif, natif, { deposerCourant(it) }, { surEchecCourant(it) }) }
+    }
+    CompositionLocalProvider(
+        LocalClipboard provides pressePapiers,
+        LocalSaisieProtegee provides actif,
+        LocalCopieDeSaisie provides copie,
+    ) {
         InterceptPlatformTextInput(
             interceptor = { requete, suivant ->
                 val transmise = if (!estActif) {
@@ -76,6 +86,45 @@ fun SaisieDeCoffre(
             content = contenu,
         )
     }
+}
+
+/**
+ * Whether the NATIVE text fields under [SaisieDeCoffre] must protect what they hold (3.2.0): the
+ * interceptor and the clipboard above reach Compose's fields only, and the note's body is an
+ * `EditText` — see `ChampDuCorps`, which applies the same two protections itself.
+ */
+internal val LocalSaisieProtegee = compositionLocalOf { false }
+
+/**
+ * How a native text field under [SaisieDeCoffre] writes its Copy and Cut — see [copierDepuisUnChamp].
+ * `null` outside it.
+ */
+internal val LocalCopieDeSaisie = staticCompositionLocalOf<(suspend (String) -> Boolean)?> { null }
+
+/**
+ * Writes [texte], copied from a field, to the clipboard: through [deposer] — the menu's protections —
+ * when [protegee], as a plain clip otherwise. `true` once written; `false` when refused, after
+ * [surEchec] was told, so that a Cut removes nothing.
+ *
+ * A plain clip can be refused too: a long selection exceeds what one Binder transaction carries, about
+ * 1 MB — 500 000 characters, which a note can hold — and the clipboard throws.
+ * ⚠️ Never a fallback to a plain clip when [protegee]: that is the leak [SaisieDeCoffre] closes.
+ */
+internal suspend fun copierDepuisUnChamp(
+    texte: String,
+    protegee: Boolean,
+    natif: Clipboard,
+    deposer: suspend (String) -> Unit,
+    surEchec: (String) -> Unit,
+): Boolean = try {
+    if (protegee) deposer(texte) else natif.setClipEntry(ClipEntry(ClipData.newPlainText(null, texte)))
+    true
+} catch (e: CancellationException) {
+    throw e
+} catch (e: Exception) {
+    Timber.w(e, "copie depuis un champ refusee")
+    surEchec(texte)
+    false
 }
 
 /**

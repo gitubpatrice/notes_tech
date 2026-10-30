@@ -1,6 +1,6 @@
 # Condiciones de uso — Notes Tech
 
-_Última actualización: 26 de octubre de 2026_
+_Última actualización: 29 de octubre de 2026_
 
 ## Licencia
 
@@ -18,13 +18,15 @@ Un particular pone la aplicación a disposición **de forma gratuita**, a títul
 
 ## Modo pánico y pérdida de datos
 
-El **modo pánico** borra de forma definitiva e irreversible sus notas, su clave de cifrado y sus modelos. **No es posible ninguna recuperación**: es intencionado. Antes de usarlo, exporte lo que quiera conservar mediante `Ajustes → Exportar todas mis notas`.
+El **modo pánico** borra de forma definitiva e irreversible sus notas, su clave de cifrado y sus modelos. **No es posible ninguna recuperación**: es intencionado. Antes de usarlo, guarde lo que quiera conservar en una copia de seguridad cifrada (`Ajustes → Copia de seguridad cifrada`) o en una exportación (`Ajustes → Exportar todas mis notas`).
 
 Una nota **movida a la papelera** puede restaurarse durante 30 días. Una nota **eliminada definitivamente** —desde la papelera, o con una pulsación larga en la lista de notas, tras una confirmación— no pasa por la papelera y **ya no puede recuperarse**.
 
 Del mismo modo, **olvidar la frase de contraseña de una caja fuerte hace que sus notas sean ilegibles para siempre**: la frase de contraseña nunca se guarda, solo sirve para derivar la clave mediante Argon2id. No existe ningún procedimiento de recuperación.
 
 En las cajas fuertes con **PIN**, **5 errores seguidos provocan un borrado automático** (eliminación de la clave del Keystore). Es el mismo comportamiento que el del bloqueo de pantalla habitual de Android, pero solo desde Android 9: antes, Android no puede vincular esta clave al desbloqueo del teléfono, la aplicación no crea allí cajas fuertes con PIN, y una caja fuerte con PIN creada antes no respeta ese límite de cinco intentos en un teléfono incautado.
+
+Una **copia de seguridad cifrada** solo se abre con su código o su frase de contraseña, que Notes Tech no guarda: sin él, el archivo queda **ilegible para siempre**. El modo pánico no alcanza una copia guardada fuera de la aplicación: bórrela usted mismo.
 
 ## Modelo de dictado por voz
 
@@ -68,7 +70,7 @@ Las actualizaciones se publican en el repositorio oficial de GitHub y en F-Droid
 
 ## Responsabilidad
 
-La aplicación se ofrece gratuitamente, por un particular. En la medida en que la ley lo permita, el editor no es responsable de los daños indirectos, ni de las pérdidas de datos debidas al uso de funciones concebidas para ser irreversibles (modo pánico, borrado de una caja fuerte con PIN tras cinco códigos erróneos, eliminación definitiva, desinstalación) o a una frase de contraseña o un PIN olvidados (licencia Apache 2.0, sección 8). Esta limitación no se aplica en caso de culpa grave o dolo, ni a los daños que la ley prohíbe excluir.
+La aplicación se ofrece gratuitamente, por un particular. En la medida en que la ley lo permita, el editor no es responsable de los daños indirectos, ni de las pérdidas de datos debidas al uso de funciones concebidas para ser irreversibles (modo pánico, borrado de una caja fuerte con PIN tras cinco códigos erróneos, eliminación definitiva, desinstalación) o a una frase de contraseña, un PIN o un código de copia olvidados (licencia Apache 2.0, sección 8). Esta limitación no se aplica en caso de culpa grave o dolo, ni a los daños que la ley prohíbe excluir.
 
 ## Legislación aplicable
 

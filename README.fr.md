@@ -4,7 +4,7 @@
 
 🇬🇧 [English version](README.md)
 
-**v3.1.1 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
+**v3.2.0 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
 
 Application de prise de notes Markdown chiffrée pour Android, écrite en **Kotlin** avec Jetpack
 Compose. **100 % locale, sans permission Internet.** Interface en **anglais, français, allemand,
@@ -20,6 +20,26 @@ l'application est techniquement incapable d'envoyer quoi que ce soit, et son man
 vérifier.**
 
 ---
+
+## Nouveautés de la 3.2.0
+
+- **Sauvegarde chiffrée** (Réglages → Sauvegarde chiffrée) : vos notes et dossiers, corbeille comprise,
+  dans un seul fichier `.ntbackup`, chiffré (Argon2id, AES-256-GCM) par un code généré ou une
+  passphrase de votre choix. Un coffre à passphrase voyage tel quel, toujours scellé par sa propre
+  passphrase ; un coffre à code ouvert voyage dans le chiffrement de la sauvegarde et reçoit un nouveau
+  code à la restauration. Restaurer ajoute et n'écrase jamais : tout le fichier est vérifié d'abord,
+  puis écrit en une seule transaction.
+- **Import** de fichiers Markdown ou texte, ou d'une archive ZIP de ces fichiers — un export de Notes
+  Tech, un coffre Obsidian : dossiers conservés, frontmatter lu, jamais dans un coffre. 500 000
+  caractères au plus par note.
+- **Rechercher dans la note** : occurrences surlignées, « 3 / 12 », précédente et suivante, en lecture
+  comme en écriture ; une note ouverte depuis un résultat de recherche s'ouvre avec sa recherche.
+- **Partager vers Notes Tech** depuis une autre appli : un texte devient une note dans la Boîte de
+  réception, des fichiers texte sont importés — après le verrou de l'appli, s'il est activé.
+- **Notes longues** : le corps s'écrit désormais dans le champ de texte d'Android, qui ne dessine que
+  les lignes à l'écran — sur un Galaxy S9, d'environ 1 s par frappe à 100 000 caractères à environ
+  20 ms. Le clavier ne lit que le texte autour du curseur, le défilement glisse sur sa lancée, et la
+  lecture d'une très longue note ne fige plus l'appli.
 
 ## Nouveautés de la 3.1.1
 
@@ -132,6 +152,14 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 ### Recherche
 - Recherche plein texte **FTS5** instantanée (analyseur `unicode61`, accents ignorés). Le texte
   supprimé est aussi effacé de l'index (`secure-delete`).
+- **Rechercher dans la note** : les occurrences d'une recherche surlignées dans la note à l'écran, l'une
+  après l'autre.
+
+### Sauvegarde, import et partage
+- **Sauvegarde chiffrée** dans un fichier `.ntbackup` que vous gardez, restaurée sur ce téléphone ou un
+  autre.
+- **Import** de fichiers Markdown ou texte et d'archives ZIP ; **partage** de textes ou de fichiers depuis
+  d'autres applis.
 
 ### Dictée Whisper
 - **whisper.cpp 1.8.3**, compilé dans l'application à partir de ses sources et exécuté sur l'appareil.
@@ -163,7 +191,7 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
 ## Installation
 
 1. **APK publié** — depuis les [Releases GitHub](https://github.com/gitubpatrice/notes_tech/releases),
-   l'APK universel (`notes-tech-universel-3.1.1.apk`, tous téléphones), ou le fichier plus léger de
+   l'APK universel (`notes-tech-universel-3.2.0.apk`, tous téléphones), ou le fichier plus léger de
    votre appareil (`arm64-v8a` convient à presque tous les téléphones depuis 2016). Vérifiez l'empreinte SHA-256 publiée dans les notes de version.
 2. **F-Droid** — [f-droid.org/packages/com.filestech.notes_tech](https://f-droid.org/packages/com.filestech.notes_tech/),
    construite et signée par F-Droid.

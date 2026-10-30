@@ -48,6 +48,7 @@ import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -66,8 +67,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,8 +80,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.Layout
@@ -92,6 +93,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.TextFieldValue
@@ -348,7 +350,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         SaisieDeCoffre(
             actif = state.isVaultNote,
             deposer = viewModel::deposerDansLePressePapiers,
-            surEchec = viewModel::copieProtegeeRefusee,
+            surEchec = viewModel::copieRefusee,
         ) {
             FeuilleDAutocompletion(
                 suggestions = suggestions,
@@ -400,7 +402,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     SaisieDeCoffre(
         actif = state.isVaultNote,
         deposer = viewModel::deposerDansLePressePapiers,
-        surEchec = viewModel::copieProtegeeRefusee,
+        surEchec = viewModel::copieRefusee,
     ) {
         NoteEditorScreen(
             state = state,
@@ -444,6 +446,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
                 lectureChoisie = true
             },
             onLienDeLApercu = lienDeLApercu,
+            rechercheALOuverture = viewModel.rechercheALOuverture,
         )
     }
 
@@ -509,20 +512,63 @@ fun NoteEditorScreen(
     /** Writing → reading: the ✓ tick, which saves first. */
     onTerminer: () -> Unit,
     onLienDeLApercu: (LinkTarget) -> Unit,
+    /** The search of the result this note was opened from (3.2.0): the "Find in note" bar opens with it. */
+    rechercheALOuverture: String?,
     modifier: Modifier = Modifier,
 ) {
     val focus = LocalFocusManager.current
     // Leaving the reading puts the cursor in the body, and with it the keyboard: "Edit" means "write".
     // Only after that button — a note created blank opens to be written, as before, without forcing it.
-    val focusDuCorps = remember { FocusRequester() }
+    // Taken by the body field once it is there (see `ChampDuCorps`).
     var focaliserLeCorps by remember { mutableStateOf(false) }
-    LaunchedEffect(lecture, focaliserLeCorps) {
-        if (!lecture && focaliserLeCorps) {
-            focaliserLeCorps = false
-            focusDuCorps.requestFocus()
+    val noteOuverte = state.note != null && state.lockedVault == null && state.loadError == null && !state.loading
+
+    // Above the Edit / Preview branch, not inside it: the branch leaving the composition took the
+    // preview's position with it, and every switch put a long note back at its top (GPT-5.6 review,
+    // 2026-09-25). Saveable, so a rotation keeps it too. The Edit side has no such state to keep: its
+    // field scrolls itself and exposes none — as in 2.0.9, where the field is rebuilt on each switch.
+    // Up here since 3.2.0: "Find in note" scrolls it from the bar.
+    val defilementDeLApercu = rememberLazyListState()
+    // ⚠️ The text on screen, not the last saved one: what the preview draws is what the user has just
+    // typed — the save is 500 ms behind. Called in both modes: a reading, and so the preview's
+    // position, survives a trip to Edit when nothing was typed (see `rememberLectureDeLApercu`). Up
+    // here since 3.2.0: the search bar, in the top bar, searches what it draws.
+    val rendu = rememberLectureDeLApercu(state.content.text, actif = lecture)
+
+    val recherche = rememberEtatDeRechercheDansLaNote(rechercheALOuverture)
+    SideEffect { recherche.saisieSauvegardee = !state.isVaultNote }
+    val source = sourceDeRecherche(recherche, noteOuverte, lecture, state, rendu)
+    val resultat = rememberResultatDeRecherche(recherche, source)
+    val courante = resultat?.occurrences?.getOrNull(recherche.indexParmi(resultat.occurrences.size))
+    DeplacementDeLaRecherche(
+        recherche = recherche,
+        resultat = resultat,
+        courante = courante,
+        lecture = lecture,
+        defilement = defilementDeLApercu,
+        onPlacerLeCurseur = { cible ->
+            when (cible.cle) {
+                CleDuCorps -> onContenuChange(state.content.copy(selection = TextRange(cible.plage.debut)))
+                CleDuTitre -> onTitreChange(state.titre.copy(selection = TextRange(cible.plage.debut)))
+            }
+        },
+    )
+    // The bar closes when the note stops being readable — a vault relocked underneath: it would
+    // otherwise come back over the unlock sheet's answer. Not before the note was ever readable: the
+    // bar opened by a search result waits for the note to load.
+    var dejaLisible by remember { mutableStateOf(false) }
+    LaunchedEffect(noteOuverte) {
+        when {
+            noteOuverte -> dejaLisible = true
+            dejaLisible -> recherche.fermer()
         }
     }
-    val noteOuverte = state.note != null && state.lockedVault == null && state.loadError == null && !state.loading
+    val rechercheVisible = recherche.ouverte && noteOuverte
+    BackHandler(enabled = rechercheVisible, onBack = recherche::fermer)
+    val surlignage = remember(resultat, courante, recherche.aAmener) {
+        if (resultat == null) Surlignage.AUCUN else Surlignage(resultat, courante, recherche.aAmener, recherche::amenee)
+    }
+
     Scaffold(
         modifier = modifier,
         snackbarHost = { HoteDeMessages(messages) },
@@ -554,6 +600,12 @@ fun NoteEditorScreen(
             }
         },
         topBar = {
+            // "Find in note" takes the top bar's place while open, as a find-in-page does: the system
+            // Back closes it first (above), then leaves the note.
+            if (rechercheVisible) {
+                BarreDeRechercheDansLaNote(recherche, resultat)
+                return@Scaffold
+            }
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = onQuitter) {
@@ -664,6 +716,7 @@ fun NoteEditorScreen(
                     }
                     if (ouvrable) {
                         MenuDeDebordement(
+                            onRechercher = recherche::ouvrir,
                             epinglee = note.pinned,
                             favorite = note.favorite,
                             // ⚠️ **La valeur inverse est calculée ICI**, où la note est connue, et le
@@ -687,13 +740,6 @@ fun NoteEditorScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             val chargementEnCours = stringResource(R.string.common_loading)
-
-            // Above the Edit / Preview branch, not inside it: the branch leaving the composition took
-            // the preview's position with it, and every switch put a long note back at its top
-            // (GPT-5.6 review, 2026-09-25). Saveable, so a rotation keeps it too. The Edit side has no
-            // such state to keep: its field scrolls itself and exposes none — as in 2.0.9, where the
-            // field is rebuilt on each switch.
-            val defilementDeLApercu = rememberLazyListState()
 
             // Recopie locale : `state` est un délégué, le lissage de type ne s'y applique pas.
             val erreurDeChargement = state.loadError
@@ -758,12 +804,7 @@ fun NoteEditorScreen(
                 //
                 // ⚠️ With a floor 2.0.9 lacks: in a window too short for the header, the body and
                 // the panel, the three scroll together — see `MiseEnPageDeLEditeur`.
-                else -> {
-                    // ⚠️ The text on screen, not the last saved one: what the preview draws is what
-                    // the user has just typed — the save is 500 ms behind. Called in both modes: a
-                    // reading, and so the preview's position, survives a trip to Edit when nothing
-                    // was typed (see `rememberLectureDeLApercu`).
-                    val rendu = rememberLectureDeLApercu(state.content.text, actif = lecture)
+                else -> CompositionLocalProvider(LocalSurlignage provides surlignage) {
                     MiseEnPageDeLEditeur(
                         enTete = { EnTeteDeLEditeur(state, onTitreChange, lecture) },
                         pied = {
@@ -779,17 +820,15 @@ fun NoteEditorScreen(
                         if (lecture) {
                             FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu)
                         } else {
-                            TextField(
-                                value = state.content,
-                                onValueChange = onContenuChange,
-                                // ⚠️ `note_editor_content` était traduite des deux côtés et lue **nulle
-                                // part** — le publié en fait le `labelText` de ce champ exactement. Même
-                                // discriminant que §79, appliqué au même écran le même jour.
-                                label = { Text(stringResource(R.string.note_editor_content)) },
-                                placeholder = { Text(stringResource(R.string.note_editor_content_hint)) },
-                                textStyle = MaterialTheme.typography.bodyLarge,
-                                colors = champSansDecor(),
-                                modifier = Modifier.fillMaxSize().focusRequester(focusDuCorps),
+                            // 🔴 Android's own text field, not Compose's: a long note was unusable to
+                            // write in — see `ChampDuCorps`. Its label is `note_editor_content`, as
+                            // the published app's `labelText`.
+                            ChampDuCorps(
+                                valeur = state.content,
+                                onValeurChange = onContenuChange,
+                                focaliser = focaliserLeCorps,
+                                onFocalise = { focaliserLeCorps = false },
+                                modifier = Modifier.fillMaxSize(),
                             )
                         }
                     }
@@ -879,8 +918,12 @@ private fun FicheDeLecture(
         Column(Modifier.fillMaxSize()) {
             // The title the note has; an empty one says so, in italics, as the cards do.
             val sansTitre = state.titre.text.isEmpty()
-            Text(
-                text = if (sansTitre) stringResource(R.string.note_untitled) else state.titre.text,
+            val titre = if (sansTitre) stringResource(R.string.note_untitled) else state.titre.text
+            TexteSurligne(
+                texte = remember(titre) { AnnotatedString(titre) },
+                // An empty title shows "Untitled", which is not the note's: the search reads the title,
+                // an empty one finds nothing, so nothing is highlighted in those words.
+                cle = CleDuTitre,
                 style = MaterialTheme.typography.headlineSmall,
                 fontStyle = if (sansTitre) FontStyle.Italic else null,
                 color = if (sansTitre) schema.onSurfaceVariant else schema.onSurface,
@@ -981,6 +1024,7 @@ private fun EnTeteDeLEditeur(state: EditorUiState, onTitreChange: (TextFieldValu
             label = { Text(stringResource(R.string.note_editor_title)) },
             textStyle = MaterialTheme.typography.headlineSmall,
             singleLine = true,
+            visualTransformation = surlignageDuChamp(CleDuTitre),
             colors = champSansDecor(),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -1087,7 +1131,7 @@ private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> U
 
 /** Deux champs de texte qui ne ressemblent pas à un formulaire. */
 @Composable
-private fun champSansDecor() = TextFieldDefaults.colors(
+internal fun champSansDecor() = TextFieldDefaults.colors(
     focusedContainerColor = Color.Transparent,
     unfocusedContainerColor = Color.Transparent,
     disabledContainerColor = Color.Transparent,
@@ -1319,6 +1363,7 @@ private fun TitreDeLEditeur(dossier: String, enregistrement: Boolean, echec: Boo
  */
 @Composable
 private fun MenuDeDebordement(
+    onRechercher: () -> Unit,
     epinglee: Boolean,
     favorite: Boolean,
     onEpingler: () -> Unit,
@@ -1340,6 +1385,15 @@ private fun MenuDeDebordement(
         )
     }
     DropdownMenu(expanded = ouvert, onDismissRequest = { ouvert = false }) {
+        // First (3.2.0): the one entry about the note's TEXT, the gesture a reader comes to the menu for.
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_editor_menu_find)) },
+            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onRechercher()
+            },
+        )
         // 🔴🔴 **Épingle et favori sont ICI, et non dans la barre d'actions.**
         //
         // Ils y étaient. Mesuré sur le S9 après l'ajout du micro : six actions dans la barre

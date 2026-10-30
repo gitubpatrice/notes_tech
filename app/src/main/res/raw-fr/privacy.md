@@ -1,6 +1,6 @@
 # Politique de confidentialité — Notes Tech
 
-_Dernière mise à jour : 26 octobre 2026_
+_Dernière mise à jour : 30 octobre 2026_
 
 ## En une phrase
 
@@ -15,6 +15,8 @@ Notes Tech ne collecte, ne transmet et ne stocke aucune donnée sur des serveurs
 - **Étiquettes et couleur d'une note de coffre** : elles restent dans la base chiffrée par SQLCipher, mais **hors du chiffrement propre au coffre** — seuls le titre et le contenu en relèvent. Dans les listes, une note de coffre n'affiche jamais ses étiquettes, et sa couleur seulement lorsque ce coffre est ouvert.
 - **Verrouillage de l'application (facultatif)** : le PIN lui-même n'est jamais conservé. Ce qui l'est, c'est une valeur dérivée par **Argon2id** et liée par **HMAC-SHA256** à une clé du **Keystore Android** qui ne quitte jamais le téléphone : elle ne peut donc être vérifiée nulle part ailleurs. Après cinq PIN erronés, chaque nouvel essai attend plus longtemps (30 secondes, doublées jusqu'à une heure) ; un essai raté n'efface jamais rien. Le **déverrouillage par empreinte ou par visage** est entièrement géré par Android : Notes Tech ne reçoit aucune donnée biométrique, seulement la confirmation qu'une clé du Keystore a été autorisée à servir, et seule la biométrie forte (classe 3) est acceptée.
 - **Backlinks `[[Titre]]`** : index inversé local, jamais transmis.
+- **Sauvegarde chiffrée (facultative)** : un fichier `.ntbackup` que vous créez vous-même, à l'endroit que vous choisissez par le sélecteur de documents Android. Il contient vos dossiers et vos notes, corbeille comprise, chiffrés en **AES-256-GCM** sous une clé dérivée par **Argon2id** (m=64MB, t=3) d'un code tiré par l'application et que vous notez, ou d'une passphrase de votre choix — Notes Tech ne garde ni l'un ni l'autre. Il est d'abord écrit, déjà chiffré, dans le stockage privé de l'application, puis copié à l'endroit choisi et effacé du stockage de l'application. Les notes d'un coffre à passphrase restent scellées par sa passphrase dans le fichier. Un coffre à PIN ne voyage qu'ouvert, avec sa clé : dans le fichier, seul le secret de la sauvegarde le protège ; fermé, il est laissé de côté. La restauration ajoute ce qui manque et n'écrase rien.
+- **Notes importées et partagées** : les fichiers Markdown ou texte — ou une archive ZIP de ces fichiers — que vous choisissez dans le sélecteur de documents d'Android, et les textes ou fichiers que vous partagez vers Notes Tech depuis une autre appli, deviennent des notes ordinaires dans vos dossiers, jamais dans un coffre. Ils sont lus une fois, sur le téléphone ; les originaux ne sont pas modifiés et rien n'est gardé à côté des notes créées. 500 000 caractères au plus par note.
 - **Modèle de dictée vocale (Whisper `.bin`)** : vous vous le procurez vous-même — l'application affiche le nom du fichier et sa source — puis vous l'importez par le sélecteur de documents Android. Notes Tech n'a pas la permission Internet et **n'expose aucun moyen de télécharger quoi que ce soit**. Son empreinte SHA-256 est vérifiée à l'import et avant chaque chargement.
 - **Audio capturé pendant la dictée** : écrit dans un fichier temporaire du stockage privé de l'application — le moteur de transcription lit un fichier, il ne peut pas en être autrement — puis **effacé dès la transcription obtenue**. Il l'est également au démarrage de l'application et par le mode panique, de sorte qu'un arrêt brutal ne laisse rien derrière lui.
 - **Préférences (thème, tri, dictée activée, auto-lock coffre, options du verrouillage)** : stockées en clair dans les préférences locales (pas de donnée sensible).
@@ -33,7 +35,7 @@ Les permissions actives sont strictement utilitaires :
 - `RECORD_AUDIO` (dictée : l'audio est écrit dans un fichier temporaire privé, puis effacé dès la transcription obtenue).
 - `USE_BIOMETRIC` et `USE_FINGERPRINT` (déverrouillage facultatif de l'application par empreinte ou par visage ; déclarées par la bibliothèque biométrique AndroidX — `USE_FINGERPRINT` est le nom que porte la même permission sur Android 8 et antérieur).
 
-Ce sont les **seules** permissions demandées. Le choix du fichier de modèle passe par le sélecteur de documents Android, qui n'en exige aucune.
+Ce sont les **seules** permissions demandées. Le choix d'un fichier — le modèle de dictée, des notes à importer, une sauvegarde — passe par le sélecteur de documents Android, qui n'en exige aucune.
 
 ### Mode panique
 
@@ -48,12 +50,15 @@ Le menu **Réglages → Mode panique** efface en bloc :
 - le modèle Whisper installé dans le sandbox,
 - les préférences (sauf `db_encrypted_v1` et `secure_window_enabled` conservées pour cohérence du redémarrage).
 
+Le mode panique n'atteint pas une sauvegarde chiffrée enregistrée hors de l'application, où que vous l'ayez mise : supprimez-la vous-même.
+
 L'effacement **n'est pas atomique**, et l'ordre des étapes est conçu pour cela : la clé de chiffrement est détruite **avant** les effacements longs, puis viennent les fichiers en clair, puis le reste. Un arrêt brutal à n'importe quel instant laisse donc l'état le plus sûr atteignable à cet instant — au pire une base réduite à du bruit. L'écran de fin indique ce qui a échoué, et **s'il peut subsister quelque chose de lisible**.
 
 ### Vos droits
 
 Vos données restent sur votre téléphone, sous votre seul contrôle, et l'éditeur n'a aucun moyen d'y accéder : il ne traite donc aucune donnée personnelle vous concernant. C'est le cas que la CNIL décrit comme un « simple logiciel mis à disposition de l'utilisateur », auquel le RGPD ne s'applique pas (recommandation sur les applications mobiles, § 3.3). Vous gardez la main sur vos données et pouvez à tout moment :
 - exporter vos notes au format Markdown ou ZIP (`Réglages → Exporter toutes mes notes`),
+- en faire une sauvegarde chiffrée et la restaurer (`Réglages → Sauvegarde chiffrée`),
 - supprimer une note définitivement, depuis la corbeille ou par un appui long dans la liste des notes,
 - supprimer toutes les données via le mode panique,
 - désinstaller l'application — Android supprimera automatiquement toutes les données privées.

@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.common
 
+import android.content.ActivityNotFoundException
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
@@ -7,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import timber.log.Timber
 
 /**
  * Told when the app is about to open another activity for a result, so that the app lock does not
@@ -28,9 +30,19 @@ class AppResultLauncher<I> internal constructor(
     private val guard: ExternalActivityGuard,
     private val sparesLock: Boolean,
 ) {
-    fun launch(input: I) {
+    /**
+     * `false` when no app on the device can answer — a stripped device, its documents app disabled:
+     * the platform throws `ActivityNotFoundException` there, which crashed the app at every picker
+     * (3.2.0, found listing what the backup's picker can meet). The caller says so to the user. The
+     * pass the guard was given expires by itself, no stop having followed it (`PickerRelockPolicy`).
+     */
+    fun launch(input: I): Boolean = try {
         if (sparesLock) guard.onExternalActivityLaunched()
         launcher.launch(input)
+        true
+    } catch (e: ActivityNotFoundException) {
+        Timber.w(e, "aucune activite pour ce resultat")
+        false
     }
 }
 

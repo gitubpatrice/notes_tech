@@ -54,7 +54,11 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun HomeRoute(
-    onOpenNote: (Note) -> Unit,
+    /**
+     * [recherche]: the search the list was filtered by when the note was tapped — the same full-text
+     * search as the search screen's — for "Find in note" (3.2.0); `null` for a note just created.
+     */
+    onOpenNote: (Note, recherche: String?) -> Unit,
     /** The long press's "Edit": the note opens to be written (3.1.0). */
     onEditNote: (Note) -> Unit,
     onOpenSearch: () -> Unit,
@@ -139,7 +143,7 @@ fun HomeRoute(
         homeViewModel.eventFlow.collect { evenement ->
             when (evenement) {
                 is HomeEvent.NoteCreated -> {
-                    onOpenNote(evenement.note)
+                    onOpenNote(evenement.note, null)
                     // ⚠️ `showSnackbar` SUSPEND jusqu'a la fermeture du message. L'appeler dans le
                     // `collect` bloquerait la collecte plusieurs secondes ; les evenements suivants
                     // s'empileraient dans un tampon de 4, apres quoi `emit` bloquerait le ViewModel.
@@ -214,7 +218,7 @@ fun HomeRoute(
                 state = state.copy(coffresOuverts = coffresOuverts),
                 onQueryChange = homeViewModel::onQueryChange,
                 onSortSelected = homeViewModel::onSortSelected,
-                onOpenNote = onOpenNote,
+                onOpenNote = { note -> onOpenNote(note, state.query.takeIf { it.isNotBlank() }) },
                 onLongPressNote = { note ->
                     val coffreAOuvrir = gestes.appuiLong(note, foldersState.folders, foldersState.unlockedFolderIds)
                     if (coffreAOuvrir != null) dossierAOuvrir = coffreAOuvrir

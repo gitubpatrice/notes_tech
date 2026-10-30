@@ -158,18 +158,7 @@ class FolderVaultService @Inject constructor(
             // ⚠️ After the derivation and inside this `try` — same reasons as in [createPassphraseVault].
             val folderKey = VaultCrypto.newFolderKey()
             try {
-                val inner = VaultCrypto.seal(pinKey, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
-                // ⚠️ Wiped on every path, a failing Keystore included. `inner` is the folder key
-                // under a key derived from a 4-6 digit PIN, whose salt is in the database: only
-                // the Keystore layer stops an offline search of the PIN. Left in memory, it gave
-                // the folder key to whoever read the salt (found with the GPT-5.6 review, same day).
-                val sealed = try {
-                    keystore.deleteKey(alias)
-                    keystore.createKey(alias)
-                    keystore.seal(alias, inner)
-                } finally {
-                    inner.wipe()
-                }
+                val sealed = scellerSousUnCode(folderId, folderKey, pinKey, nonce)
 
                 val provisioned = databases.get().folderDao().provisionPinVault(
                     id = folderId,
@@ -192,6 +181,70 @@ class FolderVaultService @Inject constructor(
                 folderKey.wipe()
                 throw e
             }
+        } finally {
+            pinKey.wipe()
+        }
+    }
+
+    /**
+     * The folder key under a key derived from a PIN, sealed again by a NEW Keystore key of this
+     * phone — the two inner layers of a PIN vault (see the class). One place for [createPinVault] and
+     * for the restore of a backup ([materielDUnCoffreACode]).
+     *
+     * ⚠️ `inner` is wiped on every path, a failing Keystore included: it is the folder key under a key
+     * derived from a 4-6 digit PIN, whose salt is in the database — only the Keystore layer stops an
+     * offline search of the PIN. Left in memory, it gave the folder key to whoever read the salt (found
+     * with the GPT-5.6 review, 2026-09-25).
+     */
+    private suspend fun scellerSousUnCode(
+        folderId: String,
+        folderKey: ByteArray,
+        pinKey: ByteArray,
+        nonce: ByteArray,
+    ): SealedByKeystore {
+        val alias = VaultParams.pinKeystoreAlias(folderId)
+        val inner = VaultCrypto.seal(pinKey, nonce, folderKey, folderId.toByteArray(Charsets.UTF_8))
+        return try {
+            keystore.deleteKey(alias)
+            keystore.createKey(alias)
+            keystore.seal(alias, inner)
+        } finally {
+            inner.wipe()
+        }
+    }
+
+    /** A PIN vault's columns for a key that already exists — see [materielDUnCoffreACode]. */
+    class MaterielDUnCoffreACode(
+        val sel: ByteArray,
+        val iv: ByteArray,
+        val verificateur: ByteArray,
+        val blobDuCode: ByteArray,
+        val ivDuCode: ByteArray,
+    )
+
+    /**
+     * The columns of a PIN vault holding [folderKey] under [pin] — the restore of a backup (3.2.0,
+     * D-030): a PIN vault comes back with a PIN chosen then, a new salt, a new nonce and a new Keystore
+     * key, its verifier computed from its key. Nothing is written in the database here.
+     *
+     * 🔴 **The Keystore key it creates is not in any transaction** (R-11): the caller deletes it
+     * ([deletePinKey]) if what it writes next fails. Only for a folder the phone does not have: never
+     * the key of a vault already there.
+     */
+    suspend fun materielDUnCoffreACode(folderId: String, folderKey: ByteArray, pin: String): MaterielDUnCoffreACode {
+        requireValidPin(pin)
+        val salt = VaultCrypto.newSalt()
+        val nonce = VaultCrypto.newNonce()
+        val pinKey = VaultCrypto.withUtf8Bytes(pin) { VaultCrypto.derivePinKey(it, salt) }
+        try {
+            val sealed = scellerSousUnCode(folderId, folderKey, pinKey, nonce)
+            return MaterielDUnCoffreACode(
+                sel = salt,
+                iv = nonce,
+                verificateur = VaultCrypto.verifierFor(folderKey),
+                blobDuCode = sealed.ciphertext,
+                ivDuCode = sealed.nonce,
+            )
         } finally {
             pinKey.wipe()
         }
