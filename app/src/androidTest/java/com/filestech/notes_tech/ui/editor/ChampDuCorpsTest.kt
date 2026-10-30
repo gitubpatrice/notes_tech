@@ -146,6 +146,27 @@ class ChampDuCorpsTest {
     }
 
     /**
+     * 🔴 A value the state already gave back, seen once more after the next keystroke — something else
+     * recomposed the field while the state lagged — is not a change: it emptied the queue when it was
+     * acknowledged, and undid the keystroke (audit 3 axes of 3.2.0, E1).
+     */
+    @Test
+    fun an_acknowledged_value_seen_again_does_not_undo_the_next_keystroke() {
+        poser("x")
+        surLeChamp { taper("a") }
+        regle.waitForIdle()
+        val reconnue = etat
+
+        etatEnRetard = true
+        surLeChamp { taper("b") }
+        regle.runOnIdle { surlignage = surlignageDe("xab", Plage(0, 1)) }
+        regle.waitForIdle()
+
+        assertThat(etat).isSameInstanceAs(reconnue)
+        assertThat(surLeChamp { text.toString() }).isEqualTo("xab")
+    }
+
+    /**
      * A change from the state — a link inserted — is applied as the smallest replacement: what lies
      * outside it stays as it was. Replacing the whole text would lay out a long note again, lose the
      * scroll position and the keyboard's composition; a span far from the change shows it did not.

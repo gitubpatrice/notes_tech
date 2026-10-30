@@ -303,7 +303,7 @@
     <string name="settings_import">Notizen importieren</string>
     <string name="settings_import_subtitle">Markdown- oder Textdateien oder ein ZIP davon, etwa ein Export von Notes Tech.</string>
     <string name="settings_import_result_title">Import</string>
-    <string name="settings_import_stopped">Der Import hat an einer Grenze angehalten (5.000 Dateien oder 100 MB gelesen): Der Rest wurde nicht importiert.</string>
+    <string name="settings_import_stopped">Der Import hat an einer Grenze angehalten (5.000 Dateien, 100 MB gelesen oder 30 Millionen Zeichen an Notizen): Der Rest wurde nicht importiert.</string>
     <string name="settings_import_none">Es wurde keine Notiz importiert.</string>
     <string name="settings_import_error">Import fehlgeschlagen, nichts wurde importiert: %1$s</string>
     <plurals name="settings_import_done">
@@ -319,8 +319,8 @@
         <item quantity="other">%1$d Ordner erstellt.</item>
     </plurals>
     <plurals name="settings_import_to_inbox">
-        <item quantity="one">%1$d Notiz kam in den Eingang: Ihr Ordner trägt den Namen eines Tresors.</item>
-        <item quantity="other">%1$d Notizen kamen in den Eingang: Ihr Ordner trägt den Namen eines Tresors.</item>
+        <item quantity="one">%1$d Notiz kam in den Eingang: ihr Ordner trägt den Namen eines Tresors.</item>
+        <item quantity="other">%1$d Notizen kamen in den Eingang: ihr Ordner trägt den Namen eines Tresors.</item>
     </plurals>
     <string name="settings_section_backup">Verschlüsselte Sicherung</string>
     <string name="backup_create">Sicherung erstellen</string>
@@ -377,8 +377,8 @@
         <item quantity="other">Davon %1$d im Papierkorb, wie in der Sicherung.</item>
     </plurals>
     <plurals name="backup_restore_beside">
-        <item quantity="one">%1$d Notiz weicht von ihrer Fassung auf diesem Telefon ab: Sie wird als Kopie daneben hinzugefügt.</item>
-        <item quantity="other">%1$d Notizen weichen von ihrer Fassung auf diesem Telefon ab: Sie werden als Kopien daneben hinzugefügt.</item>
+        <item quantity="one">%1$d Notiz weicht von ihrer Fassung auf diesem Telefon ab: sie wird als Kopie daneben hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen weichen von ihrer Fassung auf diesem Telefon ab: sie werden als Kopien daneben hinzugefügt.</item>
     </plurals>
     <plurals name="backup_restore_already">
         <item quantity="one">%1$d Notiz ist bereits auf diesem Telefon und bleibt unverändert.</item>
@@ -405,8 +405,8 @@
         <item quantity="other">Offene PIN-Tresore, mit ihren Schlüsseln gesichert: %1$s. In der Datei schützt sie das Geheimnis der Sicherung, nicht ihre PIN.</item>
     </plurals>
     <plurals name="backup_created_left_out">
-        <item quantity="one">%1$d Notiz ausgelassen: Ihr Tresor konnte nicht mitgenommen werden (ein PIN-Tresor wird nur offen mitgenommen).</item>
-        <item quantity="other">%1$d Notizen ausgelassen: Ihr Tresor konnte nicht mitgenommen werden (ein PIN-Tresor wird nur offen mitgenommen).</item>
+        <item quantity="one">%1$d Notiz ausgelassen: ihr Tresor konnte nicht mitgenommen werden (ein PIN-Tresor wird nur offen mitgenommen).</item>
+        <item quantity="other">%1$d Notizen ausgelassen: ihr Tresor konnte nicht mitgenommen werden (ein PIN-Tresor wird nur offen mitgenommen).</item>
     </plurals>
     <plurals name="backup_restored_folders">
         <item quantity="one">%1$d Ordner erstellt.</item>
@@ -655,18 +655,18 @@
     <string name="share_result_title">Mit Notes Tech geteilt</string>
     <string name="share_result_failed">Das Geteilte konnte nicht gespeichert werden. Es wurde nichts hinzugefügt.</string>
     <plurals name="share_result_added">
-        <item quantity="one">%1$d Notiz zum Posteingang hinzugefügt.</item>
-        <item quantity="other">%1$d Notizen zum Posteingang hinzugefügt.</item>
+        <item quantity="one">%1$d Notiz zum Eingang hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen zum Eingang hinzugefügt.</item>
     </plurals>
     <plurals name="share_result_ignored">
         <item quantity="one">%1$d geteiltes Element konnte nicht hinzugefügt werden: kein Text oder zu groß.</item>
         <item quantity="other">%1$d geteilte Elemente konnten nicht hinzugefügt werden: kein Text, zu groß oder zu viele.</item>
     </plurals>
     <string name="share_confirm_title">Zu Notes Tech hinzufügen?</string>
-    <string name="share_confirm_one">„%1$s“ wird zum Posteingang hinzugefügt.</string>
+    <string name="share_confirm_one">„%1$s“ wird zum Eingang hinzugefügt.</string>
     <string name="share_confirm_add">Hinzufügen</string>
     <plurals name="share_confirm_many">
-        <item quantity="one">%1$d Notiz wird zum Posteingang hinzugefügt.</item>
-        <item quantity="other">%1$d Notizen werden zum Posteingang hinzugefügt.</item>
+        <item quantity="one">%1$d Notiz wird zum Eingang hinzugefügt.</item>
+        <item quantity="other">%1$d Notizen werden zum Eingang hinzugefügt.</item>
     </plurals>
 </resources>

@@ -318,7 +318,7 @@
     <string name="settings_import">Importer des notes</string>
     <string name="settings_import_subtitle">Fichiers Markdown ou texte, ou une archive ZIP de ces fichiers, comme un export de Notes Tech.</string>
     <string name="settings_import_result_title">Import</string>
-    <string name="settings_import_stopped">L\'import s\'est arrêté à une limite (5 000 fichiers, ou 100 Mo lus) : la suite n\'a pas été importée.</string>
+    <string name="settings_import_stopped">L\'import s\'est arrêté à une limite (5 000 fichiers, 100 Mo lus, ou 30 millions de caractères de notes) : la suite n\'a pas été importée.</string>
     <string name="settings_import_none">Aucune note n\'a été importée.</string>
     <string name="settings_import_error">L\'import a échoué, rien n\'a été importé : %1$s</string>
     <plurals name="settings_import_done">

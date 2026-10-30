@@ -349,10 +349,6 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
      * replacement ([DifferenceDeTexte]), the cursor brought into view.
      */
     fun appliquer(valeur: TextFieldValue) {
-        if (valeur === connue) {
-            envoyees.clear()
-            return
-        }
         val echo = envoyees.indexOfFirst { it === valeur }
         if (echo >= 0) {
             // Older ones are past; this one stays: another recomposition may carry it again before the
@@ -380,8 +376,11 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
         } finally {
             enApplication = false
         }
-        // The very object: the next recomposition carries it again, and must find it known.
+        // The very object, known from now on as if the field had sent it: a recomposition carrying it
+        // late, after the next keystroke, must not undo that keystroke (audit 3 axes of 3.2.0, E1 — the
+        // value acknowledged emptied the queue, and its next sight was taken for a change).
         connue = valeur
+        envoyees.addLast(valeur)
         // A text changed under the keyboard: its composition and its idea of the text are stale.
         if (texteChange && hasFocus()) clavier()?.restartInput(this)
         if (texteChange || selectionChange) amenerLeCurseur()

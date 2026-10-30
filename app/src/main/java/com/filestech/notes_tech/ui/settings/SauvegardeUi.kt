@@ -33,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -246,6 +248,9 @@ private fun DialogueDeCreation(
                     Text(
                         code.split('-').chunked(GROUPES_PAR_LIGNE).joinToString("\n") { it.joinToString("-") },
                         style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace),
+                        // Spelled, group by group: read as text, TalkBack said "K7QM" as a word (audit 3
+                        // axes of 3.2.0, U2). The dialog is a secured window, as the code on screen.
+                        modifier = Modifier.semantics { contentDescription = codeEpele(code) },
                     )
                     ChampDePhraseSecrete(
                         valeur = recopie,
@@ -424,6 +429,10 @@ private val CODE_VALIDE = Regex("[0-9]{${VaultParams.PIN_MIN_LENGTH},${VaultPara
 
 /** How many of the code's groups a line shows. */
 private const val GROUPES_PAR_LIGNE = 3
+
+/** [code] for TalkBack: its signs one by one, a pause between groups — "K, 7, Q, M. T, 2, X, B…". */
+internal fun codeEpele(code: String): String =
+    code.split('-').joinToString(". ") { groupe -> groupe.toList().joinToString(", ") }
 
 /** What the system picker is told the file is: it has no type of its own. */
 private const val TYPE_DU_FICHIER = "application/octet-stream"

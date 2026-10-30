@@ -80,7 +80,7 @@
     <string name="drawer_convert_to_vault">Activar la caja fuerte</string>
     <string name="drawer_convert_to_vault_subtitle">Bloquear esta carpeta con una frase de contraseña o un PIN</string>
     <string name="drawer_lock_now">Bloquear ahora</string>
-    <string name="drawer_lock_now_subtitle">Vuelve a bloquear la caja fuerte descifrada</string>
+    <string name="drawer_lock_now_subtitle">Vuelva a bloquear la caja fuerte descifrada</string>
 
     <!-- Folders -->
     <string name="folder_create_title">Nueva carpeta</string>
@@ -313,7 +313,7 @@
     <string name="settings_import">Importar notas</string>
     <string name="settings_import_subtitle">Archivos Markdown o de texto, o un ZIP con ellos, como una exportación de Notes Tech.</string>
     <string name="settings_import_result_title">Importación</string>
-    <string name="settings_import_stopped">La importación se detuvo en un límite (5.000 archivos, o 100 MB leídos): el resto no se importó.</string>
+    <string name="settings_import_stopped">La importación se detuvo en un límite (5.000 archivos, 100 MB leídos, o 30 millones de caracteres de notas): el resto no se importó.</string>
     <string name="settings_import_none">No se importó ninguna nota.</string>
     <string name="settings_import_error">No se pudo importar, no se importó nada: %1$s</string>
     <plurals name="settings_import_done">
@@ -332,18 +332,18 @@
         <item quantity="other">%1$d carpetas creadas.</item>
     </plurals>
     <plurals name="settings_import_to_inbox">
-        <item quantity="one">%1$d nota fue a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
-        <item quantity="many">%1$d de notas fueron a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
-        <item quantity="other">%1$d notas fueron a la Bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+        <item quantity="one">%1$d nota fue a la bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+        <item quantity="many">%1$d de notas fueron a la bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
+        <item quantity="other">%1$d notas fueron a la bandeja de entrada: su carpeta lleva el nombre de una caja fuerte.</item>
     </plurals>
     <string name="settings_section_backup">Copia de seguridad cifrada</string>
     <string name="backup_create">Crear una copia de seguridad</string>
-    <string name="backup_create_subtitle">Tus notas y carpetas, papelera incluida, en un solo archivo cifrado.</string>
+    <string name="backup_create_subtitle">Sus notas y carpetas, papelera incluida, en un solo archivo cifrado.</string>
     <string name="backup_restore">Restaurar una copia de seguridad</string>
     <string name="backup_restore_subtitle">Añade lo que contiene una copia. No se sobrescribe nada en este teléfono.</string>
-    <string name="backup_create_panic">El modo pánico no alcanza este archivo: guárdalo en un lugar seguro y bórralo tú cuando ya no lo necesites.</string>
-    <string name="backup_code_intro">Anota este código: es la única forma de abrir la copia. Notes Tech no lo guarda.</string>
-    <string name="backup_code_retype">Vuelve a escribir el código</string>
+    <string name="backup_create_panic">El modo pánico no alcanza este archivo: guárdelo en un lugar seguro y bórrelo usted mismo cuando ya no lo necesite.</string>
+    <string name="backup_code_intro">Anote este código: es la única forma de abrir la copia. Notes Tech no lo guarda.</string>
+    <string name="backup_code_retype">Vuelva a escribir el código</string>
     <string name="backup_use_phrase">Usar mi propia frase de contraseña</string>
     <string name="backup_use_code">Usar un código generado</string>
     <string name="backup_phrase">Frase de contraseña</string>
@@ -356,20 +356,20 @@
     <string name="backup_restore_secret">Código o frase de contraseña de la copia</string>
     <string name="backup_restore_check">Continuar</string>
     <string name="backup_restore_nothing">Nada que añadir desde esta copia.</string>
-    <string name="backup_restore_deleted_since">También vuelven las notas borradas de este teléfono desde la copia.</string>
-    <string name="backup_restore_pin_vault">Caja fuerte con PIN «%1$s»: elige su nuevo PIN</string>
+    <string name="backup_restore_deleted_since">También vuelven las notas eliminadas de este teléfono desde la copia.</string>
+    <string name="backup_restore_pin_vault">Caja fuerte con PIN «%1$s»: elija su nuevo PIN</string>
     <string name="backup_restore_pin">Nuevo PIN</string>
     <string name="backup_restore_pin_confirm">Confirmar el nuevo PIN</string>
     <string name="backup_restore_pin_rule">Cada PIN: de %1$d a %2$d cifras, escrito dos veces igual.</string>
     <string name="backup_restore_do">Restaurar</string>
     <string name="backup_error_wrong_secret">Este código o esta frase de contraseña no abre esta copia, o el archivo está dañado. No se ha restaurado nada.</string>
     <string name="backup_error_not_a_backup">Este archivo no es una copia de seguridad de Notes Tech.</string>
-    <string name="backup_error_newer">Esta copia viene de una versión más reciente de Notes Tech: actualiza la aplicación para restaurarla.</string>
+    <string name="backup_error_newer">Esta copia viene de una versión más reciente de Notes Tech: actualice la aplicación para restaurarla.</string>
     <string name="backup_error_too_large">Demasiado grande: una copia ocupa como máximo 64 MB.</string>
-    <string name="backup_error_readback">El archivo escrito no se puede releer, así que no se ha conservado. Prueba otra ubicación.</string>
-    <string name="backup_error_generic">No se pudo completar la operación. Inténtalo de nuevo.</string>
-    <string name="backup_error_vault_closed">La caja fuerte con PIN «%1$s» se ha cerrado mientras tanto: no se ha guardado nada. Vuelve a abrirla y empieza de nuevo.</string>
-    <string name="backup_error_changed">El archivo ha cambiado desde la comprobación: no se ha restaurado nada. Vuelve a elegirlo.</string>
+    <string name="backup_error_readback">El archivo escrito no se puede releer, así que no se ha conservado. Pruebe otra ubicación.</string>
+    <string name="backup_error_generic">No se pudo completar la operación. Inténtelo de nuevo.</string>
+    <string name="backup_error_vault_closed">La caja fuerte con PIN «%1$s» se ha cerrado mientras tanto: no se ha guardado nada. Vuelva a abrirla y empiece de nuevo.</string>
+    <string name="backup_error_changed">El archivo ha cambiado desde la comprobación: no se ha restaurado nada. Vuelva a elegirlo.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">Esta copia contendrá %1$d nota, papelera incluida.</item>
         <item quantity="many">Esta copia contendrá %1$d de notas, papelera incluida.</item>
@@ -420,9 +420,9 @@
     <string name="backup_secret_show">Mostrar el código o la frase de contraseña</string>
     <string name="backup_secret_hide">Ocultar el código o la frase de contraseña</string>
     <plurals name="backup_create_closed_pin">
-        <item quantity="one">Caja fuerte con PIN cerrada, excluida con sus notas: %1$s. Ábrela antes para incluirla.</item>
-        <item quantity="many">Cajas fuertes con PIN cerradas, excluidas con sus notas: %1$s. Ábrelas antes para incluirlas.</item>
-        <item quantity="other">Cajas fuertes con PIN cerradas, excluidas con sus notas: %1$s. Ábrelas antes para incluirlas.</item>
+        <item quantity="one">Caja fuerte con PIN cerrada, excluida con sus notas: %1$s. Ábrala antes para incluirla.</item>
+        <item quantity="many">Cajas fuertes con PIN cerradas, excluidas con sus notas: %1$s. Ábralas antes para incluirlas.</item>
+        <item quantity="other">Cajas fuertes con PIN cerradas, excluidas con sus notas: %1$s. Ábralas antes para incluirlas.</item>
     </plurals>
     <plurals name="backup_create_open_pin">
         <item quantity="one">Caja fuerte con PIN abierta, guardada con su clave: %1$s. En el archivo la protege el secreto de la copia, no su PIN.</item>
@@ -684,9 +684,9 @@
     <string name="share_result_title">Compartido con Notes Tech</string>
     <string name="share_result_failed">No se pudo guardar lo compartido. No se añadió nada.</string>
     <plurals name="share_result_added">
-        <item quantity="one">%1$d nota añadida a la Bandeja de entrada.</item>
-        <item quantity="many">%1$d de notas añadidas a la Bandeja de entrada.</item>
-        <item quantity="other">%1$d notas añadidas a la Bandeja de entrada.</item>
+        <item quantity="one">%1$d nota añadida a la bandeja de entrada.</item>
+        <item quantity="many">%1$d de notas añadidas a la bandeja de entrada.</item>
+        <item quantity="other">%1$d notas añadidas a la bandeja de entrada.</item>
     </plurals>
     <plurals name="share_result_ignored">
         <item quantity="one">%1$d elemento compartido no se pudo añadir: no es texto, o es demasiado grande.</item>
@@ -694,11 +694,11 @@
         <item quantity="other">%1$d elementos compartidos no se pudieron añadir: no son texto, demasiado grandes o demasiados.</item>
     </plurals>
     <string name="share_confirm_title">¿Añadir a Notes Tech?</string>
-    <string name="share_confirm_one">«%1$s» se añadirá a la Bandeja de entrada.</string>
+    <string name="share_confirm_one">«%1$s» se añadirá a la bandeja de entrada.</string>
     <string name="share_confirm_add">Añadir</string>
     <plurals name="share_confirm_many">
-        <item quantity="one">%1$d nota se añadirá a la Bandeja de entrada.</item>
-        <item quantity="many">%1$d de notas se añadirán a la Bandeja de entrada.</item>
-        <item quantity="other">%1$d notas se añadirán a la Bandeja de entrada.</item>
+        <item quantity="one">%1$d nota se añadirá a la bandeja de entrada.</item>
+        <item quantity="many">%1$d de notas se añadirán a la bandeja de entrada.</item>
+        <item quantity="other">%1$d notas se añadirán a la bandeja de entrada.</item>
     </plurals>
 </resources>

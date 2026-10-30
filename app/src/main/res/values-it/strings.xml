@@ -313,7 +313,7 @@
     <string name="settings_import">Importa note</string>
     <string name="settings_import_subtitle">File Markdown o di testo, o un archivio ZIP di questi file, come un\'esportazione di Notes Tech.</string>
     <string name="settings_import_result_title">Importazione</string>
-    <string name="settings_import_stopped">L\'importazione si è fermata a un limite (5.000 file, o 100 MB letti): il resto non è stato importato.</string>
+    <string name="settings_import_stopped">L\'importazione si è fermata a un limite (5.000 file, 100 MB letti, o 30 milioni di caratteri di note): il resto non è stato importato.</string>
     <string name="settings_import_none">Nessuna nota è stata importata.</string>
     <string name="settings_import_error">Importazione non riuscita, nulla è stato importato: %1$s</string>
     <plurals name="settings_import_done">
@@ -332,18 +332,18 @@
         <item quantity="other">%1$d cartelle create.</item>
     </plurals>
     <plurals name="settings_import_to_inbox">
-        <item quantity="one">%1$d nota è finita in In arrivo: la sua cartella ha il nome di una cassaforte.</item>
-        <item quantity="many">%1$d di note sono finite in In arrivo: la loro cartella ha il nome di una cassaforte.</item>
-        <item quantity="other">%1$d note sono finite in In arrivo: la loro cartella ha il nome di una cassaforte.</item>
+        <item quantity="one">%1$d nota è finita nella cartella In arrivo: la sua cartella ha il nome di una cassaforte.</item>
+        <item quantity="many">%1$d di note sono finite nella cartella In arrivo: la loro cartella ha il nome di una cassaforte.</item>
+        <item quantity="other">%1$d note sono finite nella cartella In arrivo: la loro cartella ha il nome di una cassaforte.</item>
     </plurals>
     <string name="settings_section_backup">Backup cifrato</string>
     <string name="backup_create">Crea un backup</string>
-    <string name="backup_create_subtitle">Le tue note e cartelle, cestino compreso, in un unico file cifrato.</string>
+    <string name="backup_create_subtitle">Le sue note e cartelle, cestino compreso, in un unico file cifrato.</string>
     <string name="backup_restore">Ripristina un backup</string>
     <string name="backup_restore_subtitle">Aggiunge ciò che un backup contiene. Su questo telefono non viene sovrascritto nulla.</string>
-    <string name="backup_create_panic">La modalità panico non raggiunge questo file: conservalo in un luogo sicuro ed eliminalo tu quando non ti serve più.</string>
-    <string name="backup_code_intro">Annota questo codice: è l\'unico modo per aprire il backup. Notes Tech non lo conserva.</string>
-    <string name="backup_code_retype">Digita di nuovo il codice</string>
+    <string name="backup_create_panic">La modalità panico non raggiunge questo file: lo conservi in un luogo sicuro e lo elimini lei stesso quando non le serve più.</string>
+    <string name="backup_code_intro">Annoti questo codice: è l\'unico modo per aprire il backup. Notes Tech non lo conserva.</string>
+    <string name="backup_code_retype">Digiti di nuovo il codice</string>
     <string name="backup_use_phrase">Usa una mia passphrase</string>
     <string name="backup_use_code">Usa un codice generato</string>
     <string name="backup_phrase">Passphrase</string>
@@ -357,19 +357,19 @@
     <string name="backup_restore_check">Continua</string>
     <string name="backup_restore_nothing">Niente da aggiungere da questo backup.</string>
     <string name="backup_restore_deleted_since">Tornano anche le note eliminate da questo telefono dopo il backup.</string>
-    <string name="backup_restore_pin_vault">Cassaforte con PIN «%1$s»: scegli il suo nuovo PIN</string>
+    <string name="backup_restore_pin_vault">Cassaforte con PIN «%1$s»: scelga il suo nuovo PIN</string>
     <string name="backup_restore_pin">Nuovo PIN</string>
     <string name="backup_restore_pin_confirm">Conferma il nuovo PIN</string>
     <string name="backup_restore_pin_rule">Ogni PIN: da %1$d a %2$d cifre, digitato due volte uguale.</string>
     <string name="backup_restore_do">Ripristina</string>
-    <string name="backup_error_wrong_secret">Questo codice o questa passphrase non apre questo backup, oppure il file è danneggiato. Non è stato ripristinato nulla.</string>
+    <string name="backup_error_wrong_secret">Questo codice o questa passphrase non aprono questo backup, oppure il file è danneggiato. Non è stato ripristinato nulla.</string>
     <string name="backup_error_not_a_backup">Questo file non è un backup di Notes Tech.</string>
-    <string name="backup_error_newer">Questo backup viene da una versione più recente di Notes Tech: aggiorna l\'app per ripristinarlo.</string>
+    <string name="backup_error_newer">Questo backup viene da una versione più recente di Notes Tech: aggiorni l\'app per ripristinarlo.</string>
     <string name="backup_error_too_large">Troppo grande: un backup contiene al massimo 64 MB.</string>
-    <string name="backup_error_readback">Il file scritto non si rilegge, quindi non è stato conservato. Prova un altro percorso.</string>
-    <string name="backup_error_generic">Non è stato possibile completare l\'operazione. Riprova.</string>
-    <string name="backup_error_vault_closed">La cassaforte con PIN «%1$s» si è chiusa nel frattempo: non è stato salvato nulla. Riaprila, poi ricomincia.</string>
-    <string name="backup_error_changed">Il file è cambiato dopo la verifica: non è stato ripristinato nulla. Sceglilo di nuovo.</string>
+    <string name="backup_error_readback">Il file scritto non si rilegge, quindi non è stato conservato. Provi un altro percorso.</string>
+    <string name="backup_error_generic">Non è stato possibile completare l\'operazione. Riprovi.</string>
+    <string name="backup_error_vault_closed">La cassaforte con PIN «%1$s» si è chiusa nel frattempo: non è stato salvato nulla. La riapra, poi ricominci.</string>
+    <string name="backup_error_changed">Il file è cambiato dopo la verifica: non è stato ripristinato nulla. Lo scelga di nuovo.</string>
     <plurals name="backup_create_notes">
         <item quantity="one">Questo backup conterrà %1$d nota, cestino compreso.</item>
         <item quantity="many">Questo backup conterrà %1$d di note, cestino compreso.</item>
@@ -420,9 +420,9 @@
     <string name="backup_secret_show">Mostra il codice o la passphrase</string>
     <string name="backup_secret_hide">Nascondi il codice o la passphrase</string>
     <plurals name="backup_create_closed_pin">
-        <item quantity="one">Cassaforte con PIN chiusa, esclusa con le sue note: %1$s. Aprila prima per includerla.</item>
-        <item quantity="many">Casseforti con PIN chiuse, escluse con le loro note: %1$s. Aprile prima per includerle.</item>
-        <item quantity="other">Casseforti con PIN chiuse, escluse con le loro note: %1$s. Aprile prima per includerle.</item>
+        <item quantity="one">Cassaforte con PIN chiusa, esclusa con le sue note: %1$s. La apra prima per includerla.</item>
+        <item quantity="many">Casseforti con PIN chiuse, escluse con le loro note: %1$s. Le apra prima per includerle.</item>
+        <item quantity="other">Casseforti con PIN chiuse, escluse con le loro note: %1$s. Le apra prima per includerle.</item>
     </plurals>
     <plurals name="backup_create_open_pin">
         <item quantity="one">Cassaforte con PIN aperta, salvata con la sua chiave: %1$s. Nel file la protegge il segreto del backup, non il suo PIN.</item>
@@ -684,9 +684,9 @@
     <string name="share_result_title">Condiviso con Notes Tech</string>
     <string name="share_result_failed">Ciò che è stato condiviso non è stato salvato. Non è stato aggiunto nulla.</string>
     <plurals name="share_result_added">
-        <item quantity="one">%1$d nota aggiunta alla Posta in arrivo.</item>
-        <item quantity="many">%1$d di note aggiunte alla Posta in arrivo.</item>
-        <item quantity="other">%1$d note aggiunte alla Posta in arrivo.</item>
+        <item quantity="one">%1$d nota aggiunta alla cartella In arrivo.</item>
+        <item quantity="many">%1$d di note aggiunte alla cartella In arrivo.</item>
+        <item quantity="other">%1$d note aggiunte alla cartella In arrivo.</item>
     </plurals>
     <plurals name="share_result_ignored">
         <item quantity="one">%1$d elemento condiviso non è stato aggiunto: non è testo, o è troppo grande.</item>
@@ -694,11 +694,11 @@
         <item quantity="other">%1$d elementi condivisi non sono stati aggiunti: non testo, troppo grandi o troppi.</item>
     </plurals>
     <string name="share_confirm_title">Aggiungere a Notes Tech?</string>
-    <string name="share_confirm_one">«%1$s» sarà aggiunta alla Posta in arrivo.</string>
+    <string name="share_confirm_one">«%1$s» sarà aggiunta alla cartella In arrivo.</string>
     <string name="share_confirm_add">Aggiungi</string>
     <plurals name="share_confirm_many">
-        <item quantity="one">%1$d nota sarà aggiunta alla Posta in arrivo.</item>
-        <item quantity="many">%1$d di note saranno aggiunte alla Posta in arrivo.</item>
-        <item quantity="other">%1$d note saranno aggiunte alla Posta in arrivo.</item>
+        <item quantity="one">%1$d nota sarà aggiunta alla cartella In arrivo.</item>
+        <item quantity="many">%1$d di note saranno aggiunte alla cartella In arrivo.</item>
+        <item quantity="other">%1$d note saranno aggiunte alla cartella In arrivo.</item>
     </plurals>
 </resources>

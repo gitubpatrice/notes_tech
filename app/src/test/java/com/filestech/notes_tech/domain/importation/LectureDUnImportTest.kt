@@ -100,6 +100,45 @@ class LectureDUnImportTest {
         assertThat(lu.ignores).isEqualTo(1)
     }
 
+    /**
+     * 🔴 The text kept until the one writing transaction is bounded: past it, the import stops and keeps
+     * what it had (audit 3 axes of 3.2.0, P1 — 100 MiB of notes held at once could exceed the heap).
+     */
+    @Test
+    fun `past the text it may keep, the import stops and keeps what it had`() {
+        val lecture = LectureDUnImport(zone, texteRetenuMax = 10)
+        for (nom in listOf("Un.md", "Deux.md", "Trois.md")) {
+            lecture.ajouter(nom, ByteArrayInputStream("abcd".toByteArray()))
+        }
+
+        val lu = lecture.resultat()
+
+        // 4 + 4 fit in 10; the third would make 12.
+        assertThat(lu.notes.map { it.note.titre }).containsExactly("Un", "Deux").inOrder()
+        assertThat(lu.arrete).isTrue()
+    }
+
+    /**
+     * A folder's name from an archive loses its control and bidirectional formatting characters — an
+     * override can make a name read as another in the folders' drawer — and is cut at its bound
+     * (audit 3 axes of 3.2.0, P2).
+     */
+    @Test
+    fun `a folder's name from an archive is cleaned and bounded`() {
+        val lu = lire(
+            "a.zip" to zip(
+                "\u202Efdp.exe\u0007/Une.md" to "x".toByteArray(),
+                "${"d".repeat(300)}/Deux.md" to "x".toByteArray(),
+                "\u202E\u200F/Trois.md" to "x".toByteArray(),
+            ),
+        )
+
+        assertThat(lu.notes.map { it.dossier })
+            .containsExactly("fdp.exe", "d".repeat(LectureDUnImport.NOM_DE_DOSSIER_MAX), null)
+            .inOrder()
+        assertThat(LectureDUnImport.nomDeDossier("a".repeat(99) + "😀")).isEqualTo("a".repeat(99))
+    }
+
     @Test
     fun `an entry too long is left out, and the next one is read`() {
         val lu = lire(

@@ -70,4 +70,22 @@ class RechercheDansLaNoteTest {
         assertThat(juste.occurrences).hasSize(5)
         assertThat(juste.tronque).isFalse()
     }
+
+    /**
+     * 🔴 A vault note's query is not saved: it is a word of its plaintext, and the activity's saved state
+     * must hold none (audit 3 axes of 3.2.0, S1). Another note's is, as before.
+     */
+    @Test
+    @DisplayName("the bar's query is saved, a vault note's excepted")
+    fun saisieSauvegardee() {
+        val etat = EtatDeRechercheDansLaNote(ouverte = true, saisie = "salaire", index = 2, deplacer = false)
+        val portee = androidx.compose.runtime.saveable.SaverScope { true }
+        fun sauvee() = with(EtatDeRechercheDansLaNote.Saver) { portee.save(etat) }
+
+        assertThat(sauvee()).isEqualTo(listOf(true, "salaire", 2))
+
+        etat.saisieSauvegardee = false
+
+        assertThat(sauvee()).isEqualTo(listOf(true, "", 2))
+    }
 }

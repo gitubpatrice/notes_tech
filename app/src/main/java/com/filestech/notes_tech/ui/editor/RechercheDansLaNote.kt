@@ -231,10 +231,17 @@ internal class EtatDeRechercheDansLaNote(ouverte: Boolean, saisie: String, index
         focaliser = false
     }
 
+    /**
+     * 🔴 `false` while the note is a vault's: what is searched there is a word of its plaintext, and
+     * the saved state — a Bundle the system keeps for the activity — must hold none (audit 3 axes of
+     * 3.2.0, S1). The bar then comes back empty after a rotation. Set by the screen.
+     */
+    var saisieSauvegardee = true
+
     companion object {
-        /** A move owed is not saved: it was made before the rotation. */
+        /** A move owed is not saved: it was made before the rotation. A vault note's query neither. */
         val Saver = listSaver<EtatDeRechercheDansLaNote, Any>(
-            save = { listOf(it.ouverte, it.saisie, it.index) },
+            save = { listOf(it.ouverte, if (it.saisieSauvegardee) it.saisie else "", it.index) },
             restore = { EtatDeRechercheDansLaNote(it[0] as Boolean, it[1] as String, it[2] as Int, deplacer = false) },
         )
     }

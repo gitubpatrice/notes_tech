@@ -89,7 +89,9 @@ octets   taille  champ
 - **Taille** : 48 + 16 octets au moins ; **64 Mio au plus**, comptés sur ce qui est **réellement lu** (un
   flux qui s'arrête au 64 Mio + 1ᵉ octet), la taille annoncée par le fournisseur n'étant qu'un premier
   refus (R-9). 64 Mio de notes, c'est des dizaines de milliers de pages ; la création refuse au-delà et le
-  dit.
+  dit. **Limite assumée** (audit 3 axes, P3) : passé 64 Mio, aucune sauvegarde n'est possible — ni découpe ni
+  sauvegarde partielle ; à revoir si un utilisateur y arrive (l'import retient au plus 30 millions de
+  caractères par passe, mais plusieurs imports s'additionnent).
 - **Contenu** : JSON UTF-8 écrit et lu **en flux** (`android.util.JsonWriter` / `JsonReader`), jamais
   d'arbre en mémoire (R-8). Les dossiers d'abord, puis les notes :
   ```

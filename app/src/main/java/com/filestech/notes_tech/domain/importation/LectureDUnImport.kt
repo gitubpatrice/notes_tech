@@ -30,13 +30,24 @@ import java.util.zip.ZipInputStream
  *   read all the same, so its bytes count too. Without that, one entry of zeros, a few kilobytes
  *   compressed, would keep the import inflating for hours. Past a bound, the import stops ([arrete]),
  *   and keeps what it had.
+ * - 🔴 **Bounded on what is kept** — [TEXTE_RETENU_MAX] characters of notes: every note read waits in
+ *   memory for the one transaction that writes them all (D-032), and 100 MiB of text — 200 MiB as
+ *   UTF-16 — exceeds the heap of a modest phone, with an `OutOfMemoryError` no `catch` sees (audit 3
+ *   axes of 3.2.0, P1; the share had the same defect, M2 of its review). Past it, the import stops too.
+ * - **A folder's name from an archive is cleaned** ([nomDeDossier]): no control or bidirectional
+ *   formatting character, which could disguise it in the folders' drawer, and at most
+ *   [NOM_DE_DOSSIER_MAX] characters (same audit, P2).
  */
-class LectureDUnImport(private val zone: ZoneId = ZoneId.systemDefault()) {
+class LectureDUnImport(
+    private val zone: ZoneId = ZoneId.systemDefault(),
+    private val texteRetenuMax: Long = TEXTE_RETENU_MAX,
+) {
 
     private val notes = ArrayList<NoteAImporter>()
     private var ignores = 0
     private var fichiers = 0
     private var lus = 0L
+    private var retenus = 0L
     private var arrete = false
 
     /**
@@ -95,7 +106,11 @@ class LectureDUnImport(private val zone: ZoneId = ZoneId.systemDefault()) {
             arrete -> Unit
             texte == null -> ignores++
             racine && nom == NoteArchive.README_NAME && texte.startsWith(NoteMarkdown.README_HEADING) -> Unit
-            else -> notes += NoteAImporter(LecteurMarkdown.lire(texte, nom, zone), dossier)
+            retenus + texte.length > texteRetenuMax -> arrete = true
+            else -> {
+                retenus += texte.length
+                notes += NoteAImporter(LecteurMarkdown.lire(texte, nom, zone), dossier)
+            }
         }
     }
 
@@ -132,7 +147,7 @@ class LectureDUnImport(private val zone: ZoneId = ZoneId.systemDefault()) {
 
     /** The folder a ZIP's first-level directory names: `null` for the Inbox. */
     private fun dossierDe(repertoire: String): String? {
-        val nom = DartTextSemantics.trim(repertoire)
+        val nom = nomDeDossier(repertoire)
         return if (nom.isEmpty() || nom == NoteMarkdown.INBOX_DIR_NAME) null else nom
     }
 
@@ -149,6 +164,33 @@ class LectureDUnImport(private val zone: ZoneId = ZoneId.systemDefault()) {
 
         /** Bytes read in all, inflated ones included: an archive is bounded by what it holds, not its size. */
         const val LUS_MAX = 100L * 1024 * 1024
+
+        /** Characters of notes kept until they are written: 60 MB of heap at most. */
+        const val TEXTE_RETENU_MAX = 30_000_000L
+
+        /** Characters of a folder's name taken from an archive. */
+        const val NOM_DE_DOSSIER_MAX = 100
+
+        /**
+         * [repertoire] as a folder's name: control and bidirectional formatting characters dropped —
+         * a right-to-left override shows "fdp.exe" as "exe.pdf" —, trimmed, at most
+         * [NOM_DE_DOSSIER_MAX] characters, never cutting a surrogate pair.
+         */
+        internal fun nomDeDossier(repertoire: String): String {
+            val propre = repertoire.filterNot { Character.isISOControl(it) || it in FORMATS_BIDI }
+            val nom = DartTextSemantics.trim(propre)
+            if (nom.length <= NOM_DE_DOSSIER_MAX) return nom
+            val coupe = NOM_DE_DOSSIER_MAX
+            val fin = if (Character.isHighSurrogate(nom[coupe - 1])) coupe - 1 else coupe
+            return DartTextSemantics.trim(nom.substring(0, fin))
+        }
+
+        /** LRM, RLM, ALM, the embeddings and overrides, the isolates. */
+        private val FORMATS_BIDI = setOf(
+            '\u200E', '\u200F', '\u061C',
+            '\u202A', '\u202B', '\u202C', '\u202D', '\u202E',
+            '\u2066', '\u2067', '\u2068', '\u2069',
+        )
 
         private val EXTENSIONS = listOf(".md", ".markdown", ".txt")
         private const val DOSSIER_MACOS = "__MACOSX"

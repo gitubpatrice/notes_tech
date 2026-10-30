@@ -70,6 +70,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -535,6 +536,7 @@ fun NoteEditorScreen(
     val rendu = rememberLectureDeLApercu(state.content.text, actif = lecture)
 
     val recherche = rememberEtatDeRechercheDansLaNote(rechercheALOuverture)
+    SideEffect { recherche.saisieSauvegardee = !state.isVaultNote }
     val source = sourceDeRecherche(recherche, noteOuverte, lecture, state, rendu)
     val resultat = rememberResultatDeRecherche(recherche, source)
     val courante = resultat?.occurrences?.getOrNull(recherche.indexParmi(resultat.occurrences.size))
