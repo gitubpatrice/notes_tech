@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.dropUnlessResumed
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
@@ -223,7 +224,10 @@ fun HomeRoute(
                     val coffreAOuvrir = gestes.appuiLong(note, foldersState.folders, foldersState.unlockedFolderIds)
                     if (coffreAOuvrir != null) dossierAOuvrir = coffreAOuvrir
                 },
-                onNewNote = homeViewModel::createNote,
+                // 🔴 Dropped once the list is no longer the screen in front (3.2.1): a second tap
+                // during the editor's opening transition created a second, empty note. The tap
+                // that comes while the creation runs is dropped by the ViewModel.
+                onNewNote = dropUnlessResumed { homeViewModel.createNote() },
                 onOpenDrawer = { portee.launch { drawerState.open() } },
                 onOpenSearch = onOpenSearch,
                 onOpenSettings = onOpenSettings,

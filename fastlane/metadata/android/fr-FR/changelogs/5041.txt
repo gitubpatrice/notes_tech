@@ -1,0 +1,1 @@
+Corrigé : deux touchers rapides sur la flèche de retour d'une note laissaient un écran blanc (aussi en 3.1.1 et 3.2.0). Un double toucher sur « Nouvelle note » ne crée plus une seconde note vide, et un double toucher sur une note ne l'ouvre plus deux fois.

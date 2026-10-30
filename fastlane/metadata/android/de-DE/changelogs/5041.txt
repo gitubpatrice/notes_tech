@@ -1,0 +1,1 @@
+Behoben: Zwei schnelle Tipps auf den Zurück-Pfeil einer Notiz hinterließen einen leeren weißen Bildschirm (auch in 3.1.1 und 3.2.0). Ein schneller Doppeltipp auf „Neue Notiz“ erstellt keine zweite, leere Notiz mehr, und ein Doppeltipp auf eine Notiz öffnet sie nicht mehr zweimal.

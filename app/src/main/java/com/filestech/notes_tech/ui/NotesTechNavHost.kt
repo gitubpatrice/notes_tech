@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -22,20 +23,24 @@ import com.filestech.notes_tech.ui.voice.VoiceSetupRoute
  * ⚠️ **Aucune chaîne de route n'est écrite ici** : elles viennent toutes de [Destination]. Un
  * `navigate("editor/$id")` dispersé dans un écran compilerait et se casserait au premier renommage,
  * sans que rien ne le signale avant l'exécution.
+ *
+ * 🔴 **Every navigation goes through [depuis]**: a screen navigates only while it is the one on top.
  */
 @Composable
 fun NotesTechNavHost(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Destination.Home.route) {
-        composable(Destination.Home.route) {
+        composable(Destination.Home.route) { entree ->
             HomeRoute(
                 onOpenNote = { note, recherche ->
-                    navController.navigate(Destination.Editor(note.id, recherche = recherche).route)
+                    navController.depuis(entree) { navigate(Destination.Editor(note.id, recherche = recherche).route) }
                 },
-                onEditNote = { navController.navigate(Destination.Editor(it.id, ecrire = true).route) },
-                onOpenSearch = { navController.navigate(Destination.Search.route) },
-                onOpenTrash = { navController.navigate(Destination.Trash.route) },
-                onOpenSettings = { navController.navigate(Destination.Settings.route) },
-                onOpenAbout = { navController.navigate(Destination.About.route) },
+                onEditNote = {
+                    navController.depuis(entree) { navigate(Destination.Editor(it.id, ecrire = true).route) }
+                },
+                onOpenSearch = { navController.depuis(entree) { navigate(Destination.Search.route) } },
+                onOpenTrash = { navController.depuis(entree) { navigate(Destination.Trash.route) } },
+                onOpenSettings = { navController.depuis(entree) { navigate(Destination.Settings.route) } },
+                onOpenAbout = { navController.depuis(entree) { navigate(Destination.About.route) } },
             )
         }
 
@@ -53,57 +58,74 @@ fun NotesTechNavHost(navController: NavHostController) {
                     defaultValue = null
                 },
             ),
-        ) {
+        ) { entree ->
             // L'identifiant n'est pas relu ici : `SavedStateHandle` le remet au ViewModel, qui est
             // le seul à en avoir besoin. Le faire transiter par le composable ajouterait un second
             // chemin pour la même valeur.
             NoteEditorRoute(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.depuis(entree) { popBackStack() } },
                 // Ouvrir une note liée **empile** une entrée, comme l'application publiée : le
                 // chemin parcouru se remonte lien par lien avec le bouton retour.
-                onOpenNote = { navController.navigate(Destination.Editor(it).route) },
+                onOpenNote = { navController.depuis(entree) { navigate(Destination.Editor(it).route) } },
                 // 🔴 **Le micro sans modèle EMMÈNE ici**, il ne se contente pas de dire qu'il
                 // manque quelque chose. Cet écran n'était atteignable que depuis les réglages, et
                 // rien dans l'éditeur ne l'indiquait. Cf. `ControleurDeDictee.demarrer`.
-                onInstallerLaDictee = { navController.navigate(Destination.VoiceSetup.route) },
+                onInstallerLaDictee = { navController.depuis(entree) { navigate(Destination.VoiceSetup.route) } },
             )
         }
 
-        composable(Destination.Search.route) {
+        composable(Destination.Search.route) { entree ->
             SearchRoute(
-                onBack = { navController.popBackStack() },
+                onBack = { navController.depuis(entree) { popBackStack() } },
                 // The note opens with "Find in note" on what was searched (3.2.0, D-033).
                 onOpenNote = { note, recherche ->
-                    navController.navigate(Destination.Editor(note.id, recherche = recherche).route)
+                    navController.depuis(entree) { navigate(Destination.Editor(note.id, recherche = recherche).route) }
                 },
             )
         }
 
-        composable(Destination.Trash.route) {
-            TrashRoute(onBack = { navController.popBackStack() })
+        composable(Destination.Trash.route) { entree ->
+            TrashRoute(onBack = { navController.depuis(entree) { popBackStack() } })
         }
 
-        composable(Destination.Settings.route) {
+        composable(Destination.Settings.route) { entree ->
             SettingsRoute(
-                onBack = { navController.popBackStack() },
-                onOpenAbout = { navController.navigate(Destination.About.route) },
-                onOpenVoiceSetup = { navController.navigate(Destination.VoiceSetup.route) },
+                onBack = { navController.depuis(entree) { popBackStack() } },
+                onOpenAbout = { navController.depuis(entree) { navigate(Destination.About.route) } },
+                onOpenVoiceSetup = { navController.depuis(entree) { navigate(Destination.VoiceSetup.route) } },
             )
         }
 
-        composable(Destination.About.route) {
+        composable(Destination.About.route) { entree ->
             AboutRoute(
-                onBack = { navController.popBackStack() },
-                onOpenLegal = { navController.navigate(Destination.Legal.route) },
+                onBack = { navController.depuis(entree) { popBackStack() } },
+                onOpenLegal = { navController.depuis(entree) { navigate(Destination.Legal.route) } },
             )
         }
 
-        composable(Destination.VoiceSetup.route) {
-            VoiceSetupRoute(onBack = { navController.popBackStack() })
+        composable(Destination.VoiceSetup.route) { entree ->
+            VoiceSetupRoute(onBack = { navController.depuis(entree) { popBackStack() } })
         }
 
-        composable(Destination.Legal.route) {
-            LegalRoute(onBack = { navController.popBackStack() })
+        composable(Destination.Legal.route) { entree ->
+            LegalRoute(onBack = { navController.depuis(entree) { popBackStack() } })
         }
     }
+}
+
+/**
+ * Runs [navigation] only if [entree] is still the screen on top.
+ *
+ * 🔴 **A screen that is leaving must not navigate again** (3.2.1). During the exit transition
+ * (~0.5 s) the screen being left is still drawn and still takes taps. On 3.1.1 and 3.2.0 as
+ * published, a second tap on « Fermer » reached `popBackStack()` from the editor already popped,
+ * and popped the note list too: an empty NavHost, a WHITE screen, left only by Back. A double tap
+ * on a note or a menu entry stacked its screen twice. Measured on the emulator, `DoubleToucherTest`.
+ *
+ * Not `dropUnlessResumed`: it also drops what the editor navigates on its own while its entry is
+ * not resumed yet (a deletion done, the vault-unlock sheet dismissed, a linked note created), and
+ * the note would stay on screen. The screen on top may always navigate, whatever its state.
+ */
+private inline fun NavHostController.depuis(entree: NavBackStackEntry, navigation: NavHostController.() -> Unit) {
+    if (currentBackStackEntry === entree) navigation()
 }

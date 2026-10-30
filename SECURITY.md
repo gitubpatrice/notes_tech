@@ -2,9 +2,14 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.2.0 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.2.1 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.2.1 — no security change (2026-10-30)
+
+A navigation fix: two quick taps on a note's back arrow left an empty screen, a double tap on "New
+note" created a second note. Permissions, storage and encryption are those of 3.2.0.
 
 ## v3.2.0 — encrypted backup, import, incoming share, the body field (2026-10-30)
 

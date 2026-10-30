@@ -1,0 +1,1 @@
+Corregido: dos toques rápidos en la flecha atrás de una nota dejaban una pantalla en blanco (también en la 3.1.1 y la 3.2.0). Un doble toque rápido en «Nueva nota» ya no crea una segunda nota vacía, y un doble toque en una nota ya no la abre dos veces.

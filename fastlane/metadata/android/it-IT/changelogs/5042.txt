@@ -1,0 +1,1 @@
+Corretto: due tocchi rapidi sulla freccia indietro di una nota lasciavano una schermata bianca (anche nella 3.1.1 e nella 3.2.0). Un doppio tocco rapido su «Nuova nota» non crea più una seconda nota vuota, e un doppio tocco su una nota non la apre più due volte.

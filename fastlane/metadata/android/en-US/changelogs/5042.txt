@@ -1,0 +1,1 @@
+Fixed: two quick taps on a note's back arrow left a blank white screen (also in 3.1.1 and 3.2.0). A quick double tap on “New note” no longer creates a second, empty note, and a double tap on a note no longer opens it twice.

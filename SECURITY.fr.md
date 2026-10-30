@@ -2,9 +2,15 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.2.0 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.2.1 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.2.1 — aucun changement de sécurité (2026-10-30)
+
+Un correctif de navigation : deux touchers rapides sur la flèche de retour d'une note laissaient un
+écran vide, un double toucher sur « Nouvelle note » créait une seconde note. Permissions, stockage et
+chiffrement sont ceux de la 3.2.0.
 
 ## v3.2.0 — sauvegarde chiffrée, import, partage entrant, le champ du corps (2026-10-30)
 
