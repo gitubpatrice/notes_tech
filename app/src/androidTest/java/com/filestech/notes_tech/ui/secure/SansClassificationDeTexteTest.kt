@@ -5,6 +5,8 @@ import android.view.textclassifier.TextClassification
 import android.view.textclassifier.TextClassificationContext
 import android.view.textclassifier.TextClassificationManager
 import android.view.textclassifier.TextClassifier
+import androidx.compose.foundation.ComposeFoundationFlags
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -89,6 +91,17 @@ class SansClassificationDeTexteTest {
         val application = ApplicationProvider.getApplicationContext<android.content.Context>()
             .getSystemService(TextClassificationManager::class.java)
         assertThat(application.textClassifier).isNotSameInstanceAs(TextClassifier.NO_OP)
+    }
+
+    /**
+     * Compose must list no other app's text action, on any version: package visibility is granted
+     * per app. See [sansActionsDeTexteDesAutresApps].
+     */
+    @OptIn(ExperimentalFoundationApi::class)
+    @Test
+    fun compose_lists_no_other_app_text_action() {
+        gestionnaireDeLActivite() // the activity has run its onCreate
+        assertThat(ComposeFoundationFlags.isSmartSelectionEnabled).isFalse()
     }
 
     private fun gestionnaireDeLActivite(): TextClassificationManager {

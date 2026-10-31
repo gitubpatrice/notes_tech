@@ -46,6 +46,7 @@ import com.filestech.notes_tech.ui.panic.RecouvrementDePanique
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
+import com.filestech.notes_tech.ui.secure.sansActionsDeTexteDesAutresApps
 import com.filestech.notes_tech.ui.secure.sansClassificationDeTexte
 import com.filestech.notes_tech.ui.share.PartagesRecus
 import com.filestech.notes_tech.ui.splash.SplashScreen
@@ -108,6 +109,8 @@ class MainActivity : FragmentActivity() {
         // 🔴 Before the first field exists: the selection toolbar's "Translate" sent the selected text
         // of a note to another app (3.1.1) — see `sansClassificationDeTexte`.
         sansClassificationDeTexte()
+        // Same toolbar, other door: other apps' text actions — editing entries only.
+        sansActionsDeTexteDesAutresApps()
         enableEdgeToEdge()
         setContent {
             CompositionLocalProvider(
