@@ -1,9 +1,23 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, **puis le 2026-10-30 (deux fois)**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), **puis le 2026-10-31**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-10-30 après-midi) — la 3.2.1 est PUBLIÉE
+## 🧭 À LA REPRISE (écrit le 2026-10-31 au soir) — la 3.2.2 est PUBLIÉE
+
+Un correctif de sécurité, publié avec les cinq autres applis le même soir (Patrice : « autant les publier toutes ») :
+
+- **Le défaut** : la barre de sélection des champs Compose (titre, recherche, coffre) listait les actions
+  `ACTION_PROCESS_TEXT` des autres applis visibles — toutes avant Android 11 — et leur remettait le texte
+  sélectionné. Le corps natif était déjà filtré (`MenuDuChampDuCorps`), le classifieur coupé depuis la 3.1.1.
+- **Le correctif** : PR #45 (`d1aeea7`), `sansActionsDeTexteDesAutresApps()` coupe
+  `ComposeFoundationFlags.isSmartSelectionEnabled` avant la première composition, test instrumenté.
+- **Release** : `71d09d3` (version 3.2.2, base 505, changelogs 5051-5053, README, SECURITY) ; CI + CodeQL verts
+  AVANT le **tag léger `v3.2.2`** ; 4 APK signés par `~/.claude/tools/signer_notes_tech.py` (TOUT OK), retéléchargés
+  = SHA identiques ; mise à jour 3.2.1 publiée → 3.2.2 vérifiée sur émulateur ; site files-tech PR #39 en ligne
+  (flux RSS compris). F-Droid : tag seul (5051-5053).
+
+## Précédemment (écrit le 2026-10-30 après-midi) — la 3.2.1 est PUBLIÉE
 
 Un correctif, demandé par Patrice (« corrige », puis « fusionne, tag, site, release ») :
 
