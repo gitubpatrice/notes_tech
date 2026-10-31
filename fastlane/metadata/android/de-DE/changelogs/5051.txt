@@ -1,0 +1,1 @@
+Behoben: Die Auswahlleiste der Titel-, Such- und Tresorfelder bot Textaktionen anderer Apps an, die den markierten Text erhielten. Sie sind auf jeder Android-Version weg, wie schon im Notiztext. Es bleiben Ausschneiden, Kopieren, Einfügen, Alles auswählen.

@@ -2,9 +2,20 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.2.1 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.2.2 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.2.2 — actions de texte des autres applications dans les champs Compose (2026-10-31)
+
+Compose foundation 1.12 ajoute à la barre de sélection de ses champs de texte toute application
+visible de Notes Tech qui déclare une action `ACTION_PROCESS_TEXT` — n'importe laquelle le peut, sous
+n'importe quel nom — et lui remet le texte sélectionné. Avant Android 11, toutes les applications
+installées sont visibles. Le corps de la note, champ natif, ne gardait déjà que les entrées d'édition ;
+les champs de titre, de recherche et de coffre, non. `MainActivity` coupe désormais
+`ComposeFoundationFlags.isSmartSelectionEnabled` avant la première composition, sur toutes les
+versions d'Android. Le classifieur de texte (« Traduire ») est coupé depuis la 3.1.1. Permissions,
+stockage et chiffrement sont ceux de la 3.2.1.
 
 ## v3.2.1 — aucun changement de sécurité (2026-10-30)
 

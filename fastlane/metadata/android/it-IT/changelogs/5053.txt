@@ -1,0 +1,1 @@
+Corretto: la barra di selezione dei campi di titolo, ricerca e cassaforte proponeva le azioni di testo di altre app, che ricevevano il testo selezionato. Spariscono su ogni versione di Android, come già nel corpo della nota. Restano Taglia, Copia, Incolla, Seleziona tutto.

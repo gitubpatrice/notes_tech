@@ -1,0 +1,1 @@
+Corregido: la barra de selección de los campos de título, búsqueda y caja fuerte ofrecía las acciones de texto de otras apps, que recibían el texto seleccionado. Desaparecen en todas las versiones de Android, como ya en el cuerpo de la nota. Quedan Cortar, Copiar, Pegar, Seleccionar todo.

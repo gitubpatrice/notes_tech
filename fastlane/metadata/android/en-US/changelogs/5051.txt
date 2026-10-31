@@ -1,0 +1,1 @@
+Fixed: the selection toolbar of the title, search and vault fields offered other apps' text actions, which received the selected text. They are gone on every Android version, as they already were in the note body. Cut, Copy, Paste and Select all remain.

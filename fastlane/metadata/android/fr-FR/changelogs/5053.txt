@@ -1,0 +1,1 @@
+Corrigé : la barre de sélection des champs de titre, de recherche et de coffre proposait les actions de texte d'autres applications, qui recevaient le texte sélectionné. Elles disparaissent sur toutes les versions d'Android, comme déjà dans le corps de la note. Restent Couper, Copier, Coller, Tout sélectionner.

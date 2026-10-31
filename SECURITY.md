@@ -2,9 +2,19 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.2.1 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.2.2 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.2.2 — other apps' text actions in Compose fields (2026-10-31)
+
+Compose foundation 1.12 adds to the selection toolbar of its text fields every app visible to Notes
+Tech that declares an `ACTION_PROCESS_TEXT` action — any app may, under any name — and hands it the
+selected text. Before Android 11 every installed app is visible. The note body, a native field,
+already kept editing entries only; the title, search and vault fields did not. `MainActivity` now
+turns `ComposeFoundationFlags.isSmartSelectionEnabled` off before the first composition, on every
+Android version. The text classifier ("Translate") has been off since 3.1.1. Permissions, storage
+and encryption are those of 3.2.1.
 
 ## v3.2.1 — no security change (2026-10-30)
 
