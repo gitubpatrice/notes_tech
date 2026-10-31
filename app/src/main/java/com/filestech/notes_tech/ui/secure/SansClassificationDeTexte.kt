@@ -4,6 +4,8 @@ import android.app.Activity
 import android.os.Build
 import android.view.textclassifier.TextClassificationManager
 import android.view.textclassifier.TextClassifier
+import androidx.compose.foundation.ComposeFoundationFlags
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 /**
  * 🔴 **No text classifier in this app** — 3.1.1, measured on 2026-10-29.
@@ -32,4 +34,26 @@ import android.view.textclassifier.TextClassifier
 internal fun Activity.sansClassificationDeTexte() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     getSystemService(TextClassificationManager::class.java)?.setTextClassifier(TextClassifier.NO_OP)
+}
+
+/**
+ * 🔴 **No other app's text action in Compose's selection toolbar** — measured on 2026-10-31.
+ *
+ * Compose foundation 1.12 adds to that toolbar one entry per app that declares `ACTION_PROCESS_TEXT`
+ * and that this app can see (`ProcessText_android`, read in the bytecode) — any app may declare one,
+ * under any name, and one tap hands it the selected text, in the title, search and vault fields
+ * alike. Removing the `<queries>` for it (audit of 2026-09-26) is not enough: before Android 11 there
+ * is no package visibility, every app is listed, a translator among them; from 11 on, visibility is
+ * granted per WHOLE app, and any app another `<queries>` of the manifest reaches is listed with all
+ * its text actions.
+ *
+ * [ComposeFoundationFlags.isSmartSelectionEnabled] set to `false` takes those entries — and smart
+ * selection, already off with the classifier — out of every Compose toolbar of the process, on every
+ * version: Compose's fields keep editing only, as the body's native field already does
+ * ([com.filestech.notes_tech.ui.editor.MenuDuChampDuCorps]). What is lost:
+ * reading aloud from the toolbar, still reachable through its own accessibility shortcut.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+internal fun sansActionsDeTexteDesAutresApps() {
+    ComposeFoundationFlags.isSmartSelectionEnabled = false
 }
