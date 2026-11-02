@@ -1,7 +1,7 @@
 [versions]
 # Build toolchain — the one Agenda Tech and App Manager Tech run (AGP 9.4.1 / Kotlin 2.4.10 / KSP 2.3.12
 # / JDK 17). AGP 9 compiles Kotlin itself: there is no `org.jetbrains.kotlin.android` plugin any more.
-agp = "9.4.1"
+agp = "9.5.0"
 # Capped below 2.4.20: CodeQL 2.27 refuses to compile from there ("currently supports versions below
 # 2.4.20", measured on Agenda Tech). This is the EXACT compiler version: the root build.gradle.kts pins
 # the Kotlin Gradle Plugin to it with `strictly`, since AGP 9 would otherwise bring its own.
