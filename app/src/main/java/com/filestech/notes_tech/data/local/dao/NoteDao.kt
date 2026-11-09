@@ -110,10 +110,16 @@ interface NoteDao {
      * Toutes les notes hors corbeille, **archives comprises**.
      *
      * Balayage complet : réservé aux consommateurs qui en ont réellement besoin — statistiques,
-     * export, sauvegarde. Jamais dans une boucle de rendu, et jamais pour construire l'index
+     * export, sauvegarde.
+     *
+     * ⚠️ **Sans les notes à durée de vie** (D-043, 3.4.0) : l'export ZIP ne doit pas les emporter, une
+     * restauration les ferait revivre (Patrice, 2026-11-09). Jamais dans une boucle de rendu, et jamais pour construire l'index
      * des rétroliens : [titlesForLinking] existe pour ça et ne charge pas les blobs.
      */
-    @Query("SELECT * FROM notes WHERE trashed_at IS NULL ORDER BY updated_at DESC")
+    @Query(
+        "SELECT * FROM notes WHERE trashed_at IS NULL AND expires_at IS NULL AND read_once = 0 " +
+            "ORDER BY updated_at DESC",
+    )
     suspend fun listAllAlive(): List<NoteEntity>
 
     /**

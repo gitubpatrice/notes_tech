@@ -253,6 +253,8 @@ class LegacyDatabaseOpeningTest {
                 updatedAt = 1L,
                 encVersion = 1,
                 colorId = null,
+                expiresAt = null,
+                readOnce = false,
             ),
         )
 

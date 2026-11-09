@@ -159,6 +159,8 @@ class NoteLinkTest {
         updatedAt = 1L,
         encVersion = 1,
         colorId = null,
+        expiresAt = null,
+        readOnce = false,
     )
 
     private fun openDatabase(): NotesDatabase {

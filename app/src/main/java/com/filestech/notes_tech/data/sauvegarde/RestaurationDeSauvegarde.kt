@@ -343,6 +343,9 @@ class RestaurationDeSauvegarde @Inject constructor(
         updatedAt = modifieeLe,
         encVersion = versionDeChiffrement,
         colorId = couleur,
+        // A backup never holds a note with a lifetime (D-043).
+        expiresAt = null,
+        readOnce = false,
     )
 
     private companion object {

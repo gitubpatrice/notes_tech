@@ -97,6 +97,10 @@ TABLES = ("folders", "notes")
 # point — and the instrumented migration test replays the real Kotlin object on a real base.
 MIGRATIONS = {
     10: ["ALTER TABLE notes ADD COLUMN color_id INTEGER"],
+    11: [
+        "ALTER TABLE notes ADD COLUMN expires_at INTEGER",
+        "ALTER TABLE notes ADD COLUMN read_once INTEGER NOT NULL DEFAULT 0",
+    ],
 }
 
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent.parent / "app" / "schemas"

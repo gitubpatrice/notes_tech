@@ -125,6 +125,16 @@ class NoteEntity(
      */
     @ColumnInfo(name = "color_id")
     val colorId: Int?,
+    /**
+     * D-043 (3.4.0): when the note erases itself, epoch milliseconds; `null` for never. Read by the
+     * purge ([com.filestech.notes_tech.data.local.dao.NoteWriteDao.deleteExpired]), not a secret.
+     * No default, for [colorId]'s reason: every constructor says it.
+     */
+    @ColumnInfo(name = "expires_at")
+    val expiresAt: Long?,
+    /** D-043: erased when closed after it was opened again. `DEFAULT 0` as the migration writes it. */
+    @ColumnInfo(name = "read_once", defaultValue = "0")
+    val readOnce: Boolean,
 ) {
     /** `true` si la note est verrouillée dans un coffre. Unique test à utiliser — jamais
      *  `content.isEmpty()`, qui est aussi vrai d'une note vide ordinaire. */

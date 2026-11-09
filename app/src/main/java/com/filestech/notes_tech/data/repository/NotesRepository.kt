@@ -16,6 +16,7 @@ import com.filestech.notes_tech.domain.links.TitleNormalizer
 import com.filestech.notes_tech.domain.links.WikiLinkParser
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Folder
+import com.filestech.notes_tech.domain.model.DureeDeVie
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.model.NoteSortMode
@@ -741,6 +742,25 @@ class NotesRepository @Inject constructor(
     }
 
     /**
+     * How long the note lives (D-043, 3.4.0); `null` for always. A duration counts from now: choosing
+     * "1 hour" again starts the hour again. Writes those two columns only — not `updated_at`, which
+     * orders the lists: giving a note a lifetime is not editing it.
+     */
+    suspend fun setLifetime(id: String, duree: DureeDeVie?): Boolean {
+        val expireLe = duree?.duree?.let { clock.instant().plus(it).toEpochMilli() }
+        return databases.get().noteWriteDao().updateLifetime(id, expireLe, readOnce = duree == DureeDeVie.APRES_LECTURE) > 0
+    }
+
+    /**
+     * Erases the notes whose lifetime is over (D-043) — the trash's too —, as "Delete permanently" erases
+     * one: the same DELETE, so the full-text index (trigger `notes_ad`, `secure-delete`), the links
+     * (foreign keys) and `PRAGMA secure_delete` treat them alike. A vault note needs no key for that.
+     *
+     * @return how many were erased.
+     */
+    suspend fun purgeExpired(): Int = databases.get().noteWriteDao().deleteExpired(clock.millis())
+
+    /**
      * Purge les notes en corbeille au-delà de la rétention héritée de trente jours.
      *
      * @return le nombre de notes réellement supprimées, pour que l'appelant puisse le rapporter au
@@ -929,6 +949,8 @@ class NotesRepository @Inject constructor(
         updatedAt = updatedAt.toEpochMilli(),
         encVersion = encVersion,
         colorId = color?.id,
+        expiresAt = expiresAt?.toEpochMilli(),
+        readOnce = readOnce,
     )
 
     private fun requireTitleWithinLimit(title: String) {

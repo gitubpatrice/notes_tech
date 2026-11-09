@@ -44,7 +44,11 @@
 
 ## D-041 — Raccourcis sur l'icône : Nouvelle note, Dictée, Dépôt rapide
 
-- Raccourcis statiques (`res/xml/shortcuts.xml`), aucune permission.
+- Raccourcis **dynamiques**, publiés par `MainActivity.onCreate` (`publierLesRaccourcis`), aucune
+  permission. Pas de `shortcuts.xml` : un raccourci statique écrit son paquet en dur, et l'appli est
+  construite sous plusieurs identifiants (release, `.next`, `.next.debug`). Publiés avec le contexte de
+  l'activité : libellés dans la langue choisie dans l'appli ; une appli au premier plan n'est jamais
+  limitée par le service des raccourcis.
 - « Nouvelle note » et « Dictée » visent une activité **non exportée** de transit qui dépose la demande en
   mémoire puis lance l'appli : `MainActivity` continue d'ignorer les intents, aucune autre appli ne peut
   imposer une création ou un micro. La demande s'exécute **après** le déverrouillage de l'appli.
@@ -56,8 +60,12 @@
 
 - Une activité à part, en écriture seule : un champ de titre, un champ de texte, « Déposer », « Annuler ».
   Elle ne lit **rien** de la base, n'affiche aucune note, aucun dossier, aucun nombre ; après « Déposer »,
-  le texte quitte l'écran. Aucun lien vers le reste de l'appli autre que « Ouvrir Notes Tech » (qui
-  demande le déverrouillage).
+  l'écran se referme (« Note déposée dans la Boîte de réception »). **Aucun lien** vers le reste de
+  l'appli : un « Ouvrir Notes Tech » prévu au départ n'a pas été fait, une porte de moins.
+- Elle peut être la PREMIÈRE activité de son processus (la tuile la démarre dans un processus neuf) :
+  elle pose elle-même ce que `MainActivity` pose d'ordinaire — fenêtre protégée, actions de texte des
+  autres applis et classifieur coupés, langue choisie, thème, clavier sans apprentissage.
+- Rien n'est écrit pendant une panique en cours (`PanicJournal.isPending`) : le texte reste à l'écran.
 - Ouverte par la **tuile des réglages rapides** et le **raccourci** « Dépôt rapide ». Si le TÉLÉPHONE est
   verrouillé, Android demande d'abord son déverrouillage (`unlockAndRun`) — seul le verrou de Notes Tech
   est contourné (Patrice).
@@ -100,7 +108,22 @@
 
 ## État
 
-- [ ] D-040 clavier · [ ] D-041 raccourcis · [ ] D-042 dépôt · [ ] D-043 durée de vie · [ ] D-044 scellée
+- [x] **D-040 clavier** (`5e18eab`) — tests instrumentés sur le S9 : `ClavierSansApprentissageTest` (3),
+  `ChampDuCorpsTest` +1, `ReglagesHeritesTest` +1, `SaisieDeCoffreTest` inchangé (8) ; la ligne du réglage
+  vue dans l'écran, section Sécurité.
+- [x] **D-041 raccourcis** (`5e18eab`) — `RaccourcisTest` (4, JVM). Sur le S9 (lanceur Samsung) : les trois
+  raccourcis s'affichent à l'appui long, le lanceur démarre bien l'activité NON exportée (aucune
+  `SecurityException`), « Nouvelle note » ouvre une note vierge côté écriture, « Dicter une note » sans
+  modèle ouvre l'écran d'installation. Comme le bouton « Nouvelle note » depuis la 2.0.9, une note vide
+  quittée reste (pas d'effacement des notes vides : comportement inchangé).
+- [x] **D-042 dépôt** (`5e18eab`) — `DepotViewModelTest` (5, JVM : Boîte de réception, `confirmVerified`
+  — rien d'autre n'est appelé —, panique en cours, échec qui garde le texte, limites). Sur le S9, **avec
+  le verrou de l'appli activé** (code posé pour l'essai) : dépôt par le raccourci sans code, l'appli
+  demande toujours son code à l'ouverture, la note est dans la Boîte de réception ; la tuile
+  (`cmd statusbar add-tile` / `click-tile`) ouvre le dépôt. **Non essayé sur appareil** : la tuile
+  téléphone verrouillé (`unlockAndRun`) — le S9 n'a pas de code d'écran, en poser un change un réglage
+  global.
+- [ ] D-043 durée de vie · [ ] D-044 scellée
 - [ ] Textes 5 langues · [ ] version 3.4.0 (507) · [ ] journaux 5071-5073 · [ ] README, SECURITY, CGU/confidentialité
 - [ ] Audits (3 axes, sécurité des nouvelles entrées, i18n, cohérence) · [ ] relecture externe · [ ] S9 · [ ] CI
 - [ ] Avant le tag : build F-Droid sous AGP 9.5 (voir d'abord comment F-Droid a construit SMS 1.30.0)
