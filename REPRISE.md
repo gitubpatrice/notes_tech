@@ -3,18 +3,60 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, **puis le 2026-11-09**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-11-09) — la 3.3.0 est EN COURS (branche `feat/3.3.0-archive-selection`)
+## 🧭 À LA REPRISE (écrit le 2026-11-09) — la 3.3.0 est PUBLIÉE
 
 Issue #48 (koad1x) : trois suggestions. Patrice : « fais les 3 maintenant pour la version 3.3.0,
 proprement, avec vigilance », carte blanche (coder, tester, commiter, fusionner), « tous les audits
 nécessaires à la fin », « tous les dialogues en 5 langues, que tout soit cohérent ». Ses réponses : appui
 long = sélection ; une note archivée sort de « Toutes les notes » ; la recherche ignore les archives ;
 ajouts : archiver depuis l'éditeur, couleur et épingle/favori en lot. **La réponse à l'issue #48 se publie
-APRÈS la release** (brouillon dans la conversation du 2026-11-09).
+APRÈS la release** — fait, voir plus bas.
 
 - Plan et décisions : `docs/14-VERSION-3.3.md` (D-036 archive, D-037 sélection tout-ou-rien, D-038 curseur).
 - Version 3.3.0, base **506** (5060-5063), journaux 5061-5063 ×5, README, SECURITY, descriptions fastlane.
-- Contrôles faits/en cours : voir la fin de `docs/14-VERSION-3.3.md` et le message de PR.
+- Contrôles faits : voir `docs/14-VERSION-3.3.md` (audits, relectures, essais sur le S9) et la PR **#49**.
+- **PR #49** (4 commits, `dc33f67` → `3d9b157`) **fusionnée** : `main` = `5b360bb`, arbre identique à la
+  branche testée ; CI de `main` verte (CI Kotlin, instrumentés API 29, release R8, zéro réseau, CodeQL).
+- **PUBLIÉE le 2026-11-09** (Patrice, à son retour : « ok publie la 3.3.0 puis le site et la réponse »).
+  CI + CodeQL de `main` verts AVANT le **tag léger `v3.3.0`** sur `5b360bb`. Build release
+  `-Pnotestech.replaceInstalledApp=true`, 4 APK signés par `signer_notes_tech.py` contre la 3.2.2 publiée
+  retéléchargée : **TOUT OK** (cert `ddb385de…42e9`, v2 + v3, 5060-5063, 4 permissions = publiée, pas
+  d'INTERNET, pas de bloc « Dependency metadata »). Release « Latest » publiée à 15 h 57 UTC ; APK
+  retéléchargés = SHA identiques : universel `280516bb…78e6`, armeabi-v7a `e075720a…4e8c`, arm64
+  `e62dbfc7…b41b`, x86_64 `44866dd0…cf9a`. F-Droid : tag seul (5061-5063), aucune MR.
+- **Mises à jour vérifiées avant le tag** : émulateur, 3.2.2 PUBLIÉE → 3.3.0 universel (notes et note de
+  coffre gardées ; appui long sur la note de coffre fermé → demande de la phrase ; sur une note ordinaire →
+  sélection) ; S9, 3.0.0-alpha01 (5002, essai de bascule) → 3.3.0 arm64 (notes et coffre à code gardés).
+- **Site files-tech, PR #44** (fusionnée, déployée) : entrée en tête de la liste Notes de `includes/apps.php`,
+  journaux 5061 copiés dans `content/<fr|en|de>/releases/notes-tech/3.3.0.txt` (flux RSS), et la page
+  Notes Tech en FR/EN/DE : la carte « Couleurs et appui long » décrivait l'appui long de la 3.1.0 (éditer,
+  corbeille, supprimer), remplacé par la sélection — elle ne garde que les couleurs ; cartes « Archives » et
+  « Sélection multiple » étiquetées Nouveau ; les cartes 3.2.0 perdent l'étiquette ; méta-description
+  (et `og:description`) complétée.
+- **Corrigé après publication** : la release et les README disaient qu'une note archivée quitte « les
+  favoris ». **L'appli n'a pas de vue Favoris** (`NotesRepository.observeFavorites` n'est appelé nulle
+  part ; un favori n'est qu'une étoile sur la carte). Retiré des notes de release (éditées en ligne) et
+  des README ; jamais écrit sur le site.
+- **Réponse à l'issue #48** publiée après la release, issue fermée comme terminée (même usage que #36) :
+
+  > Thank you for the kind words and for the suggestions — all three are in version 3.3.0, released
+  > today: https://github.com/gitubpatrice/notes_tech/releases/tag/v3.3.0
+  >
+  > 1. A new note, or one opened with Edit, now gets the cursor in its body and the keyboard right away.
+  > 2. **Archive**: a new entry in the menu, next to the Trash. Archived notes leave your lists and the
+  >    search, are grouped by month, and can be opened, edited or unarchived. Archive / Unarchive is also
+  >    in a note's ⋮ menu.
+  > 3. **Multi-select**: hold a note down to select it, then tap others (or Select all), and archive,
+  >    move, trash (with Undo), pin, favorite, color or delete them at once. Notes of a locked vault ask
+  >    for the vault to be opened first.
+  >
+  > If you installed Notes Tech from F-Droid, 3.3.0 reaches you there in a few days, once F-Droid has
+  > built it.
+  >
+  > Thanks again!
+- **Ensuite** : vérifier que F-Droid sert la 3.3.0 (API `packages/com.filestech.notes_tech`, journal de
+  build si en retard) ; idées gardées pour plus tard : export ZIP de la sélection, filtre par couleur,
+  raccourci « Nouvelle note » sur l'icône.
 
 ## Précédemment (écrit le 2026-10-31 au soir) — la 3.2.2 est PUBLIÉE
 
