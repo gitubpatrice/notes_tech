@@ -174,9 +174,15 @@
 > test tape pendant que le clavier Samsung démarre (l'écran de recherche le demande à l'ouverture ;
 > « getTextBeforeCursor on inactive InputConnection »), le test jumeau sans clavier automatique passe en
 > 1,5 s, et la classe passe 3 fois sur 3 sur émulateur Android 16 (Gboard), sur le S9 et en CI. Une
-> seconde exécution sur le S24 a été refusée par le garde-fou : **à confirmer à la main sur le S24**
-> (chercher un mot dans l'écran de recherche). Les tests du presse-papiers y laissent des textes d'essai
-> dans l'historique Samsung.
+> seconde exécution sur le S24 a été refusée par le garde-fou. Les tests du presse-papiers y laissent des
+> textes d'essai dans l'historique Samsung.
+>
+> **Essais à la main de Patrice sur le S24, build de `main` après #55 (`1bd3289`), même soir** — « tous les
+> tests sont ok » : une note trouvée par l'écran de recherche, au clavier Samsung (l'échec ci-dessus était
+> donc le test, pas l'appli) ; la tuile ajoutée par le volet, **téléphone verrouillé : son code demandé,
+> puis le dépôt ouvert** ; demande de code annulée : rien ne s'ouvre. Puis, mesuré par `adb` : processus
+> tué, volet ouvert, l'appli ne redémarre pas (`[]` → `[]`). La build de test se désinstalle à la main
+> (le garde-fou refuse `adb uninstall` sur le S24).
 >
 > **Limites connues (non corrigées, consignées)** :
 > - Mes fichiers (Samsung) n'ouvre pas `.ntnote` (type vide, il conclut seul) ; le menu « Ouvrir une note
@@ -200,8 +206,8 @@
   demande toujours son code à l'ouverture, la note est dans la Boîte de réception ; la tuile
   (`cmd statusbar add-tile` / `click-tile`) ouvre le dépôt. La tuile téléphone verrouillé, essayée plus
   tard sur émulateurs (Android 11 et 16, code posé) : défaut trouvé et corrigé, voir « Tuile » ci-dessus.
-  **Non essayé sur un vrai téléphone verrouillé** (le S9 n'a pas de code d'écran ; le S24 est celui de
-  Patrice).
+  Puis **essayée sur un vrai téléphone verrouillé** : le S24 de Patrice, après #55 — code demandé, puis
+  dépôt ouvert.
 - [x] **D-043 durée de vie** — données (`3ac16da`) : schéma 11, migration 10 → 11 additive, vérifiée par le
   script de CI et sur le S9 (`MigrationVersDixTest`, dont le chemin réel d'une base de la 3.3.0) ; purge =
   le DELETE de « Supprimer définitivement » ; export ZIP et sauvegarde les excluent. Interface : menu ⋮ de
