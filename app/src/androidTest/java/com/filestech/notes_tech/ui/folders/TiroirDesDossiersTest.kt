@@ -7,6 +7,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -67,6 +69,8 @@ class TiroirDesDossiersTest {
     private val menus = mutableListOf<Folder>()
     private val renommagesDeBoite = mutableListOf<Folder>()
     private val corbeilles = mutableListOf<Unit>()
+    private val archives = mutableListOf<Unit>()
+    private val archiveCourante = mutableStateOf(false)
     private val creations = mutableListOf<Unit>()
 
     private fun texte(id: Int): String = regle.activity.getString(id)
@@ -84,7 +88,9 @@ class TiroirDesDossiersTest {
                 FoldersDrawer(
                     state = etatCourant.value,
                     currentFolderId = dossierCourant.value,
+                    archiveActive = archiveCourante.value,
                     onSelect = { selections += it },
+                    onOpenArchive = { archives += Unit },
                     onOpenTrash = { corbeilles += Unit },
                     onCreateFolder = { creations += Unit },
                     onFolderMenu = { menus += it },
@@ -134,6 +140,23 @@ class TiroirDesDossiersTest {
 
         assertThat(renommagesDeBoite.map { it.id }).containsExactly(Folder.INBOX_ID)
         assertThat(selections).isEmpty()
+    }
+
+    /**
+     * The archive (3.3.0): its entry opens it, and while it is shown it is the selected entry — not
+     * "All notes", whose list it is not. The control: before, "All notes" is the selected one.
+     */
+    @Test
+    fun l_entree_archive_ouvre_l_archive_et_devient_l_entree_selectionnee() {
+        poser()
+        regle.onNode(hasText(texte(R.string.home_all_notes)) and isSelected()).assertExists()
+
+        regle.onNodeWithText(texte(R.string.drawer_archive)).performClick()
+        assertThat(archives).hasSize(1)
+
+        regle.runOnIdle { archiveCourante.value = true }
+        regle.onNode(hasText(texte(R.string.drawer_archive)) and isSelected()).assertExists()
+        regle.onNode(hasText(texte(R.string.home_all_notes)) and isSelected()).assertDoesNotExist()
     }
 
     /** Le témoin des deux précédents : un appui sur la **ligne** sélectionne bien le dossier. */
@@ -487,8 +510,9 @@ class TiroirDesDossiersTest {
     private companion object {
         /**
          * Mesuré sur le S9 : deux entrées fixes (« Toutes les notes », la boîte), le bouton de
-         * renommage de la boîte, deux dossiers et leurs deux `⋮`, la corbeille et « Nouveau dossier ».
+         * renommage de la boîte, deux dossiers et leurs deux `⋮`, la corbeille et « Nouveau dossier »
+         * — et l'archive depuis la 3.3.0.
          */
-        const val ACTIONNABLES = 9
+        const val ACTIONNABLES = 10
     }
 }

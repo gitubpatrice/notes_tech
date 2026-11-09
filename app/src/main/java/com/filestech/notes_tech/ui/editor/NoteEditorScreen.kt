@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteForever
@@ -44,13 +45,12 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -106,8 +106,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.markdown.LinkTarget
-import com.filestech.notes_tech.ui.common.ActionDeDialogue
-import com.filestech.notes_tech.ui.common.CorpsDeDialogue
+import com.filestech.notes_tech.ui.common.DialogueDeSortieDeCoffre
 import com.filestech.notes_tech.ui.common.DialogueDestructif
 import com.filestech.notes_tech.ui.common.EmptyState
 import com.filestech.notes_tech.ui.common.HoteDeMessages
@@ -160,8 +159,20 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     val chargee = !state.loading && state.note != null && state.loadError == null && state.lockedVault == null
     // Until the choice is stored, the screen already shows the side it will be: no frame of the other.
     val lecture = lectureChoisie ?: (chargee && state.content.text.isNotBlank())
+    // 🔴 The keyboard at the opening (3.3.0, issue #48): a note that opens on the WRITING side — blank,
+    // just created, or by the selection's "Edit" — gets the cursor in its body and the keyboard, as the
+    // "Edit" button gives them. Until 3.2.2 such a note opened to be written with nothing focused: one
+    // more tap before the first word. Decided ONCE, with the side, when the note has loaded — a vault
+    // note once its vault is open —; both saved, so a rotation does not bring the keyboard back.
+    var ouvertureDecidee by rememberSaveable { mutableStateOf(false) }
+    var clavierALOuverture by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(chargee) {
-        if (chargee && lectureChoisie == null) lectureChoisie = state.content.text.isNotBlank()
+        if (!chargee) return@LaunchedEffect
+        if (lectureChoisie == null) lectureChoisie = state.content.text.isNotBlank()
+        if (!ouvertureDecidee) {
+            ouvertureDecidee = true
+            clavierALOuverture = lectureChoisie == false
+        }
     }
 
     var autocompletionOuverte by rememberSaveable { mutableStateOf(false) }
@@ -418,6 +429,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             onFavori = viewModel::setFavorite,
             onInfos = { infosOuvertes = true },
             onDeplacer = { deplacementOuvert = true },
+            onArchiver = viewModel::setArchived,
             onCouleur = { couleurOuverte = true },
             onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
             onCopier = {
@@ -447,6 +459,8 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             },
             onLienDeLApercu = lienDeLApercu,
             rechercheALOuverture = viewModel.rechercheALOuverture,
+            ecrireALOuverture = clavierALOuverture,
+            onEcritureOuverte = { clavierALOuverture = false },
         )
     }
 
@@ -493,6 +507,8 @@ fun NoteEditorScreen(
     // ⚠️ No default: a menu entry wired to `{}` would be a dead button that compiles.
     onInfos: () -> Unit,
     onDeplacer: () -> Unit,
+    /** The ⋮ menu's "Archive" / "Unarchive" (3.3.0): the value to write — computed where the note is known. */
+    onArchiver: (Boolean) -> Unit,
     /** The ⋮ menu's "Color" (3.1.0): the sheet that colours the note's card in the lists. */
     onCouleur: () -> Unit,
     onExporter: () -> Unit,
@@ -514,14 +530,30 @@ fun NoteEditorScreen(
     onLienDeLApercu: (LinkTarget) -> Unit,
     /** The search of the result this note was opened from (3.2.0): the "Find in note" bar opens with it. */
     rechercheALOuverture: String?,
+    /**
+     * `true` once, when the note opens on the writing side (3.3.0): the body takes the cursor, at the end,
+     * and the keyboard — then [onEcritureOuverte] is called. Decided by the Route, see `clavierALOuverture`.
+     */
+    ecrireALOuverture: Boolean = false,
+    onEcritureOuverte: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val focus = LocalFocusManager.current
     // Leaving the reading puts the cursor in the body, and with it the keyboard: "Edit" means "write".
-    // Only after that button — a note created blank opens to be written, as before, without forcing it.
-    // Taken by the body field once it is there (see `ChampDuCorps`).
+    // Since 3.3.0 a note that OPENS to be written gets them too ([ecrireALOuverture]) — until then it
+    // opened with nothing focused. Taken by the body field once it is there (see `ChampDuCorps`).
     var focaliserLeCorps by remember { mutableStateOf(false) }
     val noteOuverte = state.note != null && state.lockedVault == null && state.loadError == null && !state.loading
+    // The same two steps as the "Edit" button below: the cursor at the END — a note created from a
+    // `[[Title]]` has a title and an empty body, a note opened by "Edit" goes on being written —, then
+    // the focus. Only once the field is there: writing side, note readable.
+    LaunchedEffect(ecrireALOuverture, noteOuverte, lecture) {
+        if (ecrireALOuverture && noteOuverte && !lecture) {
+            onContenuChange(state.content.copy(selection = TextRange(state.content.text.length)))
+            focaliserLeCorps = true
+            onEcritureOuverte()
+        }
+    }
 
     // Above the Edit / Preview branch, not inside it: the branch leaving the composition took the
     // preview's position with it, and every switch put a long note back at its top (GPT-5.6 review,
@@ -727,6 +759,8 @@ fun NoteEditorScreen(
                             onFavori = { onFavori(!note.favorite) },
                             onInfos = onInfos,
                             onDeplacer = onDeplacer,
+                            archivee = note.archived,
+                            onArchiver = { onArchiver(!note.archived) },
                             onCouleur = onCouleur,
                             onExporter = onExporter,
                             onCopier = onCopier,
@@ -1085,50 +1119,6 @@ private fun BanniereEchecEnregistrement(@StringRes raison: Int?) {
     }
 }
 
-/**
- * La confirmation avant de sortir une note d'un coffre.
- *
- * ## 🔴 Ce que l'utilisateur doit comprendre avant de toucher au bouton
- *
- * Le contenu part en clair dans la base. Et le mot « irréversible » du corps de texte ne dit pas
- * qu'on ne peut pas remettre la note au coffre — on peut — mais qu'**elle aura transité hors
- * chiffrement** : ce qui a été écrit en clair au repos l'a été, et aucun geste ultérieur ne le
- * défait. C'est la formulation de l'application publiée, et elle est juste.
- *
- * ⚠️ **L'action de sortie est le bouton discret, en rouge**, et « Annuler » celui qu'on touche par
- * réflexe — même disposition que [com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog],
- * et même icône, pour la même raison : les deux retirent une protection.
- *
- * Ce dialogue est la seule chose qui sépare un tap dans un menu d'une note déprotégée. L'entrée de
- * menu, elle, n'est plus désactivée — c'était la protection tant que le dépôt ne savait pas
- * déchiffrer, et une entrée grisée n'explique rien.
- */
-@Composable
-private fun DialogueDeSortieDeCoffre(onConfirmer: () -> Unit, onAnnuler: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onAnnuler,
-        icon = {
-            Icon(
-                imageVector = Icons.Outlined.LockOpen,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-            )
-        },
-        title = { Text(stringResource(R.string.note_editor_exit_vault_title)) },
-        text = { CorpsDeDialogue(stringResource(R.string.note_editor_exit_vault_body)) },
-        confirmButton = {
-            ActionDeDialogue(
-                texte = stringResource(R.string.note_editor_exit_vault_confirm),
-                onClick = onConfirmer,
-                couleur = MaterialTheme.colorScheme.error,
-            )
-        },
-        dismissButton = {
-            ActionDeDialogue(texte = stringResource(R.string.common_cancel), onClick = onAnnuler)
-        },
-    )
-}
-
 /** Deux champs de texte qui ne ressemblent pas à un formulaire. */
 @Composable
 internal fun champSansDecor() = TextFieldDefaults.colors(
@@ -1207,6 +1197,12 @@ internal fun IssueDUneAction(
                 onConsommer()
             }
 
+            action.archivee != null -> {
+                val phrase = if (action.archivee) R.string.note_editor_archived else R.string.note_editor_unarchived
+                portee.launch { messages.showSnackbar(ressources.getString(phrase)) }
+                onConsommer()
+            }
+
             action.copiee -> {
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copied_to_clipboard)) }
                 onConsommer()
@@ -1237,6 +1233,7 @@ internal fun IssueDUneAction(
                     ActionDEditeur.OrigineDErreur.CORBEILLE,
                     ActionDEditeur.OrigineDErreur.SUPPRESSION,
                     ActionDEditeur.OrigineDErreur.COPIE,
+                    ActionDEditeur.OrigineDErreur.ARCHIVAGE,
                     null,
                     -> phrase
                 }
@@ -1370,6 +1367,8 @@ private fun MenuDeDebordement(
     onFavori: () -> Unit,
     onInfos: () -> Unit,
     onDeplacer: () -> Unit,
+    archivee: Boolean,
+    onArchiver: () -> Unit,
     onCouleur: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
@@ -1463,6 +1462,17 @@ private fun MenuDeDebordement(
             onClick = {
                 ouvert = false
                 onDeplacer()
+            },
+        )
+        // Next to "Move" (3.3.0): both say where the note lives. The label follows the state, as the pin's.
+        DropdownMenuItem(
+            text = { Text(stringResource(if (archivee) R.string.note_unarchive else R.string.note_archive)) },
+            leadingIcon = {
+                Icon(if (archivee) Icons.Outlined.Unarchive else Icons.Outlined.Archive, contentDescription = null)
+            },
+            onClick = {
+                ouvert = false
+                onArchiver()
             },
         )
         DropdownMenuItem(

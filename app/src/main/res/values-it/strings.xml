@@ -151,9 +151,72 @@
     <string name="note_editor_export_failed">Esportazione non riuscita: %1$s</string>
     <string name="note_editor_moved">Nota spostata</string>
     <!-- Long press on a note in a list (3.1.0) -->
-    <string name="note_actions_label">Azioni sulla nota</string>
     <string name="note_moved_to_trash">Nota spostata nel cestino</string>
     <string name="common_undo">Annulla</string>
+    <!-- 3.3.0: the archive, and the selection of the lists. -->
+    <string name="drawer_archive">Archivio</string>
+    <string name="archive_title">Archivio</string>
+    <string name="archive_empty_title">Nessuna nota archiviata</string>
+    <string name="archive_empty_subtitle">Le note archiviate restano qui, fuori dai suoi elenchi. Per archiviare una nota, la tenga premuta, poi tocchi Archivia.</string>
+    <string name="note_archive">Archivia</string>
+    <string name="note_unarchive">Rimuovi dall\'archivio</string>
+    <string name="note_editor_archived">Nota archiviata</string>
+    <string name="note_editor_unarchived">Nota non più archiviata</string>
+    <string name="note_select">Seleziona</string>
+    <string name="note_deselect">Deseleziona</string>
+    <string name="selection_close">Chiudi selezione</string>
+    <string name="selection_select_all">Seleziona tutto</string>
+    <string name="selection_pin">Fissa</string>
+    <plurals name="selection_count">
+        <item quantity="one">%1$d selezionata</item>
+        <item quantity="many">%1$d selezionate</item>
+        <item quantity="other">%1$d selezionate</item>
+    </plurals>
+    <plurals name="notes_archived">
+        <item quantity="one">%1$d nota archiviata</item>
+        <item quantity="many">%1$d di note archiviate</item>
+        <item quantity="other">%1$d note archiviate</item>
+    </plurals>
+    <plurals name="notes_unarchived">
+        <item quantity="one">%1$d nota non più archiviata</item>
+        <item quantity="many">%1$d di note non più archiviate</item>
+        <item quantity="other">%1$d note non più archiviate</item>
+    </plurals>
+    <plurals name="notes_moved_to_trash">
+        <item quantity="one">%1$d nota spostata nel cestino</item>
+        <item quantity="many">%1$d di note spostate nel cestino</item>
+        <item quantity="other">%1$d note spostate nel cestino</item>
+    </plurals>
+    <plurals name="notes_restored">
+        <item quantity="one">%1$d nota ripristinata</item>
+        <item quantity="many">%1$d di note ripristinate</item>
+        <item quantity="other">%1$d note ripristinate</item>
+    </plurals>
+    <plurals name="notes_moved">
+        <item quantity="one">%1$d nota spostata</item>
+        <item quantity="many">%1$d di note spostate</item>
+        <item quantity="other">%1$d note spostate</item>
+    </plurals>
+    <plurals name="notes_delete_forever_title">
+        <item quantity="one">Eliminare definitivamente %1$d nota?</item>
+        <item quantity="many">Eliminare definitivamente %1$d di note?</item>
+        <item quantity="other">Eliminare definitivamente %1$d note?</item>
+    </plurals>
+    <plurals name="notes_delete_forever_body">
+        <item quantity="one">Questa nota (%1$d) verrà cancellata definitivamente. L\'operazione non può essere annullata.</item>
+        <item quantity="many">Queste %1$d di note verranno cancellate definitivamente. L\'operazione non può essere annullata.</item>
+        <item quantity="other">Queste %1$d note verranno cancellate definitivamente. L\'operazione non può essere annullata.</item>
+    </plurals>
+    <plurals name="notes_exit_vault_title">
+        <item quantity="one">Spostare %1$d nota fuori dalla sua cassaforte?</item>
+        <item quantity="many">Spostare %1$d di note fuori dalla loro cassaforte?</item>
+        <item quantity="other">Spostare %1$d note fuori dalla loro cassaforte?</item>
+    </plurals>
+    <plurals name="notes_exit_vault_body">
+        <item quantity="one">Il suo contenuto verrà decifrato e salvato in chiaro nel database, senza protezione con password. Irreversibile: questa nota (%1$d) sarà esistita fuori dalla cifratura, anche se in seguito la rimetterà in una cassaforte.</item>
+        <item quantity="many">Il loro contenuto verrà decifrato e salvato in chiaro nel database, senza protezione con password. Irreversibile: queste %1$d di note saranno esistite fuori dalla cifratura, anche se in seguito le rimetterà in una cassaforte.</item>
+        <item quantity="other">Il loro contenuto verrà decifrato e salvato in chiaro nel database, senza protezione con password. Irreversibile: queste %1$d note saranno esistite fuori dalla cifratura, anche se in seguito le rimetterà in una cassaforte.</item>
+    </plurals>
     <!-- A note's colour in the lists (3.1.0) -->
     <string name="note_editor_menu_color">Colore</string>
     <string name="note_color_title">Colore della nota</string>

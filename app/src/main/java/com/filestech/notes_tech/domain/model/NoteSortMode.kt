@@ -19,6 +19,10 @@ package com.filestech.notes_tech.domain.model
  * demandé. Deux écrans font exception et n'utilisent pas cet énuméré — « notes récentes » trie sur
  * `updated_at` seul, la corbeille sur `trashed_at`. Voir `NoteDao.observeRecent`, dont le
  * commentaire explique pourquoi y ajouter l'épinglage serait une régression.
+ *
+ * Since 3.3.0 the archive keeps this enum but leaves the pin out ([orderByIgnoringPin]): its list is
+ * cut into months (`ui/home/LignesDeLArchive`), and a pinned note of 2024 ahead of November 2026 would
+ * break the months apart. The pin is kept — the note gets it back once out of the archive.
  */
 enum class NoteSortMode(val orderBy: String) {
     UPDATED_DESC("pinned DESC, updated_at DESC"),
@@ -29,7 +33,12 @@ enum class NoteSortMode(val orderBy: String) {
     TITLE_DESC("pinned DESC, title COLLATE NOCASE DESC"),
     ;
 
+    /** [orderBy] without its leading `pinned DESC` — the archive's order (3.3.0). */
+    val orderByIgnoringPin: String get() = orderBy.removePrefix(PIN_FIRST)
+
     companion object {
+        private const val PIN_FIRST = "pinned DESC, "
+
         /** Celui de l'application publiée quand rien n'est précisé. */
         val DEFAULT = UPDATED_DESC
     }

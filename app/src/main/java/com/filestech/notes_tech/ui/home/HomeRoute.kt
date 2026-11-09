@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.home
 
 import android.content.res.Resources
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -14,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +28,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
@@ -60,7 +63,7 @@ fun HomeRoute(
      * search as the search screen's — for "Find in note" (3.2.0); `null` for a note just created.
      */
     onOpenNote: (Note, recherche: String?) -> Unit,
-    /** The long press's "Edit": the note opens to be written (3.1.0). */
+    /** The selection's "Edit" (3.3.0; the long press's in 3.1.0): the note opens to be written. */
     onEditNote: (Note) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenTrash: () -> Unit,
@@ -102,8 +105,9 @@ fun HomeRoute(
     var dossierAProteger by remember { mutableStateOf<Folder?>(null) }
     var modeChoisi by remember { mutableStateOf<VaultMode?>(null) }
 
-    // The long press on a note (3.1.0): its sheet, its confirmation, what waits for a vault's secret.
-    val gestes = remember { GestesDeNoteEnCours() }
+    // The selection (3.3.0; one note's long press in 3.1.0): its sheets, its questions, what waits for a
+    // vault's secret. Saved: a rotation keeps a question open (see `GestesDeNoteEnCours.Sauvegarde`).
+    val gestes = rememberSaveable(saver = GestesDeNoteEnCours.Sauvegarde) { GestesDeNoteEnCours() }
 
     /**
      * Exécute un geste dont le coffre est **ouvert**. Séparé de [lancerLeGeste] parce que la reprise
@@ -127,6 +131,15 @@ fun HomeRoute(
         } else {
             executerLeGeste(geste)
         }
+    }
+
+    // A note the selection may take without a secret: an ordinary one, or one whose vault is open. What
+    // "Select all" takes, and what decides whether it is still offered.
+    // ⚠️ The sessions' own flow, `coffresOuverts`, not the drawer's `stateIn` copy — the reason is on
+    // `HomeViewModel.coffresOuverts` (coherence audit, 2026-11-09).
+    val dossiersParId = remember(foldersState.folders) { foldersState.folders.associateBy { it.id } }
+    val accessible: (Note) -> Boolean = { note ->
+        !note.estProtegee(dossiersParId[note.folderId]) || note.folderId in coffresOuverts
     }
 
     // La purge de la corbeille est un rattrapage d'arrière-plan, lancé une fois par entrée sur
@@ -174,8 +187,11 @@ fun HomeRoute(
                     dossierAOuvrir = evenement.folder
                 }
 
+                is HomeEvent.SortieDeCoffreAConfirmer -> gestes.demanderLaSortie(evenement)
+
                 // Said by `MessagesDesGestesDeNote`, which collects the same events.
-                is HomeEvent.MovedToTrash, HomeEvent.Restored, HomeEvent.DeletedForever, is HomeEvent.ActionFailed,
+                is HomeEvent.Archivees, is HomeEvent.MisesALaCorbeille, is HomeEvent.Restaurees,
+                is HomeEvent.Deplacees, is HomeEvent.Supprimees, is HomeEvent.ActionFailed,
                 -> Unit
             }
         }
@@ -199,8 +215,13 @@ fun HomeRoute(
                 FoldersDrawer(
                     state = foldersState,
                     currentFolderId = state.currentFolder?.id,
+                    archiveActive = state.archive,
                     onSelect = { id ->
                         homeViewModel.onFolderSelected(id)
+                        portee.launch { drawerState.close() }
+                    },
+                    onOpenArchive = {
+                        homeViewModel.onArchiveSelected()
                         portee.launch { drawerState.close() }
                     },
                     onOpenTrash = {
@@ -220,10 +241,20 @@ fun HomeRoute(
                 onQueryChange = homeViewModel::onQueryChange,
                 onSortSelected = homeViewModel::onSortSelected,
                 onOpenNote = { note -> onOpenNote(note, state.query.takeIf { it.isNotBlank() }) },
-                onLongPressNote = { note ->
-                    val coffreAOuvrir = gestes.appuiLong(note, foldersState.folders, foldersState.unlockedFolderIds)
+                onSelectionnerNote = { note ->
+                    val coffreAOuvrir = gestes.basculer(
+                        note = note,
+                        selectionnee = note.id in state.selection,
+                        dossiers = foldersState.folders,
+                        coffresOuverts = coffresOuverts,
+                        basculerLaSelection = homeViewModel::basculerLaSelection,
+                    )
                     if (coffreAOuvrir != null) dossierAOuvrir = coffreAOuvrir
                 },
+                // Outside a selection, nothing to compute: the menu that asks is not there.
+                toutEstSelectionne =
+                state.enSelection && state.notes.filter(accessible).all { it.id in state.selection },
+                actionsDeSelection = actionsDeSelection(state, homeViewModel, gestes, accessible, onEditNote),
                 // 🔴 Dropped once the list is no longer the screen in front (3.2.1): a second tap
                 // during the editor's opening transition created a second, empty note. The tap
                 // that comes while the creation runs is dropped by the ViewModel.
@@ -235,6 +266,11 @@ fun HomeRoute(
                 onDismissVaultLostBanner = homeViewModel::dismissVaultLostBanner,
             )
         }
+
+        // 🔴 Back closes the open drawer first, as in every Android app (3.3.0, measured on the S9): until
+        // then it left the app with the drawer open. Composed AFTER the drawer, so registered later and
+        // asked first — before the selection's own Back, which comes next.
+        BackHandler(enabled = drawerState.isOpen) { portee.launch { drawerState.close() } }
 
         HoteDeMessages(
             etat = snackbars,
@@ -355,12 +391,23 @@ fun HomeRoute(
                 val geste = gesteEnAttente
                 gesteEnAttente = null
                 if (geste != null && geste.dossier.id == dossier.id) executerLeGeste(geste)
-                gestes.reprendreApres(dossier, homeViewModel::executer, homeViewModel::createNote)
+                gestes.reprendreApres(
+                    dossier = dossier,
+                    selectionner = { id -> homeViewModel.ajouterALaSelection(listOf(id)) },
+                    executer = homeViewModel::executer,
+                    creer = homeViewModel::createNote,
+                )
             },
         )
     }
 
-    FeuillesDesGestesDeNote(gestes, homeViewModel::executer, ecrire = onEditNote)
+    FeuillesDesGestesDeNote(
+        etat = gestes,
+        notes = state.notes,
+        dossiers = foldersState.folders,
+        coffresOuverts = coffresOuverts,
+        executer = homeViewModel::executer,
+    )
 
     dossierAProteger?.let { dossier ->
         val mode = modeChoisi
@@ -549,4 +596,37 @@ private fun ConstatsDeCoffre(snackbars: SnackbarHostState) {
             viewModel.constatAnnonce()
         }
     }
+}
+
+/**
+ * The selection's gestures, built on what is selected NOW (3.3.0). Each gesture names its notes by id:
+ * the view model reads them again before anything is written.
+ */
+private fun actionsDeSelection(
+    state: HomeUiState,
+    viewModel: HomeViewModel,
+    gestes: GestesDeNoteEnCours,
+    accessible: (Note) -> Boolean,
+    onEditNote: (Note) -> Unit,
+): ActionsDeSelection {
+    val selectionnees = state.notesSelectionnees
+    val ids = selectionnees.map { it.id }
+    return ActionsDeSelection(
+        onFermer = viewModel::viderLaSelection,
+        onToutSelectionner = { viewModel.ajouterALaSelection(state.notes.filter(accessible).map { it.id }) },
+        // In the archive's view the selection is archived already: the gesture takes it out.
+        onArchiver = { viewModel.executer(GesteSurDesNotes.Archiver(ids, archiver = !state.archive)) },
+        onDeplacer = { gestes.deplacement = ids },
+        onCorbeille = { viewModel.executer(GesteSurDesNotes.MettreALaCorbeille(ids)) },
+        onEditer = {
+            selectionnees.singleOrNull()?.let { note ->
+                viewModel.viderLaSelection()
+                onEditNote(note)
+            }
+        },
+        onEpingler = { viewModel.executer(GesteSurDesNotes.Epingler(ids, it)) },
+        onFavori = { viewModel.executer(GesteSurDesNotes.MettreEnFavori(ids, it)) },
+        onCouleur = { gestes.couleur = ids },
+        onSupprimerDefinitivement = { gestes.suppression = ids },
+    )
 }

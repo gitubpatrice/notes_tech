@@ -18,6 +18,7 @@ import com.filestech.notes_tech.domain.export.NoteMarkdown
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -151,6 +152,11 @@ data class ActionDEditeur(
     val misAlaCorbeille: Boolean = false,
     /** Erased for good from the ⋮ menu (3.1.0): the screen leaves, as after the trash. */
     val supprimee: Boolean = false,
+    /**
+     * The note went into the archive (`true`) or out of it (`false`) from the ⋮ menu (3.3.0); `null`:
+     * not this action. Said by a message: the note's card, which would show it, is not on screen.
+     */
+    val archivee: Boolean? = null,
     /** Le contenu est dans le presse-papiers. `false` aussi quand il n'y avait rien à copier. */
     val copiee: Boolean = false,
     /** La note était vide : le presse-papiers n'a **pas** été touché. */
@@ -167,7 +173,7 @@ data class ActionDEditeur(
      */
     val origine: OrigineDErreur? = null,
 ) {
-    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, SUPPRESSION, COPIE }
+    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, SUPPRESSION, COPIE, ARCHIVAGE }
 }
 
 /**
@@ -848,6 +854,22 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     /**
+     * Into the archive, or back out of it (3.3.0) — the ⋮ menu's "Archive" / "Unarchive".
+     *
+     * The flag alone, like [setPinned]: neither the content nor the sealed blob — so no vault check,
+     * the note being on screen means its vault is open. Through [tenterUneAction] and not
+     * [enArrierePlan], unlike its twins: the pin shows on the screen, the archive does not, so its
+     * outcome — success or failure — is said. The editor stays open: an archived note is read and
+     * written like any other, from the archive.
+     */
+    fun setArchived(archived: Boolean) = tenterUneAction(ActionDEditeur.OrigineDErreur.ARCHIVAGE) {
+        if (notes.setArchived(noteId, archived)) {
+            _state.update { etat -> etat.copy(note = etat.note?.copy(archived = archived)) }
+            _action.value = ActionDEditeur(archivee = archived)
+        }
+    }
+
+    /**
      * 🔴 **Passe par [tenterUneAction], comme ses deux voisines du même menu.**
      *
      * Elle utilisait `enArrierePlan` — qui journalise et se tait — alors qu'elle est la **troisième
@@ -877,8 +899,7 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun deletePermanently() = tenterUneAction(ActionDEditeur.OrigineDErreur.SUPPRESSION) {
         val actuelle = notes.find(noteId) ?: return@tenterUneAction
-        val protegee = actuelle.isLocked || folders.find(actuelle.folderId)?.isVault == true
-        if (protegee && !vaults.isUnlocked(actuelle.folderId)) {
+        if (actuelle.estProtegee(folders.find(actuelle.folderId)) && !vaults.isUnlocked(actuelle.folderId)) {
             _action.value = ActionDEditeur(
                 erreur = R.string.error_vault_locked,
                 origine = ActionDEditeur.OrigineDErreur.SUPPRESSION,

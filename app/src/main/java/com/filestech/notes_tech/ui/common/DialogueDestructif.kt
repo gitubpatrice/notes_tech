@@ -16,7 +16,7 @@ import com.filestech.notes_tech.R
  * (`trash_screen.dart:121`). Les deux boutons sont donc du même poids, seule la couleur d'erreur
  * distingue celui qui détruit.
  *
- * Moved out of `TrashScreen.kt` in 3.1.0: the long press on a note in the list asks the same question.
+ * Moved out of `TrashScreen.kt` in 3.1.0: the list asks the same question — its selection since 3.3.0.
  */
 @Composable
 internal fun DialogueDestructif(

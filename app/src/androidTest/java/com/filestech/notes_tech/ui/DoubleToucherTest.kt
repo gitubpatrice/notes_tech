@@ -1,13 +1,17 @@
 package com.filestech.notes_tech.ui
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.lifecycle.Lifecycle
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.filestech.notes_tech.R
@@ -166,6 +170,24 @@ class DoubleToucherTest {
     }
 
     private fun creees(): Int = runBlocking { notes.listAllAlive().count { it.id !in existantes } }
+
+    /**
+     * 🔴 Back closes the open drawer — and does not leave the app (3.3.0, measured on the S9: until then
+     * it left the app with the drawer open). The control: the drawer was open, its "All notes" shown.
+     */
+    @Test
+    fun back_closes_the_open_drawer_and_stays_in_the_app() {
+        // ⚠️ DISPLAYED, not "exists": a closed drawer stays composed, off the screen.
+        val toutesLesNotes = { compose.onNodeWithText(texte(R.string.home_all_notes)) }
+        compose.onNodeWithContentDescription(texte(R.string.home_folders)).performClick()
+        compose.waitUntil(TIMEOUT_MILLIS) { runCatching { toutesLesNotes().assertIsDisplayed() }.isSuccess }
+
+        Espresso.pressBack()
+
+        compose.waitUntil(TIMEOUT_MILLIS) { runCatching { toutesLesNotes().assertIsNotDisplayed() }.isSuccess }
+        assertThat(scenario?.state).isEqualTo(Lifecycle.State.RESUMED)
+        laListeEstLa()
+    }
 
     /** One editor, one note: a single close is enough to come back, and one note was created. */
     private fun laListeApresUnSeulFermer() {

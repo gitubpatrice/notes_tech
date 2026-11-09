@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.home
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NoteAlt
@@ -66,6 +68,7 @@ import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.rememberFolderDisplayName
 import com.filestech.notes_tech.ui.theme.Formes
 import com.filestech.notes_tech.ui.theme.SemanticColors
+import java.time.ZoneId
 
 /**
  * L'écran d'accueil : la liste des notes, filtrée par dossier ou par recherche.
@@ -80,8 +83,14 @@ fun HomeScreen(
     onQueryChange: (String) -> Unit,
     onSortSelected: (NoteSortMode) -> Unit,
     onOpenNote: (Note) -> Unit,
-    /** The long press on a card: the note's actions (3.1.0). */
-    onLongPressNote: (Note) -> Unit,
+    /**
+     * A long press on a card, or a tap while the list selects (3.3.0): selects the note, or deselects
+     * it. 3.1.0's long press opened the note's actions; they are the selection's now ([actionsDeSelection]).
+     */
+    onSelectionnerNote: (Note) -> Unit,
+    /** Every note the selection may take is selected: "Select all" leaves the menu. */
+    toutEstSelectionne: Boolean,
+    actionsDeSelection: ActionsDeSelection,
     onNewNote: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -90,9 +99,6 @@ fun HomeScreen(
     onDismissVaultLostBanner: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var menuOuvert by remember { mutableStateOf(false) }
-    var triOuvert by remember { mutableStateOf(false) }
-
     // Lu une fois : le bouton flottant s'en sert DEUX fois — comme nom accessible et comme libellé
     // visible. Deux appels à `stringResource` diraient la même chose, mais laisseraient croire que
     // les deux valeurs peuvent différer, alors que c'est justement ce qu'il ne faut pas.
@@ -102,110 +108,43 @@ fun HomeScreen(
     // here, at display time, in the language the user chose (notes_tech 2.0.9 parity).
     val nomDuDossier = rememberFolderDisplayName()
 
+    // The archive's months, recomputed only when the list or its order changes.
+    val lignesDeLArchive = remember(state.notes, state.sort, state.archive) {
+        if (state.archive) lignesDeLArchive(state.notes, state.sort, ZoneId.systemDefault()) else emptyList()
+    }
+    val nomDuMois = rememberFormateurDeMois()
+    val carte: @Composable (Note) -> Unit = { note ->
+        NoteCard(
+            note = note,
+            // While the list selects, a tap selects; otherwise it opens the note.
+            onClick = { if (state.enSelection) onSelectionnerNote(note) else onOpenNote(note) },
+            onLongClick = { onSelectionnerNote(note) },
+            selectionnee = if (state.enSelection) note.id in state.selection else null,
+            couleur = note.couleurVisible(state.coffresOuverts),
+            folderName = if (state.showFolderBadge) {
+                state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
+            } else {
+                null
+            },
+        )
+    }
+
+    // Back leaves the selection first, as in every app that selects — not the app.
+    BackHandler(enabled = state.enSelection, onBack = actionsDeSelection.onFermer)
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = onOpenDrawer) {
-                        Icon(
-                            imageVector = Icons.Outlined.Sort,
-                            contentDescription = stringResource(R.string.home_folders),
-                        )
-                    }
-                },
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Signature Files Tech : le damier n'accompagne QUE le nom de
-                        // l'application. Quand un filtre est actif, le titre devient le nom du
-                        // dossier ; y laisser le logo reviendrait à dire que ce dossier EST
-                        // l'application. Même règle que la version Flutter publiée.
-                        //
-                        // ⚠️ `contentDescription = null` : l'image est **décorative**. Le texte
-                        // juste à côté porte déjà le nom, et un lecteur d'écran qui annoncerait
-                        // « logo Notes Tech, Notes Tech » le dirait deux fois.
-                        if (state.currentFolder == null) {
-                            Image(
-                                painter = painterResource(R.drawable.logo_damier),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    // 22 dp et non 26 : la valeur de la version Flutter paraissait
-                                    // trop grande une fois rendue par Compose, jugee sur appareil
-                                    // le 2026-08-20. Ecart assume, et deliberement mesure a l'oeil :
-                                    // aucun test ne dit si un logo est trop gros.
-                                    .size(22.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                            )
-                            Spacer(Modifier.width(10.dp))
-                        }
-                        Text(
-                            // Le titre porte le nom du dossier quand un filtre est actif — c'est
-                            // le seul endroit où l'utilisateur voit ce qu'il regarde.
-                            text = state.currentFolder?.displayName() ?: stringResource(R.string.app_title),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            // ⚠️ `fill = false` : le texte prend la place qu'il lui faut sans
-                            // pousser le logo hors de la barre sur un nom de dossier long.
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .semantics { heading() },
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { triOuvert = true }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Sort,
-                            contentDescription = stringResource(R.string.home_sort_mode),
-                        )
-                    }
-                    MenuDeTri(
-                        ouvert = triOuvert,
-                        actif = state.sort,
-                        onDismiss = { triOuvert = false },
-                        onSelect = {
-                            triOuvert = false
-                            onSortSelected(it)
-                        },
-                    )
-                    IconButton(onClick = onOpenSearch) {
-                        Icon(
-                            imageVector = Icons.Outlined.TravelExplore,
-                            contentDescription = stringResource(R.string.search_title),
-                        )
-                    }
-                    IconButton(onClick = { menuOuvert = true }) {
-                        Icon(
-                            imageVector = Icons.Filled.MoreVert,
-                            // 🔴 **Ce bouton ouvre un MENU, il ne va pas aux réglages.** Il portait
-                            // `settings_title`, c'est-à-dire le nom d'**une** de ses deux entrées :
-                            // un lecteur d'écran annonçait « Réglages, bouton », et l'activer
-                            // donnait un menu. L'application publiée y met le `moreButtonTooltip`
-                            // de la plateforme (`home_screen.dart:361`) ; Compose n'expose pas
-                            // d'équivalent public, d'où cette chaîne. Cf. `04-PIEGES.md` §73.
-                            contentDescription = stringResource(R.string.common_more_options),
-                        )
-                    }
-                    DropdownMenu(expanded = menuOuvert, onDismissRequest = { menuOuvert = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.settings_title)) },
-                            leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
-                            onClick = {
-                                menuOuvert = false
-                                onOpenSettings()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.about_title)) },
-                            leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                            onClick = {
-                                menuOuvert = false
-                                onOpenAbout()
-                            },
-                        )
-                    }
-                },
-            )
+            if (state.enSelection) {
+                BarreDeSelection(
+                    selection = state.notesSelectionnees,
+                    archive = state.archive,
+                    toutEstSelectionne = toutEstSelectionne,
+                    actions = actionsDeSelection,
+                )
+            } else {
+                BarreDeLaListe(state, onOpenDrawer, onSortSelected, onOpenSearch, onOpenSettings, onOpenAbout)
+            }
         },
         floatingActionButton = {
             // 🔴🔴 **Le nom accessible est posé sur le BOUTON, pas sur son texte ni sur son icône.**
@@ -227,6 +166,9 @@ fun HomeScreen(
             //
             // Cf. `AccueilTest`, qui exige **exactement un** « Nouvelle note » sur ce nœud — c'est
             // l'assertion qui verra la double annonce si elle apparaît. Et `04-PIEGES.md` §71.
+            // Not in the archive, where a note created would not show (it is not archived), nor while
+            // selecting, where the bar's gestures are the screen's (3.3.0).
+            if (state.archive || state.enSelection) return@Scaffold
             ExtendedFloatingActionButton(
                 onClick = onNewNote,
                 shape = Formes.bouton,
@@ -242,26 +184,29 @@ fun HomeScreen(
             if (state.vaultLostCount > 0) {
                 BanniereBrouillonsPerdus(state.vaultLostCount, onDismissVaultLostBanner)
             }
-            OutlinedTextField(
-                value = state.query,
-                onValueChange = onQueryChange,
-                label = { Text(stringResource(R.string.home_search_hint)) },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (state.query.isNotEmpty()) {
-                        IconButton(onClick = { onQueryChange("") }) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.search_clear),
-                            )
+            // Not in the archive: the search leaves archived notes out (D-036).
+            if (!state.archive) {
+                OutlinedTextField(
+                    value = state.query,
+                    onValueChange = onQueryChange,
+                    label = { Text(stringResource(R.string.home_search_hint)) },
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (state.query.isNotEmpty()) {
+                            IconButton(onClick = { onQueryChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.search_clear),
+                                )
+                            }
                         }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 4.dp),
-            )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 4.dp),
+                )
+            }
 
             when {
                 state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -290,18 +235,16 @@ fun HomeScreen(
                     // `key = { it.id }` stabilise l'identité des éléments entre recompositions.
                     // Sans clé, un changement de filtre réassocie les états par position, et les
                     // cartes se réutilisent pour la mauvaise note.
-                    items(state.notes, key = { it.id }) { note ->
-                        NoteCard(
-                            note = note,
-                            onClick = { onOpenNote(note) },
-                            onLongClick = { onLongPressNote(note) },
-                            couleur = note.couleurVisible(state.coffresOuverts),
-                            folderName = if (state.showFolderBadge) {
-                                state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
-                            } else {
-                                null
-                            },
-                        )
+                    // The archive is cut into months (3.3.0); the other lists are not.
+                    if (state.archive) {
+                        items(lignesDeLArchive, key = { it.cle }) { ligne ->
+                            when (ligne) {
+                                is LigneDeLArchive.Mois -> IntertitreDeMois(nomDuMois(ligne.mois))
+                                is LigneDeLArchive.Carte -> carte(ligne.note)
+                            }
+                        }
+                    } else {
+                        items(state.notes, key = { it.id }) { note -> carte(note) }
                     }
                 }
             }
@@ -312,6 +255,14 @@ fun HomeScreen(
 @Composable
 private fun ListeVide(state: HomeUiState, onNewNote: () -> Unit) {
     val enRecherche = state.query.isNotEmpty()
+    if (state.archive) {
+        EmptyState(
+            icon = Icons.Outlined.Archive,
+            title = stringResource(R.string.archive_empty_title),
+            subtitle = stringResource(R.string.archive_empty_subtitle),
+        )
+        return
+    }
     EmptyState(
         icon = if (enRecherche) Icons.Outlined.SearchOff else Icons.Outlined.NoteAlt,
         title = when {
@@ -414,3 +365,144 @@ private fun MenuDeTri(ouvert: Boolean, actif: NoteSortMode, onDismiss: () -> Uni
  * ⚠️ Corrigé **aussi dans `notes_tech`** (commit `24bc67e`), sans quoi les deux versions
  * divergeraient à la comparaison de la phase 8. Cf. `docs/05-PARITE.md`.
  */
+
+/**
+ * The list's own top bar: the drawer, the title — the app, a folder, or the archive (3.3.0) —, the sort,
+ * the search screen and the ⋮ menu. Out of [HomeScreen] since 3.3.0, when the selection got its own
+ * bar ([BarreDeSelection]) in its place.
+ */
+@Composable
+private fun BarreDeLaListe(
+    state: HomeUiState,
+    onOpenDrawer: () -> Unit,
+    onSortSelected: (NoteSortMode) -> Unit,
+    onOpenSearch: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
+) {
+    var menuOuvert by remember { mutableStateOf(false) }
+    var triOuvert by remember { mutableStateOf(false) }
+
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onOpenDrawer) {
+                Icon(
+                    imageVector = Icons.Outlined.Sort,
+                    contentDescription = stringResource(R.string.home_folders),
+                )
+            }
+        },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Signature Files Tech : le damier n'accompagne QUE le nom de
+                // l'application. Quand un filtre est actif, le titre devient le nom du
+                // dossier ; y laisser le logo reviendrait à dire que ce dossier EST
+                // l'application. Même règle que la version Flutter publiée.
+                //
+                // ⚠️ `contentDescription = null` : l'image est **décorative**. Le texte
+                // juste à côté porte déjà le nom, et un lecteur d'écran qui annoncerait
+                // « logo Notes Tech, Notes Tech » le dirait deux fois.
+                // The archive is no folder, but no more the app itself than a folder is (3.3.0).
+                if (state.currentFolder == null && !state.archive) {
+                    Image(
+                        painter = painterResource(R.drawable.logo_damier),
+                        contentDescription = null,
+                        modifier = Modifier
+                            // 22 dp et non 26 : la valeur de la version Flutter paraissait
+                            // trop grande une fois rendue par Compose, jugee sur appareil
+                            // le 2026-08-20. Ecart assume, et deliberement mesure a l'oeil :
+                            // aucun test ne dit si un logo est trop gros.
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(
+                    // Le titre porte le nom du dossier quand un filtre est actif — c'est
+                    // le seul endroit où l'utilisateur voit ce qu'il regarde.
+                    text = when {
+                        state.archive -> stringResource(R.string.archive_title)
+                        else -> state.currentFolder?.displayName() ?: stringResource(R.string.app_title)
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    // ⚠️ `fill = false` : le texte prend la place qu'il lui faut sans
+                    // pousser le logo hors de la barre sur un nom de dossier long.
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .semantics { heading() },
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = { triOuvert = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.Sort,
+                    contentDescription = stringResource(R.string.home_sort_mode),
+                )
+            }
+            MenuDeTri(
+                ouvert = triOuvert,
+                actif = state.sort,
+                onDismiss = { triOuvert = false },
+                onSelect = {
+                    triOuvert = false
+                    onSortSelected(it)
+                },
+            )
+            IconButton(onClick = onOpenSearch) {
+                Icon(
+                    imageVector = Icons.Outlined.TravelExplore,
+                    contentDescription = stringResource(R.string.search_title),
+                )
+            }
+            IconButton(onClick = { menuOuvert = true }) {
+                Icon(
+                    imageVector = Icons.Filled.MoreVert,
+                    // 🔴 **Ce bouton ouvre un MENU, il ne va pas aux réglages.** Il portait
+                    // `settings_title`, c'est-à-dire le nom d'**une** de ses deux entrées :
+                    // un lecteur d'écran annonçait « Réglages, bouton », et l'activer
+                    // donnait un menu. L'application publiée y met le `moreButtonTooltip`
+                    // de la plateforme (`home_screen.dart:361`) ; Compose n'expose pas
+                    // d'équivalent public, d'où cette chaîne. Cf. `04-PIEGES.md` §73.
+                    contentDescription = stringResource(R.string.common_more_options),
+                )
+            }
+            DropdownMenu(expanded = menuOuvert, onDismissRequest = { menuOuvert = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.settings_title)) },
+                    leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
+                    onClick = {
+                        menuOuvert = false
+                        onOpenSettings()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.about_title)) },
+                    leadingIcon = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    onClick = {
+                        menuOuvert = false
+                        onOpenAbout()
+                    },
+                )
+            }
+        },
+    )
+}
+
+/**
+ * A month's heading in the archive (3.3.0): a heading for TalkBack too, so that its users jump from
+ * month to month as others scroll to them.
+ */
+@Composable
+private fun IntertitreDeMois(texte: String) {
+    Text(
+        text = texte,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, top = 12.dp, bottom = 2.dp)
+            .semantics { heading() },
+    )
+}

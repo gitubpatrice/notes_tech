@@ -1,9 +1,22 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), **puis le 2026-10-31**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, **puis le 2026-11-09**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-10-31 au soir) — la 3.2.2 est PUBLIÉE
+## 🧭 À LA REPRISE (écrit le 2026-11-09) — la 3.3.0 est EN COURS (branche `feat/3.3.0-archive-selection`)
+
+Issue #48 (koad1x) : trois suggestions. Patrice : « fais les 3 maintenant pour la version 3.3.0,
+proprement, avec vigilance », carte blanche (coder, tester, commiter, fusionner), « tous les audits
+nécessaires à la fin », « tous les dialogues en 5 langues, que tout soit cohérent ». Ses réponses : appui
+long = sélection ; une note archivée sort de « Toutes les notes » ; la recherche ignore les archives ;
+ajouts : archiver depuis l'éditeur, couleur et épingle/favori en lot. **La réponse à l'issue #48 se publie
+APRÈS la release** (brouillon dans la conversation du 2026-11-09).
+
+- Plan et décisions : `docs/14-VERSION-3.3.md` (D-036 archive, D-037 sélection tout-ou-rien, D-038 curseur).
+- Version 3.3.0, base **506** (5060-5063), journaux 5061-5063 ×5, README, SECURITY, descriptions fastlane.
+- Contrôles faits/en cours : voir la fin de `docs/14-VERSION-3.3.md` et le message de PR.
+
+## Précédemment (écrit le 2026-10-31 au soir) — la 3.2.2 est PUBLIÉE
 
 Un correctif de sécurité, publié avec les cinq autres applis le même soir (Patrice : « autant les publier toutes ») :
 

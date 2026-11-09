@@ -7,6 +7,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -67,6 +69,7 @@ class AccueilTest {
     private val banniereFermee = mutableListOf<Unit>()
     private val notesOuvertes = mutableListOf<Note>()
     private val notesEnActions = mutableListOf<Note>()
+    private val gestesDeSelection = mutableListOf<String>()
     private val trisChoisis = mutableListOf<NoteSortMode>()
     private val requetes = mutableListOf<String>()
     private val tiroirsOuverts = mutableListOf<Unit>()
@@ -104,7 +107,20 @@ class AccueilTest {
                     onQueryChange = { requetes += it },
                     onSortSelected = { trisChoisis += it },
                     onOpenNote = { notesOuvertes += it },
-                    onLongPressNote = { notesEnActions += it },
+                    onSelectionnerNote = { notesEnActions += it },
+                    toutEstSelectionne = false,
+                    actionsDeSelection = ActionsDeSelection(
+                        onFermer = { gestesDeSelection += "fermer" },
+                        onToutSelectionner = { gestesDeSelection += "tout" },
+                        onArchiver = { gestesDeSelection += "archiver" },
+                        onDeplacer = { gestesDeSelection += "deplacer" },
+                        onCorbeille = { gestesDeSelection += "corbeille" },
+                        onEditer = { gestesDeSelection += "editer" },
+                        onEpingler = { gestesDeSelection += "epingler:$it" },
+                        onFavori = { gestesDeSelection += "favori:$it" },
+                        onCouleur = { gestesDeSelection += "couleur" },
+                        onSupprimerDefinitivement = { gestesDeSelection += "supprimer" },
+                    ),
                     onNewNote = { nouvellesNotesDemandees += Unit },
                     onOpenDrawer = { tiroirsOuverts += Unit },
                     onOpenSearch = { recherchesOuvertes += Unit },
@@ -367,27 +383,128 @@ class AccueilTest {
     }
 
     /**
-     * The long press (3.1.0) reaches the caller with THAT note, by the finger and by TalkBack.
+     * The long press (3.3.0: it selects; 3.1.0: it opened the note's actions) reaches the caller with THAT
+     * note, by the finger and by TalkBack.
      *
      * ⚠️ The semantics action is performed on the node that carries the card's name — the one a screen
      * reader focuses — and its label is checked: an action set on a child would not reach that node
      * (§74), and an action without a label is announced as "double-tap and hold" to do nothing named.
      */
     @Test
-    fun a_long_press_on_a_card_asks_for_that_note_s_actions_by_touch_and_by_talkback() {
+    fun a_long_press_on_a_card_selects_that_note_by_touch_and_by_talkback() {
         val premiere = note("a", "Première")
         val seconde = note("b", "Seconde")
         poser(HomeUiState(notes = listOf(premiere, seconde), loading = false))
 
         val carte = regle.onNode(hasContentDescription(seconde.title, substring = true))
         val action = carte.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnLongClick)
-        assertThat(action?.label).isEqualTo(texte(R.string.note_actions_label))
+        assertThat(action?.label).isEqualTo(texte(R.string.note_select))
 
         carte.performTouchInput { longClick() }
         carte.performSemanticsAction(SemanticsActions.OnLongClick)
 
         assertThat(notesEnActions).containsExactly(seconde, seconde)
         assertThat(notesOuvertes).isEmpty()
+    }
+
+    /**
+     * 🔴 While the list selects (3.3.0), a tap SELECTS — it must not open the note — and the card says
+     * which way it goes: `selected`, and "Select" / "Deselect" as the tap's label. The control: the same
+     * card outside a selection opens its note.
+     */
+    @Test
+    fun while_selecting_a_tap_selects_instead_of_opening_and_the_cards_say_so() {
+        val premiere = note("a", "Première")
+        val seconde = note("b", "Seconde")
+        poser(HomeUiState(notes = listOf(premiere, seconde), loading = false, selection = setOf("a")))
+
+        val choisie = regle.onNode(hasContentDescription(premiere.title, substring = true))
+        val autre = regle.onNode(hasContentDescription(seconde.title, substring = true))
+        choisie.assertIsSelected()
+        autre.assertIsNotSelected()
+        assertThat(autre.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick)?.label)
+            .isEqualTo(texte(R.string.note_select))
+        assertThat(choisie.fetchSemanticsNode().config.getOrNull(SemanticsActions.OnClick)?.label)
+            .isEqualTo(texte(R.string.note_deselect))
+
+        autre.performClick()
+        assertThat(notesEnActions).containsExactly(seconde)
+        assertThat(notesOuvertes).isEmpty()
+
+        poser(HomeUiState(notes = listOf(premiere, seconde), loading = false))
+        regle.onNode(hasContentDescription(seconde.title, substring = true)).performClick()
+        assertThat(notesOuvertes).containsExactly(seconde)
+    }
+
+    /**
+     * The selection's bar (3.3.0) replaces the list's: the count, its three actions named for TalkBack,
+     * Back that leaves the selection — and no "New note" under a bar that acts on the selection.
+     */
+    @Test
+    fun the_selection_bar_counts_names_its_actions_and_hides_new_note() {
+        val notes = listOf(note("a", "Première"), note("b", "Seconde"))
+        poser(HomeUiState(notes = notes, loading = false, selection = setOf("a", "b")))
+
+        // The number drawn, the sentence said.
+        regle.onNode(hasText("2") and isHeading()).assertExists()
+        regle.onNodeWithContentDescription(regle.activity.resources.getQuantityString(R.plurals.selection_count, 2, 2))
+            .assertExists()
+        regle.onNodeWithContentDescription(texte(R.string.home_new_note)).assertDoesNotExist()
+        regle.onNodeWithContentDescription(texte(R.string.note_archive)).performClick()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_menu_move)).performClick()
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_menu_trash)).performClick()
+        regle.onNodeWithContentDescription(texte(R.string.selection_close)).performClick()
+        assertThat(gestesDeSelection).containsExactly("archiver", "deplacer", "corbeille", "fermer").inOrder()
+        assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /** In the archive's view (3.3.0): its title, no search field, no "New note", "Unarchive" in the bar. */
+    @Test
+    fun the_archive_has_its_title_no_search_no_new_note_and_unarchives() {
+        poser(HomeUiState(notes = listOf(note("a", "Vieille")), loading = false, archive = true))
+
+        regle.onNode(hasText(texte(R.string.archive_title)) and isHeading()).assertExists()
+        regle.onNodeWithText(texte(R.string.home_search_hint)).assertDoesNotExist()
+        regle.onNodeWithContentDescription(texte(R.string.home_new_note)).assertDoesNotExist()
+
+        poser(
+            HomeUiState(notes = listOf(note("a", "Vieille")), loading = false, archive = true, selection = setOf("a")),
+        )
+        regle.onNodeWithContentDescription(texte(R.string.note_unarchive)).performClick()
+        assertThat(gestesDeSelection).containsExactly("archiver")
+    }
+
+    /**
+     * The archive is cut into months (3.3.0, Patrice), headings TalkBack can jump between; a sort by title
+     * has none. The month's text is the app's own formatter in the activity's language.
+     */
+    @Test
+    fun the_archive_is_cut_into_months_and_a_sort_by_title_is_not() {
+        val novembre = note("a", "Vieille").copy(updatedAt = Instant.parse("2026-11-08T12:00:00Z"))
+        val octobre = note("b", "Plus vieille").copy(updatedAt = Instant.parse("2026-10-08T12:00:00Z"))
+        val locale = regle.activity.resources.configuration.locales[0]
+        val enTete = { mois: Int -> formateurDeMois(locale)(java.time.YearMonth.of(2026, mois)) }
+        poser(
+            HomeUiState(
+                notes = listOf(novembre, octobre),
+                loading = false,
+                archive = true,
+                sort = NoteSortMode.UPDATED_DESC,
+            ),
+        )
+
+        regle.onNode(hasText(enTete(11)) and isHeading()).assertExists()
+        regle.onNode(hasText(enTete(10)) and isHeading()).assertExists()
+
+        poser(
+            HomeUiState(
+                notes = listOf(novembre, octobre),
+                loading = false,
+                archive = true,
+                sort = NoteSortMode.TITLE_ASC,
+            ),
+        )
+        regle.onNodeWithText(enTete(11)).assertDoesNotExist()
     }
 
     /** Ouvrir une note rend **la** note, pas un identifiant reconstruit ailleurs. */

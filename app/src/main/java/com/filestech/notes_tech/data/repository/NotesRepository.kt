@@ -95,13 +95,12 @@ class NotesRepository @Inject constructor(
         .map { it.toDomain() }
 
     /**
-     * Toutes les notes hors corbeille, dans l'ordre demandé — la liste d'accueil sans filtre.
-     *
-     * ⚠️ Inclut les archives, contrairement à [observeInFolder]. L'asymétrie vient de
-     * l'application publiée ; elle est expliquée sur `NoteDao.observeAllAlive`.
+     * Every folder's notes out of the trash: [archived] `false` for "All notes" — which, like
+     * [observeInFolder], leaves the archive out since 3.3.0 —, `true` for the archive. See
+     * `NoteDao.observeOutOfTrash` (D-036).
      */
-    fun observeAllAlive(sort: NoteSortMode = NoteSortMode.DEFAULT): Flow<List<Note>> =
-        observing { it.noteDao().observeAllAlive(sort) }.map { it.toDomain() }
+    fun observeOutOfTrash(sort: NoteSortMode = NoteSortMode.DEFAULT, archived: Boolean = false): Flow<List<Note>> =
+        observing { it.noteDao().observeOutOfTrash(sort, archived) }.map { it.toDomain() }
 
     fun observeRecent(limit: Int): Flow<List<Note>> =
         observing { it.noteDao().observeRecent(limit) }.map { it.toDomain() }

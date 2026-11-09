@@ -2,9 +2,28 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.2.2 — octobre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.3.0 — novembre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.3.0 — archives et sélection : les règles des coffres, pour plusieurs notes à la fois (2026-11-09)
+
+La sélection agit sur plusieurs notes à la fois — archiver, déplacer, mettre à la corbeille, épingler,
+mettre en favori, colorer, supprimer définitivement — selon les règles qu'avait une note seule :
+
+- **Une note d'un coffre fermé ne se sélectionne qu'une fois son coffre ouvert**, et le geste revérifie
+  chaque note au moment de s'exécuter, sur une lecture fraîche : une seule note protégée d'un coffre
+  fermé retient tout le geste jusqu'à ce que son secret soit donné. Mettre à la corbeille, supprimer ou
+  archiver ne demande aucune clé : c'est ce contrôle qui empêche quiconque a franchi le verrou de
+  l'application de toucher, depuis la liste, aux notes d'un coffre fermé.
+- **Des notes scellées ne sortent de leur coffre qu'après la question de l'éditeur**, reposée par la
+  couche de données dans la transaction du déplacement ; un coffre fermé choisi comme destination
+  demande d'abord son propre secret.
+- **Un geste écrit toutes les notes sélectionnées ou aucune** (une transaction) : un coffre qui se ferme
+  en cours de route annule ce qui était déjà écrit.
+- Archiver écrit un seul drapeau ; ni le contenu d'une note ni son bloc scellé ne sont touchés.
+
+Permissions, stockage et chiffrement sont ceux de la 3.2.2.
 
 ## v3.2.2 — actions de texte des autres applications dans les champs Compose (2026-10-31)
 

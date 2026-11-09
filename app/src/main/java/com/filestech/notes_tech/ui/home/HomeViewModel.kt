@@ -6,11 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.repository.FoldersRepository
+import com.filestech.notes_tech.data.repository.NotesEnLot
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.data.repository.SearchRepository
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.ui.common.userMessageFor
@@ -19,6 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -50,15 +53,27 @@ data class HomeUiState(
      * `HomeRoute` from [HomeViewModel.coffresOuverts], never cached with the rest of this state.
      */
     val coffresOuverts: Set<String> = emptySet(),
+    /** The archive is shown (3.3.0): the archived notes of every folder, and nothing else. */
+    val archive: Boolean = false,
+    /**
+     * The selected notes (3.3.0), among those [notes] shows — never one the list no longer holds: an
+     * action of the selection acts on what the user sees selected, nothing else. Empty: no selection.
+     */
+    val selection: Set<String> = emptySet(),
 ) {
     /** `true` quand la liste n'est pas restreinte à un dossier — le badge de dossier sert alors. */
     val showFolderBadge: Boolean get() = currentFolder == null || query.isNotEmpty()
+
+    val enSelection: Boolean get() = selection.isNotEmpty()
+
+    /** The selected notes, in the list's order. */
+    val notesSelectionnees: List<Note> get() = notes.filter { it.id in selection }
 }
 
 /**
  * Ce que l'accueil doit faire savoir a l'ecran apres une action.
  *
- * Un canal d'evenements, pas un champ d'etat : ces trois-la se produisent une fois. Les mettre dans
+ * Un canal d'evenements, pas un champ d'etat : ceux-la se produisent une fois. Les mettre dans
  * l'etat les ferait rejouer a chaque rotation.
  */
 sealed interface HomeEvent {
@@ -71,17 +86,33 @@ sealed interface HomeEvent {
     data class CreationFailed(@StringRes val message: Int) : HomeEvent
 
     /**
-     * A long-press [geste] on a note of the vault [folder], which is closed: the screen asks for the
-     * secret, then runs the gesture again — accepted, it must not be dropped in silence.
+     * A [geste] that needs the vault [folder], which is closed — a selected note of it, or the
+     * destination of a move: the screen asks for the secret, then runs the gesture again — accepted, it
+     * must not be dropped in silence.
      */
-    data class GesteEnAttenteDuCoffre(val folder: Folder, val geste: GesteSurUneNote) : HomeEvent
+    data class GesteEnAttenteDuCoffre(val folder: Folder, val geste: GesteSurDesNotes) : HomeEvent
 
-    /** The note went to the trash; the message offers to undo it. */
-    data class MovedToTrash(val noteId: String) : HomeEvent
+    /**
+     * [notesScellees] sealed notes of the move [geste] would leave their vault (3.3.0): the screen asks
+     * the editor's question, then runs [geste] with the answer.
+     */
+    data class SortieDeCoffreAConfirmer(val geste: GesteSurDesNotes.Deplacer, val notesScellees: Int) : HomeEvent
 
-    data object Restored : HomeEvent
+    /**
+     * [ids] went into the archive ([archivees]) or out of it. [annulable]: the message offers to undo
+     * it — not when it IS the undo, which would make an endless chain of "Undo".
+     */
+    data class Archivees(val ids: List<String>, val archivees: Boolean, val annulable: Boolean = true) : HomeEvent
 
-    data object DeletedForever : HomeEvent
+    /** [ids] went to the trash; the message offers to undo it. */
+    data class MisesALaCorbeille(val ids: List<String>) : HomeEvent
+
+    /** The undo of [MisesALaCorbeille]: [nombre] notes back where they were. */
+    data class Restaurees(val nombre: Int) : HomeEvent
+
+    data class Deplacees(val nombre: Int) : HomeEvent
+
+    data class Supprimees(val nombre: Int) : HomeEvent
 
     /** [message] is chosen by `userMessageFor`, as for [CreationFailed]. */
     data class ActionFailed(@StringRes val message: Int) : HomeEvent
@@ -91,6 +122,7 @@ sealed interface HomeEvent {
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val notes: NotesRepository,
+    private val enLot: NotesEnLot,
     private val folders: FoldersRepository,
     private val search: SearchRepository,
     private val settings: AppSettings,
@@ -107,8 +139,17 @@ class HomeViewModel @Inject constructor(
      * notes déplacées.
      */
     private val folderId = MutableStateFlow(savedState.get<String>(CLE_DOSSIER))
+
+    /** The archive is shown (3.3.0) — `folderId` is then `null`. Saved for the same reason as it. */
+    private val archive = MutableStateFlow(savedState.get<Boolean>(CLE_ARCHIVE) ?: false)
     private val query = MutableStateFlow(savedState.get<String>(CLE_RECHERCHE).orEmpty())
     private val vaultLostCount = MutableStateFlow(settings.vaultLostDrafts().size)
+
+    /**
+     * The selection as the user made it (3.3.0); [state] shows it cut down to the notes on screen. Saved:
+     * a rotation, or the process dying in the background, does not lose a selection being made.
+     */
+    private val selection = MutableStateFlow(savedState.get<ArrayList<String>>(CLE_SELECTION).orEmpty().toSet())
 
     private val events = MutableSharedFlow<HomeEvent>(extraBufferCapacity = 4)
     val eventFlow = events.asSharedFlow()
@@ -142,6 +183,13 @@ class HomeViewModel @Inject constructor(
             folderNamesById = noms,
         )
     }.combine(vaultLostCount) { etat, perdues -> etat.copy(vaultLostCount = perdues) }
+        .combine(archive) { etat, enArchive -> etat.copy(archive = enArchive) }
+        .combine(selection) { etat, choisies ->
+            // Cut down to what the list holds: a selected note gone from it — trashed elsewhere, moved
+            // out of the folder shown — is not acted on by a gesture the user cannot see it in.
+            val presentes = etat.notes.mapTo(HashSet()) { it.id }
+            etat.copy(selection = choisies.filterTo(LinkedHashSet()) { it in presentes })
+        }
         .stateIn(
             scope = viewModelScope,
             // `WhileSubscribed(5 s)` et non `Eagerly` : sans abonné, garder ces flux actifs
@@ -165,12 +213,54 @@ class HomeViewModel @Inject constructor(
         savedState[CLE_RECHERCHE] = value
     }
 
+    /** A folder, or `null` for "All notes" — which leaves the archive, and the selection made in another list. */
     fun onFolderSelected(id: String?) {
         folderId.value = id
         savedState[CLE_DOSSIER] = id
+        montrerLArchive(false)
+        viderLaSelection()
+    }
+
+    /**
+     * The drawer's "Archive" (3.3.0). The search is cleared: the archive has no search field, and a
+     * search kept from before would still filter a list that cannot show it (the search leaves
+     * archived notes out, as notes_tech 2.0.9's does — D-036).
+     */
+    fun onArchiveSelected() {
+        folderId.value = null
+        savedState[CLE_DOSSIER] = null
+        onQueryChange("")
+        montrerLArchive(true)
+        viderLaSelection()
     }
 
     fun onSortSelected(mode: NoteSortMode) = settings.setSort(mode)
+
+    // ── La sélection (3.3.0) ─────────────────────────────────────────────────
+
+    /**
+     * Selects [id], or deselects it. From the selection the user SEES — the one [state] shows — not the
+     * one kept: an id the list no longer holds is dropped here rather than kept for a later surprise.
+     */
+    fun basculerLaSelection(id: String) {
+        val visible = state.value.selection
+        ecrireLaSelection(if (id in visible) visible - id else visible + id)
+    }
+
+    /** Selects [ids] on top of the selection shown — "Select all", and a note whose vault was just opened. */
+    fun ajouterALaSelection(ids: Collection<String>) = ecrireLaSelection(state.value.selection + ids)
+
+    fun viderLaSelection() = ecrireLaSelection(emptySet())
+
+    private fun ecrireLaSelection(ids: Set<String>) {
+        selection.value = ids
+        savedState[CLE_SELECTION] = ArrayList(ids)
+    }
+
+    private fun montrerLArchive(oui: Boolean) {
+        archive.value = oui
+        savedState[CLE_ARCHIVE] = oui
+    }
 
     /**
      * Crée une note dans le dossier affiché, ou dans la boîte de réception en vue « toutes ».
@@ -223,53 +313,134 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * Runs a long-press gesture on a note (3.1.0).
+     * Runs a gesture of the selection (3.3.0; one note at a time in 3.1.0).
      *
-     * ## 🔴 The vault is checked HERE, on a fresh read, and not on the card
+     * ## 🔴 The vaults are checked HERE, on a fresh read, and not on the cards
      *
-     * Putting a vault note in the trash, or erasing it, needs no key: the row goes, sealed blob and
-     * all. So nothing structural stops it, and this check IS the protection. Without it, whoever gets
-     * past the app lock could destroy a vault's notes without its secret, from the list — while the
-     * editor, the only way to do it until now, needs the vault open to show the note at all.
+     * Putting a vault note in the trash, erasing it, archiving it, need no key: the row goes, or one
+     * flag changes, sealed blob and all. So nothing structural stops it, and this check IS the
+     * protection. Without it, whoever gets past the app lock could destroy a vault's notes without its
+     * secret, from the list — while the editor, the only way to do it until 3.1.0, needs the vault open
+     * to show the note at all.
      *
-     * - **Fresh read**: the card's copy may be stale — the note moved into a vault since, or out.
-     * - **At execution**: the sheet and the confirmation stay open as long as they like, and the
-     *   automatic lock can fall in between. A check made when the sheet opened would be stale by the
-     *   time the user confirms (same reasoning as the folder gestures in `HomeRoute`).
+     * - **Fresh read**: the cards' copies may be stale — a note moved into a vault since, or out.
+     * - **At execution**: the menus and confirmations stay open as long as they like, and the
+     *   automatic lock can fall in between. A check made when the selection was made would be stale by
+     *   the time the user confirms (same reasoning as the folder gestures in `HomeRoute`).
      * - **Vault folder, or a sealed note**: an empty note in a vault is not sealed yet, and a sealed
      *   note is protected wherever it sits.
+     * - **Any note refused refuses the gesture**: nothing runs until the vault is open — then all of it
+     *   does, in one transaction. Running the part that may run would leave the user with a selection
+     *   half done and a message about the other half.
+     *
+     * Then, for a move: a closed vault as destination asks for ITS secret, and sealed notes about to
+     * leave their vault ask the editor's question — both before anything is written.
      *
      * ⚠️ **Not atomic with the write, and accepted** (raised by both external reviews, 2026-10-10): an
-     * automatic lock falling in the microseconds between this check and the DELETE/UPDATE lets the
-     * gesture complete. That gesture was made while the vault WAS open, by whoever had opened it — the
-     * editor's trash has always behaved so. What this check exists for, a gesture on a vault already
-     * closed, is refused. Holding the session through the write would need a lease the sessions do not
-     * have (`VaultSessions.whileUnlocking` marks an unlock in progress, it is not that).
+     * automatic lock falling in the microseconds between this check and the write lets the gesture
+     * complete. That gesture was made while the vault WAS open, by whoever had opened it — the editor's
+     * trash has always behaved so. What this check exists for, a gesture on a vault already closed, is
+     * refused. Holding the session through the write would need a lease the sessions do not have.
      */
-    fun executer(geste: GesteSurUneNote) {
+    fun executer(geste: GesteSurDesNotes) {
         viewModelScope.launch {
             try {
-                val actuelle = notes.find(geste.note.id) ?: return@launch
-                val dossier = folders.find(actuelle.folderId)
-                val protegee = actuelle.isLocked || dossier?.isVault == true
-                if (protegee && !vaults.isUnlocked(actuelle.folderId)) {
-                    if (dossier != null) events.emit(HomeEvent.GesteEnAttenteDuCoffre(dossier, geste))
+                // Gone or in the trash since the selection: nothing to do to it — except for the undo of an
+                // archiving, whose note may have gone to the trash since: it is put back as it was, and
+                // comes out of the trash where the gesture would have left it (second external review).
+                // In the selection's order — `findMany` returns SQLite's —, so that what is announced and
+                // undone follows the list.
+                val annulation = (geste as? GesteSurDesNotes.Archiver)?.annulation == true
+                val lues = notes.findMany(geste.ids).filter { annulation || !it.isTrashed }.associateBy { it.id }
+                val actuelles = geste.ids.distinct().mapNotNull { lues[it] }
+                if (actuelles.isEmpty()) {
+                    viderLaSelection()
                     return@launch
                 }
-                val evenement = when (geste) {
-                    is GesteSurUneNote.MettreALaCorbeille ->
-                        if (notes.moveToTrash(actuelle.id)) HomeEvent.MovedToTrash(actuelle.id) else null
-
-                    is GesteSurUneNote.SupprimerDefinitivement ->
-                        if (notes.deletePermanently(actuelle.id)) HomeEvent.DeletedForever else null
+                val attente = attenteAvant(geste, actuelles)
+                if (attente != null) {
+                    events.emit(attente)
+                    return@launch
                 }
+                val evenement = appliquer(geste, actuelles)
+                // The notes done leave the selection — only they: a note selected while the gesture
+                // waited (3-axes audit, 2026-11-09) stays selected.
+                ecrireLaSelection(selection.value - geste.ids.toSet())
                 evenement?.let { events.emit(it) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.w(e, "geste sur une note")
+                Timber.w(e, "geste sur des notes")
                 events.emit(HomeEvent.ActionFailed(userMessageFor(e)))
             }
+        }
+    }
+
+    /** What must come before [geste] runs — a vault's secret, the exit question — or `null`: it may run. */
+    private suspend fun attenteAvant(geste: GesteSurDesNotes, actuelles: List<Note>): HomeEvent? {
+        val coffreDUneNote = coffreFermeDe(actuelles)
+        return when {
+            coffreDUneNote != null -> HomeEvent.GesteEnAttenteDuCoffre(coffreDUneNote, geste)
+            geste is GesteSurDesNotes.Deplacer -> attenteAvantLeDeplacement(geste, actuelles)
+            else -> null
+        }
+    }
+
+    /** A closed vault as destination asks for ITS secret; sealed notes leaving their vault, the question. */
+    private suspend fun attenteAvantLeDeplacement(geste: GesteSurDesNotes.Deplacer, actuelles: List<Note>): HomeEvent? {
+        // A destination gone since the sheet: the repository would refuse it, said as a failure.
+        val destination = folders.find(geste.dossierId) ?: error("dossier de destination introuvable")
+        val sorties = actuelles.count { it.isLocked && it.folderId != destination.id }
+        return when {
+            destination.isVault &&
+                !vaults.isUnlocked(
+                    destination.id,
+                ) -> HomeEvent.GesteEnAttenteDuCoffre(destination, geste)
+            destination.isVault || geste.sortieDeCoffreConfirmee || sorties == 0 -> null
+            else -> HomeEvent.SortieDeCoffreAConfirmer(geste, sorties)
+        }
+    }
+
+    /** The first closed vault holding a protected note of [actuelles], or `null`: every one may be touched. */
+    private suspend fun coffreFermeDe(actuelles: List<Note>): Folder? {
+        for ((dossierId, siennes) in actuelles.groupBy { it.folderId }) {
+            val dossier = folders.find(dossierId)
+            if (siennes.any { it.estProtegee(dossier) } && !vaults.isUnlocked(dossierId)) {
+                // A sealed note always has its folder (cascade): no folder here is a broken base, said so.
+                return dossier ?: throw VaultLockedException(noteId = siennes.first().id, folderId = dossierId)
+            }
+        }
+        return null
+    }
+
+    /**
+     * Writes [geste] on [actuelles], in one transaction, and says what to announce — `null`: nothing.
+     * What is announced, and undone, is what the write CHANGED, as [NotesEnLot] returns it — not what was
+     * asked (external review, 2026-11-09).
+     */
+    private suspend fun appliquer(geste: GesteSurDesNotes, actuelles: List<Note>): HomeEvent? {
+        val ids = actuelles.map { it.id }
+        return when (geste) {
+            is GesteSurDesNotes.Archiver -> {
+                // Only those that change: the "Undo" must put back exactly what this gesture moved.
+                val aChanger = actuelles.filter { it.archived != geste.archiver }.map { it.id }
+                enLot.setArchived(aChanger, geste.archiver).takeIf { it.isNotEmpty() }
+                    ?.let { HomeEvent.Archivees(it, geste.archiver, annulable = !geste.annulation) }
+            }
+
+            // Said by the cards themselves — the pin, the star, the colour — as in the editor's menu.
+            is GesteSurDesNotes.Epingler -> null.also { enLot.setPinned(ids, geste.epingler) }
+            is GesteSurDesNotes.MettreEnFavori -> null.also { enLot.setFavorite(ids, geste.favori) }
+            is GesteSurDesNotes.Colorer -> null.also { enLot.setColor(ids, geste.couleur) }
+
+            is GesteSurDesNotes.Deplacer -> enLot.moveToFolder(ids, geste.dossierId, geste.sortieDeCoffreConfirmee)
+                .takeIf { it.isNotEmpty() }?.let { HomeEvent.Deplacees(it.size) }
+
+            is GesteSurDesNotes.MettreALaCorbeille ->
+                enLot.moveToTrash(ids).takeIf { it.isNotEmpty() }?.let { HomeEvent.MisesALaCorbeille(it) }
+
+            is GesteSurDesNotes.SupprimerDefinitivement ->
+                enLot.deletePermanently(ids).takeIf { it.isNotEmpty() }?.let { HomeEvent.Supprimees(it.size) }
         }
     }
 
@@ -277,14 +448,28 @@ class HomeViewModel @Inject constructor(
      * Undoes [executer]'s move to the trash. No vault check: a restored note comes back sealed, as it
      * left, and the trash screen restores vault notes the same way.
      */
-    fun restaurer(noteId: String) {
+    fun restaurer(ids: List<String>) = enAnnulant { HomeEvent.Restaurees(enLot.restoreFromTrash(ids).size) }
+
+    /**
+     * Undoes an archiving, or an unarchiving: [ids] go back where they were. Said without an "Undo" of its
+     * own.
+     *
+     * 🔴 **Through [executer], vault check included** — unlike [restaurer], whose trash restores a sealed
+     * note without its key as the trash screen does. Undoing a flag change is a flag change: a vault that
+     * locked between the gesture and its "Undo" must be opened again first (external review,
+     * 2026-11-09), and the undo then resumes like any gesture.
+     */
+    fun annulerLArchivage(ids: List<String>, archivees: Boolean) =
+        executer(GesteSurDesNotes.Archiver(ids, archiver = !archivees, annulation = true))
+
+    private fun enAnnulant(bloc: suspend () -> HomeEvent) {
         viewModelScope.launch {
             try {
-                if (notes.restoreFromTrash(noteId)) events.emit(HomeEvent.Restored)
+                events.emit(bloc())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Timber.w(e, "annulation de la mise a la corbeille")
+                Timber.w(e, "annulation d'un geste sur des notes")
                 events.emit(HomeEvent.ActionFailed(userMessageFor(e)))
             }
         }
@@ -319,15 +504,19 @@ class HomeViewModel @Inject constructor(
      * part du comportement corrigé.
      *
      * ⚠️ **Une recherche ignore le filtre de dossier**, et c'est voulu : on cherche dans toutes ses
-     * notes, pas dans celles du dossier qu'on regardait.
+     * notes, pas dans celles du dossier qu'on regardait. Et elle laisse les archives de côté, comme la
+     * recherche de la 2.0.9 (D-036) : l'archive, elle, ignore la recherche — l'écran n'en a pas le champ.
      */
-    private fun listeDeNotes(): kotlinx.coroutines.flow.Flow<Result<List<Note>>> =
-        combine(queryFreinee, folderId, settings.sort) { texte, dossier, tri -> Triple(texte, dossier, tri) }
-            .flatMapLatest { (texte, dossier, tri) ->
+    private fun listeDeNotes(): Flow<Result<List<Note>>> =
+        combine(queryFreinee, folderId, archive, settings.sort) { texte, dossier, enArchive, tri ->
+            Vue(texte, dossier, enArchive, tri)
+        }
+            .flatMapLatest { vue ->
                 when {
-                    texte.isNotBlank() -> search.observe(texte)
-                    dossier == null -> notes.observeAllAlive(tri)
-                    else -> notes.observeInFolder(dossier, tri)
+                    vue.archive -> notes.observeOutOfTrash(vue.tri, archived = true)
+                    vue.texte.isNotBlank() -> search.observe(vue.texte)
+                    vue.dossier == null -> notes.observeOutOfTrash(vue.tri, archived = false)
+                    else -> notes.observeInFolder(vue.dossier, vue.tri)
                 }
             }
             .map { Result.success(it) }
@@ -337,15 +526,16 @@ class HomeViewModel @Inject constructor(
                 emit(Result.failure(erreur))
             }
 
-    private fun dossierCourant(): kotlinx.coroutines.flow.Flow<Folder?> =
-        combine(folderId, folders.observeAll()) { id, tous ->
-            // Le dossier est relu dans la liste observée, pas interrogé séparément : s'il est
-            // supprimé ailleurs, il disparaît d'ici au même instant. Une lecture ponctuelle aurait
-            // laissé un titre d'écran pointant un dossier qui n'existe plus.
-            id?.let { cherche -> tous.firstOrNull { it.id == cherche } }
-        }.distinctUntilChanged()
+    private data class Vue(val texte: String, val dossier: String?, val archive: Boolean, val tri: NoteSortMode)
 
-    private fun nomsDeDossiers(): kotlinx.coroutines.flow.Flow<Map<String, String>> =
+    private fun dossierCourant(): Flow<Folder?> = combine(folderId, folders.observeAll()) { id, tous ->
+        // Le dossier est relu dans la liste observée, pas interrogé séparément : s'il est
+        // supprimé ailleurs, il disparaît d'ici au même instant. Une lecture ponctuelle aurait
+        // laissé un titre d'écran pointant un dossier qui n'existe plus.
+        id?.let { cherche -> tous.firstOrNull { it.id == cherche } }
+    }.distinctUntilChanged()
+
+    private fun nomsDeDossiers(): Flow<Map<String, String>> =
         folders.observeAll().map { liste -> liste.associate { it.id to it.name } }.distinctUntilChanged()
 
     private companion object {
@@ -353,6 +543,8 @@ class HomeViewModel @Inject constructor(
         const val FREINAGE_MILLIS = 250L
         const val ARRET_DIFFERE_MILLIS = 5_000L
         const val CLE_DOSSIER = "home.folderId"
+        const val CLE_ARCHIVE = "home.archive"
         const val CLE_RECHERCHE = "home.query"
+        const val CLE_SELECTION = "home.selection"
     }
 }

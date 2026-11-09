@@ -171,9 +171,62 @@
     <string name="note_editor_export_failed">Export failed: %1$s</string>
     <string name="note_editor_moved">Note moved</string>
     <!-- Long press on a note in a list (3.1.0) -->
-    <string name="note_actions_label">Note actions</string>
     <string name="note_moved_to_trash">Note moved to trash</string>
     <string name="common_undo">Undo</string>
+    <!-- 3.3.0: the archive, and the selection of the lists. -->
+    <string name="drawer_archive">Archive</string>
+    <string name="archive_title">Archive</string>
+    <string name="archive_empty_title">No archived notes</string>
+    <string name="archive_empty_subtitle">Archived notes stay here, out of your lists. To archive a note, hold it down, then tap Archive.</string>
+    <string name="note_archive">Archive</string>
+    <string name="note_unarchive">Unarchive</string>
+    <string name="note_editor_archived">Note archived</string>
+    <string name="note_editor_unarchived">Note unarchived</string>
+    <string name="note_select">Select</string>
+    <string name="note_deselect">Deselect</string>
+    <string name="selection_close">Cancel selection</string>
+    <string name="selection_select_all">Select all</string>
+    <string name="selection_pin">Pin</string>
+    <plurals name="selection_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <plurals name="notes_archived">
+        <item quantity="one">%1$d note archived</item>
+        <item quantity="other">%1$d notes archived</item>
+    </plurals>
+    <plurals name="notes_unarchived">
+        <item quantity="one">%1$d note unarchived</item>
+        <item quantity="other">%1$d notes unarchived</item>
+    </plurals>
+    <plurals name="notes_moved_to_trash">
+        <item quantity="one">%1$d note moved to trash</item>
+        <item quantity="other">%1$d notes moved to trash</item>
+    </plurals>
+    <plurals name="notes_restored">
+        <item quantity="one">%1$d note restored</item>
+        <item quantity="other">%1$d notes restored</item>
+    </plurals>
+    <plurals name="notes_moved">
+        <item quantity="one">%1$d note moved</item>
+        <item quantity="other">%1$d notes moved</item>
+    </plurals>
+    <plurals name="notes_delete_forever_title">
+        <item quantity="one">Delete %1$d note permanently?</item>
+        <item quantity="other">Delete %1$d notes permanently?</item>
+    </plurals>
+    <plurals name="notes_delete_forever_body">
+        <item quantity="one">This %1$d note will be permanently erased. This cannot be undone.</item>
+        <item quantity="other">These %1$d notes will be permanently erased. This cannot be undone.</item>
+    </plurals>
+    <plurals name="notes_exit_vault_title">
+        <item quantity="one">Move %1$d note out of its vault?</item>
+        <item quantity="other">Move %1$d notes out of their vault?</item>
+    </plurals>
+    <plurals name="notes_exit_vault_body">
+        <item quantity="one">Its content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — this %1$d note will have transited outside encryption, even if you later move it back into a vault.</item>
+        <item quantity="other">Their content will be decrypted and stored in cleartext in the database, without password protection. Irreversible — these %1$d notes will have transited outside encryption, even if you later move them back into a vault.</item>
+    </plurals>
     <!-- A note's colour in the lists (3.1.0) -->
     <string name="note_editor_menu_color">Color</string>
     <string name="note_color_title">Note color</string>

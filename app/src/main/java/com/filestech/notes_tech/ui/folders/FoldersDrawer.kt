@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
@@ -66,7 +67,11 @@ import com.filestech.notes_tech.ui.theme.couleursDeBoutonPrincipal
 fun FoldersDrawer(
     state: FoldersUiState,
     currentFolderId: String?,
+    /** The archive is the list shown (3.3.0): its entry is the selected one, "All notes" is not. */
+    archiveActive: Boolean,
     onSelect: (String?) -> Unit,
+    /** The archive (3.3.0): a view of the home list, as a folder is — not a screen of its own like the trash. */
+    onOpenArchive: () -> Unit,
     onOpenTrash: () -> Unit,
     onCreateFolder: () -> Unit,
     onFolderMenu: (Folder) -> Unit,
@@ -118,7 +123,7 @@ fun FoldersDrawer(
                 EntreeDeTiroir(
                     icon = Icons.AutoMirrored.Outlined.Notes,
                     label = stringResource(R.string.home_all_notes),
-                    selected = currentFolderId == null,
+                    selected = currentFolderId == null && !archiveActive,
                     onClick = { onSelect(null) },
                 )
             }
@@ -180,6 +185,13 @@ fun FoldersDrawer(
         }
 
         HorizontalDivider()
+        // Next to the trash (3.3.0): the two places a note goes when it leaves the lists.
+        EntreeDeTiroir(
+            icon = Icons.Outlined.Archive,
+            label = stringResource(R.string.drawer_archive),
+            selected = archiveActive,
+            onClick = onOpenArchive,
+        )
         EntreeDeTiroir(
             icon = Icons.Outlined.DeleteOutline,
             label = stringResource(R.string.drawer_trash),

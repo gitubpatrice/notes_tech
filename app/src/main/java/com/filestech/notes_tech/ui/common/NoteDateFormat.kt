@@ -64,7 +64,7 @@ internal val MOTIFS_DE_DATE = mapOf(
  * `getLocales()` y renvoie une liste possiblement vide sur certains appareils. Le repli sur
  * [Locale.getDefault] évite un `IndexOutOfBounds` sur un chemin d'affichage.
  */
-private object ConfigurationCompat {
+internal object ConfigurationCompat {
     fun firstLocale(configuration: android.content.res.Configuration): Locale =
         configuration.locales.takeIf { !it.isEmpty }?.get(0) ?: Locale.getDefault()
 }

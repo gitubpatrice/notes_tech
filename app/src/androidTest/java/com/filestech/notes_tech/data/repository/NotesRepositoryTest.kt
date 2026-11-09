@@ -17,6 +17,7 @@ import com.filestech.notes_tech.domain.importation.NoteImportee
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.domain.repository.UnavailableVaultOpener
 import com.filestech.notes_tech.domain.repository.UnavailableVaultSealer
 import com.filestech.notes_tech.domain.repository.VaultLockedException
@@ -198,48 +199,88 @@ class NotesRepositoryTest {
     }
 
     // ───────────────────────────────────────────────────────────────────────────────────────────
-    // 🔴 L'asymétrie des archives — écart relevé dans l'application publiée, REPRODUIT ici
+    // 🔴 L'archive (3.3.0, D-036) — une note archivée n'est plus que dans l'archive
     // ───────────────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * **Une note archivée quitte son dossier et reste dans « toutes les notes ».**
+     * **Une note archivée quitte son dossier ET « toutes les notes », et n'est plus que dans l'archive.**
      *
-     * L'asymétrie vient de l'application publiée : `notes_dao.dart:156` filtre sur
-     * `trashed_at IS NULL` seul, quand `listByFolder` (ligne 59) ajoute `archived = 0`. Elle était
-     * notée comme un **écart à trancher**, et ce n'en est pas un : c'est la définition même d'une
-     * archive — sortie de sa liste, toujours atteignable ailleurs. Le contraire — la filtrer des
-     * deux côtés — rendrait la note **invisible partout**, sans aucun écran pour la retrouver, alors
-     * qu'aucun geste ne permet de la désarchiver.
+     * Jusqu'à la 3.2.2, elle restait dans « toutes les notes », comme dans l'application publiée
+     * (`notes_dao.dart:156`) : tranché le 2026-08-18, parce qu'aucun écran ne montrait une archive — la
+     * filtrer partout l'aurait rendue introuvable. La 3.3.0 donne à l'archive sa vue ; la décision est
+     * revue (D-036), et ce test, qui tenait l'ancienne règle, tient la nouvelle.
      *
-     * ## ⚠️⚠️ Pourquoi ce test existe alors que rien ne peut archiver
-     *
-     * `NotesRepository.setArchived` **n'a aucun appelant** — comme dans l'application publiée, dont
-     * aucun écran n'archive non plus : la colonne vaut `0` partout, et l'asymétrie est donc
-     * aujourd'hui **inobservable**. C'est précisément ce qui la rendait fragile : une règle que rien
-     * n'exerce est une règle qu'un refactor déplace sans que personne ne le voie. Le jour où
-     * l'archivage arrive, il héritera d'un comportement **décidé**, et non d'un accident de deux
-     * requêtes écrites à deux moments.
-     *
-     * ⚠️ Le chemin d'écriture n'est **pas** du code mort à supprimer : il est la surface que
-     * l'application publiée expose aussi. Le retirer ferait divergence, et le critère de sortie de
-     * la phase 8 est la parité.
+     * ⚠️ Le témoin AVANT l'archivage, dans les trois listes : sans lui, un test qui ne trouve la note
+     * nulle part passerait pour une preuve d'archivage alors qu'il prouverait un échec de création.
      */
     @Test
-    fun une_note_archivee_quitte_son_dossier_et_reste_dans_toutes_les_notes(): Unit = runBlocking {
+    fun une_note_archivee_n_est_plus_que_dans_l_archive(): Unit = runBlocking {
         val note = notes.create(
             folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
             title = "À classer plus tard",
             content = "Corps.",
         )
-        // ⚠️ Le témoin AVANT l'archivage : sans lui, un test qui ne trouve la note nulle part
-        // passerait pour une preuve d'archivage alors qu'il prouverait un échec de création.
         assertThat(dansLeDossier().map { it.id }).contains(note.id)
         assertThat(dansToutesLesNotes().map { it.id }).contains(note.id)
+        assertThat(dansLArchive().map { it.id }).doesNotContain(note.id)
 
         assertThat(notes.setArchived(note.id, archived = true)).isTrue()
 
         assertThat(dansLeDossier().map { it.id }).doesNotContain(note.id)
-        assertThat(dansToutesLesNotes().map { it.id }).contains(note.id)
+        assertThat(dansToutesLesNotes().map { it.id }).doesNotContain(note.id)
+        assertThat(dansLArchive().map { it.id }).contains(note.id)
+        // The export, the backup and the statistics still see it: archived is not gone.
+        assertThat(notes.listAllAlive().map { it.id }).contains(note.id)
+    }
+
+    /**
+     * The archive orders by date alone, pin left out (3.3.0): its months must follow each other. The
+     * control: in its folder, out of the archive, the same pinned note comes first again.
+     */
+    @Test
+    fun l_archive_ignore_l_epingle_et_la_note_la_retrouve_hors_de_l_archive(): Unit = runBlocking {
+        val ancienne = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            title = "Ancienne",
+            content = "a",
+        )
+        notes.setPinned(ancienne.id, true)
+        notes.setArchived(ancienne.id, true)
+        // A minute later: two notes created in the same millisecond would have no order between them.
+        horloge.avance(60_000)
+        val recente = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            title = "Récente",
+            content = "b",
+        )
+        notes.setArchived(recente.id, true)
+
+        val ordre = notes.observeOutOfTrash(NoteSortMode.CREATED_ASC, archived = true).first().map { it.id }
+        assertThat(ordre).containsExactly(ancienne.id, recente.id).inOrder()
+        val inverse = notes.observeOutOfTrash(NoteSortMode.CREATED_DESC, archived = true).first().map { it.id }
+        assertThat(inverse).containsExactly(recente.id, ancienne.id).inOrder()
+
+        notes.setArchived(ancienne.id, false)
+        notes.setArchived(recente.id, false)
+        val dossier = notes.observeInFolder(
+            LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            NoteSortMode.CREATED_DESC,
+        ).first()
+        assertThat(dossier.first().id).isEqualTo(ancienne.id)
+    }
+
+    /** An archived note put in the trash is in the trash only, and comes back archived. */
+    @Test
+    fun une_note_archivee_mise_a_la_corbeille_quitte_l_archive_et_y_revient(): Unit = runBlocking {
+        val note = notes.create(folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK, title = "Vieille", content = "x")
+        notes.setArchived(note.id, archived = true)
+
+        notes.moveToTrash(note.id)
+        assertThat(dansLArchive().map { it.id }).doesNotContain(note.id)
+
+        notes.restoreFromTrash(note.id)
+        assertThat(dansLArchive().map { it.id }).contains(note.id)
+        assertThat(dansToutesLesNotes().map { it.id }).doesNotContain(note.id)
     }
 
     /**
@@ -288,7 +329,9 @@ class NotesRepositoryTest {
         includeArchived = archives,
     ).first()
 
-    private suspend fun dansToutesLesNotes() = notes.observeAllAlive().first()
+    private suspend fun dansToutesLesNotes() = notes.observeOutOfTrash(archived = false).first()
+
+    private suspend fun dansLArchive() = notes.observeOutOfTrash(archived = true).first()
 
     /**
      * ⚠️ Le cas que le raccourci « pas de `[[` dans le texte » pourrait manquer.

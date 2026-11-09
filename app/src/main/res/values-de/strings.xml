@@ -143,9 +143,62 @@
     <string name="note_editor_export_failed">Export fehlgeschlagen: %1$s</string>
     <string name="note_editor_moved">Notiz verschoben</string>
     <!-- Long press on a note in a list (3.1.0) -->
-    <string name="note_actions_label">Notizaktionen</string>
     <string name="note_moved_to_trash">Notiz in den Papierkorb verschoben</string>
     <string name="common_undo">Rückgängig</string>
+    <!-- 3.3.0: the archive, and the selection of the lists. -->
+    <string name="drawer_archive">Archiv</string>
+    <string name="archive_title">Archiv</string>
+    <string name="archive_empty_title">Keine archivierten Notizen</string>
+    <string name="archive_empty_subtitle">Archivierte Notizen bleiben hier, außerhalb Ihrer Listen. Zum Archivieren eine Notiz gedrückt halten und dann auf Archivieren tippen.</string>
+    <string name="note_archive">Archivieren</string>
+    <string name="note_unarchive">Aus dem Archiv entfernen</string>
+    <string name="note_editor_archived">Notiz archiviert</string>
+    <string name="note_editor_unarchived">Notiz nicht mehr archiviert</string>
+    <string name="note_select">Auswählen</string>
+    <string name="note_deselect">Abwählen</string>
+    <string name="selection_close">Auswahl beenden</string>
+    <string name="selection_select_all">Alle auswählen</string>
+    <string name="selection_pin">Anheften</string>
+    <plurals name="selection_count">
+        <item quantity="one">%1$d ausgewählt</item>
+        <item quantity="other">%1$d ausgewählt</item>
+    </plurals>
+    <plurals name="notes_archived">
+        <item quantity="one">%1$d Notiz archiviert</item>
+        <item quantity="other">%1$d Notizen archiviert</item>
+    </plurals>
+    <plurals name="notes_unarchived">
+        <item quantity="one">%1$d Notiz nicht mehr archiviert</item>
+        <item quantity="other">%1$d Notizen nicht mehr archiviert</item>
+    </plurals>
+    <plurals name="notes_moved_to_trash">
+        <item quantity="one">%1$d Notiz in den Papierkorb verschoben</item>
+        <item quantity="other">%1$d Notizen in den Papierkorb verschoben</item>
+    </plurals>
+    <plurals name="notes_restored">
+        <item quantity="one">%1$d Notiz wiederhergestellt</item>
+        <item quantity="other">%1$d Notizen wiederhergestellt</item>
+    </plurals>
+    <plurals name="notes_moved">
+        <item quantity="one">%1$d Notiz verschoben</item>
+        <item quantity="other">%1$d Notizen verschoben</item>
+    </plurals>
+    <plurals name="notes_delete_forever_title">
+        <item quantity="one">%1$d Notiz endgültig löschen?</item>
+        <item quantity="other">%1$d Notizen endgültig löschen?</item>
+    </plurals>
+    <plurals name="notes_delete_forever_body">
+        <item quantity="one">Diese %1$d Notiz wird endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.</item>
+        <item quantity="other">Diese %1$d Notizen werden endgültig gelöscht. Dies kann nicht rückgängig gemacht werden.</item>
+    </plurals>
+    <plurals name="notes_exit_vault_title">
+        <item quantity="one">%1$d Notiz aus ihrem Tresor verschieben?</item>
+        <item quantity="other">%1$d Notizen aus ihrem Tresor verschieben?</item>
+    </plurals>
+    <plurals name="notes_exit_vault_body">
+        <item quantity="one">Ihr Inhalt wird entschlüsselt und unverschlüsselt, ohne Passwortschutz, in der Datenbank gespeichert. Nicht umkehrbar: Diese %1$d Notiz hat dann außerhalb der Verschlüsselung existiert, auch wenn Sie sie später wieder in einen Tresor verschieben.</item>
+        <item quantity="other">Ihr Inhalt wird entschlüsselt und unverschlüsselt, ohne Passwortschutz, in der Datenbank gespeichert. Nicht umkehrbar: Diese %1$d Notizen haben dann außerhalb der Verschlüsselung existiert, auch wenn Sie sie später wieder in einen Tresor verschieben.</item>
+    </plurals>
     <!-- A note's colour in the lists (3.1.0) -->
     <string name="note_editor_menu_color">Farbe</string>
     <string name="note_color_title">Farbe der Notiz</string>

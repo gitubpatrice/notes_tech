@@ -127,8 +127,18 @@ class ApercuDeBoutEnBoutTest {
         assertThat(creees).hasSize(1)
         assertThat(creees.single().folderId).isEqualTo(Folder.INBOX_ID)
 
+        // 🔴 3.3.0 (#48): the blank note opens with the cursor in its body — measured here, in the app
+        // itself, not on the stateless screen alone.
+        compose.waitUntil(TIMEOUT_MILLIS) {
+            var focalise = false
+            scenario?.onActivity { focalise = champDuCorpsDe(it)?.hasFocus() == true }
+            focalise
+        }
+
         // Back to the source, still read (saved state), and the same link tapped again:
         // the note now exists, so it is opened — nothing is created a second time.
+        // ⚠️ The keyboard first: it is up since 3.3.0, and Back closes it before it leaves the note.
+        Espresso.closeSoftKeyboard()
         Espresso.pressBack()
         compose.waitUntilAtLeastOneExists(hasText(texteAffiche), TIMEOUT_MILLIS)
         toucherLeLien()
