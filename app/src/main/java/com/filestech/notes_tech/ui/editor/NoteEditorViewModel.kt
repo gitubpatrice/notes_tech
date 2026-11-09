@@ -18,6 +18,7 @@ import com.filestech.notes_tech.domain.export.NoteMarkdown
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -898,8 +899,7 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun deletePermanently() = tenterUneAction(ActionDEditeur.OrigineDErreur.SUPPRESSION) {
         val actuelle = notes.find(noteId) ?: return@tenterUneAction
-        val protegee = actuelle.isLocked || folders.find(actuelle.folderId)?.isVault == true
-        if (protegee && !vaults.isUnlocked(actuelle.folderId)) {
+        if (actuelle.estProtegee(folders.find(actuelle.folderId)) && !vaults.isUnlocked(actuelle.folderId)) {
             _action.value = ActionDEditeur(
                 erreur = R.string.error_vault_locked,
                 origine = ActionDEditeur.OrigineDErreur.SUPPRESSION,

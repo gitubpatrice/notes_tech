@@ -26,7 +26,8 @@ Suggested in [#48](https://github.com/gitubpatrice/notes_tech/issues/48).
 
 - **Archive**: a new entry in the menu, next to the Trash. An archived note leaves its folder, "All
   notes", the favourites and the search, and stays in the archive, where it opens and is edited like any
-  other. Archive and Unarchive are also in a note's ⋮ menu.
+  other. Its notes are grouped by month, by the date the chosen sort orders them by. Archive and
+  Unarchive are also in a note's ⋮ menu.
 - **Select several notes**: a long press selects a note, a tap adds others — or "Select all". Then
   archive, move, trash (with Undo), pin, mark as favourite, colour or delete permanently, all at once.
   One gesture writes all the selected notes or none of them. A vault note is selected only once its

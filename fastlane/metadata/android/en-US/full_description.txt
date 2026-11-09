@@ -20,7 +20,7 @@ Notes Tech: 100% local Markdown note-taking, encrypted at rest. Written in Kotli
 
 <b>Editing</b>
 • Notes open to be read (Markdown: headings, lists, links); “Edit” to write, autosave
-• Long press to select notes, then archive, move, trash with Undo, pin, colour or delete them at once
+• Long press to select notes, then archive, move, trash with Undo, pin, color or delete them at once
 • An Archive for the notes you keep out of your lists
 • A pastel colour per note in the lists (a vault note's only while its vault is open)
 • <code>[[Title]]</code> backlinks with autocomplete + "notes linking here" panel

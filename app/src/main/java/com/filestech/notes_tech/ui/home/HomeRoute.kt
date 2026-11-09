@@ -27,6 +27,7 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.VaultMode
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
@@ -61,7 +62,7 @@ fun HomeRoute(
      * search as the search screen's — for "Find in note" (3.2.0); `null` for a note just created.
      */
     onOpenNote: (Note, recherche: String?) -> Unit,
-    /** The long press's "Edit": the note opens to be written (3.1.0). */
+    /** The selection's "Edit" (3.3.0; the long press's in 3.1.0): the note opens to be written. */
     onEditNote: (Note) -> Unit,
     onOpenSearch: () -> Unit,
     onOpenTrash: () -> Unit,
@@ -133,9 +134,11 @@ fun HomeRoute(
 
     // A note the selection may take without a secret: an ordinary one, or one whose vault is open. What
     // "Select all" takes, and what decides whether it is still offered.
+    // ⚠️ The sessions' own flow, `coffresOuverts`, not the drawer's `stateIn` copy — the reason is on
+    // `HomeViewModel.coffresOuverts` (coherence audit, 2026-11-09).
+    val dossiersParId = remember(foldersState.folders) { foldersState.folders.associateBy { it.id } }
     val accessible: (Note) -> Boolean = { note ->
-        val coffre = foldersState.folders.firstOrNull { it.id == note.folderId }?.isVault == true
-        !(note.isLocked || coffre) || note.folderId in foldersState.unlockedFolderIds
+        !note.estProtegee(dossiersParId[note.folderId]) || note.folderId in coffresOuverts
     }
 
     // La purge de la corbeille est un rattrapage d'arrière-plan, lancé une fois par entrée sur
@@ -242,12 +245,14 @@ fun HomeRoute(
                         note = note,
                         selectionnee = note.id in state.selection,
                         dossiers = foldersState.folders,
-                        coffresOuverts = foldersState.unlockedFolderIds,
+                        coffresOuverts = coffresOuverts,
                         basculerLaSelection = homeViewModel::basculerLaSelection,
                     )
                     if (coffreAOuvrir != null) dossierAOuvrir = coffreAOuvrir
                 },
-                toutEstSelectionne = state.notes.filter(accessible).all { it.id in state.selection },
+                // Outside a selection, nothing to compute: the menu that asks is not there.
+                toutEstSelectionne =
+                state.enSelection && state.notes.filter(accessible).all { it.id in state.selection },
                 actionsDeSelection = actionsDeSelection(state, homeViewModel, gestes, accessible, onEditNote),
                 // 🔴 Dropped once the list is no longer the screen in front (3.2.1): a second tap
                 // during the editor's opening transition created a second, empty note. The tap

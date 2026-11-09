@@ -16,8 +16,12 @@ import com.filestech.notes_tech.domain.model.NoteColor
 sealed interface GesteSurDesNotes {
     val ids: List<String>
 
-    /** Into the archive, or back out of it; the message offers to undo it. */
-    data class Archiver(override val ids: List<String>, val archiver: Boolean) : GesteSurDesNotes
+    /**
+     * Into the archive, or back out of it; the message offers to undo it — unless [annulation]: this IS
+     * the undo of an archiving, said without an "Undo" of its own.
+     */
+    data class Archiver(override val ids: List<String>, val archiver: Boolean, val annulation: Boolean = false) :
+        GesteSurDesNotes
 
     data class Epingler(override val ids: List<String>, val epingler: Boolean) : GesteSurDesNotes
 

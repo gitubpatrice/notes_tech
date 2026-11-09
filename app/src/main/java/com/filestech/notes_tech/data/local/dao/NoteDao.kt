@@ -135,7 +135,9 @@ interface NoteDao {
      */
     fun observeOutOfTrash(sort: NoteSortMode, archived: Boolean): Flow<List<NoteEntity>> = observeSorted(
         SimpleSQLiteQuery(
-            "SELECT * FROM notes WHERE archived = ? AND trashed_at IS NULL ORDER BY ${sort.orderBy}",
+            // The archive leaves the pin out of its order: its months must follow each other (3.3.0).
+            "SELECT * FROM notes WHERE archived = ? AND trashed_at IS NULL ORDER BY " +
+                if (archived) sort.orderByIgnoringPin else sort.orderBy,
             arrayOf<Any?>(if (archived) 1 else 0),
         ),
     )

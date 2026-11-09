@@ -63,7 +63,7 @@ sealed interface Destination {
      * pour ne pas encoder revient à faire dépendre la navigation d'un détail du modèle de données.
      */
     /**
-     * [ecrire]: open the note to be written rather than read (3.1.0) — the long press's "Edit". Absent
+     * [ecrire]: open the note to be written rather than read (3.1.0) — the selection's "Edit". Absent
      * from the route when false, so every other way into the editor keeps the route it had.
      */
     /**

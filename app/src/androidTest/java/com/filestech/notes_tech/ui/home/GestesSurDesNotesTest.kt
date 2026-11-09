@@ -246,6 +246,23 @@ class GestesSurDesNotesTest {
         assertThat(notes.find(deja.id)!!.archived).isTrue()
     }
 
+    /**
+     * 🔴 The undo of an archiving goes through the vault check too (external review, 2026-11-09): a vault
+     * that locked between the gesture and its "Undo" is asked for again — the flag does not move before.
+     */
+    @Test
+    fun undoing_an_archiving_waits_for_a_vault_that_locked_meanwhile(): Unit = runBlocking {
+        val (coffre, note) = noteDeCoffreFermee()
+        coffres.unlockWithPassphrase(coffre, PHRASE)
+        evenementDe { accueil.executer(GesteSurDesNotes.Archiver(listOf(note.id), archiver = true)) }
+        coffres.lock(coffre)
+
+        val attente = evenementDe { accueil.annulerLArchivage(listOf(note.id), archivees = true) }
+
+        assertThat(attente).isInstanceOf(HomeEvent.GesteEnAttenteDuCoffre::class.java)
+        assertThat(notes.find(note.id)!!.archived).isTrue()
+    }
+
     /** Archiving a vault note changes one flag, sealed blob untouched — and still waits for the vault. */
     @Test
     fun archiving_a_note_of_a_closed_vault_waits_for_it_and_leaves_it_sealed(): Unit = runBlocking {

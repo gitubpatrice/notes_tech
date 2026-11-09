@@ -62,6 +62,38 @@
   (`ChampDuCorps.focaliser`). Décidé une fois, avec le côté ; sauvegardé, pour qu'une rotation ne
   ramène pas le clavier.
 
+## D-039 — L'archive est classée par mois
+
+- Demande de Patrice (2026-11-09, « un classement par date ? année ? mois ? ») ; son choix : intertitres
+  « Mois Année » **dans l'archive seulement**, selon le tri choisi — date de création pour les tris par
+  création, dernière modification pour les tris par modification (archiver écrit cette date, comme
+  l'épingle depuis toujours : en tri « modifiée », l'archive est donc par date d'archivage), aucun
+  intertitre pour un tri par titre. Pas de date d'archivage dédiée (colonne neuve = schéma 11, écarté).
+- **L'archive trie sans l'épingle** (`NoteSortMode.orderByIgnoringPin`) : une note épinglée de 2024 en
+  tête aurait cassé l'ordre des mois. L'épingle est gardée et revient hors de l'archive.
+- `lignesDeLArchive` (fonction pure, `LignesDeLArchiveTest`) ; libellé par `formateurDeMois` dans la
+  langue de l'appli (anglais pour une langue non parlée, comme les dates des cartes), première lettre en
+  capitale ; intertitre `heading()` pour TalkBack. Aucune chaîne neuve.
+
+## Audits du 2026-11-09
+
+- **Audit 3 axes** : aucun critique ni élevé. Corrigés : calculs refaits à chaque recomposition
+  (`toutEstSelectionne` seulement en sélection, dossiers indexés une fois), question restaurée après mort
+  du processus qui ne se refermait pas (clés du `LaunchedEffect`), un geste ne retire de la sélection
+  que ses notes.
+- **i18n** : aucun bloquant. Corrigés : journaux alignés entre langues (favori, « ouverte par Éditer »),
+  anglais américain, it `note_unarchive` « Rimuovi dall'archivio » et `selection_close` « Chiudi
+  selezione » (deux « Annulla » dans la barre), de « Aus dem Archiv entfernen ».
+- **Cohérence** (88/100) : `Note.estProtegee` — une définition au lieu de six ; une source des coffres
+  ouverts (le flux des sessions) ; `EntreeDeMenuDeroulant` ; commentaires de la feuille 3.1.0.
+- **Relecture externe GPT-5.6 Luna** (0,025 $) : corrigés — l'annulation d'un archivage repasse par le
+  contrôle des coffres ; les lots rendent les ids réellement changés (annonce et Annuler) ; une feuille
+  ouverte n'agit que sur les notes encore affichées.
+- **Limites connues, antérieures (3.1.0), non corrigées** : un geste en attente du secret est perdu si
+  l'écran tourne pendant la feuille de déverrouillage (rien n'est écrit : il est à refaire) ; un événement
+  émis sans collecteur (rotation) n'est pas reçu. À traiter ensemble, avec la sauvegarde de
+  `dossierAOuvrir`.
+
 ## Contrôles
 
 - Gate : compilation, ktlint, detekt, lint ; JVM (`GestesDeNoteEnCoursTest` réécrit) ; instrumentés sur

@@ -17,6 +17,7 @@ import com.filestech.notes_tech.domain.importation.NoteImportee
 import com.filestech.notes_tech.domain.model.EncryptedBody
 import com.filestech.notes_tech.domain.model.EncryptedFormat
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.domain.repository.UnavailableVaultOpener
 import com.filestech.notes_tech.domain.repository.UnavailableVaultSealer
 import com.filestech.notes_tech.domain.repository.VaultLockedException
@@ -230,6 +231,40 @@ class NotesRepositoryTest {
         assertThat(dansLArchive().map { it.id }).contains(note.id)
         // The export, the backup and the statistics still see it: archived is not gone.
         assertThat(notes.listAllAlive().map { it.id }).contains(note.id)
+    }
+
+    /**
+     * The archive orders by date alone, pin left out (3.3.0): its months must follow each other. The
+     * control: in its folder, out of the archive, the same pinned note comes first again.
+     */
+    @Test
+    fun l_archive_ignore_l_epingle_et_la_note_la_retrouve_hors_de_l_archive(): Unit = runBlocking {
+        val ancienne = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            title = "Ancienne",
+            content = "a",
+        )
+        notes.setPinned(ancienne.id, true)
+        notes.setArchived(ancienne.id, true)
+        val recente = notes.create(
+            folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            title = "Récente",
+            content = "b",
+        )
+        notes.setArchived(recente.id, true)
+
+        val ordre = notes.observeOutOfTrash(NoteSortMode.CREATED_ASC, archived = true).first().map { it.id }
+        assertThat(ordre).containsExactly(ancienne.id, recente.id).inOrder()
+        val inverse = notes.observeOutOfTrash(NoteSortMode.CREATED_DESC, archived = true).first().map { it.id }
+        assertThat(inverse).containsExactly(recente.id, ancienne.id).inOrder()
+
+        notes.setArchived(ancienne.id, false)
+        notes.setArchived(recente.id, false)
+        val dossier = notes.observeInFolder(
+            LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
+            NoteSortMode.CREATED_DESC,
+        ).first()
+        assertThat(dossier.first().id).isEqualTo(ancienne.id)
     }
 
     /** An archived note put in the trash is in the trash only, and comes back archived. */

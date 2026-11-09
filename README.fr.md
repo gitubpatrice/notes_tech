@@ -27,7 +27,8 @@ Suggérées dans [#48](https://github.com/gitubpatrice/notes_tech/issues/48).
 
 - **Archives** : une nouvelle entrée du menu, près de la Corbeille. Une note archivée quitte son
   dossier, « Toutes les notes », les favoris et la recherche, et reste dans les Archives, où elle s'ouvre
-  et se modifie comme les autres. Archiver et Désarchiver figurent aussi dans le menu ⋮ d'une note.
+  et se modifie comme les autres. Ses notes y sont classées par mois, selon la date du tri choisi.
+  Archiver et Désarchiver figurent aussi dans le menu ⋮ d'une note.
 - **Sélectionner plusieurs notes** : un appui long sélectionne une note, un toucher en ajoute d'autres —
   ou « Tout sélectionner ». Puis archiver, déplacer, mettre à la corbeille (avec Annuler), épingler,
   mettre en favori, colorer ou supprimer définitivement, d'un coup. Un geste écrit toutes les notes

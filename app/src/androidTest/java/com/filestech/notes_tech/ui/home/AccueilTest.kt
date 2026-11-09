@@ -471,6 +471,39 @@ class AccueilTest {
         assertThat(gestesDeSelection).containsExactly("archiver")
     }
 
+    /**
+     * The archive is cut into months (3.3.0, Patrice), headings TalkBack can jump between; a sort by title
+     * has none. The month's text is the app's own formatter in the activity's language.
+     */
+    @Test
+    fun the_archive_is_cut_into_months_and_a_sort_by_title_is_not() {
+        val novembre = note("a", "Vieille").copy(updatedAt = Instant.parse("2026-11-08T12:00:00Z"))
+        val octobre = note("b", "Plus vieille").copy(updatedAt = Instant.parse("2026-10-08T12:00:00Z"))
+        val locale = regle.activity.resources.configuration.locales[0]
+        val enTete = { mois: Int -> formateurDeMois(locale)(java.time.YearMonth.of(2026, mois)) }
+        poser(
+            HomeUiState(
+                notes = listOf(novembre, octobre),
+                loading = false,
+                archive = true,
+                sort = NoteSortMode.UPDATED_DESC,
+            ),
+        )
+
+        regle.onNode(hasText(enTete(11)) and isHeading()).assertExists()
+        regle.onNode(hasText(enTete(10)) and isHeading()).assertExists()
+
+        poser(
+            HomeUiState(
+                notes = listOf(novembre, octobre),
+                loading = false,
+                archive = true,
+                sort = NoteSortMode.TITLE_ASC,
+            ),
+        )
+        regle.onNodeWithText(enTete(11)).assertDoesNotExist()
+    }
+
     /** Ouvrir une note rend **la** note, pas un identifiant reconstruit ailleurs. */
     @Test
     fun toucher_une_carte_ouvre_la_note_correspondante() {

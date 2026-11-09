@@ -19,6 +19,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -29,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -103,37 +105,37 @@ internal fun BarreDeSelection(
                     }
                 }
                 if (!toutEstSelectionne) {
-                    EntreeDuMenu(
+                    EntreeDeMenuDeroulant(
                         Icons.Outlined.SelectAll,
                         stringResource(R.string.selection_select_all),
                         choisir(actions.onToutSelectionner),
                     )
                 }
                 if (selection.size == 1) {
-                    EntreeDuMenu(
+                    EntreeDeMenuDeroulant(
                         Icons.Outlined.Edit,
                         stringResource(R.string.note_editor_mode_edit),
                         choisir(actions.onEditer),
                     )
                 }
-                EntreeDuMenu(
+                EntreeDeMenuDeroulant(
                     icone = if (toutesEpinglees) Icons.Filled.PushPin else Icons.Outlined.PushPin,
                     libelle = stringResource(if (toutesEpinglees) R.string.home_unpin else R.string.selection_pin),
                     onClick = choisir { actions.onEpingler(!toutesEpinglees) },
                 )
-                EntreeDuMenu(
+                EntreeDeMenuDeroulant(
                     icone = if (toutesFavorites) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     libelle = stringResource(
                         if (toutesFavorites) R.string.home_unfav else R.string.note_editor_tooltip_fav,
                     ),
                     onClick = choisir { actions.onFavori(!toutesFavorites) },
                 )
-                EntreeDuMenu(
+                EntreeDeMenuDeroulant(
                     Icons.Outlined.Palette,
                     stringResource(R.string.note_editor_menu_color),
                     choisir(actions.onCouleur),
                 )
-                EntreeDuMenu(
+                EntreeDeMenuDeroulant(
                     icone = Icons.Outlined.DeleteForever,
                     libelle = stringResource(R.string.trash_delete_forever),
                     onClick = choisir(actions.onSupprimerDefinitivement),
@@ -152,19 +154,22 @@ private fun BoutonDeSelection(icone: ImageVector, libelle: String, onClick: () -
     }
 }
 
+/**
+ * One line of the ⋮ menu — a dropdown's, not an action sheet's (`ui/common/EntreeDeMenu`). [destructive]:
+ * its text and icon in the theme's red, as the editor's "Delete permanently".
+ */
 @Composable
-private fun EntreeDuMenu(icone: ImageVector, libelle: String, onClick: () -> Unit, destructive: Boolean = false) {
-    val couleur = if (destructive) MaterialTheme.colorScheme.error else null
+private fun EntreeDeMenuDeroulant(
+    icone: ImageVector,
+    libelle: String,
+    onClick: () -> Unit,
+    destructive: Boolean = false,
+) {
+    val couleur = if (destructive) MaterialTheme.colorScheme.error else Color.Unspecified
     DropdownMenuItem(
-        text = { if (couleur != null) Text(libelle, color = couleur) else Text(libelle) },
+        text = { Text(libelle, color = couleur) },
         leadingIcon = {
-            if (couleur !=
-                null
-            ) {
-                Icon(icone, contentDescription = null, tint = couleur)
-            } else {
-                Icon(icone, contentDescription = null)
-            }
+            Icon(icone, contentDescription = null, tint = if (destructive) couleur else LocalContentColor.current)
         },
         onClick = onClick,
     )

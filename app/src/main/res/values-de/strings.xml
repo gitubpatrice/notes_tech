@@ -151,7 +151,7 @@
     <string name="archive_empty_title">Keine archivierten Notizen</string>
     <string name="archive_empty_subtitle">Archivierte Notizen bleiben hier, außerhalb Ihrer Listen. Zum Archivieren eine Notiz gedrückt halten und dann auf Archivieren tippen.</string>
     <string name="note_archive">Archivieren</string>
-    <string name="note_unarchive">Archivierung aufheben</string>
+    <string name="note_unarchive">Aus dem Archiv entfernen</string>
     <string name="note_editor_archived">Notiz archiviert</string>
     <string name="note_editor_unarchived">Notiz nicht mehr archiviert</string>
     <string name="note_select">Auswählen</string>

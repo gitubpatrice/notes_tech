@@ -12,6 +12,7 @@ import com.filestech.notes_tech.data.repository.SearchRepository
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteSortMode
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.domain.repository.VaultLockedException
 import com.filestech.notes_tech.security.vault.FolderVaultService
 import com.filestech.notes_tech.ui.common.userMessageFor
@@ -72,7 +73,7 @@ data class HomeUiState(
 /**
  * Ce que l'accueil doit faire savoir a l'ecran apres une action.
  *
- * Un canal d'evenements, pas un champ d'etat : ces trois-la se produisent une fois. Les mettre dans
+ * Un canal d'evenements, pas un champ d'etat : ceux-la se produisent une fois. Les mettre dans
  * l'etat les ferait rejouer a chaque rotation.
  */
 sealed interface HomeEvent {
@@ -344,8 +345,10 @@ class HomeViewModel @Inject constructor(
     fun executer(geste: GesteSurDesNotes) {
         viewModelScope.launch {
             try {
-                // Gone or in the trash since the selection: nothing to do to it.
-                val actuelles = notes.findMany(geste.ids).filter { !it.isTrashed }
+                // Gone or in the trash since the selection: nothing to do to it. In the selection's order —
+                // `findMany` returns SQLite's —, so that what is announced and undone follows the list.
+                val lues = notes.findMany(geste.ids).filter { !it.isTrashed }.associateBy { it.id }
+                val actuelles = geste.ids.distinct().mapNotNull { lues[it] }
                 if (actuelles.isEmpty()) {
                     viderLaSelection()
                     return@launch
@@ -356,7 +359,9 @@ class HomeViewModel @Inject constructor(
                     return@launch
                 }
                 val evenement = appliquer(geste, actuelles)
-                viderLaSelection()
+                // The notes done leave the selection — only they: a note selected while the gesture
+                // waited (3-axes audit, 2026-11-09) stays selected.
+                ecrireLaSelection(selection.value - geste.ids.toSet())
                 evenement?.let { events.emit(it) }
             } catch (e: CancellationException) {
                 throw e
@@ -396,8 +401,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun coffreFermeDe(actuelles: List<Note>): Folder? {
         for ((dossierId, siennes) in actuelles.groupBy { it.folderId }) {
             val dossier = folders.find(dossierId)
-            val protegee = dossier?.isVault == true || siennes.any { it.isLocked }
-            if (protegee && !vaults.isUnlocked(dossierId)) {
+            if (siennes.any { it.estProtegee(dossier) } && !vaults.isUnlocked(dossierId)) {
                 // A sealed note always has its folder (cascade): no folder here is a broken base, said so.
                 return dossier ?: throw VaultLockedException(noteId = siennes.first().id, folderId = dossierId)
             }
@@ -405,15 +409,19 @@ class HomeViewModel @Inject constructor(
         return null
     }
 
-    /** Writes [geste] on [actuelles], in one transaction, and says what to announce — `null`: nothing. */
+    /**
+     * Writes [geste] on [actuelles], in one transaction, and says what to announce — `null`: nothing.
+     * What is announced, and undone, is what the write CHANGED, as [NotesEnLot] returns it — not what was
+     * asked (external review, 2026-11-09).
+     */
     private suspend fun appliquer(geste: GesteSurDesNotes, actuelles: List<Note>): HomeEvent? {
         val ids = actuelles.map { it.id }
         return when (geste) {
             is GesteSurDesNotes.Archiver -> {
                 // Only those that change: the "Undo" must put back exactly what this gesture moved.
                 val aChanger = actuelles.filter { it.archived != geste.archiver }.map { it.id }
-                enLot.setArchived(aChanger, geste.archiver)
-                if (aChanger.isEmpty()) null else HomeEvent.Archivees(aChanger, geste.archiver)
+                enLot.setArchived(aChanger, geste.archiver).takeIf { it.isNotEmpty() }
+                    ?.let { HomeEvent.Archivees(it, geste.archiver, annulable = !geste.annulation) }
             }
 
             // Said by the cards themselves — the pin, the star, the colour — as in the editor's menu.
@@ -422,13 +430,13 @@ class HomeViewModel @Inject constructor(
             is GesteSurDesNotes.Colorer -> null.also { enLot.setColor(ids, geste.couleur) }
 
             is GesteSurDesNotes.Deplacer -> enLot.moveToFolder(ids, geste.dossierId, geste.sortieDeCoffreConfirmee)
-                .takeIf { it > 0 }?.let { HomeEvent.Deplacees(it) }
+                .takeIf { it.isNotEmpty() }?.let { HomeEvent.Deplacees(it.size) }
 
             is GesteSurDesNotes.MettreALaCorbeille ->
-                if (enLot.moveToTrash(ids) > 0) HomeEvent.MisesALaCorbeille(ids) else null
+                enLot.moveToTrash(ids).takeIf { it.isNotEmpty() }?.let { HomeEvent.MisesALaCorbeille(it) }
 
             is GesteSurDesNotes.SupprimerDefinitivement ->
-                enLot.deletePermanently(ids).takeIf { it > 0 }?.let { HomeEvent.Supprimees(it) }
+                enLot.deletePermanently(ids).takeIf { it.isNotEmpty() }?.let { HomeEvent.Supprimees(it.size) }
         }
     }
 
@@ -436,17 +444,19 @@ class HomeViewModel @Inject constructor(
      * Undoes [executer]'s move to the trash. No vault check: a restored note comes back sealed, as it
      * left, and the trash screen restores vault notes the same way.
      */
-    fun restaurer(ids: List<String>) = enAnnulant { HomeEvent.Restaurees(enLot.restoreFromTrash(ids)) }
+    fun restaurer(ids: List<String>) = enAnnulant { HomeEvent.Restaurees(enLot.restoreFromTrash(ids).size) }
 
     /**
-     * Undoes an archiving, or an unarchiving: [ids] go back where they were. No vault check, for the
-     * reason given on [restaurer]: the gesture being undone was checked, and this one only puts back the
-     * flag it changed. Said without an "Undo" of its own.
+     * Undoes an archiving, or an unarchiving: [ids] go back where they were. Said without an "Undo" of its
+     * own.
+     *
+     * 🔴 **Through [executer], vault check included** — unlike [restaurer], whose trash restores a sealed
+     * note without its key as the trash screen does. Undoing a flag change is a flag change: a vault that
+     * locked between the gesture and its "Undo" must be opened again first (external review,
+     * 2026-11-09), and the undo then resumes like any gesture.
      */
-    fun annulerLArchivage(ids: List<String>, archivees: Boolean) = enAnnulant {
-        enLot.setArchived(ids, !archivees)
-        HomeEvent.Archivees(ids, archivees = !archivees, annulable = false)
-    }
+    fun annulerLArchivage(ids: List<String>, archivees: Boolean) =
+        executer(GesteSurDesNotes.Archiver(ids, archiver = !archivees, annulation = true))
 
     private fun enAnnulant(bloc: suspend () -> HomeEvent) {
         viewModelScope.launch {

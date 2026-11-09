@@ -277,8 +277,8 @@ fun NoteCard(
 
 /**
  * The title a list shows for [note]: "Locked note" for a sealed one — never its title, which the
- * column holds empty anyway for `enc_v` 2 — and "Untitled" for an empty one. One rule for the card and
- * for the long-press sheet that names it, so the two cannot disagree on what a vault note reveals.
+ * column holds empty anyway for `enc_v` 2 — and "Untitled" for an empty one. One rule, so no list can
+ * disagree with another on what a vault note reveals.
  */
 @Composable
 internal fun titreAffiche(note: Note): String = when {

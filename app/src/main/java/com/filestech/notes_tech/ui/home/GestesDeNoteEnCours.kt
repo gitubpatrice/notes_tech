@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.ui.common.DialogueDeSortieDeCoffre
 import com.filestech.notes_tech.ui.common.DialogueDestructif
 import com.filestech.notes_tech.ui.common.selonLeNombre
@@ -85,9 +86,9 @@ internal class GestesDeNoteEnCours(
     ): Folder? {
         if (!selectionnee) {
             val dossier = dossiers.firstOrNull { it.id == note.folderId }
-            val protegee = note.isLocked || dossier?.isVault == true
-            if (dossier != null && protegee && dossier.id !in coffresOuverts) {
-                selectionEnAttente = note
+            if (note.estProtegee(dossier) && note.folderId !in coffresOuverts) {
+                // Folders not loaded yet: no sheet can ask for the secret, so the note is not selected.
+                if (dossier != null) selectionEnAttente = note
                 return dossier
             }
         }
@@ -212,6 +213,10 @@ internal fun FeuillesDesGestesDeNote(
     coffresOuverts: Set<String>,
     executer: (GesteSurDesNotes) -> Unit,
 ) {
+    // A sheet acts on the notes it was opened for that the list still shows — what the user sees
+    // selected, nothing else (external review, 2026-11-09).
+    val presentes = notes.mapTo(HashSet()) { it.id }
+    val parId = dossiers.associateBy { it.id }
     etat.deplacement?.let { ids ->
         // The folder all of them are in is no destination; several folders: every folder is one.
         val dossierCommun = notes.filter { it.id in ids }.map { it.folderId }.distinct().singleOrNull()
@@ -220,7 +225,7 @@ internal fun FeuillesDesGestesDeNote(
             dossierActuel = dossierCommun,
             onChoisir = { cible ->
                 etat.deplacement = null
-                executer(GesteSurDesNotes.Deplacer(ids, cible))
+                executer(GesteSurDesNotes.Deplacer(ids.filter { it in presentes }, cible))
             },
             onDismiss = { etat.deplacement = null },
         )
@@ -233,12 +238,10 @@ internal fun FeuillesDesGestesDeNote(
             // Several colours among them: no swatch is ticked — ticking "no colour" would say otherwise.
             actuelle = couleurs.singleOrNull(),
             melangees = couleurs.size > 1,
-            dansUnCoffre = choisies.any { note ->
-                note.isLocked || dossiers.firstOrNull { it.id == note.folderId }?.isVault == true
-            },
+            dansUnCoffre = choisies.any { it.estProtegee(parId[it.folderId]) },
             onChoisir = { couleur ->
                 etat.couleur = null
-                executer(GesteSurDesNotes.Colorer(ids, couleur))
+                executer(GesteSurDesNotes.Colorer(ids.filter { it in presentes }, couleur))
             },
             onDismiss = { etat.couleur = null },
         )
@@ -252,7 +255,7 @@ internal fun FeuillesDesGestesDeNote(
             libelleConfirmation = stringResource(R.string.trash_delete_forever),
             onConfirmer = {
                 etat.suppression = null
-                executer(GesteSurDesNotes.SupprimerDefinitivement(ids))
+                executer(GesteSurDesNotes.SupprimerDefinitivement(ids.filter { it in presentes }))
             },
             onAnnuler = { etat.suppression = null },
         )
@@ -271,10 +274,10 @@ internal fun FeuillesDesGestesDeNote(
 
     // A vault that closes under an open question takes the question with it, as the editor's do: the
     // answer would be checked again anyway, but a question about notes now hidden is no question.
-    val protegees = notes.filter { note ->
-        note.isLocked || dossiers.firstOrNull { it.id == note.folderId }?.isVault == true
-    }
-    LaunchedEffect(coffresOuverts) {
+    // Keyed on the notes too: a question restored after the process died is decided once they load
+    // (3-axes audit, 2026-11-09) — and computed here only, not at every recomposition.
+    LaunchedEffect(coffresOuverts, notes, dossiers) {
+        val protegees = notes.filter { it.estProtegee(parId[it.folderId]) }
         val ferme = { ids: List<String>? ->
             ids != null && protegees.any { it.id in ids && it.folderId !in coffresOuverts }
         }

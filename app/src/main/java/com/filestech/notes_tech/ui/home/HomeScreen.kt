@@ -68,6 +68,7 @@ import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.rememberFolderDisplayName
 import com.filestech.notes_tech.ui.theme.Formes
 import com.filestech.notes_tech.ui.theme.SemanticColors
+import java.time.ZoneId
 
 /**
  * L'écran d'accueil : la liste des notes, filtrée par dossier ou par recherche.
@@ -106,6 +107,27 @@ fun HomeScreen(
     // The badge names come from a raw `id → stored name` map: a default inbox name is translated
     // here, at display time, in the language the user chose (notes_tech 2.0.9 parity).
     val nomDuDossier = rememberFolderDisplayName()
+
+    // The archive's months, recomputed only when the list or its order changes.
+    val lignesDeLArchive = remember(state.notes, state.sort, state.archive) {
+        if (state.archive) lignesDeLArchive(state.notes, state.sort, ZoneId.systemDefault()) else emptyList()
+    }
+    val nomDuMois = rememberFormateurDeMois()
+    val carte: @Composable (Note) -> Unit = { note ->
+        NoteCard(
+            note = note,
+            // While the list selects, a tap selects; otherwise it opens the note.
+            onClick = { if (state.enSelection) onSelectionnerNote(note) else onOpenNote(note) },
+            onLongClick = { onSelectionnerNote(note) },
+            selectionnee = if (state.enSelection) note.id in state.selection else null,
+            couleur = note.couleurVisible(state.coffresOuverts),
+            folderName = if (state.showFolderBadge) {
+                state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
+            } else {
+                null
+            },
+        )
+    }
 
     // Back leaves the selection first, as in every app that selects — not the app.
     BackHandler(enabled = state.enSelection, onBack = actionsDeSelection.onFermer)
@@ -213,20 +235,16 @@ fun HomeScreen(
                     // `key = { it.id }` stabilise l'identité des éléments entre recompositions.
                     // Sans clé, un changement de filtre réassocie les états par position, et les
                     // cartes se réutilisent pour la mauvaise note.
-                    items(state.notes, key = { it.id }) { note ->
-                        NoteCard(
-                            note = note,
-                            // While the list selects, a tap selects; otherwise it opens the note.
-                            onClick = { if (state.enSelection) onSelectionnerNote(note) else onOpenNote(note) },
-                            onLongClick = { onSelectionnerNote(note) },
-                            selectionnee = if (state.enSelection) note.id in state.selection else null,
-                            couleur = note.couleurVisible(state.coffresOuverts),
-                            folderName = if (state.showFolderBadge) {
-                                state.folderNamesById[note.folderId]?.let { nomDuDossier(note.folderId, it) }
-                            } else {
-                                null
-                            },
-                        )
+                    // The archive is cut into months (3.3.0); the other lists are not.
+                    if (state.archive) {
+                        items(lignesDeLArchive, key = { it.cle }) { ligne ->
+                            when (ligne) {
+                                is LigneDeLArchive.Mois -> IntertitreDeMois(nomDuMois(ligne.mois))
+                                is LigneDeLArchive.Carte -> carte(ligne.note)
+                            }
+                        }
+                    } else {
+                        items(state.notes, key = { it.id }) { note -> carte(note) }
                     }
                 }
             }
@@ -469,5 +487,22 @@ private fun BarreDeLaListe(
                 )
             }
         },
+    )
+}
+
+/**
+ * A month's heading in the archive (3.3.0): a heading for TalkBack too, so that its users jump from
+ * month to month as others scroll to them.
+ */
+@Composable
+private fun IntertitreDeMois(texte: String) {
+    Text(
+        text = texte,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 4.dp, top = 12.dp, bottom = 2.dp)
+            .semantics { heading() },
     )
 }
