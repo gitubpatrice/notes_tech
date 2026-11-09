@@ -47,6 +47,9 @@ import com.filestech.notes_tech.ui.theme.CouleursDeNote
  *
  * ⚠️ [dansUnCoffre]: the sheet says that the colour shows only while the vault is open — option A,
  * see `couleurVisible`. Not a warning to scare, a fact the user would otherwise discover by surprise.
+ *
+ * [melangees] (3.3.0): the sheet colours a selection whose notes do not share one colour — no swatch
+ * is then ticked: ticking "no colour", which [actuelle] `null` would, would say something untrue.
  */
 @Composable
 internal fun FeuilleDeCouleur(
@@ -54,6 +57,7 @@ internal fun FeuilleDeCouleur(
     dansUnCoffre: Boolean,
     onChoisir: (NoteColor?) -> Unit,
     onDismiss: () -> Unit,
+    melangees: Boolean = false,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
         Column(
@@ -80,9 +84,13 @@ internal fun FeuilleDeCouleur(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.padding(top = 12.dp).selectableGroup(),
             ) {
-                PastilleDeCouleur(couleur = null, choisie = actuelle == null, onChoisir = onChoisir)
+                PastilleDeCouleur(couleur = null, choisie = !melangees && actuelle == null, onChoisir = onChoisir)
                 NoteColor.entries.forEach { couleur ->
-                    PastilleDeCouleur(couleur = couleur, choisie = actuelle == couleur, onChoisir = onChoisir)
+                    PastilleDeCouleur(
+                        couleur = couleur,
+                        choisie = !melangees && actuelle == couleur,
+                        onChoisir = onChoisir,
+                    )
                 }
             }
         }

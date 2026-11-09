@@ -14,9 +14,11 @@ import com.filestech.notes_tech.data.local.SqlCipherRawKey
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.repository.FoldersRepository
+import com.filestech.notes_tech.data.repository.NotesEnLot
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.data.repository.SearchRepository
 import com.filestech.notes_tech.domain.model.Note
+import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.security.kek.KekRepository
 import com.filestech.notes_tech.security.kek.WritableKekSource
 import com.filestech.notes_tech.security.vault.FolderVaultService
@@ -47,7 +49,8 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 
 /**
- * The long press on a note (3.1.0), against a real SQLCipher database and a real passphrase vault.
+ * The selection's gestures (3.3.0; one note's long press in 3.1.0), against a real SQLCipher database
+ * and a real passphrase vault.
  *
  * ## 🔴 What this file guards
  *
@@ -62,7 +65,7 @@ import java.time.ZoneOffset
  * that keeps the gesture waiting.
  */
 @RunWith(AndroidJUnit4::class)
-class GestesSurUneNoteTest {
+class GestesSurDesNotesTest {
 
     private lateinit var context: Context
     private lateinit var preferences: IsolatedPreferencesContext
@@ -73,13 +76,14 @@ class GestesSurUneNoteTest {
     private lateinit var provider: DatabaseProvider
     private lateinit var dossiers: FoldersRepository
     private lateinit var notes: NotesRepository
+    private lateinit var enLot: NotesEnLot
     private lateinit var coffres: FolderVaultService
     private lateinit var accueil: HomeViewModel
 
     @Before
     fun setUp(): Unit = runBlocking {
         context = InstrumentationRegistry.getInstrumentation().targetContext
-        preferences = IsolatedPreferencesContext(context, "_gestes_sur_une_note")
+        preferences = IsolatedPreferencesContext(context, "_gestes_sur_des_notes")
         System.loadLibrary("sqlcipher")
         fichierDeBase = File(context.cacheDir, "gestes-fixture/notes_tech.db")
         LegacyDatabaseFixture.create(fichierDeBase, SqlCipherRawKey.encode(kek))
@@ -104,9 +108,11 @@ class GestesSurUneNoteTest {
         coffres = FolderVaultService(provider, KeystoreEnMemoire(), VaultSessions(HorlogeMonotone()), journal, horloge)
         dossiers = FoldersRepository(provider, horloge)
         notes = NotesRepository(provider, dossiers, coffres, coffres, horloge)
+        enLot = NotesEnLot(provider, notes, dossiers)
         accueil = withContext(Dispatchers.Main) {
             HomeViewModel(
                 notes = notes,
+                enLot = enLot,
                 folders = dossiers,
                 search = SearchRepository(provider),
                 settings = AppSettings(LegacyPreferences(preferences)),
@@ -127,28 +133,46 @@ class GestesSurUneNoteTest {
     @Test
     fun trashing_a_note_of_a_closed_vault_is_refused_and_allowed_once_it_is_open(): Unit = runBlocking {
         val (coffre, note) = noteDeCoffreFermee()
-        val geste = GesteSurUneNote.MettreALaCorbeille(note)
+        val geste = GesteSurDesNotes.MettreALaCorbeille(listOf(note.id))
 
         val refus = evenementDe { accueil.executer(geste) }
         assertThat(refus).isEqualTo(HomeEvent.GesteEnAttenteDuCoffre(dossiers.find(coffre)!!, geste))
         assertThat(notes.find(note.id)!!.trashedAt).isNull()
 
         coffres.unlockWithPassphrase(coffre, PHRASE)
-        assertThat(evenementDe { accueil.executer(geste) }).isEqualTo(HomeEvent.MovedToTrash(note.id))
+        assertThat(evenementDe { accueil.executer(geste) }).isEqualTo(HomeEvent.MisesALaCorbeille(listOf(note.id)))
         assertThat(notes.find(note.id)!!.trashedAt).isNotNull()
     }
 
     @Test
     fun erasing_a_note_of_a_closed_vault_is_refused_and_allowed_once_it_is_open(): Unit = runBlocking {
         val (coffre, note) = noteDeCoffreFermee()
-        val geste = GesteSurUneNote.SupprimerDefinitivement(note)
+        val geste = GesteSurDesNotes.SupprimerDefinitivement(listOf(note.id))
 
         assertThat(evenementDe { accueil.executer(geste) }).isInstanceOf(HomeEvent.GesteEnAttenteDuCoffre::class.java)
         assertThat(notes.find(note.id)).isNotNull()
 
         coffres.unlockWithPassphrase(coffre, PHRASE)
-        assertThat(evenementDe { accueil.executer(geste) }).isEqualTo(HomeEvent.DeletedForever)
+        assertThat(evenementDe { accueil.executer(geste) }).isEqualTo(HomeEvent.Supprimees(1))
         assertThat(notes.find(note.id)).isNull()
+    }
+
+    /**
+     * 🔴 One protected note of a closed vault refuses the WHOLE gesture (3.3.0): the ordinary note
+     * selected with it is not trashed either. Half a selection done, the other half waiting for a
+     * secret, is the state D-037 refuses.
+     */
+    @Test
+    fun one_note_of_a_closed_vault_holds_back_the_whole_selection(): Unit = runBlocking {
+        val (_, scellee) = noteDeCoffreFermee()
+        val ordinaire = notes.create(folderId = dossiers.create("Ordinaire").id, title = "Liste", content = "pain")
+
+        val refus =
+            evenementDe { accueil.executer(GesteSurDesNotes.MettreALaCorbeille(listOf(ordinaire.id, scellee.id))) }
+
+        assertThat(refus).isInstanceOf(HomeEvent.GesteEnAttenteDuCoffre::class.java)
+        assertThat(notes.find(ordinaire.id)!!.trashedAt).isNull()
+        assertThat(notes.find(scellee.id)!!.trashedAt).isNull()
     }
 
     /**
@@ -162,22 +186,26 @@ class GestesSurUneNoteTest {
         notes.moveToFolder(ordinaire.id, coffre)
         coffres.lock(coffre)
 
-        val refus = evenementDe { accueil.executer(GesteSurUneNote.MettreALaCorbeille(ordinaire)) }
+        val refus = evenementDe { accueil.executer(GesteSurDesNotes.MettreALaCorbeille(listOf(ordinaire.id))) }
 
         assertThat(refus).isInstanceOf(HomeEvent.GesteEnAttenteDuCoffre::class.java)
         assertThat(notes.find(ordinaire.id)!!.trashedAt).isNull()
     }
 
     @Test
-    fun an_ordinary_note_goes_to_the_trash_and_undo_brings_it_back(): Unit = runBlocking {
-        val note = notes.create(folderId = dossiers.create("Ordinaire").id, title = "Liste", content = "pain")
+    fun ordinary_notes_go_to_the_trash_together_and_undo_brings_them_all_back(): Unit = runBlocking {
+        val dossier = dossiers.create("Ordinaire").id
+        val ids = listOf(
+            notes.create(folderId = dossier, title = "Liste", content = "pain").id,
+            notes.create(folderId = dossier, title = "Idées", content = "vélo").id,
+        )
 
-        assertThat(evenementDe { accueil.executer(GesteSurUneNote.MettreALaCorbeille(note)) })
-            .isEqualTo(HomeEvent.MovedToTrash(note.id))
-        assertThat(notes.find(note.id)!!.trashedAt).isNotNull()
+        assertThat(evenementDe { accueil.executer(GesteSurDesNotes.MettreALaCorbeille(ids)) })
+            .isEqualTo(HomeEvent.MisesALaCorbeille(ids))
+        assertThat(ids.map { notes.find(it)!!.trashedAt }).doesNotContain(null)
 
-        assertThat(evenementDe { accueil.restaurer(note.id) }).isEqualTo(HomeEvent.Restored)
-        assertThat(notes.find(note.id)!!.trashedAt).isNull()
+        assertThat(evenementDe { accueil.restaurer(ids) }).isEqualTo(HomeEvent.Restaurees(2))
+        assertThat(ids.map { notes.find(it)!!.trashedAt }).containsExactly(null, null)
     }
 
     /** Undo works on a vault note while its vault is CLOSED: the note comes back sealed, as it left. */
@@ -185,13 +213,154 @@ class GestesSurUneNoteTest {
     fun undo_restores_a_vault_note_without_its_secret_and_it_stays_sealed(): Unit = runBlocking {
         val (coffre, note) = noteDeCoffreFermee()
         coffres.unlockWithPassphrase(coffre, PHRASE)
-        evenementDe { accueil.executer(GesteSurUneNote.MettreALaCorbeille(note)) }
+        evenementDe { accueil.executer(GesteSurDesNotes.MettreALaCorbeille(listOf(note.id))) }
         coffres.lock(coffre)
 
-        assertThat(evenementDe { accueil.restaurer(note.id) }).isEqualTo(HomeEvent.Restored)
+        assertThat(evenementDe { accueil.restaurer(listOf(note.id)) }).isEqualTo(HomeEvent.Restaurees(1))
         val revenue = notes.find(note.id)!!
         assertThat(revenue.trashedAt).isNull()
         assertThat(revenue.isLocked).isTrue()
+    }
+
+    /**
+     * Archiving (3.3.0): only the notes that change are named — the "Undo" puts back exactly those —
+     * and the undo is said without an "Undo" of its own.
+     */
+    @Test
+    fun archiving_names_what_changed_and_its_undo_puts_back_exactly_that(): Unit = runBlocking {
+        val dossier = dossiers.create("Ordinaire").id
+        val deja = notes.create(folderId = dossier, title = "Déjà", content = "x").also {
+            notes.setArchived(it.id, true)
+        }
+        val nouvelle = notes.create(folderId = dossier, title = "Nouvelle", content = "y")
+
+        val archivage =
+            evenementDe { accueil.executer(GesteSurDesNotes.Archiver(listOf(deja.id, nouvelle.id), archiver = true)) }
+        assertThat(archivage).isEqualTo(HomeEvent.Archivees(listOf(nouvelle.id), archivees = true))
+        assertThat(notes.find(nouvelle.id)!!.archived).isTrue()
+
+        val annulation = evenementDe { accueil.annulerLArchivage(listOf(nouvelle.id), archivees = true) }
+        assertThat(annulation).isEqualTo(HomeEvent.Archivees(listOf(nouvelle.id), archivees = false, annulable = false))
+        assertThat(notes.find(nouvelle.id)!!.archived).isFalse()
+        // The note archived before the gesture stays archived: the undo did not touch it.
+        assertThat(notes.find(deja.id)!!.archived).isTrue()
+    }
+
+    /** Archiving a vault note changes one flag, sealed blob untouched — and still waits for the vault. */
+    @Test
+    fun archiving_a_note_of_a_closed_vault_waits_for_it_and_leaves_it_sealed(): Unit = runBlocking {
+        val (coffre, note) = noteDeCoffreFermee()
+        val geste = GesteSurDesNotes.Archiver(listOf(note.id), archiver = true)
+
+        assertThat(evenementDe { accueil.executer(geste) }).isInstanceOf(HomeEvent.GesteEnAttenteDuCoffre::class.java)
+        assertThat(notes.find(note.id)!!.archived).isFalse()
+
+        coffres.unlockWithPassphrase(coffre, PHRASE)
+        evenementDe { accueil.executer(geste) }
+        val archivee = notes.find(note.id)!!
+        assertThat(archivee.archived).isTrue()
+        assertThat(archivee.isLocked).isTrue()
+        assertThat(archivee.encrypted).isEqualTo(note.encrypted)
+    }
+
+    /**
+     * 🔴 A sealed note leaving its vault from the list gets the editor's question first (3.3.0): nothing
+     * moves until it is answered. Answered, the note leaves its vault — in clear, as the question said.
+     */
+    @Test
+    fun a_sealed_note_leaves_its_vault_only_after_the_question(): Unit = runBlocking {
+        val (coffre, note) = noteDeCoffreFermee()
+        coffres.unlockWithPassphrase(coffre, PHRASE)
+        val destination = dossiers.create("Ordinaire").id
+        val geste = GesteSurDesNotes.Deplacer(listOf(note.id), destination)
+
+        assertThat(evenementDe { accueil.executer(geste) }).isEqualTo(HomeEvent.SortieDeCoffreAConfirmer(geste, 1))
+        assertThat(notes.find(note.id)!!.folderId).isEqualTo(coffre)
+
+        val confirme = geste.copy(sortieDeCoffreConfirmee = true)
+        assertThat(evenementDe { accueil.executer(confirme) }).isEqualTo(HomeEvent.Deplacees(1))
+        val sortie = notes.find(note.id)!!
+        assertThat(sortie.folderId).isEqualTo(destination)
+        assertThat(sortie.isLocked).isFalse()
+        assertThat(sortie.content).isEqualTo("IBAN")
+    }
+
+    /** A closed vault as destination asks for ITS secret; given, the notes go in, sealed. */
+    @Test
+    fun moving_into_a_closed_vault_waits_for_it_then_seals_the_notes(): Unit = runBlocking {
+        val note = notes.create(folderId = dossiers.create("Ordinaire").id, title = "Code", content = "4242")
+        val coffre = dossiers.create("Coffre").id.also { coffres.createPassphraseVault(it, PHRASE) }
+        coffres.lock(coffre)
+        val geste = GesteSurDesNotes.Deplacer(listOf(note.id), coffre)
+
+        assertThat(evenementDe { accueil.executer(geste) })
+            .isEqualTo(HomeEvent.GesteEnAttenteDuCoffre(dossiers.find(coffre)!!, geste))
+        assertThat(notes.find(note.id)!!.folderId).isNotEqualTo(coffre)
+
+        coffres.unlockWithPassphrase(coffre, PHRASE)
+        assertThat(evenementDe { accueil.executer(geste) }).isEqualTo(HomeEvent.Deplacees(1))
+        val rentree = notes.find(note.id)!!
+        assertThat(rentree.folderId).isEqualTo(coffre)
+        assertThat(rentree.isLocked).isTrue()
+    }
+
+    /**
+     * 🔴 All or nothing (D-037), at the layer that holds it: a batch whose second note is refused — a
+     * sealed note leaving its vault without the question — rolls back the FIRST one too. The control is
+     * the same batch confirmed, which moves both.
+     */
+    @Test
+    fun a_batch_refused_halfway_rolls_back_the_notes_already_written(): Unit = runBlocking {
+        val (coffre, scellee) = noteDeCoffreFermee()
+        coffres.unlockWithPassphrase(coffre, PHRASE)
+        val ordinaire = notes.create(folderId = dossiers.create("Source").id, title = "Clair", content = "texte")
+        val destination = dossiers.create("Destination").id
+
+        val echec = runCatching { enLot.moveToFolder(listOf(ordinaire.id, scellee.id), destination, false) }
+        assertThat(echec.exceptionOrNull()).isInstanceOf(IllegalStateException::class.java)
+        assertThat(notes.find(ordinaire.id)!!.folderId).isNotEqualTo(destination)
+        assertThat(notes.find(scellee.id)!!.isLocked).isTrue()
+
+        assertThat(enLot.moveToFolder(listOf(ordinaire.id, scellee.id), destination, true)).isEqualTo(2)
+        assertThat(notes.find(ordinaire.id)!!.folderId).isEqualTo(destination)
+        assertThat(notes.find(scellee.id)!!.folderId).isEqualTo(destination)
+    }
+
+    /** Pin, favourite and colour reach every selected note, and say nothing: the cards show it. */
+    @Test
+    fun pin_favourite_and_colour_reach_every_selected_note(): Unit = runBlocking {
+        val dossier = dossiers.create("Ordinaire").id
+        val ids = listOf(
+            notes.create(folderId = dossier, title = "Un", content = "1").id,
+            notes.create(folderId = dossier, title = "Deux", content = "2").id,
+        )
+
+        accueil.executerEtAttendre(GesteSurDesNotes.Epingler(ids, true))
+        accueil.executerEtAttendre(GesteSurDesNotes.MettreEnFavori(ids, true))
+        accueil.executerEtAttendre(GesteSurDesNotes.Colorer(ids, NoteColor.entries.first()))
+
+        val apres = ids.map { notes.find(it)!! }
+        assertThat(apres.map { it.pinned }).containsExactly(true, true)
+        assertThat(apres.map { it.favorite }).containsExactly(true, true)
+        assertThat(apres.map { it.color }).containsExactly(NoteColor.entries.first(), NoteColor.entries.first())
+    }
+
+    /** Runs [geste] and waits until its writes are done — pin, favourite and colour emit no event. */
+    private suspend fun HomeViewModel.executerEtAttendre(geste: GesteSurDesNotes) {
+        withContext(Dispatchers.Main) { executer(geste) }
+        withTimeout(TIMEOUT_MILLIS) {
+            while (true) {
+                val toutes = geste.ids.mapNotNull { notes.find(it) }
+                val fait = when (geste) {
+                    is GesteSurDesNotes.Epingler -> toutes.all { it.pinned == geste.epingler }
+                    is GesteSurDesNotes.MettreEnFavori -> toutes.all { it.favorite == geste.favori }
+                    is GesteSurDesNotes.Colorer -> toutes.all { it.color == geste.couleur }
+                    else -> error("geste avec evenement : utiliser evenementDe")
+                }
+                if (fait) break
+                kotlinx.coroutines.delay(SONDE_MILLIS)
+            }
+        }
     }
 
     private suspend fun noteDeCoffreFermee(): Pair<String, Note> {
@@ -260,6 +429,7 @@ class GestesSurUneNoteTest {
     private companion object {
         const val PHRASE = "une phrase secrete de test 2026"
         const val TIMEOUT_MILLIS = 10_000L
+        const val SONDE_MILLIS = 20L
 
         /** `LegacyPreferences.FLUTTER_PREFS_FILE`, private there — diverted by [IsolatedPreferencesContext]. */
         const val FICHIER_DE_PREFERENCES = "FlutterSharedPreferences"

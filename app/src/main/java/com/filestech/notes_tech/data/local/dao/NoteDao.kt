@@ -110,44 +110,35 @@ interface NoteDao {
      * Toutes les notes hors corbeille, **archives comprises**.
      *
      * Balayage complet : réservé aux consommateurs qui en ont réellement besoin — statistiques,
-     * export, écran d'accueil. Jamais dans une boucle de rendu, et jamais pour construire l'index
+     * export, sauvegarde. Jamais dans une boucle de rendu, et jamais pour construire l'index
      * des rétroliens : [titlesForLinking] existe pour ça et ne charge pas les blobs.
      */
     @Query("SELECT * FROM notes WHERE trashed_at IS NULL ORDER BY updated_at DESC")
     suspend fun listAllAlive(): List<NoteEntity>
 
     /**
-     * Idem, en flux et dans l'ordre demandé. C'est la liste de l'écran d'accueil sans filtre.
+     * Every folder's notes out of the trash, in the order asked: [archived] `false` for the home screen's
+     * "All notes", `true` for the archive (3.3.0). A vault note shows as "Locked note" in both, as
+     * anywhere — the card decides that, not the query. An archived note put in the trash is in the trash
+     * only, and comes back archived.
      *
-     * ## ⚠️ Les archives sont incluses ici et exclues de [observeInFolder]
+     * ## 🔴 Archived notes LEAVE "All notes" since 3.3.0 — the decision of 2026-08-18 is revised (D-036)
      *
-     * L'asymétrie est **reprise de l'application publiée**, pas introduite : `notes_dao.dart:156`
-     * filtre sur `trashed_at IS NULL` seul, quand `listByFolder` (ligne 59) ajoute `archived = 0`.
-     * Une note archivée disparaît donc de son dossier et reste dans « toutes les notes ».
+     * Until 3.2.2 "All notes" kept archived notes, as notes_tech 2.0.9's `notes_dao.dart:156` does, and
+     * that was right then: no screen could archive a note nor show an archived one, so filtering them
+     * out would have made such a note invisible everywhere. 3.3.0 gives the archive its own view and
+     * the gestures that go with it. An archived note is then what users of notes apps expect: out of
+     * the way everywhere but in the archive — its folder, "All notes", the favourites, the recent notes
+     * and the search.
      *
-     * Elle est invisible aujourd'hui — **aucun écran de la 2.0.3 ne permet d'archiver une note**,
-     * le seul `archive` de `lib/ui/` est une icône d'export. La colonne vaut donc `0` partout.
-     *
-     * ## ✅ Tranchée le 2026-08-18 : ce n'est pas un écart à corriger, c'est la définition d'une archive
-     *
-     * Sortie de sa liste, toujours atteignable ailleurs — c'est ce que fait une archive, et
-     * l'asymétrie est donc **juste**. La filtrer des deux côtés rendrait la note **invisible
-     * partout**, sans aucun écran pour la retrouver, alors qu'aucun geste ne permet de la
-     * désarchiver : le « correctif » évident aurait perdu des notes.
-     *
-     * 🔴 **Et elle est désormais MESURÉE**, par trois cas de `NotesRepositoryTest` — dont le
-     * retour en arrière et le paramètre `includeArchived`. Ce qui la rendait fragile n'était pas
-     * l'asymétrie mais le fait que **rien ne l'exerçait** : `NotesRepository.setArchived` n'a aucun
-     * appelant, la colonne vaut `0` partout, et une règle que rien n'exerce est une règle qu'un
-     * refactor déplace sans que personne ne le voie. Le jour où l'archivage sera câblé, il héritera
-     * d'un comportement **décidé** et non d'un accident de deux requêtes écrites à deux moments.
-     *
-     * ⚠️ Le chemin d'écriture n'est **pas** du code mort à supprimer : c'est la surface que
-     * l'application publiée expose aussi. Le retirer ferait divergence, et la parité est le critère
-     * de sortie de la phase 8.
+     * ⚠️ [listAllAlive] keeps them: the export, the backup and the statistics are about EVERY note.
      */
-    fun observeAllAlive(sort: NoteSortMode): Flow<List<NoteEntity>> =
-        observeSorted(SimpleSQLiteQuery("SELECT * FROM notes WHERE trashed_at IS NULL ORDER BY ${sort.orderBy}"))
+    fun observeOutOfTrash(sort: NoteSortMode, archived: Boolean): Flow<List<NoteEntity>> = observeSorted(
+        SimpleSQLiteQuery(
+            "SELECT * FROM notes WHERE archived = ? AND trashed_at IS NULL ORDER BY ${sort.orderBy}",
+            arrayOf<Any?>(if (archived) 1 else 0),
+        ),
+    )
 
     /**
      * Les couples (identifiant, titre) qui peuvent être **cible** d'un lien `[[Titre]]`.

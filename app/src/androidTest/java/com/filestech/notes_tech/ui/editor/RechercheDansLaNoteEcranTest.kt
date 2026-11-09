@@ -86,6 +86,7 @@ class RechercheDansLaNoteEcranTest {
                     onFavori = {},
                     onInfos = {},
                     onDeplacer = {},
+                    onArchiver = {},
                     onCouleur = {},
                     onExporter = {},
                     onCopier = {},

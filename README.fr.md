@@ -4,7 +4,7 @@
 
 🇬🇧 [English version](README.md)
 
-**v3.2.2 — octobre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
+**v3.3.0 — novembre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
 
 Application de prise de notes Markdown chiffrée pour Android, écrite en **Kotlin** avec Jetpack
 Compose. **100 % locale, sans permission Internet.** Interface en **anglais, français, allemand,
@@ -20,6 +20,23 @@ l'application est techniquement incapable d'envoyer quoi que ce soit, et son man
 vérifier.**
 
 ---
+
+## Nouveautés de la 3.3.0
+
+Suggérées dans [#48](https://github.com/gitubpatrice/notes_tech/issues/48).
+
+- **Archives** : une nouvelle entrée du menu, près de la Corbeille. Une note archivée quitte son
+  dossier, « Toutes les notes », les favoris et la recherche, et reste dans les Archives, où elle s'ouvre
+  et se modifie comme les autres. Archiver et Désarchiver figurent aussi dans le menu ⋮ d'une note.
+- **Sélectionner plusieurs notes** : un appui long sélectionne une note, un toucher en ajoute d'autres —
+  ou « Tout sélectionner ». Puis archiver, déplacer, mettre à la corbeille (avec Annuler), épingler,
+  mettre en favori, colorer ou supprimer définitivement, d'un coup. Un geste écrit toutes les notes
+  sélectionnées ou aucune. Une note de coffre ne se sélectionne qu'une fois son coffre ouvert ; sortir
+  des notes scellées de leur coffre pose la même question que l'éditeur.
+- **Le curseur là où l'on écrit** : une nouvelle note, ou une note ouverte par Éditer, reçoit le curseur
+  dans son corps et le clavier d'emblée, sans toucher.
+- L'appui long de la 3.1.0 (éditer, corbeille, supprimer définitivement) est désormais celui de la
+  sélection : avec une seule note sélectionnée, « Éditer » est dans son menu ⋮.
 
 ## Nouveautés de la 3.2.2
 

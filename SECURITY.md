@@ -2,9 +2,26 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.2.2 — October 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.3.0 — November 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.3.0 — archive and selection: the vault rules, for many notes at once (2026-11-09)
+
+The selection acts on many notes at once — archive, move, trash, pin, favourite, colour, permanent
+deletion — under the rules one note had:
+
+- **A vault note of a closed vault is selected only once its vault is opened**, and the gesture checks
+  every note again when it runs, on a fresh read: one protected note of a closed vault holds back the
+  whole gesture until its secret is given. Trashing, deleting or archiving needs no key, so this check
+  is what keeps whoever gets past the app lock from touching a closed vault's notes from the list.
+- **Sealed notes leave their vault only after the editor's question**, asked again by the database
+  layer inside the move's transaction; a closed vault as destination asks for its own secret first.
+- **One gesture writes all the selected notes or none** (one transaction): a vault closing halfway
+  rolls back what was already written.
+- Archiving writes one flag; it touches neither a note's content nor its sealed blob.
+
+Permissions, storage and encryption are those of 3.2.2.
 
 ## v3.2.2 — other apps' text actions in Compose fields (2026-10-31)
 

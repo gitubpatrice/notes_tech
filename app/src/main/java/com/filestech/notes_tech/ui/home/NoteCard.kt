@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Folder
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,12 +72,20 @@ import com.filestech.notes_tech.ui.theme.SemanticColors
  *
  * `null` retire le modificateur — donc l'action, donc l'annonce.
  *
- * ## [onLongClick]: the note's actions (3.1.0)
+ * ## [onLongClick]: the selection (3.3.0; the note's actions sheet in 3.1.0)
  *
  * On the SAME node as the click, for the reason given below for the click: an action set on a child
  * does not reach the merged node, and TalkBack would never offer it. `onLongClickLabel` is what it
- * reads ("double-tap and hold to …"); without it the gesture exists only for those who see. A card
- * that cannot be opened (trash) takes no long press either: its actions are its own buttons.
+ * reads ("double-tap and hold to select"); without it the gesture exists only for those who see. A
+ * card that cannot be opened (trash) takes no long press either: its actions are its own buttons.
+ *
+ * ## [selectionnee]: the card in a list that is selecting (3.3.0)
+ *
+ * `null` outside a selection. `true` / `false` while the list selects: the caller then routes the
+ * tap to the selection, and the card says which way it goes — drawn (a tick and a border in the
+ * theme's primary colour) and to TalkBack (`selected`, and "Select" / "Deselect" as the action's
+ * label). ⚠️ The selected border replaces the red one of a locked note while it is selected; the
+ * padlock in the title row stays, so "locked" is still said.
  */
 @Composable
 fun NoteCard(
@@ -90,6 +100,7 @@ fun NoteCard(
      * cannot know.
      */
     couleur: NoteColor? = null,
+    selectionnee: Boolean? = null,
 ) {
     val verrouillee = note.isLocked
     val couleurs = MaterialTheme.colorScheme
@@ -141,6 +152,7 @@ fun NoteCard(
         shape = RoundedCornerShape(12.dp),
         color = teinte?.fond ?: couleurs.surfaceContainerLow,
         border = when {
+            selectionnee == true -> BorderStroke(2.5.dp, couleurs.primary)
             // Le liseré rouge d'une note verrouillée est le même signal que le cadenas du tiroir :
             // deux repères pour la même chose, l'un lisible de loin, l'autre à la lecture.
             // ⚠️ It wins over a colour (a vault note's, shown while its vault is open): "locked"
@@ -159,7 +171,15 @@ fun NoteCard(
                     when {
                         onClick != null && onLongClick != null -> Modifier.combinedClickable(
                             role = Role.Button,
-                            onLongClickLabel = stringResource(R.string.note_actions_label),
+                            // In a selection the tap selects: said so, instead of TalkBack's "activate".
+                            onClickLabel = when (selectionnee) {
+                                null -> null
+                                true -> stringResource(R.string.note_deselect)
+                                false -> stringResource(R.string.note_select)
+                            },
+                            onLongClickLabel = stringResource(
+                                if (selectionnee == true) R.string.note_deselect else R.string.note_select,
+                            ),
                             onLongClick = onLongClick,
                             onClick = onClick,
                         )
@@ -167,10 +187,21 @@ fun NoteCard(
                         else -> Modifier
                     },
                 )
-                .semantics(mergeDescendants = true) { contentDescription = description }
+                .semantics(mergeDescendants = true) {
+                    contentDescription = description
+                    if (selectionnee != null) selected = selectionnee
+                }
                 .padding(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (selectionnee == true) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = couleurs.primary,
+                        modifier = Modifier.padding(end = 6.dp).size(18.dp),
+                    )
+                }
                 if (verrouillee) {
                     Icon(
                         imageVector = Icons.Outlined.Lock,

@@ -4,7 +4,7 @@
 
 🇫🇷 [Version française](README.fr.md)
 
-**v3.2.2 — October 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
+**v3.3.0 — November 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
 
 Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpack Compose.
 **100% local, no Internet permission.** Interface in **English, French, German, Italian and
@@ -19,6 +19,22 @@ sensitive or dense notes without them ever leaving their phone.
 technically unable to send anything, and you can check that in its manifest.**
 
 ---
+
+## What's new in 3.3.0
+
+Suggested in [#48](https://github.com/gitubpatrice/notes_tech/issues/48).
+
+- **Archive**: a new entry in the menu, next to the Trash. An archived note leaves its folder, "All
+  notes", the favourites and the search, and stays in the archive, where it opens and is edited like any
+  other. Archive and Unarchive are also in a note's ⋮ menu.
+- **Select several notes**: a long press selects a note, a tap adds others — or "Select all". Then
+  archive, move, trash (with Undo), pin, mark as favourite, colour or delete permanently, all at once.
+  One gesture writes all the selected notes or none of them. A vault note is selected only once its
+  vault is open; moving sealed notes out of their vault asks the same question as the editor.
+- **The cursor where you write**: a new note, or one opened with Edit, gets the cursor in its body and
+  the keyboard at once, without a tap.
+- The long press of 3.1.0 (edit, trash, delete permanently) is now the selection's: with one note
+  selected, "Edit" is in its ⋮ menu.
 
 ## What's new in 3.2.2
 

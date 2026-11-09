@@ -42,6 +42,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -101,12 +102,14 @@ class EditeurTest {
     private val sorties = mutableListOf<Unit>()
     private val titres = mutableListOf<String>()
     private val contenus = mutableListOf<String>()
+    private val curseurs = mutableListOf<TextRange>()
     private val dictees = mutableListOf<Unit>()
     private val insertionsDeLien = mutableListOf<Unit>()
     private val epingles = mutableListOf<Boolean>()
     private val favoris = mutableListOf<Boolean>()
     private val infos = mutableListOf<Unit>()
     private val deplacements = mutableListOf<Unit>()
+    private val archivages = mutableListOf<Boolean>()
     private val couleurs = mutableListOf<Unit>()
     private val exports = mutableListOf<Unit>()
     private val copies = mutableListOf<Unit>()
@@ -126,6 +129,9 @@ class EditeurTest {
     /** Held here, as the Route holds it: "Edit" and the tick really switch the screen. */
     private val lectureCourante = mutableStateOf(false)
 
+    /** Held here too, as the Route holds `clavierALOuverture`: given once, then given back. */
+    private val ecritureAOuverture = mutableStateOf(false)
+
     private var pose = false
 
     /** @param hauteurDeFenetre the screen laid out in a window this tall; the whole activity if `null`. */
@@ -135,6 +141,7 @@ class EditeurTest {
         dicteeActive: Boolean = false,
         lecture: Boolean = false,
         hauteurDeFenetre: Dp? = null,
+        ecrireALOuverture: Boolean = false,
     ) {
         if (pose) {
             regle.runOnIdle {
@@ -142,6 +149,7 @@ class EditeurTest {
                 liensCourants.value = liens
                 dicteeCourante.value = dicteeActive
                 lectureCourante.value = lecture
+                ecritureAOuverture.value = ecrireALOuverture
             }
             regle.waitForIdle()
             return
@@ -150,6 +158,7 @@ class EditeurTest {
         liensCourants.value = liens
         dicteeCourante.value = dicteeActive
         lectureCourante.value = lecture
+        ecritureAOuverture.value = ecrireALOuverture
         pose = true
         regle.setContent {
             NotesTechTheme {
@@ -161,13 +170,17 @@ class EditeurTest {
                         dicteeActive = dicteeCourante.value,
                         onQuitter = { sorties += Unit },
                         onTitreChange = { titres += it.text },
-                        onContenuChange = { contenus += it.text },
+                        onContenuChange = {
+                            contenus += it.text
+                            curseurs += it.selection
+                        },
                         onDicter = { dictees += Unit },
                         onInsererUnLien = { insertionsDeLien += Unit },
                         onEpingler = { epingles += it },
                         onFavori = { favoris += it },
                         onInfos = { infos += Unit },
                         onDeplacer = { deplacements += Unit },
+                        onArchiver = { archivages += it },
                         onCouleur = { couleurs += Unit },
                         onExporter = { exports += Unit },
                         onCopier = { copies += Unit },
@@ -186,6 +199,8 @@ class EditeurTest {
                         },
                         onLienDeLApercu = { liensDeLApercu += it },
                         rechercheALOuverture = null,
+                        ecrireALOuverture = ecritureAOuverture.value,
+                        onEcritureOuverte = { ecritureAOuverture.value = false },
                     )
                 }
             }
@@ -708,6 +723,43 @@ class EditeurTest {
     }
 
     /**
+     * 🔴 Issue #48 (3.3.0): a note that OPENS on the writing side — blank, or by the selection's "Edit" —
+     * gets the cursor in its body, at the end, without a tap. The control first: the same blank note,
+     * not asked to, leaves the focus where it was — so the assertion that follows does measure the ask.
+     */
+    @Test
+    fun a_note_opened_to_be_written_gets_the_cursor_in_its_body_at_once() {
+        poser(noteChargee(corps = ""))
+        regle.waitForIdle()
+        assertThat(regle.runOnUiThread { champDuCorpsDe(regle.activity)?.hasFocus() }).isFalse()
+
+        poser(noteChargee(corps = "To be continued"), ecrireALOuverture = true)
+        regle.waitUntil(DELAI_DU_FOCUS_MS) {
+            regle.runOnUiThread { champDuCorpsDe(regle.activity)?.hasFocus() } == true
+        }
+        // At the END: "Edit" means "go on writing", as the reading's button does.
+        assertThat(curseurs).contains(TextRange("To be continued".length))
+        // Given back: a later recomposition does not bring the keyboard again.
+        assertThat(ecritureAOuverture.value).isFalse()
+    }
+
+    /** The ⋮ menu's "Archive" (3.3.0) says what it will do, and gives the screen the value to write. */
+    @Test
+    fun the_menu_archives_a_note_and_unarchives_an_archived_one() {
+        poser(noteChargee())
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_more)).performClick()
+        regle.onNodeWithText(texte(R.string.note_unarchive)).assertDoesNotExist()
+        regle.onNodeWithText(texte(R.string.note_archive)).performClick()
+        assertThat(archivages).containsExactly(true)
+
+        poser(noteChargee(archivee = true))
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_more)).performClick()
+        regle.onNodeWithText(texte(R.string.note_archive)).assertDoesNotExist()
+        regle.onNodeWithText(texte(R.string.note_unarchive)).performClick()
+        assertThat(archivages).containsExactly(true, false).inOrder()
+    }
+
+    /**
      * Reading shows the title as a heading, no field — so no cursor and no keyboard —, keeps the ⋮
      * menu, and drops the writing tools: tick, microphone, link.
      */
@@ -893,11 +945,12 @@ class EditeurTest {
         titre: String = TITRE_DE_LA_NOTE,
         epinglee: Boolean = false,
         corps: String = CORPS_DE_LA_NOTE,
+        archivee: Boolean = false,
     ) = EditorUiState(
         loading = false,
         titre = TextFieldValue(titre),
         content = TextFieldValue(corps),
-        note = note("a").copy(pinned = epinglee),
+        note = note("a").copy(pinned = epinglee, archived = archivee),
         folder = dossier(),
         originalTitle = titre,
         originalContent = corps,
