@@ -14,9 +14,12 @@ faire, nommé un par un, avec sa raison.
 
 Trois pièges que ce script évite
 --------------------------------
-1. **Une hypothèse non remplie est comptée comme un ÉCHEC dans le XML d'AGP**, pas comme un test
-   ignoré (mesuré le 2026-10-29 : `skipped="0"`, et les `AssumptionViolatedException` sous
-   `<failure>`). Il faut donc lire la cause de chaque échec ; le total ne dit rien.
+1. **Une hypothèse non remplie n'a pas la même forme selon la version d'AGP.** Jusqu'à AGP 9.4, un
+   ÉCHEC (mesuré le 2026-10-29 : `skipped="0"`, et les `AssumptionViolatedException` sous
+   `<failure>`) ; depuis AGP 9.5, un `<skipped>` dont le TEXTE porte l'exception et sa pile (mesuré
+   le 2026-11-09, PR #51 — ce script, qui ne lisait que `<failure>`, a alors jugé « sans raison » les
+   onze sauts admis). Les deux formes sont lues, et dans les deux la cause se lit ; le total ne dit
+   rien. Un `<skipped>` sans hypothèse levée — un `@Ignore`, un saut sans raison — n'est jamais admis.
 2. **Un test ignoré n'est pas un test vert** (`docs/04-PIEGES.md` §45). Seules les raisons de
    [RAISONS_ADMISES] passent ; toute autre hypothèse levée fait échouer le contrôle — une nouvelle
    raison s'ajoute ici, en revue, jamais par défaut.
@@ -42,6 +45,7 @@ import pathlib
 import sys
 import tempfile
 import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape
 
 # 501 cas le 2026-10-29. Un plancher, pas un compte exact : retirer des tests le fait baisser ici,
 # dans le même commit.
@@ -73,10 +77,24 @@ def lire(dossier: pathlib.Path) -> list[tuple[str, str, str | None]]:
             if echec is None:
                 echec = element.find("error")
             texte = None if echec is None else (echec.get("message") or "") + "\n" + (echec.text or "")
-            if element.find("skipped") is not None:
-                texte = "AssumptionViolatedException: <skipped>"
+            sautee = element.find("skipped")
+            if sautee is not None:
+                texte = raison_du_saut(sautee)
             cas.append((element.get("classname", ""), element.get("name", ""), texte))
     return cas
+
+
+def raison_du_saut(sautee: ET.Element) -> str:
+    """Pourquoi un test a été sauté, tel que le XML le dit — cf. le premier piège.
+
+    AGP 9.5 met l'hypothèse levée, exception et pile, dans le texte du `<skipped>`. Un saut qui n'en
+    porte pas n'a rien à juger : il est rendu sans le mot `AssumptionViolatedException`, donc compté
+    comme un échec, même si son texte cite une raison admise.
+    """
+    raison = ((sautee.get("message") or "") + "\n" + (sautee.text or "")).strip()
+    if "AssumptionViolatedException" in raison:
+        return raison
+    return f"<skipped> sans hypothèse levée : {raison or 'aucune raison'}"
 
 
 def juger(cas: list[tuple[str, str, str | None]]) -> list[str]:
@@ -116,13 +134,20 @@ def resumer(cas: list[tuple[str, str, str | None]]) -> str:
 # ── Contrôle négatif ────────────────────────────────────────────────────────────────────────────
 
 
+class Saut(str):
+    """Dans l'auto-contrôle, un cas écrit en `<skipped>` (AGP 9.5) au lieu de `<failure>` (AGP 9.4)."""
+
+
 def _xml(cas: list[tuple[str, str, str | None]]) -> str:
     lignes = ['<?xml version="1.0" encoding="UTF-8"?>', "<testsuites><testsuite>"]
     for classe, test, texte in cas:
         if texte is None:
             lignes.append(f'<testcase name="{test}" classname="{classe}"/>')
         else:
-            lignes.append(f'<testcase name="{test}" classname="{classe}"><failure>{texte}</failure></testcase>')
+            balise = "skipped" if isinstance(texte, Saut) else "failure"
+            lignes.append(
+                f'<testcase name="{test}" classname="{classe}"><{balise}>{escape(texte)}</{balise}></testcase>',
+            )
     lignes.append("</testsuite></testsuites>")
     return "\n".join(lignes)
 
@@ -142,6 +167,20 @@ def auto_controle() -> int:
             False,
         ),
         "trop peu de tests": (ordinaires[:10] + [temoin_ok], False),
+        # AGP 9.5 : l'hypothèse dans le texte d'un <skipped>, suivie de sa pile.
+        "AGP 9.5 : raison admise dans un <skipped>": (
+            ordinaires + [temoin_ok, ("com.x.VoixTest", "v", Saut(admis[2] + "\n\tat org.junit.Assume.assumeTrue"))],
+            True,
+        ),
+        "AGP 9.5 : raison non admise dans un <skipped>": (
+            ordinaires + [temoin_ok, ("com.x.ATest", "i", Saut("org.junit.AssumptionViolatedException: autre"))],
+            False,
+        ),
+        "AGP 9.5 : <skipped> vide": (ordinaires + [temoin_ok, ("com.x.ATest", "i", Saut(""))], False),
+        "AGP 9.5 : @Ignore qui cite une raison admise": (
+            ordinaires + [temoin_ok, ("com.x.ATest", "i", Saut("no biometric enrolled on this device"))],
+            False,
+        ),
     }
     rate = []
     with tempfile.TemporaryDirectory() as dossier:

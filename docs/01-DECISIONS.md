@@ -419,6 +419,11 @@ vérité pour l'état d'une même application.
 **Écarté** : DataStore, qui est l'API moderne et que le projet embarque déjà. Le coût de la
 migration l'emporte sur le bénéfice, et la dépendance reste pour la phase 7.
 
+**Dépendance retirée le 2026-11-09** : la phase 7 (dictée) s'est faite sans elle, et rien dans le code
+ne l'a jamais importée. R8 en retirait le code Java, mais chaque APK embarquait encore sa bibliothèque
+native (`lib/<abi>/libdatastore_shared_counter.so`, lu dans la 3.3.0 publiée) et Dependabot en
+proposait les montées de version (#34). Les réglages restent où ce choix les a mis.
+
 ⚠️ **Les formats ont été LUS dans le greffon** (`shared_preferences_android-2.4.26`, version figée
 par `pubspec.lock`), pas supposés. Le piège cher : `setInt` écrit un **`putLong`**. Le délai
 d'auto-verrouillage des coffres est un `int` ; `getInt` aurait levé `ClassCastException` au premier
