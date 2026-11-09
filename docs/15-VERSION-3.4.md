@@ -67,8 +67,11 @@
   autres applis et classifieur coupés, langue choisie, thème, clavier sans apprentissage.
 - Rien n'est écrit pendant une panique en cours (`PanicJournal.isPending`) : le texte reste à l'écran.
 - Ouverte par la **tuile des réglages rapides** et le **raccourci** « Dépôt rapide ». Si le TÉLÉPHONE est
-  verrouillé, Android demande d'abord son déverrouillage (`unlockAndRun`) — seul le verrou de Notes Tech
-  est contourné (Patrice).
+  verrouillé, Android demande d'abord son déverrouillage — seul le verrou de Notes Tech est contourné
+  (Patrice). Depuis Android 14 par le `PendingIntent` de `startActivityAndCollapse`, qui attend le
+  déverrouillage ; avant, par `unlockAndRun` (voir « Tuile » dans l'état).
+- La tuile est **« active »** (`ACTIVE_TILE`) : liée au toucher seulement, jamais parce que le volet
+  l'affiche.
 - La note va dans la **Boîte de réception**, jamais dans un coffre ; fenêtre protégée (pas de capture,
   pas d'aperçu dans les applis récentes) ; clavier sans apprentissage selon D-040.
 - Pas de brouillon gardé hors de l'écran : quitter sans déposer ne laisse rien (confirmation si du texte
@@ -147,13 +150,35 @@
 >   `FichierDeNoteScelleeTest`, `ReglagesTest` avec la ligne du clavier (2 échecs de la suite complète :
 >   le nouvel interrupteur, « Jamais » descendu sous l'écran). 106 cas des classes touchées verts sur le S9.
 >
+> **Tuile — deux défauts trouvés et corrigés après la fusion de #53 (essais du 2026-11-09 au soir)** :
+> - **M6 mesuré** (ma première mesure visait un paquet inexistant, `.debug` au lieu de `.next.debug` : sa
+>   conclusion « One UI 2 refuse `add-tile` » était fausse). Tuile ajoutée, processus tué : **le seul volet
+>   des notifications** le redémarrait (S9 : `[]` → `[26370]`), donc purgeait `cache/exports` — un `.ntnote`
+>   ou un export encore attendu par l'appli destinataire pouvait disparaître. **Corrigé** : tuile
+>   `ACTIVE_TILE`, liée au toucher seulement ; état « au repos » posé à l'ajout et à chaque liaison.
+>   Mesuré ensuite : volet ouvert sans démarrage du processus sur le S9 (Android 10), un émulateur
+>   Android 11 et un Android 16 ; la tuile s'affiche normalement (icône, « Dépôt rapide », au repos).
+> - **Tuile touchée TÉLÉPHONE VERROUILLÉ : le dépôt ne s'ouvrait jamais sur Android 16** (jamais essayé
+>   jusque-là). Le code était demandé, puis le téléphone se déverrouillait sur l'écran d'accueil : le
+>   rappel d'`unlockAndRun` ne revenait pas. Même résultat avec l'ancienne tuile (non active) : défaut de
+>   la 3.4.0 fusionnée, pas de la correction de M6. **Corrigé** : depuis Android 14, plus
+>   d'`unlockAndRun` — `startActivityAndCollapse(PendingIntent)` attend lui-même le déverrouillage.
+>   Mesuré sur émulateur Android 16, code 1111 : code demandé, dépôt lancé APRÈS le déverrouillage ; sans
+>   le code (demande refermée) rien ne s'ouvre, ni ne se lance plus tard. Sur émulateur Android 11, avec
+>   la tuile active, `unlockAndRun` marche : code, puis dépôt.
+>
+> **S24 (Android 16, One UI 8, accord de Patrice du 2026-11-09)** : suite instrumentée complète sur la build
+> fusionnée — 589 cas, 585 réussis, 3 ignorés, 1 échec. Ignoré à part : `AppLockKeysTest` (une empreinte
+> est enregistrée). Le témoin du Keystore matériel PASSE, comme il le doit sur un vrai téléphone. L'échec :
+> `RechercheDeBoutEnBoutTest.depuis_l_ecran_de_recherche` (la note cherchée n'apparaît pas en 15 s) — le
+> test tape pendant que le clavier Samsung démarre (l'écran de recherche le demande à l'ouverture ;
+> « getTextBeforeCursor on inactive InputConnection »), le test jumeau sans clavier automatique passe en
+> 1,5 s, et la classe passe 3 fois sur 3 sur émulateur Android 16 (Gboard), sur le S9 et en CI. Une
+> seconde exécution sur le S24 a été refusée par le garde-fou : **à confirmer à la main sur le S24**
+> (chercher un mot dans l'écran de recherche). Les tests du presse-papiers y laissent des textes d'essai
+> dans l'historique Samsung.
+>
 > **Limites connues (non corrigées, consignées)** :
-> - **M6** : la tuile (non « active ») fait lier le service, donc démarrer le processus, à chaque ouverture
->   du volet où elle est visible ; le démarrage purge `cache/exports`. Un `.ntnote` (ou un export) partagé
->   vers une appli qui le lirait plus tard, Notes Tech tuée entre-temps, peut disparaître. Rare, sans perte
->   (l'envoi échoue, on repartage). Non mesuré : One UI 2 (S9) refuse `cmd statusbar add-tile`. Pistes :
->   `ACTIVE_TILE` (état affiché à vérifier selon les versions) ou purge au premier écran plutôt qu'au
->   démarrage du processus (touche la purge du clair : à peser).
 > - Mes fichiers (Samsung) n'ouvre pas `.ntnote` (type vide, il conclut seul) ; le menu « Ouvrir une note
 >   scellée » marche partout.
 > - Le partage reçu (3.2.0) lit encore sans délai qui ferme le flux : à durcir plus tard.
@@ -173,9 +198,10 @@
   — rien d'autre n'est appelé —, panique en cours, échec qui garde le texte, limites). Sur le S9, **avec
   le verrou de l'appli activé** (code posé pour l'essai) : dépôt par le raccourci sans code, l'appli
   demande toujours son code à l'ouverture, la note est dans la Boîte de réception ; la tuile
-  (`cmd statusbar add-tile` / `click-tile`) ouvre le dépôt. **Non essayé sur appareil** : la tuile
-  téléphone verrouillé (`unlockAndRun`) — le S9 n'a pas de code d'écran, en poser un change un réglage
-  global.
+  (`cmd statusbar add-tile` / `click-tile`) ouvre le dépôt. La tuile téléphone verrouillé, essayée plus
+  tard sur émulateurs (Android 11 et 16, code posé) : défaut trouvé et corrigé, voir « Tuile » ci-dessus.
+  **Non essayé sur un vrai téléphone verrouillé** (le S9 n'a pas de code d'écran ; le S24 est celui de
+  Patrice).
 - [x] **D-043 durée de vie** — données (`3ac16da`) : schéma 11, migration 10 → 11 additive, vérifiée par le
   script de CI et sur le S9 (`MigrationVersDixTest`, dont le chemin réel d'une base de la 3.3.0) ; purge =
   le DELETE de « Supprimer définitivement » ; export ZIP et sauvegarde les excluent. Interface : menu ⋮ de
