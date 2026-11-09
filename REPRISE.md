@@ -54,9 +54,22 @@ APRÈS la release** — fait, voir plus bas.
   > built it.
   >
   > Thanks again!
+- **Dépendances, le même soir — PR #51 fusionnée** (`63ad695`, Patrice : « update tout bien sûr »,
+  « regroupe tout ») : AGP 9.5.0, wrapper Gradle 9.8.2 (somme = celle de Gradle ET du
+  `gradle-transparency-log` de F-Droid), SQLCipher 4.20.0 (SQLite 3.54.1), Markdown 0.7.18 ; les PR
+  Dependabot #46, #35, #47, #32 fermées (reprises dans #51). **DataStore RETIRÉ, pas monté** (#34
+  fermée) : jamais importé (D-015), il laissait `libdatastore_shared_counter.so` dans chaque APK.
+  `THIRD_PARTY_NOTICES` relu sur le classpath résolu (il était faux : `androidx.sqlite` 2.7.0, Okio,
+  DocumentFile, Transition). Essai sur le S9 par-dessus la 3.3.0 publiée : notes, recherche FTS5 (index
+  écrit par l'ancien SQLite), archive, suppression ; puis la 3.3.0 publiée remise.
+  **Piège vu** : AGP 9.5 écrit une hypothèse non remplie en `<skipped>` (raison dans le TEXTE), AGP 9.4
+  en `<failure>` — le juge `tools/check-instrumented-results.py` refusait les 11 sauts admis ; corrigé
+  (`78b73ac`, 4 scénarios négatifs de plus), sans rien admettre de neuf.
 - **Ensuite** : vérifier que F-Droid sert la 3.3.0 (API `packages/com.filestech.notes_tech`, journal de
-  build si en retard) ; idées gardées pour plus tard : export ZIP de la sélection, filtre par couleur,
-  raccourci « Nouvelle note » sur l'icône.
+  build si en retard). **Avant le PROCHAIN tag** : une build F-Droid locale (`fdroid build` dans WSL,
+  cf. `tools/fdroid-repro/` de SMS Tech) — aucune appli Files Tech n'a encore été construite par F-Droid
+  sous AGP 9.5. Idées gardées pour plus tard : export ZIP de la sélection, filtre par couleur, raccourci
+  « Nouvelle note » sur l'icône.
 
 ## Précédemment (écrit le 2026-10-31 au soir) — la 3.2.2 est PUBLIÉE
 
