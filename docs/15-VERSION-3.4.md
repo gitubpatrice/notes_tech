@@ -157,7 +157,21 @@
   effacée à la fermeture ; contrôle, choisie dans la session ; témoin sans durée), `EditeurTest` (36),
   `RechercheDansLaNoteEcranTest` (5), `FermetureDuCoffreTest` (9), `LiensDansUnCoffreTest` (3),
   `GestesSurDesNotesTest` (14), `AccueilTest` (20) — 0 échec.
-- [ ] D-044 scellée
+- [x] **D-044 scellée** — format (`e1c18e9`) : `FichierDeSauvegarde` paramétré (magie, borne ; la
+  sauvegarde inchangée, ses tests aussi), `FichierDeNoteScellee` (`NTSEALED`, 4 Mio, JSON, seul un code
+  ouvre). Envoi et réception (`9464509`) : feuille « Partager scellée… » (fichier `note-AAAAMMJJ.ntnote`
+  — le nom ne dit rien de la note —, code affiché une fois, copie par le presse-papiers sensible),
+  activité « Ouvrir avec » exportée et menu « Ouvrir une note scellée », dépôt en mémoire, code demandé
+  une fois l'appli déverrouillée. L'affichage du code passe dans `ui/common/CodeAffiche`, partagé avec la
+  sauvegarde. Tests : `FichierDeNoteScelleeTest` (6, S9), `LectureScelleeTest` (4, JVM : un autre fichier
+  est abandonné à ses premiers octets). **De bout en bout sur le S9** : note créée, scellée en lecture
+  unique (201 octets, `NTSEALED`, le texte absent du fichier), poussée dans Téléchargements, ouverte par
+  le menu de l'accueil ; un faux code refusé (« Code incorrect, ou fichier abîmé ») ; le bon, tapé en
+  minuscules avec des espaces, ouvre la note dans la Boîte de réception avec l'annonce de la lecture
+  unique ; refermée, elle s'efface — seule l'originale reste. Puis « Durée de vie… » → « 1 heure » sur
+  l'originale : message « Durée de vie : 1 heure », badge « 1 h » sur la carte. **Non essayé sur
+  appareil** : « Ouvrir avec » depuis une messagerie (l'activité exportée) — à faire avec une vraie
+  messagerie, ou au moins un gestionnaire de fichiers.
 - [ ] Textes 5 langues · [ ] version 3.4.0 (507) · [ ] journaux 5071-5073 · [ ] README, SECURITY, CGU/confidentialité
 - [ ] Audits (3 axes, sécurité des nouvelles entrées, i18n, cohérence) · [ ] relecture externe · [ ] S9 · [ ] CI
 - [ ] Avant le tag : build F-Droid sous AGP 9.5 (voir d'abord comment F-Droid a construit SMS 1.30.0)
