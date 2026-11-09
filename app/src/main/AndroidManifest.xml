@@ -102,6 +102,7 @@
           3.4.0 (D-042) — the quick settings tile of the blind drop. Exported for the system only:
           `BIND_QUICK_SETTINGS_TILE` is held by the system UI, no app can bind it. A permission REQUIRED
           of the caller, not one the app asks for: the app's own permissions do not change.
+          ACTIVE: bound when tapped, not whenever the panel shows it — see `TuileDeDepot`.
         -->
         <service
             android:name=".ui.depot.TuileDeDepot"
@@ -112,6 +113,9 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.ACTIVE_TILE"
+                android:value="true" />
         </service>
 
         <!--
