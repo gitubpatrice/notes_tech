@@ -120,8 +120,8 @@ class NotesDatabaseFactory(
     /**
      * `PRAGMA cipher_compatibility = 4` avant le calage de la clé.
      *
-     * Défensif et assumé comme tel : la 4.16 utilise déjà le format v4 par défaut, donc ce pragma
-     * ne change rien **aujourd'hui**. Il protège d'une montée de version majeure de SQLCipher qui
+     * Défensif et assumé comme tel : toute la série 4.x (4.20 aujourd'hui) utilise déjà le format v4
+     * par défaut, donc ce pragma ne change rien **aujourd'hui**. Il protège d'une montée de version majeure de SQLCipher qui
      * passerait au format v5 en silence — auquel cas les bases existantes deviendraient
      * illisibles sans le moindre avertissement. La version Flutter pose le même pragma pour la
      * même raison (`database.dart:474`).

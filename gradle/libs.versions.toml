@@ -1,7 +1,7 @@
 [versions]
-# Build toolchain — the one Agenda Tech and App Manager Tech run (AGP 9.4.1 / Kotlin 2.4.10 / KSP 2.3.12
-# / JDK 17). AGP 9 compiles Kotlin itself: there is no `org.jetbrains.kotlin.android` plugin any more.
-agp = "9.4.1"
+# Build toolchain — AGP 9.5.0 (as SMS Tech since 2026-11-05; needs Gradle 9.6.0 or later) / Kotlin 2.4.10 /
+# KSP 2.3.12 / JDK 17. AGP 9 compiles Kotlin itself: there is no `org.jetbrains.kotlin.android` plugin any more.
+agp = "9.5.0"
 # Capped below 2.4.20: CodeQL 2.27 refuses to compile from there ("currently supports versions below
 # 2.4.20", measured on Agenda Tech). This is the EXACT compiler version: the root build.gradle.kts pins
 # the Kotlin Gradle Plugin to it with `strictly`, since AGP 9 would otherwise bring its own.
@@ -15,7 +15,6 @@ activity-compose = "1.13.0"
 lifecycle = "2.11.0"
 navigation-compose = "2.10.2"
 room = "2.8.5"
-datastore = "1.1.1"
 splashscreen = "1.2.0"
 # The app lock's fingerprint / face unlock (D-023). Same version as Agenda Tech and SMS Tech: 1.1.0 is
 # the last stable release, and the two portfolio apps that ship it have measured its pitfalls
@@ -30,8 +29,10 @@ coroutines = "1.11.0"
 
 # SQLCipher — même artefact que celui embarqué par `sqflite_sqlcipher` côté Flutter, qui est en
 # 4.10.0. Le format de fichier est stable sur toute la série 4.x et `PRAGMA cipher_compatibility = 4`
-# est posé explicitement à l'ouverture : une base écrite par la 4.10 s'ouvre avec la 4.16.
-sqlcipher = "4.16.0"
+# est posé explicitement à l'ouverture : une base écrite par la 4.10 s'ouvre avec la 4.20
+# (`LegacyDatabaseOpeningTest`, instrumenté). 4.19.1 change ce que rend `getColumnType` pour NULL :
+# rien ici ne le lit, Room passe par `isNull`.
+sqlcipher = "4.20.0"
 
 # Bouncy Castle — uniquement pour `Argon2BytesGenerator` (RFC 9106), qui n'a pas d'équivalent
 # dans la plateforme. On utilise l'API bas niveau `org.bouncycastle.crypto.*`, PAS le fournisseur
@@ -43,7 +44,7 @@ timber = "5.0.1"
 
 # The Markdown preview's parser (D-024): pure Kotlin, Apache 2.0, a single dependency on
 # kotlin-stdlib. Only the GFM parser is used; the rendering is written here, in Compose.
-jetbrains-markdown = "0.7.14"
+jetbrains-markdown = "0.7.18"
 
 # Désucrage des bibliothèques de base — `java.time` n'est natif qu'à partir de l'API 26, or le
 # plancher est à 24 (cf. `app/build.gradle.kts`). Sans ça, tout formatage de date écrirait du
@@ -91,7 +92,6 @@ androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 
-androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }

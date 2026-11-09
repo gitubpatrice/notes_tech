@@ -265,6 +265,16 @@ class MarkdownPreviewReaderTest {
         fun `inline HTML and inline math are shown as written`() {
             assertThat(runsOf("<b>x</b> \$a+b\$")).containsExactly(run("<b>x</b> \$a+b\$"))
         }
+
+        /**
+         * `==…==` became a node of the GFM parser in 0.7.15 (highlighting). 2.0.9 has none: it stays
+         * text, delimiters included — a node the reader does not know must not take characters away.
+         */
+        @Test
+        fun `highlighting is shown as written, as 2_0_9 shows it`() {
+            assertThat(runsOf("a ==b== c")).containsExactly(run("a ==b== c"))
+            assertThat(runsOf("**x ==y==**")).containsExactly(run("x ==y==", RunStyle.BOLD))
+        }
     }
 
     @Nested
