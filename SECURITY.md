@@ -2,9 +2,31 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.3.0 — November 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.4.0 — November 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.4.0 — new doors, kept narrow (2026-11-09)
+
+- **Quick drop writes without the app lock.** The lock is a gate on reading — the database opens with no
+  user secret, as since 3.0.0. The drop's activity is not exported (the tile and the shortcut start it as
+  this app), reads nothing, writes one note to the Inbox — never a vault —, holds a protected window, cuts
+  the other apps' text actions and the classifier itself (it can be the first activity of its process),
+  keeps its text out of the saved state, and writes nothing while a panic is pending. The tile asks the
+  phone to be unlocked first.
+- **Launcher shortcuts** land on a non-exported activity that deposits the request in memory;
+  `MainActivity` keeps ignoring what an intent carries; the request runs only once the app is unlocked.
+- **Sealed notes** use the backup's container (Argon2id m=64 MiB t=3, AES-256-GCM, the header as AAD)
+  under their own magic. Only a generated code of 24 signs (120 bits) opens one; it is shown once, kept
+  nowhere, copied only through the sensitive clipboard; the file's name says nothing of the note.
+  Receiving: an exported `VIEW` activity reads only a `content://` of another app, bounded in size
+  (4 MiB) and in time, the magic checked first; nothing is decrypted before the app is unlocked; the
+  typed code never reaches a Bundle; a wrong code and a damaged file look the same; a received note goes
+  to the Inbox, never a vault.
+- **Notes with a lifetime** are erased by the very DELETE of "Delete permanently" (FTS index,
+  `secure-delete`, links); they are left out of the backup and the export; "after reading" erases at the
+  editor's real closing, never on a rotation.
+- **Keyboard**: `IME_FLAG_NO_PERSONALIZED_LEARNING` on every field by default, always on secret fields.
 
 ## v3.3.0 — archive and selection: the vault rules, for many notes at once (2026-11-09)
 

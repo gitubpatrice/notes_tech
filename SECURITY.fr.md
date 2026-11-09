@@ -2,9 +2,33 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.3.0 — novembre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.4.0 — novembre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.4.0 — de nouvelles portes, tenues étroites (2026-11-09)
+
+- **Le dépôt rapide écrit sans le verrou de l'appli.** Le verrou est une barrière de lecture — la base
+  s'ouvre sans secret de l'utilisateur, comme depuis la 3.0.0. L'activité du dépôt n'est pas exportée
+  (la tuile et le raccourci la démarrent au nom de l'appli), ne lit rien, écrit une note dans la Boîte de
+  réception — jamais un coffre —, tient une fenêtre protégée, coupe elle-même les actions de texte des
+  autres applis et le classifieur (elle peut être la première activité de son processus), garde son texte
+  hors de l'état sauvegardé, et n'écrit rien pendant une panique en cours. La tuile demande d'abord le
+  déverrouillage du téléphone.
+- **Les raccourcis de l'icône** arrivent sur une activité non exportée qui dépose la demande en mémoire ;
+  `MainActivity` continue d'ignorer ce que porte un intent ; la demande ne s'exécute qu'appli déverrouillée.
+- **Les notes scellées** reprennent le conteneur de la sauvegarde (Argon2id m=64 Mio t=3, AES-256-GCM,
+  l'en-tête en AAD) sous leur propre magie. Seul un code généré de 24 signes (120 bits) en ouvre une ; il
+  est affiché une fois, gardé nulle part, copié seulement par le presse-papiers sensible ; le nom du
+  fichier ne dit rien de la note. À la réception : une activité `VIEW` exportée ne lit qu'un `content://`
+  d'une autre appli, borné en taille (4 Mio) et en temps, la magie vérifiée d'abord ; rien n'est
+  déchiffré avant le déverrouillage ; le code tapé n'atteint jamais un Bundle ; un code faux et un fichier
+  abîmé se ressemblent ; une note reçue va dans la Boîte de réception, jamais un coffre.
+- **Les notes à durée de vie** sont effacées par le DELETE même de « Supprimer définitivement » (index
+  plein texte, `secure-delete`, liens) ; elles sont exclues de la sauvegarde et de l'export ; « après
+  lecture » efface à la vraie fermeture de l'éditeur, jamais sur une rotation.
+- **Clavier** : `IME_FLAG_NO_PERSONALIZED_LEARNING` sur chaque champ par défaut, toujours sur les champs
+  de secret.
 
 ## v3.3.0 — archives et sélection : les règles des coffres, pour plusieurs notes à la fois (2026-11-09)
 

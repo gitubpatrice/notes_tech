@@ -22,6 +22,10 @@ Notes Tech: notas Markdown 100 % locales, cifradas en reposo. Escrita en Kotlin.
 • Las notas se abren para leer (Markdown: títulos, listas, enlaces); «Editar» para escribir, guardado automático
 • Pulsación larga para seleccionar notas y luego archivarlas, moverlas, enviarlas a la papelera con Deshacer, anclarlas, colorearlas o eliminarlas a la vez
 • Un Archivo para las notas que mantiene fuera de sus listas
+• Notas que se borran solas: tras 1 hora, 24 horas, 7 o 30 días, o tras la lectura
+• Compartir una nota sellada: un archivo cifrado que solo su código abre, enviado con cualquier app
+• Depósito rápido: escribir una nota sin desbloquear la app, desde un mosaico de los ajustes rápidos o los accesos directos del icono
+• Se pide al teclado que no aprenda nada de lo que escribe
 • Un color pastel por nota en las listas (el de una nota de caja fuerte, solo desbloqueada)
 • Retroenlaces <code>[[Título]]</code> con autocompletado y panel «notas que enlazan aquí»
 • Búsqueda FTS5 instantánea, búsqueda en la nota con coincidencias resaltadas, orden configurable
