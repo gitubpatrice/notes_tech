@@ -3,7 +3,15 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, **puis le 2026-11-09**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-11-09) — la 3.3.0 est PUBLIÉE
+## 🧭 À LA REPRISE (écrit le 2026-11-09 au soir) — la 3.4.0 est EN COURS (branche `feat/3.4.0`)
+
+Patrice : « fais 2, 3, 4 ce serait génial pour la 3.4.0 + raccourcis et clavier sans apprentissage »,
+« en intégrant les upgrade AGP aussi » (déjà dans `main`, PR #51). **Spécification, décisions D-040 à
+D-044 et état coché au fur et à mesure : `docs/15-VERSION-3.4.md`** — la lire en premier.
+La release n'est PAS demandée : la proposer à la fin, comme pour la 3.3.0. Avant le tag, regarder
+comment F-Droid a construit SMS 1.30.0 (première build sous AGP 9.5).
+
+## Précédemment (écrit le 2026-11-09) — la 3.3.0 est PUBLIÉE
 
 Issue #48 (koad1x) : trois suggestions. Patrice : « fais les 3 maintenant pour la version 3.3.0,
 proprement, avec vigilance », carte blanche (coder, tester, commiter, fusionner), « tous les audits
