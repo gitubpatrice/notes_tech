@@ -129,25 +129,37 @@
 
 ## État
 
-> **🧭 REPRISE (2026-11-09, ~22 h, avant compaction)** — branche `feat/3.4.0`, dernier commit poussé `9699451`
-> (textes 3.4.0). **NON COMMITTÉ dans l'arbre** (à vérifier par `git status`, puis porte + commit) :
-> 1. corrections i18n (it « nella cartella In arrivo », « Il testo », de demi-cadratin, journal de 5071-5073) ;
-> 2. relecture GPT (0,024 $) : note reçue créée en UN insert (`NotesRepository.create(color, readOnce)`),
->    `LectureScellee` réécrite (une lecture à la fois, fil dédié, délai qui FERME le flux, lecture de 0 octet
->    refusée, `RuntimeException` d'un fournisseur rattrapée), activité scellée simplifiée, test du flux vide ;
-> 3. audit de cohérence (82/100) : C1 `DisposableEffect` → `oublier()` du code ; C4 `onKeyboardNoLearning`
->    sans défaut (+ ReglagesTest, AppLockSettingsScreenTest) ; C5 `SelecteurDeNoteScelleeViewModel` (HomeRoute) ;
->    C6 `DureesDeVie.purgerSansEchec`, forme de `RaccourciActivity` ; C7 KDoc replacés (setArchived, FolderChip,
->    manifeste), références DAO ; C9 « … » retirés de note_lifetime / note_share_sealed ; C10 purge sous
->    `repeatOnLifecycle(STARTED)` ; `ClavierSansApprentissageTest` en règle Compose **v2** (échec du
->    `ComposeTestRulesAreV2Test`).
-> **Reste** : compiler + ktlintFormat + porte locale ; test instrumenté de `NotesScelleesViewModel` (faux code
-> puis bon, lecture unique et couleur posées, pas de doublon) ; résultat de l'audit 3 axes (agent lancé) et de
-> la suite instrumentée complète du S9 (tâche de fond `begohs0pu` : porte exit=1 = le test v2, release OK) ;
-> CI de la branche ; puis PR, fusion, et PROPOSER la release (pas demandée) — avant le tag, voir comment
-> F-Droid a construit SMS 1.30.0 (AGP 9.5). Limite connue : Mes fichiers (Samsung) n'ouvre pas `.ntnote`
-> (type vide, il conclut seul) ; le menu « Ouvrir une note scellée » marche partout. Le partage reçu (3.2.0)
-> a la même lecture sans délai fermant le flux : à durcir plus tard, pas touché.
+> **Audits et relectures (2026-11-09)** — tous appliqués avant la PR, sauf ce que « Limites connues » dit.
+> - **Relecture externe GPT** (0,024 $) : 3 défauts corrigés — note reçue créée en UN insert (couleur et
+>   « après lecture » compris), lecture d'un fichier scellé bornée (une à la fois, fil dédié, flux FERMÉ
+>   passé le délai, lecture de 0 octet refusée, toute `RuntimeException` d'un fournisseur rattrapée).
+> - **Cohérence** (82/100) : C1-C7, C9, C10 appliqués (code oublié à toute sortie de la feuille, rappel du
+>   réglage clavier sans défaut, sélecteur dans son propre ViewModel, `purgerSansEchec`, purge sous
+>   `repeatOnLifecycle(STARTED)`, KDoc replacés, « … » retirés) ; C8 (idiomes d'événement) laissé.
+> - **Traductions** : aucun grave ; 3 moyens corrigés (it, de, journaux de-DE).
+> - **3 axes** : 0 critique, 0 élevé, 7 moyens. M3 déjà corrigé par la relecture externe ; **M4** un second
+>   fichier scellé attend la fin du premier ; **M5** `FLAG_SECURE` dès la première image sur les dialogues
+>   d'un code (les deux scellés ET les trois de la sauvegarde, même défaut : `ProprietesDeDialogueSecret`) ;
+>   **M7** étiquettes et titre d'un fichier fabriqué normalisés comme à l'import ; **M1/M2** l'horloge du
+>   téléphone et le vrai moment de l'effacement « après lecture » dits dans la feuille et SECURITY.
+> - **Tests** : `NotesScelleesRecuesTest` (3 : faux puis bon code → UNE note avec couleur, étiquettes,
+>   lecture unique ; pas de doublon ; le second fichier attend), un fichier fabriqué dans
+>   `FichierDeNoteScelleeTest`, `ReglagesTest` avec la ligne du clavier (2 échecs de la suite complète :
+>   le nouvel interrupteur, « Jamais » descendu sous l'écran). 106 cas des classes touchées verts sur le S9.
+>
+> **Limites connues (non corrigées, consignées)** :
+> - **M6** : la tuile (non « active ») fait lier le service, donc démarrer le processus, à chaque ouverture
+>   du volet où elle est visible ; le démarrage purge `cache/exports`. Un `.ntnote` (ou un export) partagé
+>   vers une appli qui le lirait plus tard, Notes Tech tuée entre-temps, peut disparaître. Rare, sans perte
+>   (l'envoi échoue, on repartage). Non mesuré : One UI 2 (S9) refuse `cmd statusbar add-tile`. Pistes :
+>   `ACTIVE_TILE` (état affiché à vérifier selon les versions) ou purge au premier écran plutôt qu'au
+>   démarrage du processus (touche la purge du clair : à peser).
+> - Mes fichiers (Samsung) n'ouvre pas `.ntnote` (type vide, il conclut seul) ; le menu « Ouvrir une note
+>   scellée » marche partout.
+> - Le partage reçu (3.2.0) lit encore sans délai qui ferme le flux : à durcir plus tard.
+> - Faibles de l'audit laissés : `DepotActivity` garde un brouillon en mémoire après Home (voulu : copier
+>   un numéro ailleurs puis revenir) ; collage de plus de 500 000 caractères ignoré sans message ; l'écran
+>   d'export ne dit pas que les notes à durée de vie en sont exclues ; pas d'index partiel pour la purge.
 
 - [x] **D-040 clavier** (`5e18eab`) — tests instrumentés sur le S9 : `ClavierSansApprentissageTest` (3),
   `ChampDuCorpsTest` +1, `ReglagesHeritesTest` +1, `SaisieDeCoffreTest` inchangé (8) ; la ligne du réglage
@@ -192,6 +204,7 @@
   l'originale : message « Durée de vie : 1 heure », badge « 1 h » sur la carte. **Non essayé sur
   appareil** : « Ouvrir avec » depuis une messagerie (l'activité exportée) — à faire avec une vraie
   messagerie, ou au moins un gestionnaire de fichiers.
-- [ ] Textes 5 langues · [ ] version 3.4.0 (507) · [ ] journaux 5071-5073 · [ ] README, SECURITY, CGU/confidentialité
-- [ ] Audits (3 axes, sécurité des nouvelles entrées, i18n, cohérence) · [ ] relecture externe · [ ] S9 · [ ] CI
-- [ ] Avant le tag : build F-Droid sous AGP 9.5 (voir d'abord comment F-Droid a construit SMS 1.30.0)
+- [x] Textes 5 langues · [x] version 3.4.0 (507) · [x] journaux 5071-5073 · [x] README, SECURITY, confidentialité
+- [x] Audits (3 axes, cohérence, i18n) · [x] relecture externe · [x] S9 (suite complète puis classes touchées) · [ ] CI
+- [ ] Avant le tag : build F-Droid sous AGP 9.5 — au 2026-11-09 au soir, F-Droid n'a construit ni SMS 1.30.0
+  (pas de journal `_307`) ni Notes 3.3.0 : aucune preuve encore ; essai de mise à jour depuis la 3.3.0 sur le S9

@@ -488,15 +488,7 @@ class HomeViewModel @Inject constructor(
      * the next minute tries again.
      */
     fun purgerLesNotesExpirees() {
-        viewModelScope.launch {
-            try {
-                durees.purger()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Timber.w(e, "purge des notes expirees differee")
-            }
-        }
+        viewModelScope.launch { durees.purgerSansEchec() }
     }
 
     /** Purge les notes dont le séjour en corbeille a expiré. Sans effet visible si rien n'expire. */

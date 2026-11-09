@@ -45,6 +45,18 @@ class LectureScelleeTest {
         assertThat(lireBorne(ByteArrayInputStream("NTSE".toByteArray()))).isEqualTo(LectureScellee.PasUneNoteScellee)
     }
 
+    /** A stream that hands nothing back without ever ending — as a hostile provider could. */
+    @Test
+    fun `a stream that gives nothing without ending is refused, not looped on`() {
+        val vide = object : InputStream() {
+            override fun read(): Int = 0
+
+            override fun read(b: ByteArray, off: Int, len: Int): Int = 0
+        }
+
+        assertThat(lireBorne(vide)).isEqualTo(LectureScellee.Illisible)
+    }
+
     /** Counts what is really read. */
     private class FluxCompte(octets: ByteArray) : InputStream() {
         private val entree = ByteArrayInputStream(octets)

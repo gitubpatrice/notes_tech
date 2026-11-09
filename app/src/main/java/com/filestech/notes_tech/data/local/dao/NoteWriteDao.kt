@@ -119,11 +119,11 @@ interface NoteWriteDao {
     @Query("UPDATE notes SET color_id = :colorId, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateColor(id: String, colorId: Int?, updatedAt: Long): Int
 
-    /** D-043 (3.4.0): the note's lifetime — see `NotesRepository.setLifetime`. `updated_at` untouched. */
+    /** D-043 (3.4.0): the note's lifetime — see `DureesDeVie.poser`. `updated_at` untouched. */
     @Query("UPDATE notes SET expires_at = :expiresAt, read_once = :readOnce WHERE id = :id")
     suspend fun updateLifetime(id: String, expiresAt: Long?, readOnce: Boolean): Int
 
-    /** D-043: one DELETE, the one of [deletePermanently] — see `NotesRepository.purgeExpired`. */
+    /** D-043: one DELETE, the one of [deletePermanently] — see `DureesDeVie.purger`. */
     @Query("DELETE FROM notes WHERE expires_at IS NOT NULL AND expires_at <= :now")
     suspend fun deleteExpired(now: Long): Int
 

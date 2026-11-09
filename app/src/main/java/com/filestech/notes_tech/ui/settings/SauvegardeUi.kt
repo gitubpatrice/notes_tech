@@ -46,6 +46,7 @@ import com.filestech.notes_tech.security.sauvegarde.SecretDeSauvegarde
 import com.filestech.notes_tech.security.vault.VaultParams
 import com.filestech.notes_tech.ui.common.CodeAffiche
 import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
+import com.filestech.notes_tech.ui.secure.ProprietesDeDialogueSecret
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.ChampDePhraseSecrete
 import java.time.LocalDate
@@ -186,6 +187,7 @@ private fun DialogueDeCreation(
 
     AlertDialog(
         onDismissRequest = onAnnuler,
+        properties = ProprietesDeDialogueSecret,
         title = { Text(stringResource(R.string.backup_create)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -277,6 +279,7 @@ private fun DialogueDeSecret(@StringRes erreur: Int?, onEssayer: (String) -> Uni
     var secret by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onAnnuler,
+        properties = ProprietesDeDialogueSecret,
         title = { Text(stringResource(R.string.backup_restore)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -322,6 +325,7 @@ private fun DialogueDEssai(
 
     AlertDialog(
         onDismissRequest = onAnnuler,
+        properties = ProprietesDeDialogueSecret,
         title = { Text(stringResource(R.string.backup_restore)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {

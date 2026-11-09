@@ -7,7 +7,6 @@ import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.security.kek.KekFailure
 import com.filestech.notes_tech.security.panic.PanicJournal
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,7 +94,8 @@ class StartupViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 databaseProvider.get()
-                purgerLesNotesExpirees()
+                // D-043 (3.4.0): before anything shows the notes; a failure is not the opening's.
+                durees.purgerSansEchec()
                 _state.value = StartupState.Ready
             } catch (e: KekFailure) {
                 // Pas de `runCatching` ici, et pas de `catch (e: Exception)` : le premier avale
@@ -103,20 +103,6 @@ class StartupViewModel @Inject constructor(
                 // traiterait une erreur de programmation comme un échec métier affichable.
                 _state.value = StartupState.Failed(e.toReason())
             }
-        }
-    }
-
-    /**
-     * D-043 (3.4.0): the notes whose lifetime is over go at the opening, before anything shows them. A
-     * failure is not the opening's: the list purges again every minute.
-     */
-    private suspend fun purgerLesNotesExpirees() {
-        try {
-            durees.purger()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Timber.w(e, "purge des notes expirees differee")
         }
     }
 

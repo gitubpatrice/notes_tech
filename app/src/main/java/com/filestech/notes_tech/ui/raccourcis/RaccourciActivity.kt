@@ -23,10 +23,12 @@ class RaccourciActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Recreated (rotation, process restored): the first instance did it.
-        if (savedInstanceState == null) {
-            raccourciDe(intent?.action)?.let(enAttente::deposer)
-            ouvrirLAppli()
+        if (savedInstanceState != null) {
+            finish()
+            return
         }
+        raccourciDe(intent?.action)?.let(enAttente::deposer)
+        ouvrirLAppli()
         finish()
     }
 

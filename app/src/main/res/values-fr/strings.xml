@@ -383,7 +383,7 @@
     <string name="depot_discard_title">Abandonner ce texte ?</string>
     <string name="depot_discard_body">Il n\'a pas été déposé, et rien ne le garde une fois cet écran fermé.</string>
     <string name="depot_discard_confirm">Abandonner</string>
-    <string name="note_lifetime">Durée de vie…</string>
+    <string name="note_lifetime">Durée de vie</string>
     <string name="lifetime_title">Durée de vie</string>
     <string name="lifetime_none">Aucune — la note reste</string>
     <string name="lifetime_1h">1 heure</string>
@@ -392,7 +392,7 @@
     <string name="lifetime_30d">30 jours</string>
     <string name="lifetime_after_reading">Après lecture</string>
     <string name="lifetime_after_reading_detail">Effacée quand vous la refermez après l\'avoir rouverte.</string>
-    <string name="lifetime_explanation">Effacée pour de bon une fois le délai passé, à la prochaine ouverture de l\'appli ou au retour sur la liste — pas à la seconde près. Elle n\'entre ni dans les sauvegardes ni dans les exports.</string>
+    <string name="lifetime_explanation">Effacée pour de bon une fois le délai passé, à la prochaine ouverture de l\'appli ou au retour sur la liste — pas à la seconde près. Elle n\'entre ni dans les sauvegardes ni dans les exports. Le délai suit l\'horloge du téléphone : avancer la date l\'écourte.</string>
     <string name="lifetime_set">Durée de vie : %1$s</string>
     <string name="lifetime_read_once_notice">Cette note s\'efface quand vous la refermez.</string>
     <string name="lifetime_left_minutes_short">%1$d min</string>
@@ -416,7 +416,7 @@
         <item quantity="many">S\'efface dans %1$d jours</item>
         <item quantity="other">S\'efface dans %1$d jours</item>
     </plurals>
-    <string name="note_share_sealed">Partager scellée…</string>
+    <string name="note_share_sealed">Partager scellée</string>
     <string name="home_open_sealed">Ouvrir une note scellée</string>
     <string name="sealed_title">Note scellée</string>
     <string name="sealed_explanation">La note est chiffrée dans un fichier que seul son code ouvre. Envoyez le fichier par n\'importe quelle appli, et le code par un autre moyen — de vive voix, par SMS : qui a les deux peut la lire.</string>

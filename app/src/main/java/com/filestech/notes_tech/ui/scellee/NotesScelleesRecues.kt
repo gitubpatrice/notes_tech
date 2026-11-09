@@ -1,7 +1,5 @@
 package com.filestech.notes_tech.ui.scellee
 
-import android.content.Context
-import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,20 +25,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.R
-import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.data.scellee.FichierDeNoteScellee
 import com.filestech.notes_tech.data.scellee.FichierDeNoteScellee.NoteScelleeRefuseeException
 import com.filestech.notes_tech.data.scellee.FichierDeNoteScellee.Raison
-import com.filestech.notes_tech.data.scellee.LectureScellee
-import com.filestech.notes_tech.data.scellee.lireUneNoteScellee
-import com.filestech.notes_tech.domain.model.DureeDeVie
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.NoteColor
+import com.filestech.notes_tech.ui.secure.ProprietesDeDialogueSecret
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.ChampDePhraseSecrete
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -83,6 +77,7 @@ private fun DialogueDuCode(etat: NotesScelleesViewModel.Etat.Code, onOuvrir: (St
     SecureWindowGuard(active = true)
     AlertDialog(
         onDismissRequest = { if (!etat.enCours) onAnnuler() },
+        properties = ProprietesDeDialogueSecret,
         title = { Text(stringResource(R.string.sealed_received_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -131,8 +126,6 @@ internal fun Raison.message(): Int = when (this) {
 class NotesScelleesViewModel @Inject constructor(
     private val enAttente: NotesScelleesEnAttente,
     private val notes: NotesRepository,
-    private val durees: DureesDeVie,
-    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     sealed interface Etat {
@@ -147,15 +140,15 @@ class NotesScelleesViewModel @Inject constructor(
     private val _etat = MutableStateFlow<Etat>(Etat.Aucune)
     val etat: StateFlow<Etat> = _etat.asStateFlow()
 
-    // Channels, not SharedFlows: an editor to open, a refusal to say, are not lost when nothing collects yet.
+    // A channel, not a SharedFlow: an editor to open is not lost when nothing collects yet.
     private val ouvertures = Channel<String>(Channel.BUFFERED)
     val aOuvrir: Flow<String> = ouvertures.receiveAsFlow()
-    private val refus = Channel<Int>(Channel.BUFFERED)
-
-    /** A file picked in the app that is no sealed note: said where it was picked. */
-    val refusDuSelecteur: Flow<Int> = refus.receiveAsFlow()
 
     fun prendre() {
+        // 🔴 Not while a file is being opened (3-axes audit of 3.4.0): replaced now, the bytes under
+        // decryption would be zeroed, or the second file erased by the first one's end. It waits in
+        // [enAttente], taken once the first is done.
+        if (enCours()) return
         val pris = enAttente.prendre() ?: return
         octets?.fill(0)
         octets = pris
@@ -164,14 +157,20 @@ class NotesScelleesViewModel @Inject constructor(
 
     fun ouvrir(saisie: String) {
         val fichier = octets ?: return
-        if ((_etat.value as? Etat.Code)?.enCours == true) return
+        if (enCours()) return
         _etat.value = Etat.Code(enCours = true)
         viewModelScope.launch {
             try {
                 val note = withContext(Dispatchers.Default) { FichierDeNoteScellee.ouvrir(fichier, saisie) }
-                val creee = notes.create(Folder.INBOX_ID, note.titre, note.contenu, note.etiquettes)
-                NoteColor.fromId(note.couleur)?.let { notes.setColor(creee.id, it) }
-                if (note.lectureUnique) durees.poser(creee.id, DureeDeVie.APRES_LECTURE)
+                // One INSERT: the note never exists without its "after reading" (external review, 3.4.0).
+                val creee = notes.create(
+                    folderId = Folder.INBOX_ID,
+                    title = note.titre,
+                    content = note.contenu,
+                    tags = note.etiquettes,
+                    color = NoteColor.fromId(note.couleur),
+                    readOnce = note.lectureUnique,
+                )
                 abandonner()
                 ouvertures.send(creee.id)
             } catch (e: CancellationException) {
@@ -182,25 +181,17 @@ class NotesScelleesViewModel @Inject constructor(
                 Timber.w(e, "note scellee non ajoutee")
                 _etat.value = Etat.Code(erreur = Raison.ILLISIBLE)
             }
+            // A file deposited meanwhile — see [prendre].
+            if (enAttente.contenu.value != null) prendre()
         }
     }
+
+    private fun enCours() = (_etat.value as? Etat.Code)?.enCours == true
 
     fun abandonner() {
         octets?.fill(0)
         octets = null
         _etat.value = Etat.Aucune
-    }
-
-    /** The home screen's "Open a sealed note": the picked file, read and deposited as "Open with" does. */
-    fun lireDepuisLeSelecteur(uri: Uri) {
-        viewModelScope.launch {
-            when (val lue = lireUneNoteScellee(context.contentResolver, uri)) {
-                is LectureScellee.Lue -> enAttente.deposer(lue.octets)
-                LectureScellee.PasUneNoteScellee -> refus.send(R.string.sealed_not_a_sealed_note)
-                LectureScellee.TropGrosse -> refus.send(R.string.sealed_too_big)
-                LectureScellee.Illisible -> refus.send(R.string.sealed_error_unreadable)
-            }
-        }
     }
 
     override fun onCleared() {

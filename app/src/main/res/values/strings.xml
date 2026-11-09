@@ -434,7 +434,7 @@
     <string name="depot_discard_title">Discard this text?</string>
     <string name="depot_discard_body">It has not been dropped, and nothing keeps it once this screen is closed.</string>
     <string name="depot_discard_confirm">Discard</string>
-    <string name="note_lifetime">Lifetime…</string>
+    <string name="note_lifetime">Lifetime</string>
     <string name="lifetime_title">Lifetime</string>
     <string name="lifetime_none">None — the note stays</string>
     <string name="lifetime_1h">1 hour</string>
@@ -443,7 +443,7 @@
     <string name="lifetime_30d">30 days</string>
     <string name="lifetime_after_reading">After reading</string>
     <string name="lifetime_after_reading_detail">Erased when you close it after opening it again.</string>
-    <string name="lifetime_explanation">Erased for good once the time is up, at the next opening of the app or return to the list — not to the second. Left out of backups and exports.</string>
+    <string name="lifetime_explanation">Erased for good once the time is up, at the next opening of the app or return to the list — not to the second. Left out of backups and exports. The time follows the phone\'s clock: moving the date forward ends it.</string>
     <string name="lifetime_set">Lifetime: %1$s</string>
     <string name="lifetime_read_once_notice">This note erases itself when you close it.</string>
     <string name="lifetime_left_minutes_short">%1$d min</string>
@@ -464,7 +464,7 @@
         <item quantity="one">Erases itself in %1$d day</item>
         <item quantity="other">Erases itself in %1$d days</item>
     </plurals>
-    <string name="note_share_sealed">Share sealed…</string>
+    <string name="note_share_sealed">Share sealed</string>
     <string name="home_open_sealed">Open a sealed note</string>
     <string name="sealed_title">Sealed note</string>
     <string name="sealed_explanation">The note is encrypted into a file that only its code opens. Send the file by any app, and the code another way — aloud, by text message: whoever has both can read it.</string>

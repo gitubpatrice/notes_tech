@@ -12,9 +12,7 @@ import com.filestech.notes_tech.ui.common.avecLaLangueChoisie
 import com.filestech.notes_tech.ui.common.ouvrirLAppli
 import com.filestech.notes_tech.ui.share.RecevoirUnPartageActivity
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /**
@@ -52,27 +50,19 @@ class OuvrirUneNoteScelleeActivity : ComponentActivity() {
             return
         }
         lifecycleScope.launch {
-            val lecture = async { lireUneNoteScellee(contentResolver, uri) }
-            when (val lue = withTimeoutOrNull(DELAI_MAX_MS) { lecture.await() }) {
+            // Bounded in time, one at a time, on a thread of its own: see `lireUneNoteScellee`.
+            when (val lue = lireUneNoteScellee(contentResolver, uri)) {
                 is LectureScellee.Lue -> {
                     enAttente.deposer(lue.octets)
                     ouvrirLAppli()
                 }
                 LectureScellee.PasUneNoteScellee -> dire(R.string.sealed_not_a_sealed_note)
                 LectureScellee.TropGrosse -> dire(R.string.sealed_too_big)
-                LectureScellee.Illisible, null -> {
-                    lecture.cancel()
-                    dire(R.string.sealed_error_unreadable)
-                }
+                LectureScellee.Illisible -> dire(R.string.sealed_error_unreadable)
             }
             finish()
         }
     }
 
     private fun dire(message: Int) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-
-    private companion object {
-        /** Past this, the reading is dropped: a provider that never answers keeps no window open. */
-        const val DELAI_MAX_MS = 20_000L
-    }
 }

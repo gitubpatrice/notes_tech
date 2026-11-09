@@ -203,6 +203,7 @@ fun SettingsScreen(
     onLocale: (LocalePreference) -> Unit,
     onSort: (NoteSortMode) -> Unit,
     onSecureWindow: (Boolean) -> Unit,
+    onKeyboardNoLearning: (Boolean) -> Unit,
     onAutoLock: (Int) -> Unit,
     onPanic: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -216,7 +217,6 @@ fun SettingsScreen(
     /** A slot, like [ligneDExport]: the encrypted backup's two rows and their dialogs (D-029). */
     lignesDeSauvegarde: @Composable () -> Unit = {},
     sectionDeVerrouillage: @Composable () -> Unit = {},
-    onKeyboardNoLearning: (Boolean) -> Unit = {},
 ) {
     var choixDeTheme by remember { mutableStateOf(false) }
     var choixDeLangue by remember { mutableStateOf(false) }

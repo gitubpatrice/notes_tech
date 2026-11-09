@@ -15,6 +15,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -35,6 +36,7 @@ import com.filestech.notes_tech.data.scellee.NoteScellee
 import com.filestech.notes_tech.security.clipboard.SensitiveClipboard
 import com.filestech.notes_tech.ui.common.CodeAffiche
 import com.filestech.notes_tech.ui.common.partagerUnFichier
+import com.filestech.notes_tech.ui.secure.ProprietesDeDialogueSecret
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -66,10 +68,15 @@ internal fun FeuilleDePartageScelle(note: (lectureUnique: Boolean) -> NoteScelle
         onFermer()
     }
     SecureWindowGuard(active = true)
+    // 🔴 Whatever makes the sheet leave — closed, its note no longer readable (a vault locking), the
+    // screen recreated — the code goes with it (coherence audit of 3.4.0): kept, it showed again, with
+    // the file of the old text, at the next opening. A rotation therefore asks to seal again.
+    DisposableEffect(viewModel) { onDispose { viewModel.oublier() } }
 
     AlertDialog(
         // Not while sealing: the work would go on for a sheet already closed.
         onDismissRequest = { if (etat !is PartageScelleViewModel.Etat.EnCours) fermer() },
+        properties = ProprietesDeDialogueSecret,
         title = { Text(stringResource(R.string.sealed_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -25,8 +25,10 @@ de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
   déchiffré avant le déverrouillage ; le code tapé n'atteint jamais un Bundle ; un code faux et un fichier
   abîmé se ressemblent ; une note reçue va dans la Boîte de réception, jamais un coffre.
 - **Les notes à durée de vie** sont effacées par le DELETE même de « Supprimer définitivement » (index
-  plein texte, `secure-delete`, liens) ; elles sont exclues de la sauvegarde et de l'export ; « après
-  lecture » efface à la vraie fermeture de l'éditeur, jamais sur une rotation.
+  plein texte, `secure-delete`, liens) ; elles sont exclues de la sauvegarde et de l'export. Une durée de
+  vie suit l'horloge du téléphone : avancer la date efface les notes dont elle dépasse le terme. « Après
+  lecture » efface à la fermeture de l'éditeur — retour, ou appli fermée —, jamais sur une rotation ; si
+  Android arrête l'appli avant, la note part à sa fermeture suivante.
 - **Clavier** : `IME_FLAG_NO_PERSONALIZED_LEARNING` sur chaque champ par défaut, toujours sur les champs
   de secret.
 

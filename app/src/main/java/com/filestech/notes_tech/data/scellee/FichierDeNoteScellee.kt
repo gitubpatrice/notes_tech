@@ -4,6 +4,7 @@ import android.util.JsonReader
 import android.util.JsonToken
 import android.util.JsonWriter
 import com.filestech.notes_tech.data.repository.NotesRepository
+import com.filestech.notes_tech.domain.importation.LectureDUnImport
 import com.filestech.notes_tech.domain.importation.LongueurDUneNote
 import com.filestech.notes_tech.security.sauvegarde.FichierDeSauvegarde
 import com.filestech.notes_tech.security.sauvegarde.FichierDeSauvegarde.Refus
@@ -186,7 +187,8 @@ object FichierDeNoteScellee {
         }
         json.endObject()
         if (format != FORMAT || version != VERSION) throw NoteScelleeRefuseeException(Raison.VERSION_INCONNUE)
-        val lu = NoteScellee(titre.orEmpty(), contenu.orEmpty(), couleur, etiquettes, lectureUnique)
+        val lu =
+            NoteScellee(surUneLigne(titre.orEmpty()), contenu.orEmpty(), couleur, propres(etiquettes), lectureUnique)
         val dansLesLimites = lu.titre.length <= NotesRepository.TITLE_MAX_LENGTH &&
             lu.contenu.length <= LongueurDUneNote.CARACTERES_MAX
         if (titre == null || contenu == null || !dansLesLimites) throw NoteScelleeRefuseeException(Raison.ILLISIBLE)
@@ -206,4 +208,25 @@ object FichierDeNoteScellee {
         json.endArray()
         return lues
     }
+
+    /**
+     * 🔴 A file made by hand holds what it likes (3-axes audit of 3.4.0): the tags as the import keeps
+     * them (`LecteurMarkdown`) — split on commas, as they are stored comma-joined, unescaped (`TagCodec`),
+     * so a tag carrying one would come back as two —, each on one line, none empty, none twice.
+     */
+    private fun propres(etiquettes: List<String>): List<String> = etiquettes.asSequence()
+        .flatMap { it.split(',') }.map(::surUneLigne).filter(String::isNotEmpty).distinct().toList()
+
+    /**
+     * [texte] on one line — a control character becomes a space — and without the bidirectional
+     * formatting that shows "fdp.exe" as "exe.pdf", as an imported folder's name; trimmed.
+     */
+    private fun surUneLigne(texte: String): String = buildString(texte.length) {
+        for (c in texte) {
+            when {
+                Character.isISOControl(c) -> append(' ')
+                c !in LectureDUnImport.FORMATS_BIDI -> append(c)
+            }
+        }
+    }.trim()
 }

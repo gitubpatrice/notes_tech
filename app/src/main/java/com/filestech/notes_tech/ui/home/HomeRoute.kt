@@ -23,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.repeatOnLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
@@ -45,7 +48,7 @@ import com.filestech.notes_tech.ui.folders.FoldersDrawerViewModel
 import com.filestech.notes_tech.ui.folders.GesteDeDossier
 import com.filestech.notes_tech.ui.folders.SortDesNotes
 import com.filestech.notes_tech.ui.folders.deverrouillageRequis
-import com.filestech.notes_tech.ui.scellee.NotesScelleesViewModel
+import com.filestech.notes_tech.ui.scellee.SelecteurDeNoteScelleeViewModel
 import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
@@ -152,9 +155,9 @@ fun HomeRoute(
 
     // 3.4.0 (D-044): "Open a sealed note" — the file picked is read and deposited; the code is asked by
     // `NotesScelleesRecues`, the same as for "Open with". A file that is no sealed note is said here.
-    val scellees: NotesScelleesViewModel = hiltViewModel()
+    val scellees: SelecteurDeNoteScelleeViewModel = hiltViewModel()
     val selecteurDeNoteScellee = rememberAppResultLauncher(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(scellees::lireDepuisLeSelecteur)
+        uri?.let(scellees::lire)
     }
     val ouvrirUneNoteScellee: () -> Unit = { selecteurDeNoteScellee.launch(arrayOf("*/*")) }
     val ressourcesDeLAccueil = LocalResources.current
@@ -162,10 +165,13 @@ fun HomeRoute(
         scellees.refusDuSelecteur.collect { snackbars.showSnackbar(ressourcesDeLAccueil.getString(it)) }
     }
     // D-043 (3.4.0): the notes whose lifetime is over, every minute while the list shows them.
-    LaunchedEffect(Unit) {
-        while (true) {
-            homeViewModel.purgerLesNotesExpirees()
-            delay(PURGE_DES_EXPIREES_MS)
+    val cycleDeVie = LocalLifecycleOwner.current
+    LaunchedEffect(cycleDeVie) {
+        cycleDeVie.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                homeViewModel.purgerLesNotesExpirees()
+                delay(PURGE_DES_EXPIREES_MS)
+            }
         }
     }
 

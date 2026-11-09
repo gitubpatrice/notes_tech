@@ -137,7 +137,8 @@ interface NoteDao {
      * the way everywhere but in the archive — its folder, "All notes", the favourites, the recent notes
      * and the search.
      *
-     * ⚠️ [listAllAlive] keeps them: the export, the backup and the statistics are about EVERY note.
+     * ⚠️ [listAllAlive] keeps them: the export and the statistics are about every note — but those with a
+     * lifetime (D-043, 3.4.0), which neither the export nor the backup takes.
      */
     fun observeOutOfTrash(sort: NoteSortMode, archived: Boolean): Flow<List<NoteEntity>> = observeSorted(
         SimpleSQLiteQuery(

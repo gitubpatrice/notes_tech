@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.secure
 
 import androidx.compose.material3.ModalBottomSheetProperties
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
 
 /**
@@ -18,3 +19,10 @@ import androidx.compose.ui.window.SecureFlagPolicy
  * The guard stays: it protects the window behind the sheet, and the recent-apps thumbnail.
  */
 val ProprietesDeFeuilleSecrete = ModalBottomSheetProperties(securePolicy = SecureFlagPolicy.SecureOn)
+
+/**
+ * The same, for a dialog where a code is shown or typed — the backup's, a sealed note's (3-axes audit of
+ * 3.4.0): an `AlertDialog` is a window of its own too, and `DialogProperties()` inherits the flag as the
+ * sheet did.
+ */
+val ProprietesDeDialogueSecret = DialogProperties(securePolicy = SecureFlagPolicy.SecureOn)

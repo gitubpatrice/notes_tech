@@ -185,8 +185,8 @@ class LectureDUnImport(
             return DartTextSemantics.trim(nom.substring(0, fin))
         }
 
-        /** LRM, RLM, ALM, the embeddings and overrides, the isolates. */
-        private val FORMATS_BIDI = setOf(
+        /** LRM, RLM, ALM, the embeddings and overrides, the isolates — a sealed note's title drops them too. */
+        internal val FORMATS_BIDI = setOf(
             '\u200E', '\u200F', '\u061C',
             '\u202A', '\u202B', '\u202C', '\u202D', '\u202E',
             '\u2066', '\u2067', '\u2068', '\u2069',

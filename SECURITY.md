@@ -24,8 +24,10 @@ of the Flutter versions 1.x and 2.x is kept as it was, in
   typed code never reaches a Bundle; a wrong code and a damaged file look the same; a received note goes
   to the Inbox, never a vault.
 - **Notes with a lifetime** are erased by the very DELETE of "Delete permanently" (FTS index,
-  `secure-delete`, links); they are left out of the backup and the export; "after reading" erases at the
-  editor's real closing, never on a rotation.
+  `secure-delete`, links); they are left out of the backup and the export. A lifetime follows the phone's
+  clock: moving the date forward erases the notes whose time it passes. "After reading" erases when the
+  editor closes — going back, or the app closed —, never on a rotation; if Android ends the app first, the
+  note goes at its next closing.
 - **Keyboard**: `IME_FLAG_NO_PERSONALIZED_LEARNING` on every field by default, always on secret fields.
 
 ## v3.3.0 — archive and selection: the vault rules, for many notes at once (2026-11-09)

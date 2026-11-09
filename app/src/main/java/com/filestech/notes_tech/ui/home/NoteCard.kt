@@ -295,7 +295,6 @@ internal fun titreAffiche(note: Note): String = when {
     else -> note.title
 }
 
-/** La puce discrète qui dit d'où vient une note, en vue non filtrée. */
 /** D-043: the hourglass and what is left — "5 h", "after reading". Read by TalkBack in the card's description. */
 @Composable
 private fun BadgeDeDureeDeVie(vie: VieAffichee?) {
@@ -315,6 +314,7 @@ private fun BadgeDeDureeDeVie(vie: VieAffichee?) {
     }
 }
 
+/** La puce discrète qui dit d'où vient une note, en vue non filtrée. */
 @Composable
 private fun FolderChip(label: String, modifier: Modifier = Modifier) {
     val couleurs = MaterialTheme.colorScheme

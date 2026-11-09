@@ -73,13 +73,6 @@
         </activity>
 
         <!--
-          3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4). The only component that reads what
-          another app sends: no screen, it reads, bounds and hands over in memory, then opens the app.
-          MainActivity keeps dropping every extra of its intent (audit of 2026-09-26, E1).
-          `noHistory` + `excludeFromRecents` + `taskAffinity=""`: it never shows in the recents nor
-          stays in the sending app's task.
-        -->
-        <!--
           3.4.0 (D-041) — where the launcher shortcuts land. NOT exported: a shortcut is started by the
           system as this app, so no other app can reach it. No screen: it deposits the request in
           memory and opens the app, which carries it out once unlocked.
@@ -163,6 +156,13 @@
             </intent-filter>
         </activity>
 
+        <!--
+          3.2.0 — "Share → Notes Tech" (docs/13-VERSION-3.2.md §4). With the sealed note's (3.4.0), one of the two
+          components that read what another app sends: no screen, it reads, bounds and hands over in memory, then opens the app.
+          MainActivity keeps dropping every extra of its intent (audit of 2026-09-26, E1).
+          `noHistory` + `excludeFromRecents` + `taskAffinity=""`: it never shows in the recents nor
+          stays in the sending app's task.
+        -->
         <activity
             android:name=".ui.share.RecevoirUnPartageActivity"
             android:exported="true"

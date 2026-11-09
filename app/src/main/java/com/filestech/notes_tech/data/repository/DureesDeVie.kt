@@ -2,6 +2,8 @@ package com.filestech.notes_tech.data.repository
 
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.domain.model.DureeDeVie
+import kotlinx.coroutines.CancellationException
+import timber.log.Timber
 import java.time.Clock
 import javax.inject.Inject
 
@@ -32,4 +34,18 @@ class DureesDeVie @Inject constructor(private val databases: DatabaseProvider, p
      * @return how many were erased.
      */
     suspend fun purger(): Int = databases.get().noteWriteDao().deleteExpired(clock.millis())
+
+    /**
+     * [purger], its failure kept quiet: the opening and the list call it as a catch-up, which the next
+     * call — a minute later on the list — tries again. Not a failure to show.
+     */
+    suspend fun purgerSansEchec() {
+        try {
+            purger()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "purge des notes expirees differee")
+        }
+    }
 }

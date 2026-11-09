@@ -877,15 +877,6 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     /**
-     * Into the archive, or back out of it (3.3.0) — the ⋮ menu's "Archive" / "Unarchive".
-     *
-     * The flag alone, like [setPinned]: neither the content nor the sealed blob — so no vault check,
-     * the note being on screen means its vault is open. Through [tenterUneAction] and not
-     * [enArrierePlan], unlike its twins: the pin shows on the screen, the archive does not, so its
-     * outcome — success or failure — is said. The editor stays open: an archived note is read and
-     * written like any other, from the archive.
-     */
-    /**
      * The note's lifetime (D-043, 3.4.0), `null` for none. Choosing one here — "after reading" included —
      * means this closing erases nothing: the choice counts from now, or from the next opening.
      */
@@ -901,6 +892,15 @@ class NoteEditorViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Into the archive, or back out of it (3.3.0) — the ⋮ menu's "Archive" / "Unarchive".
+     *
+     * The flag alone, like [setPinned]: neither the content nor the sealed blob — so no vault check,
+     * the note being on screen means its vault is open. Through [tenterUneAction] and not
+     * [enArrierePlan], unlike its twins: the pin shows on the screen, the archive does not, so its
+     * outcome — success or failure — is said. The editor stays open: an archived note is read and
+     * written like any other, from the archive.
+     */
     fun setArchived(archived: Boolean) = tenterUneAction(ActionDEditeur.OrigineDErreur.ARCHIVAGE) {
         if (notes.setArchived(noteId, archived)) {
             _state.update { etat -> etat.copy(note = etat.note?.copy(archived = archived)) }

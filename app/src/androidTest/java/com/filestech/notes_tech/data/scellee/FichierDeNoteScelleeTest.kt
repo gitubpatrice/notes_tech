@@ -76,6 +76,20 @@ class FichierDeNoteScelleeTest {
         assertThat(refus { FichierDeNoteScellee.ouvrir(autre, code) }).isEqualTo(Raison.PAS_UNE_NOTE_SCELLEE)
     }
 
+    /** A file made by hand: tags and title come in as the app would have written them (3-axes audit). */
+    @Test
+    fun a_hand_made_file_gives_clean_tags_and_a_one_line_title() {
+        val fabriquee = note.copy(
+            titre = " Fac\u202Eture\nsuite\t",
+            etiquettes = listOf("a,b", " a ", "", "c\n", "b"),
+        )
+
+        val lue = FichierDeNoteScellee.ouvrir(FichierDeNoteScellee.sceller(fabriquee, code), code)
+
+        assertThat(lue.titre).isEqualTo("Facture suite")
+        assertThat(lue.etiquettes).containsExactly("a", "b", "c").inOrder()
+    }
+
     @Test
     fun a_file_past_the_bound_is_refused_unread() {
         val enorme = FichierDeNoteScellee.MAGIQUE + ByteArray(FichierDeNoteScellee.TAILLE_MAX.toInt())
