@@ -246,6 +246,8 @@ class NotesRepositoryTest {
         )
         notes.setPinned(ancienne.id, true)
         notes.setArchived(ancienne.id, true)
+        // A minute later: two notes created in the same millisecond would have no order between them.
+        horloge.avance(60_000)
         val recente = notes.create(
             folderId = LegacyDatabaseFixture.Fixtures.FOLDER_WORK,
             title = "Récente",

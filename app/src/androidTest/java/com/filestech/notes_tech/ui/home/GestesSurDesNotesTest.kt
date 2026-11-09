@@ -263,6 +263,26 @@ class GestesSurDesNotesTest {
         assertThat(notes.find(note.id)!!.archived).isTrue()
     }
 
+    /**
+     * The undo of an archiving reaches a note put in the trash since (second external review): it comes
+     * back out of the archive, so that a restore from the trash puts it in its folder, as without the
+     * archiving. A trashed note is otherwise out of every gesture of the list.
+     */
+    @Test
+    fun undoing_an_archiving_reaches_a_note_trashed_since(): Unit = runBlocking {
+        val note = notes.create(folderId = dossiers.create("Ordinaire").id, title = "Vieille", content = "x")
+        evenementDe { accueil.executer(GesteSurDesNotes.Archiver(listOf(note.id), archiver = true)) }
+        notes.moveToTrash(note.id)
+
+        val annulation = evenementDe { accueil.annulerLArchivage(listOf(note.id), archivees = true) }
+
+        assertThat(annulation).isEqualTo(HomeEvent.Archivees(listOf(note.id), archivees = false, annulable = false))
+        assertThat(notes.find(note.id)!!.archived).isFalse()
+        // The control: an ordinary gesture still leaves a trashed note alone.
+        accueil.executerEtAttendreRien(GesteSurDesNotes.Archiver(listOf(note.id), archiver = true))
+        assertThat(notes.find(note.id)!!.archived).isFalse()
+    }
+
     /** Archiving a vault note changes one flag, sealed blob untouched — and still waits for the vault. */
     @Test
     fun archiving_a_note_of_a_closed_vault_waits_for_it_and_leaves_it_sealed(): Unit = runBlocking {
@@ -338,7 +358,8 @@ class GestesSurDesNotesTest {
         assertThat(notes.find(ordinaire.id)!!.folderId).isNotEqualTo(destination)
         assertThat(notes.find(scellee.id)!!.isLocked).isTrue()
 
-        assertThat(enLot.moveToFolder(listOf(ordinaire.id, scellee.id), destination, true)).isEqualTo(2)
+        assertThat(enLot.moveToFolder(listOf(ordinaire.id, scellee.id), destination, true))
+            .containsExactly(ordinaire.id, scellee.id).inOrder()
         assertThat(notes.find(ordinaire.id)!!.folderId).isEqualTo(destination)
         assertThat(notes.find(scellee.id)!!.folderId).isEqualTo(destination)
     }
@@ -360,6 +381,12 @@ class GestesSurDesNotesTest {
         assertThat(apres.map { it.pinned }).containsExactly(true, true)
         assertThat(apres.map { it.favorite }).containsExactly(true, true)
         assertThat(apres.map { it.color }).containsExactly(NoteColor.entries.first(), NoteColor.entries.first())
+    }
+
+    /** Runs [geste], which must write nothing, and gives its coroutine the time to have done so. */
+    private suspend fun HomeViewModel.executerEtAttendreRien(geste: GesteSurDesNotes) {
+        withContext(Dispatchers.Main) { executer(geste) }
+        kotlinx.coroutines.delay(ATTENTE_D_UN_GESTE_MILLIS)
     }
 
     /** Runs [geste] and waits until its writes are done — pin, favourite and colour emit no event. */
@@ -447,6 +474,7 @@ class GestesSurDesNotesTest {
         const val PHRASE = "une phrase secrete de test 2026"
         const val TIMEOUT_MILLIS = 10_000L
         const val SONDE_MILLIS = 20L
+        const val ATTENTE_D_UN_GESTE_MILLIS = 500L
 
         /** `LegacyPreferences.FLUTTER_PREFS_FILE`, private there — diverted by [IsolatedPreferencesContext]. */
         const val FICHIER_DE_PREFERENCES = "FlutterSharedPreferences"

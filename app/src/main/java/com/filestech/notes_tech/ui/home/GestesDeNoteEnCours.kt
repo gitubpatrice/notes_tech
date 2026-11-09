@@ -248,14 +248,16 @@ internal fun FeuillesDesGestesDeNote(
     }
 
     // The trash's own question for one note, word for word; its plural for several.
-    etat.suppression?.let { ids ->
+    // The number said is the number erased: the notes still shown, counted once for both (second
+    // external review). None shown yet — a question restored before the list loads — shows nothing.
+    etat.suppression?.filter { it in presentes }?.takeIf { it.isNotEmpty() }?.let { ids ->
         DialogueDestructif(
             titre = selonLeNombre(ids.size, R.string.trash_delete_forever_title, R.plurals.notes_delete_forever_title),
             corps = selonLeNombre(ids.size, R.string.trash_delete_forever_body, R.plurals.notes_delete_forever_body),
             libelleConfirmation = stringResource(R.string.trash_delete_forever),
             onConfirmer = {
                 etat.suppression = null
-                executer(GesteSurDesNotes.SupprimerDefinitivement(ids.filter { it in presentes }))
+                executer(GesteSurDesNotes.SupprimerDefinitivement(ids))
             },
             onAnnuler = { etat.suppression = null },
         )
@@ -266,7 +268,9 @@ internal fun FeuillesDesGestesDeNote(
             nombre = etat.sortieNombre,
             onConfirmer = {
                 etat.oublierLaSortie()
-                executer(geste.copy(sortieDeCoffreConfirmee = true))
+                // As the sheets: the notes still shown, nothing else (second external review).
+                val visibles = geste.ids.filter { it in presentes }
+                if (visibles.isNotEmpty()) executer(geste.copy(ids = visibles, sortieDeCoffreConfirmee = true))
             },
             onAnnuler = etat::oublierLaSortie,
         )

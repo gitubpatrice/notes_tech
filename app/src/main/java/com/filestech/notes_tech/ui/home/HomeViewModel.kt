@@ -345,9 +345,13 @@ class HomeViewModel @Inject constructor(
     fun executer(geste: GesteSurDesNotes) {
         viewModelScope.launch {
             try {
-                // Gone or in the trash since the selection: nothing to do to it. In the selection's order —
-                // `findMany` returns SQLite's —, so that what is announced and undone follows the list.
-                val lues = notes.findMany(geste.ids).filter { !it.isTrashed }.associateBy { it.id }
+                // Gone or in the trash since the selection: nothing to do to it — except for the undo of an
+                // archiving, whose note may have gone to the trash since: it is put back as it was, and
+                // comes out of the trash where the gesture would have left it (second external review).
+                // In the selection's order — `findMany` returns SQLite's —, so that what is announced and
+                // undone follows the list.
+                val annulation = (geste as? GesteSurDesNotes.Archiver)?.annulation == true
+                val lues = notes.findMany(geste.ids).filter { annulation || !it.isTrashed }.associateBy { it.id }
                 val actuelles = geste.ids.distinct().mapNotNull { lues[it] }
                 if (actuelles.isEmpty()) {
                     viderLaSelection()
