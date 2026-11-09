@@ -140,6 +140,27 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" android:mimeType="application/octet-stream" />
             </intent-filter>
+            <!--
+              A file manager gives an unknown extension no type at all (Samsung's "My Files": an empty
+              MIME type, seen on the S9, 2026-11-09), or a generic one: the ".ntnote" path then, with no
+              type and with any. The magic is checked in any case.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="*" />
+                <data android:pathPattern=".*\\.ntnote" />
+                <data android:pathPattern=".*\\..*\\.ntnote" />
+                <data android:pathPattern=".*\\..*\\..*\\.ntnote" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:host="*" android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.ntnote" />
+                <data android:pathPattern=".*\\..*\\.ntnote" />
+                <data android:pathPattern=".*\\..*\\..*\\.ntnote" />
+            </intent-filter>
         </activity>
 
         <activity
