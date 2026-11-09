@@ -166,11 +166,13 @@ internal class GestesDeNoteEnCours(
         /** What a rotation, or the process dying, must not lose: the questions open, by id. */
         val Sauvegarde: Saver<GestesDeNoteEnCours, Any> = listSaver(
             save = { etat ->
+                // A lambda, not `::ArrayList`: that reference resolves to the Java constructor taking a
+                // `Collection<? extends E>`, which Kotlin 2.4 flags as a Java type mismatch.
                 listOf(
-                    etat.suppression?.let(::ArrayList),
-                    etat.deplacement?.let(::ArrayList),
-                    etat.couleur?.let(::ArrayList),
-                    etat.sortie?.ids?.let(::ArrayList),
+                    etat.suppression?.let { ArrayList(it) },
+                    etat.deplacement?.let { ArrayList(it) },
+                    etat.couleur?.let { ArrayList(it) },
+                    etat.sortie?.ids?.let { ArrayList(it) },
                     etat.sortie?.dossierId,
                     etat.sortieNombre,
                 )
