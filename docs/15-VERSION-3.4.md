@@ -129,6 +129,26 @@
 
 ## État
 
+> **🧭 REPRISE (2026-11-09, ~22 h, avant compaction)** — branche `feat/3.4.0`, dernier commit poussé `9699451`
+> (textes 3.4.0). **NON COMMITTÉ dans l'arbre** (à vérifier par `git status`, puis porte + commit) :
+> 1. corrections i18n (it « nella cartella In arrivo », « Il testo », de demi-cadratin, journal de 5071-5073) ;
+> 2. relecture GPT (0,024 $) : note reçue créée en UN insert (`NotesRepository.create(color, readOnce)`),
+>    `LectureScellee` réécrite (une lecture à la fois, fil dédié, délai qui FERME le flux, lecture de 0 octet
+>    refusée, `RuntimeException` d'un fournisseur rattrapée), activité scellée simplifiée, test du flux vide ;
+> 3. audit de cohérence (82/100) : C1 `DisposableEffect` → `oublier()` du code ; C4 `onKeyboardNoLearning`
+>    sans défaut (+ ReglagesTest, AppLockSettingsScreenTest) ; C5 `SelecteurDeNoteScelleeViewModel` (HomeRoute) ;
+>    C6 `DureesDeVie.purgerSansEchec`, forme de `RaccourciActivity` ; C7 KDoc replacés (setArchived, FolderChip,
+>    manifeste), références DAO ; C9 « … » retirés de note_lifetime / note_share_sealed ; C10 purge sous
+>    `repeatOnLifecycle(STARTED)` ; `ClavierSansApprentissageTest` en règle Compose **v2** (échec du
+>    `ComposeTestRulesAreV2Test`).
+> **Reste** : compiler + ktlintFormat + porte locale ; test instrumenté de `NotesScelleesViewModel` (faux code
+> puis bon, lecture unique et couleur posées, pas de doublon) ; résultat de l'audit 3 axes (agent lancé) et de
+> la suite instrumentée complète du S9 (tâche de fond `begohs0pu` : porte exit=1 = le test v2, release OK) ;
+> CI de la branche ; puis PR, fusion, et PROPOSER la release (pas demandée) — avant le tag, voir comment
+> F-Droid a construit SMS 1.30.0 (AGP 9.5). Limite connue : Mes fichiers (Samsung) n'ouvre pas `.ntnote`
+> (type vide, il conclut seul) ; le menu « Ouvrir une note scellée » marche partout. Le partage reçu (3.2.0)
+> a la même lecture sans délai fermant le flux : à durcir plus tard, pas touché.
+
 - [x] **D-040 clavier** (`5e18eab`) — tests instrumentés sur le S9 : `ClavierSansApprentissageTest` (3),
   `ChampDuCorpsTest` +1, `ReglagesHeritesTest` +1, `SaisieDeCoffreTest` inchangé (8) ; la ligne du réglage
   vue dans l'écran, section Sécurité.
