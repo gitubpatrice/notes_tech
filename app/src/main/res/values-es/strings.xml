@@ -378,6 +378,39 @@
     <string name="depot_discard_title">¿Descartar este texto?</string>
     <string name="depot_discard_body">No se ha depositado, y nada lo conserva una vez cerrada esta pantalla.</string>
     <string name="depot_discard_confirm">Descartar</string>
+    <string name="note_lifetime">Duración…</string>
+    <string name="lifetime_title">Duración</string>
+    <string name="lifetime_none">Ninguna — la nota se queda</string>
+    <string name="lifetime_1h">1 hora</string>
+    <string name="lifetime_24h">24 horas</string>
+    <string name="lifetime_7d">7 días</string>
+    <string name="lifetime_30d">30 días</string>
+    <string name="lifetime_after_reading">Tras la lectura</string>
+    <string name="lifetime_after_reading_detail">Se borra cuando la cierra tras haberla vuelto a abrir.</string>
+    <string name="lifetime_explanation">Se borra definitivamente al acabar el plazo, en la siguiente apertura de la app o al volver a la lista — no al segundo. Queda fuera de las copias de seguridad y de las exportaciones.</string>
+    <string name="lifetime_set">Duración: %1$s</string>
+    <string name="lifetime_read_once_notice">Esta nota se borra cuando la cierra.</string>
+    <string name="lifetime_left_minutes_short">%1$d min</string>
+    <string name="lifetime_left_hours_short">%1$d h</string>
+    <string name="lifetime_left_days_short">%1$d d</string>
+    <string name="lifetime_soon_short">pronto</string>
+    <string name="lifetime_soon">Se borra pronto</string>
+    <string name="lifetime_after_reading_phrase">Se borra tras su próxima lectura</string>
+    <plurals name="lifetime_left_minutes">
+        <item quantity="one">Se borra en %1$d minuto</item>
+        <item quantity="many">Se borra en %1$d minutos</item>
+        <item quantity="other">Se borra en %1$d minutos</item>
+    </plurals>
+    <plurals name="lifetime_left_hours">
+        <item quantity="one">Se borra en %1$d hora</item>
+        <item quantity="many">Se borra en %1$d horas</item>
+        <item quantity="other">Se borra en %1$d horas</item>
+    </plurals>
+    <plurals name="lifetime_left_days">
+        <item quantity="one">Se borra en %1$d día</item>
+        <item quantity="many">Se borra en %1$d días</item>
+        <item quantity="other">Se borra en %1$d días</item>
+    </plurals>
     <string name="settings_vault_auto_lock">Bloqueo automático de las cajas fuertes</string>
     <plurals name="settings_vault_auto_lock_minutes">
         <item quantity="one">%1$d minuto</item>

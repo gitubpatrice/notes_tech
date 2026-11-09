@@ -378,6 +378,39 @@
     <string name="depot_discard_title">Scartare questo testo?</string>
     <string name="depot_discard_body">Non è stato depositato, e nulla lo conserva una volta chiusa questa schermata.</string>
     <string name="depot_discard_confirm">Scarta</string>
+    <string name="note_lifetime">Durata…</string>
+    <string name="lifetime_title">Durata</string>
+    <string name="lifetime_none">Nessuna — la nota resta</string>
+    <string name="lifetime_1h">1 ora</string>
+    <string name="lifetime_24h">24 ore</string>
+    <string name="lifetime_7d">7 giorni</string>
+    <string name="lifetime_30d">30 giorni</string>
+    <string name="lifetime_after_reading">Dopo la lettura</string>
+    <string name="lifetime_after_reading_detail">Cancellata quando la chiude dopo averla riaperta.</string>
+    <string name="lifetime_explanation">Cancellata definitivamente allo scadere del tempo, alla successiva apertura dell\'app o al ritorno all\'elenco — non al secondo. Esclusa da backup ed esportazioni.</string>
+    <string name="lifetime_set">Durata: %1$s</string>
+    <string name="lifetime_read_once_notice">Questa nota si cancella quando la chiude.</string>
+    <string name="lifetime_left_minutes_short">%1$d min</string>
+    <string name="lifetime_left_hours_short">%1$d h</string>
+    <string name="lifetime_left_days_short">%1$d g</string>
+    <string name="lifetime_soon_short">a breve</string>
+    <string name="lifetime_soon">Si cancella a breve</string>
+    <string name="lifetime_after_reading_phrase">Si cancella dopo la prossima lettura</string>
+    <plurals name="lifetime_left_minutes">
+        <item quantity="one">Si cancella tra %1$d minuto</item>
+        <item quantity="many">Si cancella tra %1$d minuti</item>
+        <item quantity="other">Si cancella tra %1$d minuti</item>
+    </plurals>
+    <plurals name="lifetime_left_hours">
+        <item quantity="one">Si cancella tra %1$d ora</item>
+        <item quantity="many">Si cancella tra %1$d ore</item>
+        <item quantity="other">Si cancella tra %1$d ore</item>
+    </plurals>
+    <plurals name="lifetime_left_days">
+        <item quantity="one">Si cancella tra %1$d giorno</item>
+        <item quantity="many">Si cancella tra %1$d giorni</item>
+        <item quantity="other">Si cancella tra %1$d giorni</item>
+    </plurals>
     <string name="settings_vault_auto_lock">Blocco automatico delle casseforti</string>
     <plurals name="settings_vault_auto_lock_minutes">
         <item quantity="one">%1$d minuto</item>

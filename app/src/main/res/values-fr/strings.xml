@@ -383,6 +383,39 @@
     <string name="depot_discard_title">Abandonner ce texte ?</string>
     <string name="depot_discard_body">Il n\'a pas été déposé, et rien ne le garde une fois cet écran fermé.</string>
     <string name="depot_discard_confirm">Abandonner</string>
+    <string name="note_lifetime">Durée de vie…</string>
+    <string name="lifetime_title">Durée de vie</string>
+    <string name="lifetime_none">Aucune — la note reste</string>
+    <string name="lifetime_1h">1 heure</string>
+    <string name="lifetime_24h">24 heures</string>
+    <string name="lifetime_7d">7 jours</string>
+    <string name="lifetime_30d">30 jours</string>
+    <string name="lifetime_after_reading">Après lecture</string>
+    <string name="lifetime_after_reading_detail">Effacée quand vous la refermez après l\'avoir rouverte.</string>
+    <string name="lifetime_explanation">Effacée pour de bon une fois le délai passé, à la prochaine ouverture de l\'appli ou au retour sur la liste — pas à la seconde près. Elle n\'entre ni dans les sauvegardes ni dans les exports.</string>
+    <string name="lifetime_set">Durée de vie : %1$s</string>
+    <string name="lifetime_read_once_notice">Cette note s\'efface quand vous la refermez.</string>
+    <string name="lifetime_left_minutes_short">%1$d min</string>
+    <string name="lifetime_left_hours_short">%1$d h</string>
+    <string name="lifetime_left_days_short">%1$d j</string>
+    <string name="lifetime_soon_short">bientôt</string>
+    <string name="lifetime_soon">S\'efface bientôt</string>
+    <string name="lifetime_after_reading_phrase">S\'efface après sa prochaine lecture</string>
+    <plurals name="lifetime_left_minutes">
+        <item quantity="one">S\'efface dans %1$d minute</item>
+        <item quantity="many">S\'efface dans %1$d minutes</item>
+        <item quantity="other">S\'efface dans %1$d minutes</item>
+    </plurals>
+    <plurals name="lifetime_left_hours">
+        <item quantity="one">S\'efface dans %1$d heure</item>
+        <item quantity="many">S\'efface dans %1$d heures</item>
+        <item quantity="other">S\'efface dans %1$d heures</item>
+    </plurals>
+    <plurals name="lifetime_left_days">
+        <item quantity="one">S\'efface dans %1$d jour</item>
+        <item quantity="many">S\'efface dans %1$d jours</item>
+        <item quantity="other">S\'efface dans %1$d jours</item>
+    </plurals>
     <string name="settings_vault_auto_lock">Verrouillage automatique des coffres</string>
     <plurals name="settings_vault_auto_lock_minutes">
         <item quantity="one">%1$d minute</item>

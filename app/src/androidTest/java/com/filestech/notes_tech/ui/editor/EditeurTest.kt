@@ -181,7 +181,7 @@ class EditeurTest {
                         onInfos = { infos += Unit },
                         onDeplacer = { deplacements += Unit },
                         onArchiver = { archivages += it },
-                        onCouleur = { couleurs += Unit },
+                        feuilles = FeuillesDeLaFiche(couleur = { couleurs += Unit }, dureeDeVie = {}),
                         onExporter = { exports += Unit },
                         onCopier = { copies += Unit },
                         onCorbeille = { corbeilles += Unit },

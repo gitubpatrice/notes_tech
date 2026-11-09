@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -187,6 +188,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
     var couleurOuverte by rememberSaveable { mutableStateOf(false) }
+    var dureeDeVieOuverte by rememberSaveable { mutableStateOf(false) }
     var suppressionDemandee by rememberSaveable { mutableStateOf(false) }
     var infosOuvertes by rememberSaveable { mutableStateOf(false) }
 
@@ -260,9 +262,21 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     LaunchedEffect(noteLisible) {
         if (!noteLisible) {
             couleurOuverte = false
+            dureeDeVieOuverte = false
             suppressionDemandee = false
         }
     }
+    DureeDeVieDeLEditeur(
+        ouverte = dureeDeVieOuverte && noteLisible,
+        note = state.note,
+        onChoisir = viewModel::setLifetime,
+        onFermer = { dureeDeVieOuverte = false },
+    )
+    AnnonceDeLectureUnique(
+        noteChargee = chargee,
+        effaceeALaFermeture = viewModel.effaceeALaFermeture,
+        messages = messages,
+    )
     if (couleurOuverte && noteLisible) {
         FeuilleDeCouleur(
             actuelle = state.note?.color,
@@ -434,7 +448,9 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             onInfos = { infosOuvertes = true },
             onDeplacer = { deplacementOuvert = true },
             onArchiver = viewModel::setArchived,
-            onCouleur = { couleurOuverte = true },
+            feuilles = FeuillesDeLaFiche(couleur = {
+                couleurOuverte = true
+            }, dureeDeVie = { dureeDeVieOuverte = true }),
             onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
             onCopier = {
                 // Retour haptique sur un geste réussi, comme l'application publiée
@@ -513,8 +529,8 @@ fun NoteEditorScreen(
     onDeplacer: () -> Unit,
     /** The ⋮ menu's "Archive" / "Unarchive" (3.3.0): the value to write — computed where the note is known. */
     onArchiver: (Boolean) -> Unit,
-    /** The ⋮ menu's "Color" (3.1.0): the sheet that colours the note's card in the lists. */
-    onCouleur: () -> Unit,
+    /** The ⋮ menu's "Color" (3.1.0) and "Lifetime…" (3.4.0): the sheets about the note's card. */
+    feuilles: FeuillesDeLaFiche,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
@@ -765,7 +781,8 @@ fun NoteEditorScreen(
                             onDeplacer = onDeplacer,
                             archivee = note.archived,
                             onArchiver = { onArchiver(!note.archived) },
-                            onCouleur = onCouleur,
+                            onCouleur = feuilles.couleur,
+                            onDureeDeVie = feuilles.dureeDeVie,
                             onExporter = onExporter,
                             onCopier = onCopier,
                             onCorbeille = onCorbeille,
@@ -1207,6 +1224,12 @@ internal fun IssueDUneAction(
                 onConsommer()
             }
 
+            action.dureeDeVie != null -> {
+                val phrase = ressources.getString(R.string.lifetime_set, ressources.getString(action.dureeDeVie))
+                portee.launch { messages.showSnackbar(phrase) }
+                onConsommer()
+            }
+
             action.copiee -> {
                 portee.launch { messages.showSnackbar(ressources.getString(R.string.note_editor_copied_to_clipboard)) }
                 onConsommer()
@@ -1238,6 +1261,7 @@ internal fun IssueDUneAction(
                     ActionDEditeur.OrigineDErreur.SUPPRESSION,
                     ActionDEditeur.OrigineDErreur.COPIE,
                     ActionDEditeur.OrigineDErreur.ARCHIVAGE,
+                    ActionDEditeur.OrigineDErreur.DUREE_DE_VIE,
                     null,
                     -> phrase
                 }
@@ -1374,6 +1398,7 @@ private fun MenuDeDebordement(
     archivee: Boolean,
     onArchiver: () -> Unit,
     onCouleur: () -> Unit,
+    onDureeDeVie: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
@@ -1477,6 +1502,15 @@ private fun MenuDeDebordement(
             onClick = {
                 ouvert = false
                 onArchiver()
+            },
+        )
+        // After "Archive" (3.4.0, D-043): both say how long, and where, the note is kept.
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_lifetime)) },
+            leadingIcon = { Icon(Icons.Outlined.Timer, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onDureeDeVie()
             },
         )
         DropdownMenuItem(

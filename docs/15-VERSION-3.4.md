@@ -94,8 +94,29 @@
 - Menu ⋮ de l'éditeur, « Partager scellée… » : la note (titre, texte, couleur, étiquettes) est chiffrée
   dans un fichier `.ntnote` par un **code généré de 24 signes** (même code que la sauvegarde), affiché
   une fois ; on envoie le fichier par n'importe quelle messagerie et le code par un autre canal.
-- Même chiffrement que la sauvegarde (Argon2id, AES-256-GCM, en-tête en AAD), avec sa propre magie
-  (`NTSEALED`) et une taille bornée (1 Mio).
+- Même chiffrement que la sauvegarde (Argon2id, AES-256-GCM, en-tête de 48 octets en AAD), avec sa
+  propre magie (`NTSEALED`, 8 octets comme `NTBACKUP`) et sa propre borne : **4 Mio** (et non 1 Mio comme
+  écrit d'abord : une note peut faire 500 000 caractères, jusqu'à 1,5 Mo en UTF-8, plus le JSON).
+- **Réalisation** (plan écrit avant le code, 2026-11-09 au soir) :
+  - `FichierDeSauvegarde` reçoit la magie et la borne en PARAMÈTRES, avec les valeurs de la sauvegarde par
+    défaut : la sauvegarde ne change pas d'un octet, ses tests restent tels quels.
+  - `data/scellee/FichierDeNoteScellee` : `sceller(note, secret): ByteArray` et `ouvrir(octets, secret)`,
+    en mémoire (une note est petite) ; JSON `android.util.JsonWriter/Reader` comme la sauvegarde,
+    `{"format":"notes-tech-sealed-note","version":1,"title","content","color","tags","readOnce"}` ;
+    limites d'une note à l'ouverture (titre 200, texte 500 000) ; tests instrumentés.
+  - Code : `SecretDeSauvegarde.nouveauCode()` (24 signes, 120 bits) et sa saisie tolérante.
+  - Envoi : menu ⋮ de l'éditeur « Partager scellée… » → feuille (explication, interrupteur « Lecture
+    unique chez le destinataire », « Créer ») → scellement hors du fil principal (Argon2 ≈ 1 s) → fichier
+    dans `cache/exports/<instant>/note-scellee-AAAAMMJJ.ntnote` (purgé au démarrage et par la panique,
+    servi par le `FileProvider` des exports) → le code s'affiche, fenêtre protégée, puis « Partager le
+    fichier » (`ui/common/Partage.kt`).
+  - Réception : `OuvrirUneNoteScelleeActivity`, exportée, `ACTION_VIEW` sur `application/octet-stream`,
+    `content://` d'une autre appli seulement (même garde que le partage reçu), lecture bornée (4 Mio,
+    délai), magie vérifiée — un autre fichier : un message bref et rien d'autre. Sinon dépôt en mémoire
+    (`DepotEnMemoire`) puis ouverture de l'appli ; menu ⋮ de l'accueil « Ouvrir une note scellée » →
+    sélecteur SAF → même dépôt. Après le déverrouillage, un dialogue demande le code ; code juste → note
+    créée dans la Boîte de réception (jamais un coffre), couleur et étiquettes reprises, « après lecture »
+    si demandé, puis l'éditeur s'ouvre ; code faux ou fichier abîmé → même message, on peut réessayer.
 - **Le nom du fichier ne dit rien de la note** (`note-scellee-AAAAMMJJ.ntnote`) : un titre dans un nom de
   fichier fuirait par la messagerie.
 - Option « Lecture unique chez le destinataire » : la note reçue y arrive avec la durée de vie « après
@@ -123,7 +144,20 @@
   (`cmd statusbar add-tile` / `click-tile`) ouvre le dépôt. **Non essayé sur appareil** : la tuile
   téléphone verrouillé (`unlockAndRun`) — le S9 n'a pas de code d'écran, en poser un change un réglage
   global.
-- [ ] D-043 durée de vie · [ ] D-044 scellée
+- [x] **D-043 durée de vie** — données (`3ac16da`) : schéma 11, migration 10 → 11 additive, vérifiée par le
+  script de CI et sur le S9 (`MigrationVersDixTest`, dont le chemin réel d'une base de la 3.3.0) ; purge =
+  le DELETE de « Supprimer définitivement » ; export ZIP et sauvegarde les excluent. Interface : menu ⋮ de
+  l'éditeur « Durée de vie… », feuille à boutons radio, badge et phrase TalkBack sur la carte (aussi sur
+  une note de coffre fermé : la durée n'est pas un secret), purge à l'ouverture (`StartupViewModel`) et
+  chaque minute sur la liste (`HomeRoute`). « Après lecture » efface à `onCleared` de l'éditeur, pas à la
+  disposition de l'écran (une rotation l'aurait effacée), après le dernier enregistrement ; annoncé à
+  l'ouverture. detekt a fait sortir la durée de vie de `NotesRepository` (`DureesDeVie`, seuil de
+  fonctions) et regrouper couleur + durée de vie en `FeuillesDeLaFiche` (seuil de paramètres de l'écran).
+  Tests : `ResteDeVieTest` (5) et `DureesDeVieTest` (5) sur la JVM ; sur le S9 `LectureUniqueTest` (3 :
+  effacée à la fermeture ; contrôle, choisie dans la session ; témoin sans durée), `EditeurTest` (36),
+  `RechercheDansLaNoteEcranTest` (5), `FermetureDuCoffreTest` (9), `LiensDansUnCoffreTest` (3),
+  `GestesSurDesNotesTest` (14), `AccueilTest` (20) — 0 échec.
+- [ ] D-044 scellée
 - [ ] Textes 5 langues · [ ] version 3.4.0 (507) · [ ] journaux 5071-5073 · [ ] README, SECURITY, CGU/confidentialité
 - [ ] Audits (3 axes, sécurité des nouvelles entrées, i18n, cohérence) · [ ] relecture externe · [ ] S9 · [ ] CI
 - [ ] Avant le tag : build F-Droid sous AGP 9.5 (voir d'abord comment F-Droid a construit SMS 1.30.0)

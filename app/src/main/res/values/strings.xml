@@ -434,6 +434,36 @@
     <string name="depot_discard_title">Discard this text?</string>
     <string name="depot_discard_body">It has not been dropped, and nothing keeps it once this screen is closed.</string>
     <string name="depot_discard_confirm">Discard</string>
+    <string name="note_lifetime">Lifetime…</string>
+    <string name="lifetime_title">Lifetime</string>
+    <string name="lifetime_none">None — the note stays</string>
+    <string name="lifetime_1h">1 hour</string>
+    <string name="lifetime_24h">24 hours</string>
+    <string name="lifetime_7d">7 days</string>
+    <string name="lifetime_30d">30 days</string>
+    <string name="lifetime_after_reading">After reading</string>
+    <string name="lifetime_after_reading_detail">Erased when you close it after opening it again.</string>
+    <string name="lifetime_explanation">Erased for good once the time is up, at the next opening of the app or return to the list — not to the second. Left out of backups and exports.</string>
+    <string name="lifetime_set">Lifetime: %1$s</string>
+    <string name="lifetime_read_once_notice">This note erases itself when you close it.</string>
+    <string name="lifetime_left_minutes_short">%1$d min</string>
+    <string name="lifetime_left_hours_short">%1$d h</string>
+    <string name="lifetime_left_days_short">%1$d d</string>
+    <string name="lifetime_soon_short">soon</string>
+    <string name="lifetime_soon">Erases itself soon</string>
+    <string name="lifetime_after_reading_phrase">Erases itself after its next reading</string>
+    <plurals name="lifetime_left_minutes">
+        <item quantity="one">Erases itself in %1$d minute</item>
+        <item quantity="other">Erases itself in %1$d minutes</item>
+    </plurals>
+    <plurals name="lifetime_left_hours">
+        <item quantity="one">Erases itself in %1$d hour</item>
+        <item quantity="other">Erases itself in %1$d hours</item>
+    </plurals>
+    <plurals name="lifetime_left_days">
+        <item quantity="one">Erases itself in %1$d day</item>
+        <item quantity="other">Erases itself in %1$d days</item>
+    </plurals>
     <string name="settings_vault_auto_lock">Vault auto-lock</string>
     <plurals name="settings_vault_auto_lock_minutes">
         <item quantity="one">%1$d minute</item>

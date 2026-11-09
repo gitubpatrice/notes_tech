@@ -87,7 +87,7 @@ class RechercheDansLaNoteEcranTest {
                     onInfos = {},
                     onDeplacer = {},
                     onArchiver = {},
-                    onCouleur = {},
+                    feuilles = FeuillesDeLaFiche(couleur = {}, dureeDeVie = {}),
                     onExporter = {},
                     onCopier = {},
                     onCorbeille = {},

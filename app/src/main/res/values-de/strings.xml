@@ -359,6 +359,36 @@
     <string name="depot_discard_title">Diesen Text verwerfen?</string>
     <string name="depot_discard_body">Er wurde nicht abgelegt, und nichts bewahrt ihn auf, sobald dieser Bildschirm geschlossen ist.</string>
     <string name="depot_discard_confirm">Verwerfen</string>
+    <string name="note_lifetime">Lebensdauer…</string>
+    <string name="lifetime_title">Lebensdauer</string>
+    <string name="lifetime_none">Keine — die Notiz bleibt</string>
+    <string name="lifetime_1h">1 Stunde</string>
+    <string name="lifetime_24h">24 Stunden</string>
+    <string name="lifetime_7d">7 Tage</string>
+    <string name="lifetime_30d">30 Tage</string>
+    <string name="lifetime_after_reading">Nach dem Lesen</string>
+    <string name="lifetime_after_reading_detail">Gelöscht, wenn Sie sie nach dem erneuten Öffnen schließen.</string>
+    <string name="lifetime_explanation">Endgültig gelöscht, sobald die Zeit abgelaufen ist, beim nächsten Öffnen der App oder bei der Rückkehr zur Liste – nicht auf die Sekunde genau. Nicht in Sicherungen und Exporten enthalten.</string>
+    <string name="lifetime_set">Lebensdauer: %1$s</string>
+    <string name="lifetime_read_once_notice">Diese Notiz wird gelöscht, wenn Sie sie schließen.</string>
+    <string name="lifetime_left_minutes_short">%1$d Min.</string>
+    <string name="lifetime_left_hours_short">%1$d Std.</string>
+    <string name="lifetime_left_days_short">%1$d T.</string>
+    <string name="lifetime_soon_short">bald</string>
+    <string name="lifetime_soon">Wird bald gelöscht</string>
+    <string name="lifetime_after_reading_phrase">Wird nach dem nächsten Lesen gelöscht</string>
+    <plurals name="lifetime_left_minutes">
+        <item quantity="one">Wird in %1$d Minute gelöscht</item>
+        <item quantity="other">Wird in %1$d Minuten gelöscht</item>
+    </plurals>
+    <plurals name="lifetime_left_hours">
+        <item quantity="one">Wird in %1$d Stunde gelöscht</item>
+        <item quantity="other">Wird in %1$d Stunden gelöscht</item>
+    </plurals>
+    <plurals name="lifetime_left_days">
+        <item quantity="one">Wird in %1$d Tag gelöscht</item>
+        <item quantity="other">Wird in %1$d Tagen gelöscht</item>
+    </plurals>
     <string name="settings_vault_auto_lock">Automatische Tresorsperre</string>
     <plurals name="settings_vault_auto_lock_minutes">
         <item quantity="one">%1$d Minute</item>

@@ -48,6 +48,7 @@ import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 import com.filestech.notes_tech.ui.vault.VaultAttempt
 import com.filestech.notes_tech.ui.vault.VaultViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -145,6 +146,13 @@ fun HomeRoute(
     // La purge de la corbeille est un rattrapage d'arrière-plan, lancé une fois par entrée sur
     // l'écran. `Unit` en clé : la relancer à chaque recomposition ferait un balayage par frappe.
     LaunchedEffect(Unit) { homeViewModel.purgeExpiredTrash() }
+    // D-043 (3.4.0): the notes whose lifetime is over, every minute while the list shows them.
+    LaunchedEffect(Unit) {
+        while (true) {
+            homeViewModel.purgerLesNotesExpirees()
+            delay(PURGE_DES_EXPIREES_MS)
+        }
+    }
 
     MessagesDeDossier(foldersViewModel, snackbars)
     MessagesDesGestesDeNote(homeViewModel, snackbars)
@@ -630,3 +638,6 @@ private fun actionsDeSelection(
         onSupprimerDefinitivement = { gestes.suppression = ids },
     )
 }
+
+/** D-043: how often the list erases the notes whose lifetime is over. */
+private const val PURGE_DES_EXPIREES_MS = 60_000L
