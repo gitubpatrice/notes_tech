@@ -115,6 +115,19 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
 
     fun setSecureWindow(value: Boolean) = prefs.putBoolean(KEY_SECURE_WINDOW, value)
 
+    // ── Clavier sans apprentissage (D-040, 3.4.0) ────────────────────────────────────────────────
+
+    /**
+     * Tous les champs demandent au clavier de ne rien apprendre. **Activé par défaut** (Patrice,
+     * 2026-11-09), pour la raison de [secureWindowNow] : un oubli de configuration ne doit pas devenir
+     * une fuite. La panique efface les réglages : celui-ci y revient à vrai.
+     */
+    fun keyboardNoLearningNow(): Boolean = prefs.boolean(KEY_KEYBOARD_NO_LEARNING, default = true)
+
+    val keyboardNoLearning: Flow<Boolean> = observing { keyboardNoLearningNow() }
+
+    fun setKeyboardNoLearning(value: Boolean) = prefs.putBoolean(KEY_KEYBOARD_NO_LEARNING, value)
+
     // ── Auto-verrouillage des coffres ────────────────────────────────────────────────────────────
 
     /** En minutes. `0` = jamais, jusqu'à un verrouillage manuel ou le passage en arrière-plan. */
@@ -195,5 +208,8 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
 
         /** `services/first_launch_flag.dart:16`. */
         const val KEY_SPLASH_SHOWN = "splash_shown_v1"
+
+        /** Né en 3.4.0 (D-040) : aucune version Flutter ne l'a écrit. */
+        const val KEY_KEYBOARD_NO_LEARNING = "keyboard_no_learning"
     }
 }

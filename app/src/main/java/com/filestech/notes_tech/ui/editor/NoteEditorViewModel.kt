@@ -211,6 +211,9 @@ class NoteEditorViewModel @Inject constructor(
     /** Opened from a search result (3.2.0): what was searched, for the "Find in note" bar. */
     val rechercheALOuverture: String? = savedState[Destination.ARG_RECHERCHE]
 
+    /** Opened by the "Dictation" launcher shortcut (3.4.0, D-041): the microphone at the opening. */
+    val dicterALOuverture: Boolean = savedState[Destination.ARG_DICTER] ?: false
+
     private val noteId: String = checkNotNull(savedState[Destination.ARG_NOTE_ID]) {
         "l'editeur a ete ouvert sans identifiant de note"
     }

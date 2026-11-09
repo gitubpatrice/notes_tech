@@ -2,13 +2,11 @@ package com.filestech.notes_tech.ui
 
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -32,8 +30,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.data.prefs.AppSettings
-import com.filestech.notes_tech.data.prefs.LegacyPreferences
-import com.filestech.notes_tech.data.prefs.ThemePreference
 import com.filestech.notes_tech.security.applock.AppLockLifecycle
 import com.filestech.notes_tech.security.applock.AppLockManager
 import com.filestech.notes_tech.security.applock.AppLockState
@@ -41,9 +37,13 @@ import com.filestech.notes_tech.ui.applock.AppLockRoute
 import com.filestech.notes_tech.ui.applock.RecentsGuard
 import com.filestech.notes_tech.ui.common.ExternalActivityGuard
 import com.filestech.notes_tech.ui.common.LocalExternalActivityGuard
+import com.filestech.notes_tech.ui.common.avecLaLangueChoisie
 import com.filestech.notes_tech.ui.navigation.Destination
 import com.filestech.notes_tech.ui.panic.RecouvrementDePanique
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
+import com.filestech.notes_tech.ui.raccourcis.RaccourcisRecus
+import com.filestech.notes_tech.ui.raccourcis.publierLesRaccourcis
+import com.filestech.notes_tech.ui.secure.ClavierSansApprentissage
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
 import com.filestech.notes_tech.ui.secure.sansActionsDeTexteDesAutresApps
@@ -54,8 +54,8 @@ import com.filestech.notes_tech.ui.startup.StartupFailureScreen
 import com.filestech.notes_tech.ui.startup.StartupState
 import com.filestech.notes_tech.ui.startup.StartupViewModel
 import com.filestech.notes_tech.ui.theme.NotesTechTheme
+import com.filestech.notes_tech.ui.theme.estSombre
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -103,6 +103,8 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         // 🔴 Before `setContent`, where Navigation reads it (security audit of 2026-09-26, E1).
         intent = sansNavigationImposee(intent)
+        // 3.4.0 (D-041): with this activity's context, so in the language chosen in the app.
+        publierLesRaccourcis()
         // Before anything is composed, and synchronously: the first frame must already be the lock
         // screen when a lock is configured. Once per process — a recreated activity keeps the state.
         appLock.resolveAtLaunch()
@@ -173,17 +175,7 @@ class MainActivity : FragmentActivity() {
      * question.
      */
     override fun attachBaseContext(newBase: Context) {
-        val prefs = AppSettings(LegacyPreferences(newBase))
-        // `SYSTEM` (no code) forces nothing: the context stays as Android built it, following the
-        // device's setting, even when it changes while the app runs.
-        val langue = prefs.localeNow().code?.let(Locale::forLanguageTag)
-        super.attachBaseContext(if (langue == null) newBase else newBase.avecLangue(langue))
-    }
-
-    private fun Context.avecLangue(locale: Locale): Context {
-        val configuration = Configuration(resources.configuration)
-        configuration.setLocale(locale)
-        return createConfigurationContext(configuration)
+        super.attachBaseContext(newBase.avecLaLangueChoisie())
     }
 }
 
@@ -205,14 +197,16 @@ private fun NotesTechApp(settings: AppSettings, secureWindow: SecureWindowContro
     val verrouConfigure by appLock.configured.collectAsState(initial = appLock.isConfigured())
     RecentsGuard(lockConfigured = verrouConfigure)
 
-    NotesTechTheme(
-        darkTheme = when (theme) {
-            ThemePreference.LIGHT -> false
-            ThemePreference.DARK -> true
-            ThemePreference.SYSTEM -> isSystemInDarkTheme()
-        },
-    ) {
-        ContenuPrincipal(settings, appLock, verrouConfigure)
+    // D-040: read, not assumed — a first frame without the flag would let the keyboard learn the first
+    // letters typed in a field focused at once (an editor opened to be written, 3.3.0).
+    val sansApprentissage by settings.keyboardNoLearning.collectAsStateWithLifecycle(
+        initialValue = settings.keyboardNoLearningNow(),
+    )
+
+    NotesTechTheme(darkTheme = estSombre(theme)) {
+        ClavierSansApprentissage(actif = sansApprentissage) {
+            ContenuPrincipal(settings, appLock, verrouConfigure)
+        }
     }
 }
 
@@ -277,6 +271,8 @@ private fun ContenuPrincipal(settings: AppSettings, appLock: AppLockManager, ver
                     // the panic mode is destroying the database (security review of 3.2.0, L3).
                     if (!paniqueDeclenchee) {
                         PartagesRecus(onOuvrirLaNote = { navController.navigate(Destination.Editor(it).route) })
+                        // 3.4.0 (D-041) — a launcher shortcut, carried out here for the same reasons.
+                        RaccourcisRecus(onOuvrir = { navController.navigate(it.route) })
                     }
                 }
             }

@@ -2,7 +2,6 @@ package com.filestech.notes_tech.ui.secure
 
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.view.inputmethod.EditorInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
@@ -16,9 +15,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.PlatformTextInputMethodRequest
 import androidx.compose.ui.platform.nativeClipboardManager
-import androidx.core.view.inputmethod.EditorInfoCompat
 import kotlinx.coroutines.CancellationException
 import timber.log.Timber
 
@@ -69,19 +66,10 @@ fun SaisieDeCoffre(
         LocalSaisieProtegee provides actif,
         LocalCopieDeSaisie provides copie,
     ) {
+        // A vault note asks it whatever the setting of D-040 says.
         InterceptPlatformTextInput(
             interceptor = { requete, suivant ->
-                val transmise = if (!estActif) {
-                    requete
-                } else {
-                    PlatformTextInputMethodRequest { attributs: EditorInfo ->
-                        requete.createInputConnection(attributs).also {
-                            attributs.imeOptions =
-                                attributs.imeOptions or EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING
-                        }
-                    }
-                }
-                suivant.startInputMethod(transmise)
+                suivant.startInputMethod(if (estActif) sansApprentissage(requete) else requete)
             },
             content = contenu,
         )

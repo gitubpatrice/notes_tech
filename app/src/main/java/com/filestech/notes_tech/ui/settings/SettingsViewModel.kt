@@ -19,6 +19,7 @@ data class SettingsUiState(
     val secureWindow: Boolean = true,
     val vaultAutoLockMinutes: Int = 15,
     val sort: NoteSortMode = NoteSortMode.DEFAULT,
+    val keyboardNoLearning: Boolean = true,
 )
 
 @HiltViewModel
@@ -32,6 +33,9 @@ class SettingsViewModel @Inject constructor(private val settings: AppSettings) :
         settings.sort,
     ) { theme, locale, fenetre, delai, tri ->
         SettingsUiState(theme, locale, fenetre, delai, tri)
+    }.combine(settings.keyboardNoLearning) { etat, sansApprentissage ->
+        // A sixth flow: `combine` has typed overloads up to five.
+        etat.copy(keyboardNoLearning = sansApprentissage)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(ARRET_DIFFERE_MILLIS),
@@ -44,6 +48,7 @@ class SettingsViewModel @Inject constructor(private val settings: AppSettings) :
             secureWindow = settings.secureWindowNow(),
             vaultAutoLockMinutes = settings.vaultAutoLockMinutesNow(),
             sort = settings.sortNow(),
+            keyboardNoLearning = settings.keyboardNoLearningNow(),
         ),
     )
 
@@ -52,6 +57,8 @@ class SettingsViewModel @Inject constructor(private val settings: AppSettings) :
     fun setLocale(value: LocalePreference) = settings.setLocale(value)
 
     fun setSecureWindow(value: Boolean) = settings.setSecureWindow(value)
+
+    fun setKeyboardNoLearning(value: Boolean) = settings.setKeyboardNoLearning(value)
 
     fun setVaultAutoLockMinutes(value: Int) = settings.setVaultAutoLockMinutes(value)
 

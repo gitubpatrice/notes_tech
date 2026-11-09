@@ -79,6 +79,48 @@
           `noHistory` + `excludeFromRecents` + `taskAffinity=""`: it never shows in the recents nor
           stays in the sending app's task.
         -->
+        <!--
+          3.4.0 (D-041) — where the launcher shortcuts land. NOT exported: a shortcut is started by the
+          system as this app, so no other app can reach it. No screen: it deposits the request in
+          memory and opens the app, which carries it out once unlocked.
+        -->
+        <activity
+            android:name=".ui.raccourcis.RaccourciActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NotesTech.Partage" />
+
+        <!--
+          3.4.0 (D-042) — the blind drop: write a note without unlocking the app, read nothing. NOT
+          exported: the tile below and the "Quick drop" shortcut start it as this app. Its own task, out
+          of the recent apps; a protected window, set by the activity itself.
+        -->
+        <activity
+            android:name=".ui.depot.DepotActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.NotesTech" />
+
+        <!--
+          3.4.0 (D-042) — the quick settings tile of the blind drop. Exported for the system only:
+          `BIND_QUICK_SETTINGS_TILE` is held by the system UI, no app can bind it. A permission REQUIRED
+          of the caller, not one the app asks for: the app's own permissions do not change.
+        -->
+        <service
+            android:name=".ui.depot.TuileDeDepot"
+            android:exported="true"
+            android:icon="@drawable/ic_tuile_depot"
+            android:label="@string/depot_title"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".ui.share.RecevoirUnPartageActivity"
             android:exported="true"

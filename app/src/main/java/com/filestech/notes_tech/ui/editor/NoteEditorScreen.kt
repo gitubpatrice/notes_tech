@@ -171,7 +171,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         if (lectureChoisie == null) lectureChoisie = state.content.text.isNotBlank()
         if (!ouvertureDecidee) {
             ouvertureDecidee = true
-            clavierALOuverture = lectureChoisie == false
+            clavierALOuverture = lectureChoisie == false && !viewModel.dicterALOuverture
         }
     }
 
@@ -212,6 +212,10 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         messages = messages,
         onInstallerLeModele = onInstallerLaDictee,
     )
+    DicteeALOuverture(demandee = viewModel.dicterALOuverture, noteChargee = chargee) {
+        lectureChoisie = false
+        dictee.demarrer()
+    }
 
     val retourHaptique = LocalHapticFeedback.current
     val contexte = LocalContext.current

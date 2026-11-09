@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material.icons.outlined.LockClock
@@ -168,6 +169,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
         },
         onSort = viewModel::setSort,
         onSecureWindow = viewModel::setSecureWindow,
+        onKeyboardNoLearning = viewModel::setKeyboardNoLearning,
         onAutoLock = viewModel::setVaultAutoLockMinutes,
         onPanic = panique::trigger,
         onOpenAbout = onOpenAbout,
@@ -214,6 +216,7 @@ fun SettingsScreen(
     /** A slot, like [ligneDExport]: the encrypted backup's two rows and their dialogs (D-029). */
     lignesDeSauvegarde: @Composable () -> Unit = {},
     sectionDeVerrouillage: @Composable () -> Unit = {},
+    onKeyboardNoLearning: (Boolean) -> Unit = {},
 ) {
     var choixDeTheme by remember { mutableStateOf(false) }
     var choixDeLangue by remember { mutableStateOf(false) }
@@ -341,6 +344,20 @@ fun SettingsScreen(
                             enabled = capturesAutorisables,
                             role = Role.Switch,
                             onValueChange = onSecureWindow,
+                        ),
+                    )
+                    HorizontalDivider()
+                    // D-040 (3.4.0): the same idiom as the row above — one node, toggled by the row.
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_keyboard_no_learning)) },
+                        supportingContent = { Text(stringResource(R.string.settings_keyboard_no_learning_subtitle)) },
+                        leadingContent = { Icon(Icons.Outlined.Keyboard, contentDescription = null) },
+                        trailingContent = { Switch(checked = state.keyboardNoLearning, onCheckedChange = null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.toggleable(
+                            value = state.keyboardNoLearning,
+                            role = Role.Switch,
+                            onValueChange = onKeyboardNoLearning,
                         ),
                     )
                     HorizontalDivider()

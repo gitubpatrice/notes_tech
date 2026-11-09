@@ -70,11 +70,21 @@ sealed interface Destination {
      * [recherche]: the search of the result the note is opened from (3.2.0), which "Find in note"
      * opens with. Encoded, like [noteId]: it is whatever the user typed. Absent when null or blank.
      */
-    data class Editor(val noteId: String, val ecrire: Boolean = false, val recherche: String? = null) : Destination {
+    /**
+     * [dicter]: open the microphone once the note is open (3.4.0, the "Dictation" launcher shortcut,
+     * D-041) — as a tap on its button would. Absent from the route when false.
+     */
+    data class Editor(
+        val noteId: String,
+        val ecrire: Boolean = false,
+        val recherche: String? = null,
+        val dicter: Boolean = false,
+    ) : Destination {
         override val route = "$EDITOR_PREFIX/${Uri.encode(noteId)}" +
             listOfNotNull(
                 "$ARG_ECRIRE=true".takeIf { ecrire },
                 recherche?.takeIf { it.isNotBlank() }?.let { "$ARG_RECHERCHE=${Uri.encode(it)}" },
+                "$ARG_DICTER=true".takeIf { dicter },
             ).joinToString("&").let { if (it.isEmpty()) "" else "?$it" }
     }
 
@@ -83,9 +93,10 @@ sealed interface Destination {
         const val ARG_NOTE_ID = "noteId"
         const val ARG_ECRIRE = "ecrire"
         const val ARG_RECHERCHE = "recherche"
+        const val ARG_DICTER = "dicter"
 
         /** Le motif déclaré au `NavHost`. Une seule déclaration, ici. */
         const val EDITOR_PATTERN =
-            "$EDITOR_PREFIX/{$ARG_NOTE_ID}?$ARG_ECRIRE={$ARG_ECRIRE}&$ARG_RECHERCHE={$ARG_RECHERCHE}"
+            "$EDITOR_PREFIX/{$ARG_NOTE_ID}?$ARG_ECRIRE={$ARG_ECRIRE}&$ARG_RECHERCHE={$ARG_RECHERCHE}&$ARG_DICTER={$ARG_DICTER}"
     }
 }

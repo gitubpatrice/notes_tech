@@ -57,6 +57,10 @@ fun NotesTechNavHost(navController: NavHostController) {
                     nullable = true
                     defaultValue = null
                 },
+                navArgument(Destination.ARG_DICTER) {
+                    type = NavType.BoolType
+                    defaultValue = false
+                },
             ),
         ) { entree ->
             // L'identifiant n'est pas relu ici : `SavedStateHandle` le remet au ViewModel, qui est
