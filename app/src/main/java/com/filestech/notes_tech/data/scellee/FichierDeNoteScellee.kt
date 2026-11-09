@@ -43,7 +43,7 @@ data class NoteScellee(
  *   is parsed. A wrong code and a damaged file look the same, as for the backup.
  * - **The limits of a note**, checked on what is read: a sealed note is untrusted input, like an import.
  */
-internal object FichierDeNoteScellee {
+object FichierDeNoteScellee {
 
     val MAGIQUE: ByteArray = "NTSEALED".toByteArray(Charsets.US_ASCII)
 

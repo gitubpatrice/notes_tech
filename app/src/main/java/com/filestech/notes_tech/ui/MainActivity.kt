@@ -43,6 +43,7 @@ import com.filestech.notes_tech.ui.panic.RecouvrementDePanique
 import com.filestech.notes_tech.ui.panic.activityPanicViewModel
 import com.filestech.notes_tech.ui.raccourcis.RaccourcisRecus
 import com.filestech.notes_tech.ui.raccourcis.publierLesRaccourcis
+import com.filestech.notes_tech.ui.scellee.NotesScelleesRecues
 import com.filestech.notes_tech.ui.secure.ClavierSansApprentissage
 import com.filestech.notes_tech.ui.secure.LocalSecureWindow
 import com.filestech.notes_tech.ui.secure.SecureWindowController
@@ -273,6 +274,8 @@ private fun ContenuPrincipal(settings: AppSettings, appLock: AppLockManager, ver
                         PartagesRecus(onOuvrirLaNote = { navController.navigate(Destination.Editor(it).route) })
                         // 3.4.0 (D-041) — a launcher shortcut, carried out here for the same reasons.
                         RaccourcisRecus(onOuvrir = { navController.navigate(it.route) })
+                        // 3.4.0 (D-044) — a sealed note received: its code is asked here, unlocked.
+                        NotesScelleesRecues(onOuvrirLaNote = { navController.navigate(Destination.Editor(it).route) })
                     }
                 }
             }

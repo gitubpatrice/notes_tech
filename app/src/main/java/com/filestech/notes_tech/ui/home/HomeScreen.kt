@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.EnhancedEncryption
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NoteAlt
 import androidx.compose.material.icons.outlined.SearchOff
@@ -96,6 +97,8 @@ fun HomeScreen(
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
+    /** The ⋮ menu's "Open a sealed note" (3.4.0, D-044): the system picker. */
+    onOpenSealedNote: () -> Unit,
     onDismissVaultLostBanner: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -143,7 +146,15 @@ fun HomeScreen(
                     actions = actionsDeSelection,
                 )
             } else {
-                BarreDeLaListe(state, onOpenDrawer, onSortSelected, onOpenSearch, onOpenSettings, onOpenAbout)
+                BarreDeLaListe(
+                    state,
+                    onOpenDrawer,
+                    onSortSelected,
+                    onOpenSearch,
+                    onOpenSettings,
+                    onOpenAbout,
+                    onOpenSealedNote,
+                )
             }
         },
         floatingActionButton = {
@@ -379,6 +390,7 @@ private fun BarreDeLaListe(
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenSealedNote: () -> Unit,
 ) {
     var menuOuvert by remember { mutableStateOf(false) }
     var triOuvert by remember { mutableStateOf(false) }
@@ -483,6 +495,15 @@ private fun BarreDeLaListe(
                     onClick = {
                         menuOuvert = false
                         onOpenAbout()
+                    },
+                )
+                // 3.4.0 (D-044): a sealed note saved on the phone — "Open with" is the other way in.
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.home_open_sealed)) },
+                    leadingIcon = { Icon(Icons.Outlined.EnhancedEncryption, contentDescription = null) },
+                    onClick = {
+                        menuOuvert = false
+                        onOpenSealedNote()
                     },
                 )
             }

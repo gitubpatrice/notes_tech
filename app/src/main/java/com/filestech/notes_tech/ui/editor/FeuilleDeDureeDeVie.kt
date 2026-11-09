@@ -28,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.data.scellee.NoteScellee
 import com.filestech.notes_tech.domain.model.DureeDeVie
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.ui.common.phrase
@@ -114,7 +115,25 @@ private fun Choix(@StringRes libelle: Int, choisi: Boolean, @StringRes detail: I
  * One parameter of `NoteEditorScreen` for both: it holds as many as detekt allows. No default, for the
  * screen's reason: a menu entry wired to nothing would be a dead button that compiles.
  */
-data class FeuillesDeLaFiche(val couleur: () -> Unit, val dureeDeVie: () -> Unit)
+data class FeuillesDeLaFiche(val couleur: () -> Unit, val dureeDeVie: () -> Unit, val partageScelle: () -> Unit)
+
+/** "Share sealed…" (D-044) as the editor shows it: while [ouvert], for a note that is [lisible] — as it is on screen. */
+@Composable
+internal fun PartageScelleDeLEditeur(ouvert: Boolean, lisible: Boolean, state: EditorUiState, onFermer: () -> Unit) {
+    if (!ouvert || !lisible) return
+    FeuilleDePartageScelle(
+        note = { lectureUnique ->
+            NoteScellee(
+                titre = state.titre.text,
+                contenu = state.content.text,
+                couleur = state.note?.color?.id,
+                etiquettes = state.note?.tags.orEmpty(),
+                lectureUnique = lectureUnique,
+            )
+        },
+        onFermer = onFermer,
+    )
+}
 
 /** The sheet as the editor shows it: while [ouverte], for a [note] that is readable. */
 @Composable

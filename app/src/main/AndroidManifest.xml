@@ -121,6 +121,27 @@
             </intent-filter>
         </service>
 
+        <!--
+          3.4.0 (D-044) — "Open with → Notes Tech" on a sealed note (.ntnote). Exported, as "Open with"
+          requires; no screen: it reads the file (content:// of another app only, bounded in size and in
+          time, magic checked), deposits it in memory and opens the app, which asks for the code once
+          unlocked. Nothing is decrypted or written here. A file that is not a sealed note is said so,
+          and the app does not open. No BROWSABLE: no web page can reach it.
+        -->
+        <activity
+            android:name=".ui.scellee.OuvrirUneNoteScelleeActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.NotesTech.Partage">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".ui.share.RecevoirUnPartageActivity"
             android:exported="true"

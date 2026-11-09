@@ -41,6 +41,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.EnhancedEncryption
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
@@ -189,6 +190,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
     var deplacementOuvert by rememberSaveable { mutableStateOf(false) }
     var couleurOuverte by rememberSaveable { mutableStateOf(false) }
     var dureeDeVieOuverte by rememberSaveable { mutableStateOf(false) }
+    var partageScelleOuvert by rememberSaveable { mutableStateOf(false) }
     var suppressionDemandee by rememberSaveable { mutableStateOf(false) }
     var infosOuvertes by rememberSaveable { mutableStateOf(false) }
 
@@ -263,6 +265,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         if (!noteLisible) {
             couleurOuverte = false
             dureeDeVieOuverte = false
+            partageScelleOuvert = false
             suppressionDemandee = false
         }
     }
@@ -271,6 +274,12 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
         note = state.note,
         onChoisir = viewModel::setLifetime,
         onFermer = { dureeDeVieOuverte = false },
+    )
+    PartageScelleDeLEditeur(
+        ouvert = partageScelleOuvert,
+        lisible = noteLisible,
+        state = state,
+        onFermer = { partageScelleOuvert = false },
     )
     AnnonceDeLectureUnique(
         noteChargee = chargee,
@@ -448,9 +457,11 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             onInfos = { infosOuvertes = true },
             onDeplacer = { deplacementOuvert = true },
             onArchiver = viewModel::setArchived,
-            feuilles = FeuillesDeLaFiche(couleur = {
-                couleurOuverte = true
-            }, dureeDeVie = { dureeDeVieOuverte = true }),
+            feuilles = FeuillesDeLaFiche(
+                couleur = { couleurOuverte = true },
+                dureeDeVie = { dureeDeVieOuverte = true },
+                partageScelle = { partageScelleOuvert = true },
+            ),
             onExporter = { viewModel.exporterLaNote(libelleBoiteDeReception, mentionDeCoffre) },
             onCopier = {
                 // Retour haptique sur un geste réussi, comme l'application publiée
@@ -783,6 +794,7 @@ fun NoteEditorScreen(
                             onArchiver = { onArchiver(!note.archived) },
                             onCouleur = feuilles.couleur,
                             onDureeDeVie = feuilles.dureeDeVie,
+                            onPartagerScellee = feuilles.partageScelle,
                             onExporter = onExporter,
                             onCopier = onCopier,
                             onCorbeille = onCorbeille,
@@ -1399,6 +1411,7 @@ private fun MenuDeDebordement(
     onArchiver: () -> Unit,
     onCouleur: () -> Unit,
     onDureeDeVie: () -> Unit,
+    onPartagerScellee: () -> Unit,
     onExporter: () -> Unit,
     onCopier: () -> Unit,
     onCorbeille: () -> Unit,
@@ -1519,6 +1532,15 @@ private fun MenuDeDebordement(
             onClick = {
                 ouvert = false
                 onExporter()
+            },
+        )
+        // 3.4.0 (D-044): next to the export, the other gesture that sends the note out — sealed.
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.note_share_sealed)) },
+            leadingIcon = { Icon(Icons.Outlined.EnhancedEncryption, contentDescription = null) },
+            onClick = {
+                ouvert = false
+                onPartagerScellee()
             },
         )
         // Entre l'export et la corbeille, comme dans l'application publiée

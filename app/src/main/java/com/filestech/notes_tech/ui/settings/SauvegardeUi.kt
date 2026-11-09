@@ -34,8 +34,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -46,6 +44,7 @@ import com.filestech.notes_tech.data.sauvegarde.RestaurationDeSauvegarde
 import com.filestech.notes_tech.data.sauvegarde.SauvegardeChiffree
 import com.filestech.notes_tech.security.sauvegarde.SecretDeSauvegarde
 import com.filestech.notes_tech.security.vault.VaultParams
+import com.filestech.notes_tech.ui.common.CodeAffiche
 import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.vault.ChampDePhraseSecrete
@@ -244,14 +243,8 @@ private fun DialogueDeCreation(
                     TextButton(onClick = { avecUnePhrase = false }) { Text(stringResource(R.string.backup_use_code)) }
                 } else {
                     Text(stringResource(R.string.backup_code_intro))
-                    // Two lines of three groups: left to the text layout, a line broke inside a group.
-                    Text(
-                        code.split('-').chunked(GROUPES_PAR_LIGNE).joinToString("\n") { it.joinToString("-") },
-                        style = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace),
-                        // Spelled, group by group: read as text, TalkBack said "K7QM" as a word (audit 3
-                        // axes of 3.2.0, U2). The dialog is a secured window, as the code on screen.
-                        modifier = Modifier.semantics { contentDescription = codeEpele(code) },
-                    )
+                    // The dialog is a secured window, as the code on screen.
+                    CodeAffiche(code)
                     ChampDePhraseSecrete(
                         valeur = recopie,
                         onValeurChange = { recopie = it },
@@ -426,13 +419,6 @@ private fun texteDuBilan(r: RestaurationDeSauvegarde.Resultat, apres: Boolean): 
 
 /** A vault's PIN, as the vaults take it — their own bounds, not a copy of them. */
 private val CODE_VALIDE = Regex("[0-9]{${VaultParams.PIN_MIN_LENGTH},${VaultParams.PIN_MAX_LENGTH}}")
-
-/** How many of the code's groups a line shows. */
-private const val GROUPES_PAR_LIGNE = 3
-
-/** [code] for TalkBack: its signs one by one, a pause between groups — "K, 7, Q, M. T, 2, X, B…". */
-internal fun codeEpele(code: String): String =
-    code.split('-').joinToString(". ") { groupe -> groupe.toList().joinToString(", ") }
 
 /** What the system picker is told the file is: it has no type of its own. */
 private const val TYPE_DU_FICHIER = "application/octet-stream"

@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui.home
 
 import android.content.res.Resources
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -31,6 +32,7 @@ import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.displayName
+import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
 import com.filestech.notes_tech.ui.folders.ConfirmRemoveVaultProtectionDialog
 import com.filestech.notes_tech.ui.folders.FolderAction
@@ -43,6 +45,7 @@ import com.filestech.notes_tech.ui.folders.FoldersDrawerViewModel
 import com.filestech.notes_tech.ui.folders.GesteDeDossier
 import com.filestech.notes_tech.ui.folders.SortDesNotes
 import com.filestech.notes_tech.ui.folders.deverrouillageRequis
+import com.filestech.notes_tech.ui.scellee.NotesScelleesViewModel
 import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
@@ -146,6 +149,18 @@ fun HomeRoute(
     // La purge de la corbeille est un rattrapage d'arrière-plan, lancé une fois par entrée sur
     // l'écran. `Unit` en clé : la relancer à chaque recomposition ferait un balayage par frappe.
     LaunchedEffect(Unit) { homeViewModel.purgeExpiredTrash() }
+
+    // 3.4.0 (D-044): "Open a sealed note" — the file picked is read and deposited; the code is asked by
+    // `NotesScelleesRecues`, the same as for "Open with". A file that is no sealed note is said here.
+    val scellees: NotesScelleesViewModel = hiltViewModel()
+    val selecteurDeNoteScellee = rememberAppResultLauncher(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(scellees::lireDepuisLeSelecteur)
+    }
+    val ouvrirUneNoteScellee: () -> Unit = { selecteurDeNoteScellee.launch(arrayOf("*/*")) }
+    val ressourcesDeLAccueil = LocalResources.current
+    LaunchedEffect(scellees) {
+        scellees.refusDuSelecteur.collect { snackbars.showSnackbar(ressourcesDeLAccueil.getString(it)) }
+    }
     // D-043 (3.4.0): the notes whose lifetime is over, every minute while the list shows them.
     LaunchedEffect(Unit) {
         while (true) {
@@ -271,6 +286,7 @@ fun HomeRoute(
                 onOpenSearch = onOpenSearch,
                 onOpenSettings = onOpenSettings,
                 onOpenAbout = onOpenAbout,
+                onOpenSealedNote = ouvrirUneNoteScellee,
                 onDismissVaultLostBanner = homeViewModel::dismissVaultLostBanner,
             )
         }
