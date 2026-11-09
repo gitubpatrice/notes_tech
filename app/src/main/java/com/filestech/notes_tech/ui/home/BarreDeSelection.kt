@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.filestech.notes_tech.R
@@ -72,10 +73,18 @@ internal fun BarreDeSelection(
                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.selection_close))
             }
         },
+        // 🔴 The NUMBER alone is drawn, the sentence is said (measured on the S9, 2026-11-09): next to four
+        // icons, "2 sélectionnées" wrapped onto two lines, and the bar grew by 20 dp under the user's
+        // finger — worse in German or Italian. As Keep and Gmail do; TalkBack still reads "2 selected".
         title = {
+            val phrase = pluralStringResource(R.plurals.selection_count, selection.size, selection.size)
             Text(
-                text = pluralStringResource(R.plurals.selection_count, selection.size, selection.size),
-                modifier = Modifier.semantics { heading() },
+                text = selection.size.toString(),
+                maxLines = 1,
+                modifier = Modifier.semantics {
+                    heading()
+                    contentDescription = phrase
+                },
             )
         },
         actions = {

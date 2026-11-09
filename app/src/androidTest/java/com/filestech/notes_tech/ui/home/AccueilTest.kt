@@ -445,7 +445,10 @@ class AccueilTest {
         val notes = listOf(note("a", "Première"), note("b", "Seconde"))
         poser(HomeUiState(notes = notes, loading = false, selection = setOf("a", "b")))
 
-        regle.onNodeWithText(regle.activity.resources.getQuantityString(R.plurals.selection_count, 2, 2)).assertExists()
+        // The number drawn, the sentence said.
+        regle.onNode(hasText("2") and isHeading()).assertExists()
+        regle.onNodeWithContentDescription(regle.activity.resources.getQuantityString(R.plurals.selection_count, 2, 2))
+            .assertExists()
         regle.onNodeWithContentDescription(texte(R.string.home_new_note)).assertDoesNotExist()
         regle.onNodeWithContentDescription(texte(R.string.note_archive)).performClick()
         regle.onNodeWithContentDescription(texte(R.string.note_editor_menu_move)).performClick()

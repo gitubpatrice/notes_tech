@@ -1,6 +1,7 @@
 package com.filestech.notes_tech.ui.home
 
 import android.content.res.Resources
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -265,6 +266,11 @@ fun HomeRoute(
                 onDismissVaultLostBanner = homeViewModel::dismissVaultLostBanner,
             )
         }
+
+        // 🔴 Back closes the open drawer first, as in every Android app (3.3.0, measured on the S9): until
+        // then it left the app with the drawer open. Composed AFTER the drawer, so registered later and
+        // asked first — before the selection's own Back, which comes next.
+        BackHandler(enabled = drawerState.isOpen) { portee.launch { drawerState.close() } }
 
         HoteDeMessages(
             etat = snackbars,

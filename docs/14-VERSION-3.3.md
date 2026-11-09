@@ -89,6 +89,18 @@
 - **Relecture externe GPT-5.6 Luna** (0,025 $) : corrigés — l'annulation d'un archivage repasse par le
   contrôle des coffres ; les lots rendent les ids réellement changés (annonce et Annuler) ; une feuille
   ouverte n'agit que sur les notes encore affichées.
+- **Seconde relecture Luna** (0,026 $) sur les correctifs : les trois tiennent ; corrigés en plus —
+  l'annulation d'un archivage atteint une note mise à la corbeille depuis, la question de sortie de coffre
+  n'agit que sur les notes affichées, la confirmation de suppression compte ce qu'elle efface. Écarté : un
+  geste repris après déverrouillage n'est pas recoupé avec la liste (cela casserait la reprise de
+  l'annulation d'un archivage, dont les notes ne sont plus dans la liste ; et rien ne change la liste
+  derrière la feuille de déverrouillage, modale).
+- **Essais à la main sur le S9** (appli `.next.debug`) : clavier à l'ouverture d'une note neuve
+  (`mInputShown=true`, focus sur `ChampNatifDuCorps`), sélection par appui long puis toucher, archivage
+  et Annuler, archive et intertitre « Novembre 2026 », Archiver / Désarchiver dans l'éditeur. Deux défauts
+  vus et corrigés : **le titre « 2 sélectionnées » passait sur deux lignes** et la barre grandissait de
+  20 dp (seul le nombre est dessiné, la phrase reste dite par TalkBack) ; **Retour, tiroir ouvert, quittait
+  l'appli** — antérieur (3.2.2 aussi), corrigé : Retour ferme d'abord le tiroir (`DoubleToucherTest`).
 - **Limites connues, antérieures (3.1.0), non corrigées** : un geste en attente du secret est perdu si
   l'écran tourne pendant la feuille de déverrouillage (rien n'est écrit : il est à refaire) ; un événement
   émis sans collecteur (rotation) n'est pas reçu. À traiter ensemble, avec la sauvegarde de

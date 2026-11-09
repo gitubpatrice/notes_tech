@@ -34,6 +34,7 @@ Suggérées dans [#48](https://github.com/gitubpatrice/notes_tech/issues/48).
   mettre en favori, colorer ou supprimer définitivement, d'un coup. Un geste écrit toutes les notes
   sélectionnées ou aucune. Une note de coffre ne se sélectionne qu'une fois son coffre ouvert ; sortir
   des notes scellées de leur coffre pose la même question que l'éditeur.
+- **Retour ferme le tiroir ouvert** au lieu de quitter l'appli.
 - **Le curseur là où l'on écrit** : une nouvelle note, ou une note ouverte par Éditer, reçoit le curseur
   dans son corps et le clavier d'emblée, sans toucher.
 - L'appui long de la 3.1.0 (éditer, corbeille, supprimer définitivement) est désormais celui de la

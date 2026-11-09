@@ -32,6 +32,7 @@ Suggested in [#48](https://github.com/gitubpatrice/notes_tech/issues/48).
   archive, move, trash (with Undo), pin, mark as favourite, colour or delete permanently, all at once.
   One gesture writes all the selected notes or none of them. A vault note is selected only once its
   vault is open; moving sealed notes out of their vault asks the same question as the editor.
+- **Back closes the open drawer** instead of leaving the app.
 - **The cursor where you write**: a new note, or one opened with Edit, gets the cursor in its body and
   the keyboard at once, without a tap.
 - The long press of 3.1.0 (edit, trash, delete permanently) is now the selection's: with one note
