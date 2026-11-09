@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.prefs.AppSettings
+import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.LinksRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
@@ -55,6 +56,9 @@ class FermetureDuCoffreTest {
 
     @Inject
     lateinit var notes: NotesRepository
+
+    @Inject
+    lateinit var durees: DureesDeVie
 
     @Inject
     lateinit var links: LinksRepository
@@ -277,6 +281,7 @@ class FermetureDuCoffreTest {
                 links = links,
                 exporter = exporter,
                 folders = folders,
+                durees = durees,
                 vaults = vaults,
                 settings = settings,
                 clipboard = clipboard,

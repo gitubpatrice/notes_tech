@@ -201,6 +201,7 @@ class AppLockSettingsScreenTest {
                         onLocale = {},
                         onSort = {},
                         onSecureWindow = { calls += "secure" },
+                        onKeyboardNoLearning = {},
                         onAutoLock = {},
                         onPanic = {},
                         onOpenAbout = {},

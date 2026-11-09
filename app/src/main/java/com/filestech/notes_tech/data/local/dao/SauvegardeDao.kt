@@ -18,7 +18,8 @@ interface SauvegardeDao {
     @Query(
         "SELECT id, folder_id AS dossierId, " +
             "length(title) + length(content) + length(tags) + ifnull(length(encrypted_content), 0) AS poids " +
-            "FROM notes ORDER BY id",
+            // D-043 (3.4.0): a note with a lifetime stays out — a restore would bring it back.
+            "FROM notes WHERE expires_at IS NULL AND read_once = 0 ORDER BY id",
     )
     suspend fun poidsDesNotes(): List<PoidsDUneNote>
 

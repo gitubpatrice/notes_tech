@@ -72,6 +72,7 @@ import com.filestech.notes_tech.ui.common.PointsDeSaisie
 import com.filestech.notes_tech.ui.common.displayName
 import com.filestech.notes_tech.ui.common.refusalMessageFor
 import com.filestech.notes_tech.ui.common.retryWaitMessage
+import com.filestech.notes_tech.ui.secure.ClavierSansApprentissage
 import com.filestech.notes_tech.ui.secure.ProprietesDeFeuilleSecrete
 import com.filestech.notes_tech.ui.secure.SecureWindowGuard
 import com.filestech.notes_tech.ui.theme.Formes
@@ -574,24 +575,28 @@ internal fun ChampDePhraseSecrete(
 ) {
     var visible by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = valeur,
-        onValueChange = onValeurChange,
-        label = { Text(label) },
-        singleLine = true,
-        enabled = actif,
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = typeDeClavier, imeAction = actionClavier),
-        trailingIcon = {
-            IconButton(onClick = { visible = !visible }) {
-                Icon(
-                    imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                    contentDescription = stringResource(if (visible) masquer else afficher),
-                )
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-    )
+    // A secret never teaches the keyboard anything, whatever the setting of D-040 says (3.4.0): a
+    // password field asks it already on most keyboards, and the eye turns it into a visible one.
+    ClavierSansApprentissage(actif = true) {
+        OutlinedTextField(
+            value = valeur,
+            onValueChange = onValeurChange,
+            label = { Text(label) },
+            singleLine = true,
+            enabled = actif,
+            visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = typeDeClavier, imeAction = actionClavier),
+            trailingIcon = {
+                IconButton(onClick = { visible = !visible }) {
+                    Icon(
+                        imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                        contentDescription = stringResource(if (visible) masquer else afficher),
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 // ── Code à quatre-six chiffres ───────────────────────────────────────────────────────────────────

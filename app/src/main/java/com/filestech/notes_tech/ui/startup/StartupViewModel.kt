@@ -3,6 +3,7 @@ package com.filestech.notes_tech.ui.startup
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.local.DatabaseProvider
+import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.security.kek.KekFailure
 import com.filestech.notes_tech.security.panic.PanicJournal
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,6 +59,7 @@ enum class FailureReason {
 class StartupViewModel @Inject constructor(
     private val databaseProvider: DatabaseProvider,
     private val panicJournal: PanicJournal,
+    private val durees: DureesDeVie,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<StartupState>(StartupState.Opening)
@@ -92,6 +94,8 @@ class StartupViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 databaseProvider.get()
+                // D-043 (3.4.0): before anything shows the notes; a failure is not the opening's.
+                durees.purgerSansEchec()
                 _state.value = StartupState.Ready
             } catch (e: KekFailure) {
                 // Pas de `runCatching` ici, et pas de `catch (e: Exception)` : le premier avale

@@ -71,6 +71,7 @@ import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.widget.TextViewCompat
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.recherche.RechercheDansLeTexte.Plage
+import com.filestech.notes_tech.ui.secure.LocalClavierSansApprentissage
 import com.filestech.notes_tech.ui.secure.LocalCopieDeSaisie
 import com.filestech.notes_tech.ui.secure.LocalSaisieProtegee
 import com.filestech.notes_tech.ui.secure.copierDepuisUnChamp
@@ -113,6 +114,7 @@ internal fun ChampDuCorps(
     modifier: Modifier = Modifier,
 ) {
     val protegee = LocalSaisieProtegee.current
+    val sansApprentissage = LocalClavierSansApprentissage.current
     val natif = LocalClipboard.current
     val copieDeSaisie = LocalCopieDeSaisie.current
     // Outside `SaisieDeCoffre` — the screen's tests — a plain clip, as there.
@@ -160,6 +162,7 @@ internal fun ChampDuCorps(
                 champ.onFocus = { focalise = it }
                 champ.ecrire = { texte, fini -> portee.launch { fini(copie(texte)) } }
                 champ.protegee = protegee
+                champ.sansApprentissage = sansApprentissage
                 champ.apparence(Apparence.de(style, schema, champ.context, enHaut = !flottant))
                 champ.indications(indication = if (focalise) indication else libelle, nom = libelle)
                 champ.appliquer(valeur)
@@ -243,7 +246,8 @@ internal data class CouleursDeSurlignage(val fond: Int, val encre: Int, val fond
  *   other app's `PROCESS_TEXT` — on Android 10 and below, every app answering it is listed, and
  *   "Translate" sent the text online (3.1.1). The classifier is [TextClassifier.NO_OP] here too.
  * - 🔴 **A vault note's keyboard is asked not to learn** (F4): `IME_FLAG_NO_PERSONALIZED_LEARNING`,
- *   as `SaisieDeCoffre` asks it for Compose's fields.
+ *   as `SaisieDeCoffre` asks it for Compose's fields — and every note's, while the setting of D-040
+ *   is on ([sansApprentissage], 3.4.0).
  * - 🔴 **A vault note's selection cannot be dragged to another app**: dragging is copying, with none
  *   of [ecrire]'s protections. A drop INTO the field arrives as plain text, as a paste does.
  * - 🔴 **The text is never written to the saved state**: an `EditText` saves its text with the
@@ -270,6 +274,17 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
             if (field == valeur) return
             field = valeur
             // The keyboard reads the flag when its connection opens: open it again.
+            if (hasFocus()) clavier()?.restartInput(this)
+        }
+
+    /**
+     * The setting of D-040: the keyboard is asked not to learn, as for a vault note — and that alone.
+     * Kept apart from [protegee], which also decides the clipboard and the dragging.
+     */
+    var sansApprentissage: Boolean = false
+        set(valeur) {
+            if (field == valeur) return
+            field = valeur
             if (hasFocus()) clavier()?.restartInput(this)
         }
 
@@ -483,7 +498,9 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
 
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection? {
         val connexion = super.onCreateInputConnection(outAttrs) ?: return null
-        if (protegee) outAttrs.imeOptions = outAttrs.imeOptions or EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING
+        if (protegee || sansApprentissage) {
+            outAttrs.imeOptions = outAttrs.imeOptions or EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING
+        }
         return ConnexionBornee(connexion)
     }
 

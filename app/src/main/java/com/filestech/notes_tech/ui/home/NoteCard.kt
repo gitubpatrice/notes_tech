@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,8 +39,11 @@ import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
 import com.filestech.notes_tech.domain.model.NoteExcerpt
+import com.filestech.notes_tech.ui.common.VieAffichee
+import com.filestech.notes_tech.ui.common.enPhraseSuivante
 import com.filestech.notes_tech.ui.common.nom
 import com.filestech.notes_tech.ui.common.rememberNoteDateFormatter
+import com.filestech.notes_tech.ui.common.vieAffichee
 import com.filestech.notes_tech.ui.theme.CouleursDeNote
 import com.filestech.notes_tech.ui.theme.SemanticColors
 
@@ -135,6 +139,8 @@ fun NoteCard(
     // n'a rien protégé. La garde suit la branche visuelle, ligne pour ligne.
     val teinte = couleur?.let { CouleursDeNote.teinte(it, couleurs) }
     val nomDeCouleur = couleur?.let { stringResource(it.nom()) }
+    // D-043 (3.4.0): what is left of the note's lifetime — not a secret, shown on a locked vault note too.
+    val vie = vieAffichee(note.expiresAt, note.readOnce)
     val description = buildString {
         append(titreAffiche)
         if (!verrouillee && extrait.isNotEmpty()) append(". ").append(extrait)
@@ -142,6 +148,7 @@ fun NoteCard(
         folderName?.let { append(". ").append(it) }
         // Said as it is shown: a colour drawn on the card is a colour TalkBack names.
         nomDeCouleur?.let { append(". ").append(it) }
+        append(vie.enPhraseSuivante())
         if (!verrouillee && note.tags.isNotEmpty()) {
             append(". ").append(note.tags.joinToString(" ") { "#$it" })
         }
@@ -259,6 +266,7 @@ fun NoteCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = couleurs.onSurfaceVariant,
                 )
+                BadgeDeDureeDeVie(vie)
                 if (folderName != null) FolderChip(folderName)
                 if (!verrouillee && note.tags.isNotEmpty()) {
                     Text(
@@ -285,6 +293,25 @@ internal fun titreAffiche(note: Note): String = when {
     note.isLocked -> stringResource(R.string.note_card_locked)
     note.title.isEmpty() -> stringResource(R.string.note_untitled)
     else -> note.title
+}
+
+/** D-043: the hourglass and what is left — "5 h", "after reading". Read by TalkBack in the card's description. */
+@Composable
+private fun BadgeDeDureeDeVie(vie: VieAffichee?) {
+    val texte = vie?.court ?: return
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        Icon(
+            imageVector = Icons.Outlined.Timer,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = texte,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 /** La puce discrète qui dit d'où vient une note, en vue non filtrée. */

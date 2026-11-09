@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.prefs.AppSettings
+import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesEnLot
 import com.filestech.notes_tech.data.repository.NotesRepository
@@ -123,6 +124,7 @@ sealed interface HomeEvent {
 class HomeViewModel @Inject constructor(
     private val notes: NotesRepository,
     private val enLot: NotesEnLot,
+    private val durees: DureesDeVie,
     private val folders: FoldersRepository,
     private val search: SearchRepository,
     private val settings: AppSettings,
@@ -478,6 +480,15 @@ class HomeViewModel @Inject constructor(
     fun dismissVaultLostBanner() {
         vaultLostCount.value = 0
         settings.clearVaultLostDrafts()
+    }
+
+    /**
+     * D-043 (3.4.0): erases the notes whose lifetime is over — called every minute while the list is on
+     * screen (`HomeRoute`), so a "1 hour" note goes within a minute of its hour. A failure says nothing:
+     * the next minute tries again.
+     */
+    fun purgerLesNotesExpirees() {
+        viewModelScope.launch { durees.purgerSansEchec() }
     }
 
     /** Purge les notes dont le séjour en corbeille a expiré. Sans effet visible si rien n'expire. */

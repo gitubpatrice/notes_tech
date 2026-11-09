@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.domain.recherche.RechercheDansLeTexte.Plage
+import com.filestech.notes_tech.ui.secure.LocalClavierSansApprentissage
 import com.filestech.notes_tech.ui.secure.LocalCopieDeSaisie
 import com.filestech.notes_tech.ui.secure.LocalSaisieProtegee
 import com.google.common.truth.Truth.assertThat
@@ -53,6 +54,7 @@ class ChampDuCorpsTest {
 
     private var etat by mutableStateOf(TextFieldValue())
     private var protegee by mutableStateOf(false)
+    private var sansApprentissage by mutableStateOf(false)
     private var surlignage by mutableStateOf(Surlignage.AUCUN)
     private val recues = mutableListOf<TextFieldValue>()
     private val copiees = mutableListOf<String>()
@@ -70,6 +72,7 @@ class ChampDuCorpsTest {
             MaterialTheme {
                 CompositionLocalProvider(
                     LocalSaisieProtegee provides protegee,
+                    LocalClavierSansApprentissage provides sansApprentissage,
                     LocalCopieDeSaisie provides { texte ->
                         copiees += texte
                         attente?.await()
@@ -266,6 +269,22 @@ class ChampDuCorpsTest {
         regle.waitForIdle()
 
         assertThat(options() and drapeau).isEqualTo(drapeau)
+    }
+
+    /** D-040 (3.4.0): the setting asks it for every note, a note that is not in a vault included. */
+    @Test
+    fun the_setting_asks_the_keyboard_not_to_learn_for_an_ordinary_note() {
+        poser("ordinaire")
+        val drapeau = EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING
+        fun options() = surLeChamp { EditorInfo().also { onCreateInputConnection(it) }.imeOptions }
+
+        assertThat(options() and drapeau).isEqualTo(0)
+
+        regle.runOnIdle { sansApprentissage = true }
+        regle.waitForIdle()
+
+        assertThat(options() and drapeau).isEqualTo(drapeau)
+        assertThat(surLeChamp { protegee }).isFalse()
     }
 
     /**

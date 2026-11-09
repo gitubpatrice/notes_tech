@@ -34,6 +34,8 @@ internal fun NoteEntity.toDomain(): Note = Note(
     encrypted = encryptedContent?.let(::EncryptedBody),
     encVersion = encVersion,
     color = NoteColor.fromId(colorId),
+    expiresAt = expiresAt?.let(Instant::ofEpochMilli),
+    readOnce = readOnce,
 )
 
 internal fun List<NoteEntity>.toDomain(): List<Note> = map(NoteEntity::toDomain)

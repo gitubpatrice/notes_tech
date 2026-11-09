@@ -46,6 +46,13 @@ data class Note(
      * `ui/home/CouleurVisible.kt`.
      */
     val color: NoteColor? = null,
+    /**
+     * When the note erases itself (D-043, 3.4.0), `null` for never. Not a secret — outside the vault's
+     * envelope, like [updatedAt] — so a locked vault note keeps it and its card shows it.
+     */
+    val expiresAt: Instant? = null,
+    /** Erased when closed after it was opened again (D-043): "after reading". */
+    val readOnce: Boolean = false,
 ) {
     /**
      * `true` si la note est verrouillée dans un coffre.

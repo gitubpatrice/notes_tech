@@ -75,6 +75,7 @@ class ReglagesTest {
     private val langues = mutableListOf<LocalePreference>()
     private val tris = mutableListOf<NoteSortMode>()
     private val fenetresProtegees = mutableListOf<Boolean>()
+    private val clavierSansApprentissage = mutableListOf<Boolean>()
     private val delais = mutableListOf<Int>()
     private val paniques = mutableListOf<Unit>()
     private val aPropos = mutableListOf<Unit>()
@@ -120,6 +121,7 @@ class ReglagesTest {
                         onLocale = { langues += it },
                         onSort = { tris += it },
                         onSecureWindow = { fenetresProtegees += it },
+                        onKeyboardNoLearning = { clavierSansApprentissage += it },
                         onAutoLock = { delais += it },
                         onPanic = { paniques += Unit },
                         onOpenAbout = { aPropos += Unit },
@@ -267,22 +269,24 @@ class ReglagesTest {
             .getQuantityString(R.plurals.settings_vault_auto_lock_minutes, 15, 15)
 
         poser(SettingsUiState(vaultAutoLockMinutes = 0))
-        regle.onNodeWithText(texte(R.string.settings_vault_auto_lock_never)).assertIsDisplayed()
+        regle.onNodeWithText(texte(R.string.settings_vault_auto_lock_never)).performScrollTo().assertIsDisplayed()
 
         poser(SettingsUiState(vaultAutoLockMinutes = 15))
-        regle.onNodeWithText(quinze).assertIsDisplayed()
+        regle.onNodeWithText(quinze).performScrollTo().assertIsDisplayed()
         regle.onNodeWithText(texte(R.string.settings_vault_auto_lock_never)).assertDoesNotExist()
     }
 
     /**
-     * 🔴🔴 **Un SEUL nœud basculable, qui porte le libellé ET l'état** — c'est la propriété de §77.
+     * 🔴🔴 **Un SEUL nœud basculable par réglage, qui porte le libellé ET l'état** — c'est la propriété
+     * de §77.
      *
-     * Avant correctif, l'écran en portait deux : le `ListItem` avec le texte, et un `Switch` **sans
-     * nom** en `trailingContent`. Ce test l'interdit de trois façons à la fois, et chacune tomberait
-     * séparément si le correctif était défait :
+     * Avant correctif, l'écran en portait deux pour la fenêtre protégée : le `ListItem` avec le texte, et
+     * un `Switch` **sans nom** en `trailingContent`. Ce test l'interdit de trois façons à la fois, et
+     * chacune tomberait séparément si le correctif était défait :
      *
-     * 1. `assertCountEquals(1)` — deux cibles pour un seul réglage, dont une sous le minimum
-     *    accessible, c'est exactement ce que l'idiome `onCheckedChange = null` évite ;
+     * 1. `assertCountEquals(2)` — deux réglages à bascule depuis la 3.4.0 (fenêtre protégée, clavier
+     *    sans apprentissage), donc deux nœuds : un de plus serait un `Switch` sans nom, une seconde
+     *    cible pour un seul réglage, ce que l'idiome `onCheckedChange = null` évite ;
      * 2. le nœud basculable **porte le libellé** de la ligne : sans ça il s'annonce « interrupteur,
      *    activé » sans dire de quoi, ce qui était le défaut mesuré ;
      * 3. son état suit `state.secureWindow`, et le clic remonte **l'inverse**.
@@ -295,8 +299,8 @@ class ReglagesTest {
     fun un_seul_noeud_basculable_porte_le_libelle_de_la_fenetre_protegee_et_son_etat() {
         poser(SettingsUiState(secureWindow = true))
 
-        regle.onAllNodes(isToggleable()).assertCountEquals(1)
-        val interrupteur = regle.onNode(isToggleable())
+        regle.onAllNodes(isToggleable()).assertCountEquals(2)
+        val interrupteur = regle.onNode(isToggleable() and hasText(texte(R.string.settings_secure_window)))
         interrupteur.assertIsOn()
         assertThat(
             interrupteur.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Text)
@@ -308,7 +312,22 @@ class ReglagesTest {
         assertThat(fenetresProtegees).containsExactly(false)
 
         poser(SettingsUiState(secureWindow = false))
-        regle.onNode(isToggleable()).assertIsOff()
+        regle.onNode(isToggleable() and hasText(texte(R.string.settings_secure_window))).assertIsOff()
+    }
+
+    /** D-040 (3.4.0) : la ligne du clavier, comme celle de la fenêtre protégée — un nœud, son libellé, son état. */
+    @Test
+    fun le_clavier_sans_apprentissage_est_un_seul_noeud_qui_suit_son_etat() {
+        poser(SettingsUiState(keyboardNoLearning = true))
+
+        val interrupteur = regle.onNode(isToggleable() and hasText(texte(R.string.settings_keyboard_no_learning)))
+        interrupteur.performScrollTo().assertIsOn()
+        interrupteur.performClick()
+        assertThat(clavierSansApprentissage).containsExactly(false)
+        assertThat(fenetresProtegees).isEmpty()
+
+        poser(SettingsUiState(keyboardNoLearning = false))
+        regle.onNode(isToggleable() and hasText(texte(R.string.settings_keyboard_no_learning))).assertIsOff()
     }
 
     /**

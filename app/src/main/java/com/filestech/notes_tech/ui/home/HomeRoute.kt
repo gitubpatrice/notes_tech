@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui.home
 
 import android.content.res.Resources
 import androidx.activity.compose.BackHandler
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -22,8 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import androidx.lifecycle.repeatOnLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
@@ -31,6 +35,7 @@ import com.filestech.notes_tech.domain.model.VaultMode
 import com.filestech.notes_tech.domain.model.estProtegee
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.displayName
+import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
 import com.filestech.notes_tech.ui.folders.ConfirmDeleteFolderDialog
 import com.filestech.notes_tech.ui.folders.ConfirmRemoveVaultProtectionDialog
 import com.filestech.notes_tech.ui.folders.FolderAction
@@ -43,11 +48,13 @@ import com.filestech.notes_tech.ui.folders.FoldersDrawerViewModel
 import com.filestech.notes_tech.ui.folders.GesteDeDossier
 import com.filestech.notes_tech.ui.folders.SortDesNotes
 import com.filestech.notes_tech.ui.folders.deverrouillageRequis
+import com.filestech.notes_tech.ui.scellee.SelecteurDeNoteScelleeViewModel
 import com.filestech.notes_tech.ui.vault.ChooseVaultModeSheet
 import com.filestech.notes_tech.ui.vault.CreateVaultSheet
 import com.filestech.notes_tech.ui.vault.UnlockVaultSheet
 import com.filestech.notes_tech.ui.vault.VaultAttempt
 import com.filestech.notes_tech.ui.vault.VaultViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -145,6 +152,28 @@ fun HomeRoute(
     // La purge de la corbeille est un rattrapage d'arrière-plan, lancé une fois par entrée sur
     // l'écran. `Unit` en clé : la relancer à chaque recomposition ferait un balayage par frappe.
     LaunchedEffect(Unit) { homeViewModel.purgeExpiredTrash() }
+
+    // 3.4.0 (D-044): "Open a sealed note" — the file picked is read and deposited; the code is asked by
+    // `NotesScelleesRecues`, the same as for "Open with". A file that is no sealed note is said here.
+    val scellees: SelecteurDeNoteScelleeViewModel = hiltViewModel()
+    val selecteurDeNoteScellee = rememberAppResultLauncher(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(scellees::lire)
+    }
+    val ouvrirUneNoteScellee: () -> Unit = { selecteurDeNoteScellee.launch(arrayOf("*/*")) }
+    val ressourcesDeLAccueil = LocalResources.current
+    LaunchedEffect(scellees) {
+        scellees.refusDuSelecteur.collect { snackbars.showSnackbar(ressourcesDeLAccueil.getString(it)) }
+    }
+    // D-043 (3.4.0): the notes whose lifetime is over, every minute while the list shows them.
+    val cycleDeVie = LocalLifecycleOwner.current
+    LaunchedEffect(cycleDeVie) {
+        cycleDeVie.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                homeViewModel.purgerLesNotesExpirees()
+                delay(PURGE_DES_EXPIREES_MS)
+            }
+        }
+    }
 
     MessagesDeDossier(foldersViewModel, snackbars)
     MessagesDesGestesDeNote(homeViewModel, snackbars)
@@ -263,6 +292,7 @@ fun HomeRoute(
                 onOpenSearch = onOpenSearch,
                 onOpenSettings = onOpenSettings,
                 onOpenAbout = onOpenAbout,
+                onOpenSealedNote = ouvrirUneNoteScellee,
                 onDismissVaultLostBanner = homeViewModel::dismissVaultLostBanner,
             )
         }
@@ -630,3 +660,6 @@ private fun actionsDeSelection(
         onSupprimerDefinitivement = { gestes.suppression = ids },
     )
 }
+
+/** D-043: how often the list erases the notes whose lifetime is over. */
+private const val PURGE_DES_EXPIREES_MS = 60_000L

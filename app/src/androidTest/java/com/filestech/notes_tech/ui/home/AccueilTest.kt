@@ -126,6 +126,7 @@ class AccueilTest {
                     onOpenSearch = { recherchesOuvertes += Unit },
                     onOpenSettings = { reglagesOuverts += Unit },
                     onOpenAbout = {},
+                    onOpenSealedNote = {},
                     onDismissVaultLostBanner = { banniereFermee += Unit },
                 )
             }

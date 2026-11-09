@@ -2,6 +2,7 @@ package com.filestech.notes_tech.ui.startup
 
 import com.filestech.notes_tech.data.local.DatabaseProvider
 import com.filestech.notes_tech.data.local.NotesDatabase
+import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.security.panic.PanicJournal
 import com.filestech.notes_tech.security.panic.PanicService
 import com.google.common.truth.Truth.assertThat
@@ -27,6 +28,7 @@ class StartupViewModelTest {
 
     private val base = mockk<DatabaseProvider>()
     private val journal = mockk<PanicJournal>()
+    private val durees = mockk<DureesDeVie>(relaxed = true)
 
     @BeforeEach
     fun setUp() {
@@ -42,7 +44,7 @@ class StartupViewModelTest {
     fun pending_panic_is_resumed() {
         every { journal.isPending() } returns true
 
-        val demarrage = StartupViewModel(base, journal)
+        val demarrage = StartupViewModel(base, journal, durees)
 
         assertThat(demarrage.state.value).isEqualTo(StartupState.ResumingPanic)
         coVerify(exactly = 0) { base.get() }
@@ -53,7 +55,7 @@ class StartupViewModelTest {
     fun no_pending_panic_opens_the_database() {
         every { journal.isPending() } returns false
 
-        val demarrage = StartupViewModel(base, journal)
+        val demarrage = StartupViewModel(base, journal, durees)
 
         assertThat(demarrage.state.value).isEqualTo(StartupState.Ready)
         coVerify(exactly = 1) { base.get() }

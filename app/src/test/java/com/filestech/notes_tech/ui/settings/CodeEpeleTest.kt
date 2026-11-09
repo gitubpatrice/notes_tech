@@ -1,5 +1,6 @@
 package com.filestech.notes_tech.ui.settings
 
+import com.filestech.notes_tech.ui.common.codeEpele
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 

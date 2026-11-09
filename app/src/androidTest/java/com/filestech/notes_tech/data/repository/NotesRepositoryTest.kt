@@ -418,6 +418,8 @@ class NotesRepositoryTest {
                 updatedAt = horloge.millis(),
                 encVersion = 1,
                 colorId = null,
+                expiresAt = null,
+                readOnce = false,
             ),
         )
 

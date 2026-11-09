@@ -291,6 +291,10 @@ class NotesRepository @Inject constructor(
         title: String = "",
         content: String = "",
         tags: List<String> = emptyList(),
+        // 3.4.0 (D-044): a sealed note received keeps its colour and its "after reading" — in the INSERT
+        // itself: set afterwards, a failure or a process killed in between left a "read once" note for good.
+        color: NoteColor? = null,
+        readOnce: Boolean = false,
     ): Note {
         requireTitleWithinLimit(title)
         val now = clock.instant()
@@ -308,6 +312,8 @@ class NotesRepository @Inject constructor(
             updatedAt = now,
             encrypted = null,
             encVersion = EncryptedFormat.CONTENT_ONLY,
+            color = color,
+            readOnce = readOnce,
         )
 
         return inTransaction { database ->
@@ -929,6 +935,8 @@ class NotesRepository @Inject constructor(
         updatedAt = updatedAt.toEpochMilli(),
         encVersion = encVersion,
         colorId = color?.id,
+        expiresAt = expiresAt?.toEpochMilli(),
+        readOnce = readOnce,
     )
 
     private fun requireTitleWithinLimit(title: String) {

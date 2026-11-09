@@ -21,6 +21,26 @@ vérifier.**
 
 ---
 
+## Nouveautés de la 3.4.0
+
+- **Des notes à durée de vie** : ⋮ › Durée de vie… — une note s'efface pour de bon après 1 heure,
+  24 heures, 7 ou 30 jours, ou quand on la referme après l'avoir rouverte. Sa carte montre ce qu'il lui
+  reste. L'effacement a lieu à la prochaine ouverture de l'appli ou sur la liste, pas à la seconde près,
+  et une telle note n'entre ni dans la sauvegarde ni dans l'export.
+- **Partager une note scellée** : ⋮ › Partager scellée… — la note est chiffrée (Argon2id, AES-256-GCM)
+  dans un fichier `.ntnote` que seul un code de 24 signes ouvre, affiché une fois et gardé nulle part.
+  Envoyez le fichier par n'importe quelle appli et le code par un autre moyen ; elle peut être « à
+  lecture unique » chez son destinataire. Une note scellée reçue s'ouvre par « Ouvrir avec » ou ⋮ ›
+  Ouvrir une note scellée, et arrive dans la Boîte de réception une fois son code tapé — jamais dans un
+  coffre.
+- **Dépôt rapide** : écrire une note sans déverrouiller Notes Tech, depuis une tuile des réglages rapides
+  ou un appui long sur l'icône. Il ne fait qu'écrire, dans la Boîte de réception : rien de ce que l'appli
+  contient ne s'y lit.
+- **Raccourcis sur l'icône** : Nouvelle note, Dicter, Dépôt rapide.
+- **Clavier sans apprentissage** (Réglages › Sécurité, activé par défaut) : chaque champ demande au
+  clavier de ne rien apprendre ; les champs de secret le demandent toujours.
+- Sous le capot : AGP 9.5.0, Gradle 9.8.2, SQLCipher 4.20.0 ; DataStore, jamais utilisé, retiré.
+
 ## Nouveautés de la 3.3.0
 
 Suggérées dans [#48](https://github.com/gitubpatrice/notes_tech/issues/48).

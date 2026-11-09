@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import com.filestech.notes_tech.domain.importation.FichierPartage
 import com.filestech.notes_tech.domain.importation.LectureDUnPartage
 import com.filestech.notes_tech.domain.importation.PartageRecu
+import com.filestech.notes_tech.ui.common.ouvrirLAppli
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -125,13 +126,6 @@ class RecevoirUnPartageActivity : ComponentActivity() {
     } catch (e: RuntimeException) {
         Timber.w(e, "nom du fichier partage illisible")
         null
-    }
-
-    /** The app as the launcher opens it: its task brought back if it exists, a new one otherwise. */
-    private fun ouvrirLAppli() {
-        val lancement = packageManager.getLaunchIntentForPackage(packageName) ?: return
-        lancement.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-        startActivity(lancement)
     }
 
     internal companion object {

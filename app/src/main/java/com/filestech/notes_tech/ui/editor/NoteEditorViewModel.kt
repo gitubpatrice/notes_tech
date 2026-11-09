@@ -10,11 +10,13 @@ import com.filestech.notes_tech.data.export.ExportResult
 import com.filestech.notes_tech.data.export.NoteExporter
 import com.filestech.notes_tech.data.local.dao.NoteLinkRow
 import com.filestech.notes_tech.data.prefs.AppSettings
+import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.LinksRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.export.NoteMarkdown
+import com.filestech.notes_tech.domain.model.DureeDeVie
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
 import com.filestech.notes_tech.domain.model.NoteColor
@@ -157,6 +159,8 @@ data class ActionDEditeur(
      * not this action. Said by a message: the note's card, which would show it, is not on screen.
      */
     val archivee: Boolean? = null,
+    /** D-043 (3.4.0): the lifetime just chosen, by its label — `lifetime_none` when removed. */
+    @StringRes val dureeDeVie: Int? = null,
     /** Le contenu est dans le presse-papiers. `false` aussi quand il n'y avait rien à copier. */
     val copiee: Boolean = false,
     /** La note était vide : le presse-papiers n'a **pas** été touché. */
@@ -173,7 +177,7 @@ data class ActionDEditeur(
      */
     val origine: OrigineDErreur? = null,
 ) {
-    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, SUPPRESSION, COPIE, ARCHIVAGE }
+    enum class OrigineDErreur { DEPLACEMENT, EXPORT, CREATION, CORBEILLE, SUPPRESSION, COPIE, ARCHIVAGE, DUREE_DE_VIE }
 }
 
 /**
@@ -198,6 +202,7 @@ class NoteEditorViewModel @Inject constructor(
     private val links: LinksRepository,
     private val exporter: NoteExporter,
     private val folders: FoldersRepository,
+    private val durees: DureesDeVie,
     private val vaults: FolderVaultService,
     private val settings: AppSettings,
     private val clipboard: SensitiveClipboard,
@@ -211,6 +216,9 @@ class NoteEditorViewModel @Inject constructor(
     /** Opened from a search result (3.2.0): what was searched, for the "Find in note" bar. */
     val rechercheALOuverture: String? = savedState[Destination.ARG_RECHERCHE]
 
+    /** Opened by the "Dictation" launcher shortcut (3.4.0, D-041): the microphone at the opening. */
+    val dicterALOuverture: Boolean = savedState[Destination.ARG_DICTER] ?: false
+
     private val noteId: String = checkNotNull(savedState[Destination.ARG_NOTE_ID]) {
         "l'editeur a ete ouvert sans identifiant de note"
     }
@@ -219,6 +227,21 @@ class NoteEditorViewModel @Inject constructor(
     val state: StateFlow<EditorUiState> = _state.asStateFlow()
 
     private var sauvegardeDifferee: Job? = null
+
+    /** The last save of [saveNow]: "after reading" erases the note once it is written (D-043). */
+    private var derniereSauvegarde: Job? = null
+
+    /**
+     * D-043 (3.4.0) — "after reading": the note was marked so when it opened, and its text was shown.
+     * A vault note left locked was not read, and stays.
+     */
+    private var lueUneFoisALOuverture = false
+
+    /** A lifetime chosen in this session: no erasing at this closing — "after reading" counts from the next. */
+    private var dureeDeVieChoisieIci = false
+
+    /** Whether closing this editor erases the note: read once, and no lifetime chosen since. */
+    val effaceeALaFermeture: Boolean get() = lueUneFoisALOuverture && !dureeDeVieChoisieIci
 
     /**
      * Serialise les ecritures de cette note.
@@ -854,6 +877,22 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     /**
+     * The note's lifetime (D-043, 3.4.0), `null` for none. Choosing one here — "after reading" included —
+     * means this closing erases nothing: the choice counts from now, or from the next opening.
+     */
+    fun setLifetime(duree: DureeDeVie?) = tenterUneAction(ActionDEditeur.OrigineDErreur.DUREE_DE_VIE) {
+        if (durees.poser(noteId, duree)) {
+            dureeDeVieChoisieIci = true
+            // Read back: the date is the repository's clock's, and the card and the sheet show it.
+            val ecrite = notes.find(noteId)
+            _state.update { etat ->
+                etat.copy(note = etat.note?.copy(expiresAt = ecrite?.expiresAt, readOnce = ecrite?.readOnce == true))
+            }
+            _action.value = ActionDEditeur(dureeDeVie = duree?.libelle() ?: R.string.lifetime_none)
+        }
+    }
+
+    /**
      * Into the archive, or back out of it (3.3.0) — the ⋮ menu's "Archive" / "Unarchive".
      *
      * The flag alone, like [setPinned]: neither the content nor the sealed blob — so no vault check,
@@ -936,8 +975,35 @@ class NoteEditorViewModel @Inject constructor(
         // qu'il faut rattraper, c'est la PORTEE qui doit survivre au geste qu'elle exécute. Relevé
         // par une relecture externe (Gemini, 2026-08-14).
         val instantane = _state.value
-        applicationScope.launch {
+        derniereSauvegarde = applicationScope.launch {
             withContext(NonCancellable) { enregistrer(instantane) }
+        }
+    }
+
+    /**
+     * 🔴 **"After reading" (D-043): the note goes when the editor CLOSES** — here, and not on the screen's
+     * disposal, which a rotation triggers too: the ViewModel is cleared only when the editor leaves the
+     * back stack. A process killed while the note is open keeps it, for its next reading.
+     *
+     * After the last save — the text typed this time is written, then erased with the note: what the
+     * user chose. The process's scope, for [saveNow]'s reason.
+     */
+    override fun onCleared() {
+        super.onCleared()
+        if (!effaceeALaFermeture) return
+        val sauvegarde = derniereSauvegarde
+        applicationScope.launch {
+            withContext(NonCancellable) {
+                sauvegarde?.join()
+                try {
+                    notes.deletePermanently(noteId)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Kept: its next reading erases it — "after reading" is still on it.
+                    Timber.w(e, "note a lecture unique non effacee")
+                }
+            }
         }
     }
 
@@ -950,6 +1016,7 @@ class NoteEditorViewModel @Inject constructor(
             }
             val dossier = folders.find(note.folderId)
             if (!note.isLocked) {
+                lueUneFoisALOuverture = note.readOnce
                 _state.value = EditorUiState(
                     loading = false,
                     titre = TextFieldValue(note.title),
@@ -1010,6 +1077,7 @@ class NoteEditorViewModel @Inject constructor(
                 _state.value = EditorUiState(loading = false, note = note, folder = dossier, lockedVault = dossier)
                 return@launch
             }
+            lueUneFoisALOuverture = note.readOnce
             _state.value = EditorUiState(
                 loading = false,
                 titre = TextFieldValue(claire.title),

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.filestech.notes_tech.data.prefs.ThemePreference
 
 /**
  * La palette de l'application publiée, à l'octet près.
@@ -202,4 +203,15 @@ fun NotesTechTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composa
         typography = TypographieFilesTech,
         content = content,
     )
+}
+
+/**
+ * Whether [choix] asks for the dark theme — `SYSTEM` follows the device. One answer for every activity
+ * that draws a screen: `MainActivity` and the blind drop's (3.4.0).
+ */
+@Composable
+fun estSombre(choix: ThemePreference): Boolean = when (choix) {
+    ThemePreference.LIGHT -> false
+    ThemePreference.DARK -> true
+    ThemePreference.SYSTEM -> isSystemInDarkTheme()
 }

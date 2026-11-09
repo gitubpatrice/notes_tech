@@ -1,6 +1,6 @@
 # Privacy policy — Notes Tech
 
-_Last updated: 30 October 2026_
+_Last updated: 9 November 2026_
 
 ## In one sentence
 
@@ -17,6 +17,10 @@ Notes Tech does not collect, transmit or store any data on remote servers. Every
 - **Backlinks `[[Title]]`**: local inverted index, never transmitted.
 - **Encrypted backup (optional)**: a `.ntbackup` file you create yourself, where you choose through the Android document picker. It holds your folders and notes, trash included, encrypted with **AES-256-GCM** under a key derived by **Argon2id** (m=64MB, t=3) from a code the app draws and you write down, or from a passphrase of your own — Notes Tech keeps neither. It is first written, already encrypted, in the app's private storage, then copied where you chose and erased from the app's storage. A passphrase vault's notes stay sealed by its passphrase in the file. A PIN vault travels only open, with its key: in the file, only the backup's secret protects it; a closed one is left out. Restoring adds what is missing and overwrites nothing.
 - **Imported and shared notes**: Markdown or text files — or a ZIP of them — you choose in the Android document picker, and text or files you share to Notes Tech from another app, become ordinary notes in your folders, never in a vault. They are read once, on the phone; the originals are left untouched and nothing is kept beside the notes created. At most 500,000 characters per note.
+- **Sealed notes (optional)**: a note you choose to share sealed is encrypted into a `.ntnote` file — **AES-256-GCM** under a key derived by **Argon2id** (m=64MB, t=3) from a code the app draws, shows once and keeps nowhere. The file is written in the app's private storage, then handed to the app you choose to send it; you pass the code on another way. Its name says nothing of the note. A sealed note you receive is read once from the file you open with Notes Tech, and becomes a note — of the Inbox, never of a vault — only once you type its code.
+- **Quick drop**: from a quick settings tile or a shortcut of the app's icon, it writes a note into the Inbox without unlocking the app; it reads and shows nothing of what the app holds.
+- **Notes with a lifetime (optional)**: erased for good once their time is up — at the next opening of the app or return to the list —, or when closed after their reading if you chose "After reading". They go into neither the encrypted backup nor the export.
+- **Keyboard**: the app asks the keyboard not to learn what you type (a setting, on by default). It is a request, which a keyboard may ignore; what a keyboard keeps on its own is out of any app's reach.
 - **Voice dictation model (Whisper `.bin`)**: you obtain it yourself — the app shows the file name and its source — then import it through the Android document picker. Notes Tech has no Internet permission and **exposes no way to download anything**. Its SHA-256 is verified on import and before every load.
 - **Audio captured during dictation**: written to a temporary file in the app's private storage — the transcription engine reads a file, there is no way around it — then **wiped as soon as the transcription is returned**. It is also wiped on app start and by panic mode, so an abrupt shutdown leaves nothing behind.
 - **Settings (theme, sort, dictation enabled, vault auto-lock, app lock options)**: stored in clear in local preferences (no sensitive data).

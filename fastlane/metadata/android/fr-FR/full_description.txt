@@ -22,6 +22,10 @@ Notes Tech : prise de notes Markdown 100 % locale, chiffrée au repos. Écrite e
 • Les notes s'ouvrent en lecture (Markdown : titres, listes, liens) ; « Éditer » pour écrire, enregistrement automatique
 • Appui long pour sélectionner des notes, puis les archiver, déplacer, mettre à la corbeille avec Annuler, épingler, colorer ou supprimer d'un coup
 • Des Archives pour les notes que vous gardez hors de vos listes
+• Des notes qui s'effacent seules : après 1 heure, 24 heures, 7 ou 30 jours, ou après lecture
+• Partager une note scellée : un fichier chiffré que seul son code ouvre, envoyé par n'importe quelle appli
+• Dépôt rapide : écrire une note sans déverrouiller l'appli, depuis une tuile des réglages rapides ou les raccourcis de l'icône
+• Le clavier est prié de ne rien apprendre de ce que vous tapez
 • Une couleur pastel par note dans les listes (celle d'une note de coffre, seulement coffre ouvert)
 • Rétroliens <code>[[Titre]]</code> avec autocomplétion + panneau « notes qui mentionnent celle-ci »
 • Recherche FTS5 instantanée, recherche dans la note avec occurrences surlignées, tri réglable

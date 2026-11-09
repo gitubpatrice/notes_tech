@@ -33,6 +33,8 @@ import java.nio.ByteBuffer
  *   real backup does. Other parameters will come with another version of the format.
  * - **64 MiB at most, counted on what is really read** (R-9): a provider's announced size is only a
  *   first refusal.
+ * - **The sealed note of 3.4.0 (D-044) is the same container** with its own magic and bound — passed as
+ *   parameters whose defaults are the backup's: a backup is written and read exactly as before.
  */
 internal object FichierDeSauvegarde {
 
@@ -44,20 +46,22 @@ internal object FichierDeSauvegarde {
     const val VERSION = 1
     private const val KDF_ARGON2ID: Byte = 1
     private val MAGIQUE = "NTBACKUP".toByteArray(Charsets.US_ASCII)
+    private const val TAILLE_DE_LA_MAGIQUE = 8
 
     /** What a file is refused for before its tag is even reached. */
     enum class Refus { PAS_UNE_SAUVEGARDE, VERSION_INCONNUE, PARAMETRES_INCONNUS, TRONQUE, TROP_GROS }
 
     class SauvegardeRefuseeException(val refus: Refus) : IOException("sauvegarde refusee : $refus")
 
-    /** The salt and nonce of one file — drawn anew for every file. */
-    class EnTete(val sel: ByteArray, val nonce: ByteArray) {
+    /** The salt and nonce of one file — drawn anew for every file —, under the [magique] of its kind. */
+    class EnTete(val sel: ByteArray, val nonce: ByteArray, private val magique: ByteArray = MAGIQUE) {
         init {
             require(sel.size == VaultParams.SALT_BYTES && nonce.size == VaultParams.NONCE_BYTES)
+            require(magique.size == TAILLE_DE_LA_MAGIQUE)
         }
 
         fun octets(): ByteArray = ByteBuffer.allocate(TAILLE_DE_L_EN_TETE)
-            .put(MAGIQUE)
+            .put(magique)
             .putShort(VERSION.toShort())
             .put(KDF_ARGON2ID)
             .putInt(VaultParams.PASSPHRASE_ITERATIONS)
@@ -68,7 +72,8 @@ internal object FichierDeSauvegarde {
             .array()
     }
 
-    fun nouvelEnTete(): EnTete = EnTete(VaultCrypto.newSalt(), VaultCrypto.newNonce())
+    fun nouvelEnTete(magique: ByteArray = MAGIQUE): EnTete =
+        EnTete(VaultCrypto.newSalt(), VaultCrypto.newNonce(), magique)
 
     /** The key of a file: Argon2id with the vaults' passphrase parameters. To be wiped by the caller. */
     fun cle(secret: ByteArray, enTete: EnTete): ByteArray = VaultCrypto.derivePassphraseKey(secret, enTete.sel)
@@ -81,7 +86,7 @@ internal object FichierDeSauvegarde {
     }
 
     /** Reads and checks the header of [entree] — strictly, nothing being authenticated yet. */
-    fun lireLEnTete(entree: InputStream): Pair<EnTete, ByteArray> {
+    fun lireLEnTete(entree: InputStream, magiqueAttendue: ByteArray = MAGIQUE): Pair<EnTete, ByteArray> {
         // A loop, not `readNBytes`: that one exists from Android 13 only, and the app runs from 7.
         val octets = ByteArray(TAILLE_DE_L_EN_TETE)
         var lus = 0
@@ -91,8 +96,8 @@ internal object FichierDeSauvegarde {
             lus += n
         }
         val lecture = ByteBuffer.wrap(octets)
-        val magique = ByteArray(MAGIQUE.size).also { lecture.get(it) }
-        if (!magique.contentEquals(MAGIQUE)) throw SauvegardeRefuseeException(Refus.PAS_UNE_SAUVEGARDE)
+        val magique = ByteArray(TAILLE_DE_LA_MAGIQUE).also { lecture.get(it) }
+        if (!magique.contentEquals(magiqueAttendue)) throw SauvegardeRefuseeException(Refus.PAS_UNE_SAUVEGARDE)
         if (lecture.short.toInt() != VERSION) throw SauvegardeRefuseeException(Refus.VERSION_INCONNUE)
         val connus = lecture.get() == KDF_ARGON2ID &&
             lecture.int == VaultParams.PASSPHRASE_ITERATIONS &&
@@ -101,7 +106,7 @@ internal object FichierDeSauvegarde {
         if (!connus) throw SauvegardeRefuseeException(Refus.PARAMETRES_INCONNUS)
         val sel = ByteArray(VaultParams.SALT_BYTES).also { lecture.get(it) }
         val nonce = ByteArray(VaultParams.NONCE_BYTES).also { lecture.get(it) }
-        return EnTete(sel, nonce) to octets
+        return EnTete(sel, nonce, magiqueAttendue) to octets
     }
 
     /**
@@ -112,8 +117,8 @@ internal object FichierDeSauvegarde {
     fun ouvrir(entree: InputStream, cle: ByteArray, enTete: EnTete, octetsDeLEnTete: ByteArray): InputStream =
         CipherInputStream(entree, gcm(chiffrer = false, cle, enTete, octetsDeLEnTete))
 
-    /** [entree], refused past [TAILLE_MAX] bytes really read. */
-    fun borne(entree: InputStream): InputStream = object : FilterInputStream(entree) {
+    /** [entree], refused past [tailleMax] bytes really read. */
+    fun borne(entree: InputStream, tailleMax: Long = TAILLE_MAX): InputStream = object : FilterInputStream(entree) {
         private var lus = 0L
 
         override fun read(): Int = super.read().also { if (it >= 0) compter(1) }
@@ -125,7 +130,7 @@ internal object FichierDeSauvegarde {
 
         private fun compter(n: Int) {
             lus += n
-            if (lus > TAILLE_MAX) throw SauvegardeRefuseeException(Refus.TROP_GROS)
+            if (lus > tailleMax) throw SauvegardeRefuseeException(Refus.TROP_GROS)
         }
     }
 

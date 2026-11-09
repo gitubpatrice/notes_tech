@@ -96,10 +96,10 @@ abstract class NotesDatabase : RoomDatabase() {
          * the notes' colour (3.1.0, D-028).
          *
          * ⚠️ Raised only with a real migration, registered in `NotesDatabaseFactory`, never to "start clean": every installed
-         * base is 9 or 10, and `audits/verifier-schema-room-vs-flutter.py` checks that the Flutter
+         * base is 9, 10 or 11, and `audits/verifier-schema-room-vs-flutter.py` checks that the Flutter
          * schema, migrated, gives exactly what Room expects.
          */
-        const val VERSION = 10
+        const val VERSION = 11
 
         /**
          * 9 → 10: the notes' colour (3.1.0). One nullable column: every existing note gets `NULL`, no
@@ -112,6 +112,21 @@ abstract class NotesDatabase : RoomDatabase() {
         val MIGRATION_9_10 = object : Migration(9, 10) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE notes ADD COLUMN color_id INTEGER")
+            }
+        }
+
+        /**
+         * 10 → 11: a note's lifetime (3.4.0, D-043). Two columns, nothing rewritten: every note gets no
+         * lifetime — `NULL` and `0` —, which is what it had. The FTS index and `note_links` do not read
+         * them; `notes_au` rewrites a note's FTS row on any UPDATE, these two included, as for the colour.
+         *
+         * ⚠️ Kept in step with `MIGRATIONS` of `audits/verifier-schema-room-vs-flutter.py`;
+         * `MigrationVersDixTest` replays it on a real SQLCipher base, from 9 and from 10.
+         */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notes ADD COLUMN expires_at INTEGER")
+                db.execSQL("ALTER TABLE notes ADD COLUMN read_once INTEGER NOT NULL DEFAULT 0")
             }
         }
 

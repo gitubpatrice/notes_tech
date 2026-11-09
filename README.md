@@ -20,6 +20,23 @@ technically unable to send anything, and you can check that in its manifest.**
 
 ---
 
+## What's new in 3.4.0
+
+- **Notes with a lifetime**: ⋮ › Lifetime… — a note is erased for good after 1 hour, 24 hours, 7 or 30
+  days, or when it is closed after its next reading. Its card shows what is left. The erasing happens at
+  the next opening of the app or on the list, not to the second, and such a note goes into neither the
+  backup nor the export.
+- **Share a note sealed**: ⋮ › Share sealed… — the note is encrypted (Argon2id, AES-256-GCM) into a
+  `.ntnote` file that only a 24-sign code opens, shown once and kept nowhere. Send the file by any app and
+  the code another way; it can be "read once" by its recipient. A sealed note received opens with "Open
+  with" or ⋮ › Open a sealed note, and lands in the Inbox once its code is typed — never in a vault.
+- **Quick drop**: write a note without unlocking Notes Tech, from a quick settings tile or a long press
+  on the app's icon. It only writes, to the Inbox: nothing the app holds can be read there.
+- **Shortcuts on the icon**: New note, Dictate, Quick drop.
+- **Keyboard without learning** (Settings › Security, on by default): every field asks the keyboard not
+  to learn what is typed; secret fields always do.
+- Under the hood: AGP 9.5.0, Gradle 9.8.2, SQLCipher 4.20.0; DataStore, never used, removed.
+
 ## What's new in 3.3.0
 
 Suggested in [#48](https://github.com/gitubpatrice/notes_tech/issues/48).

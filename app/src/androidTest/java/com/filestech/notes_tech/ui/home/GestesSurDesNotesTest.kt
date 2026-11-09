@@ -13,6 +13,7 @@ import com.filestech.notes_tech.data.local.NotesDatabaseFactory
 import com.filestech.notes_tech.data.local.SqlCipherRawKey
 import com.filestech.notes_tech.data.prefs.AppSettings
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
+import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesEnLot
 import com.filestech.notes_tech.data.repository.NotesRepository
@@ -113,6 +114,7 @@ class GestesSurDesNotesTest {
             HomeViewModel(
                 notes = notes,
                 enLot = enLot,
+                durees = DureesDeVie(provider, horloge),
                 folders = dossiers,
                 search = SearchRepository(provider),
                 settings = AppSettings(LegacyPreferences(preferences)),

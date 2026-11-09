@@ -228,6 +228,23 @@ class ReglagesHeritesTest {
         assertThat(fichier.contains("flutter.theme_mode_leurre")).isTrue()
     }
 
+    /**
+     * D-040 (3.4.0) : le clavier sans apprentissage est ACTIVÉ tant que rien n'est écrit — un fichier
+     * vidé (première ouverture, panique) le laisse actif — et s'écrit sous le préfixe du greffon.
+     */
+    @Test
+    fun le_clavier_sans_apprentissage_est_actif_par_defaut_et_s_ecrit_dans_le_fichier_herite() {
+        assertThat(reglages.keyboardNoLearningNow()).isTrue()
+
+        reglages.setKeyboardNoLearning(false)
+
+        assertThat(fichier.getBoolean("flutter.keyboard_no_learning", true)).isFalse()
+        assertThat(reglages.keyboardNoLearningNow()).isFalse()
+        // Le contrôle : la clé nue, sans préfixe, n'est pas lue.
+        fichier.edit().remove("flutter.keyboard_no_learning").putBoolean("keyboard_no_learning", false).commit()
+        assertThat(reglages.keyboardNoLearningNow()).isTrue()
+    }
+
     private companion object {
         /** Transcrit du greffon `shared_preferences`, pas lu depuis `LegacyPreferences`. */
         const val FICHIER_DU_GREFFON = "FlutterSharedPreferences"
