@@ -3,13 +3,24 @@
 > Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, **puis le 2026-11-09**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-11-09 au soir) — la 3.4.0 est EN COURS (branche `feat/3.4.0`)
+## 🧭 À LA REPRISE (écrit le 2026-11-09, tard) — la 3.4.0 est FUSIONNÉE, PAS publiée
 
 Patrice : « fais 2, 3, 4 ce serait génial pour la 3.4.0 + raccourcis et clavier sans apprentissage »,
-« en intégrant les upgrade AGP aussi » (déjà dans `main`, PR #51). **Spécification, décisions D-040 à
-D-044 et état coché au fur et à mesure : `docs/15-VERSION-3.4.md`** — la lire en premier.
-La release n'est PAS demandée : la proposer à la fin, comme pour la 3.3.0. Avant le tag, regarder
-comment F-Droid a construit SMS 1.30.0 (première build sous AGP 9.5).
+« en intégrant les upgrade AGP aussi » (PR #51). **Spécification, décisions D-040 à D-044, audits, limites
+connues et état coché : `docs/15-VERSION-3.4.md`** — la lire en premier.
+
+- **PR #53 fusionnée** : `main` = `d523f1c` (commit de fusion), CI verte avant la fusion (porte, instrumentés
+  API 29, release R8, zéro réseau, CodeQL), version 3.4.0 base **507** (5070-5073), journaux 5071-5073 ×5.
+- **⛔ Patrice, 2026-11-09 : « on attend que fdroid publie notes-tech 3.3.0 avant toute publication de la
+  3.4.0 ».** Ni tag ni release tant que l'API `https://f-droid.org/api/v1/packages/com.filestech.notes_tech`
+  ne liste pas 5061-5063 (au 11-09 au soir : 3.2.2 servie, aucun journal de la 3.3.0). Ensuite seulement,
+  PROPOSER la release (elle n'est pas demandée).
+- Avant le tag, le moment venu : la 3.3.0 servie par F-Droid prouvera aussi que leur serveur construit
+  Notes (la 3.3.0 est encore sous AGP 9.4 ; la 3.4.0 sera la première sous AGP 9.5 — regarder alors si SMS
+  1.30.0 est passée) ; build release, signature `signer_notes_tech.py`, mise à jour 3.3.0 → 3.4.0 sur le S9.
+- Après la release : site files-tech (entrée en tête de `includes/apps.php`, journaux 5071 dans
+  `content/<fr|en|de>/releases/notes-tech/3.4.0.txt`, page Notes Tech FR/EN/DE à relire pour les cinq
+  fonctions, méta-description).
 
 ## Précédemment (écrit le 2026-11-09) — la 3.3.0 est PUBLIÉE
 

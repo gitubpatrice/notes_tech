@@ -206,5 +206,8 @@
   messagerie, ou au moins un gestionnaire de fichiers.
 - [x] Textes 5 langues · [x] version 3.4.0 (507) · [x] journaux 5071-5073 · [x] README, SECURITY, confidentialité
 - [x] Audits (3 axes, cohérence, i18n) · [x] relecture externe · [x] S9 (suite complète puis classes touchées) · [ ] CI
+- [ ] **⛔ Patrice, 2026-11-09 : pas de tag ni de release de la 3.4.0 tant que F-Droid ne sert pas la 3.3.0**
+  (API `packages/com.filestech.notes_tech`, versions 5061-5063). La fusion dans `main` n'y change rien :
+  F-Droid ne construit que les tags.
 - [ ] Avant le tag : build F-Droid sous AGP 9.5 — au 2026-11-09 au soir, F-Droid n'a construit ni SMS 1.30.0
   (pas de journal `_307`) ni Notes 3.3.0 : aucune preuve encore ; essai de mise à jour depuis la 3.3.0 sur le S9
