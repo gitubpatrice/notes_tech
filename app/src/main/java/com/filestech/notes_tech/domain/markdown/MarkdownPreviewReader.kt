@@ -716,20 +716,33 @@ private fun ASTNode.child(type: IElementType): ASTNode? = children.firstOrNull {
 /**
  * Accumulates the runs of one paragraph, heading or cell.
  *
- * Line breaks follow notes_tech 2.0.9 (`flutter_markdown_plus`, `softLineBreak: false`): a soft one
- * — a single line end — is a space, with the spaces around it folded (` ?\n *` → one space); a hard
- * one — two trailing spaces or a backslash — is a line break. Leading and trailing whitespace of the
- * whole is dropped, as its `TrimmingInlineHolderProvider` does for headings and cells.
+ * ⚠️ **Every line end is a line break** (issue #57, D-045, 2026-11-10): what the user wrote on its own
+ * line stays on its own line, as in the editor, the spaces around the break folded. CommonMark — and
+ * notes_tech 2.0.9 (`flutter_markdown_plus`, `softLineBreak: false`), which the preview followed until
+ * 3.4.0 — turns a single line end into a space: three lines typed `1.Eat` `2.Drink` `3.Sleep` (no space
+ * after the dot, so not a list), a list typed with a full-width `１．` or an ideographic space by an
+ * Asian keyboard, or one starting at `2.` under a line of text, all came out as ONE line. A note is
+ * written on a phone, line by line, not wrapped at 80 columns; Obsidian, Joplin and GitHub's comments
+ * keep line ends the same way.
+ *
+ * So a text drawn here is **never wrapped at a width**: the legal pages, drawn by the same reader,
+ * write each paragraph on one line (`PagesLegalesTest` keeps them so). Two trailing spaces or a
+ * backslash — CommonMark's hard break — break the line once. Leading and trailing whitespace of the
+ * whole is dropped, as 2.0.9's `TrimmingInlineHolderProvider` does for headings and cells.
  */
 private class RunsBuilder {
     private val runs = mutableListOf<TextRun>()
     private var skipLeadingSpaces = true
+
+    /** A hard break was the last thing added: the line end it sits on is already drawn. */
+    private var afterHardBreak = false
 
     fun text(value: String, styles: Set<RunStyle>, link: LinkTarget?) {
         // Spaces inside inline code are content, not layout: `` ` a` `` keeps its space.
         val kept = if (skipLeadingSpaces && RunStyle.CODE !in styles) value.trimStart(' ', '\t') else value
         if (kept.isEmpty()) return
         skipLeadingSpaces = false
+        afterHardBreak = false
         val last = runs.lastOrNull()
         if (last != null && last.styles == styles && last.link == link) {
             runs[runs.lastIndex] = last.copy(text = last.text + kept)
@@ -739,20 +752,32 @@ private class RunsBuilder {
     }
 
     /**
-     * ⚠️ A line break drops trailing spaces and tabs, **never a `\n`**. A hard break is always
-     * followed by the line end it sits on, which arrives here as a soft break: dropping the `\n` as
-     * trailing whitespace erased the hard break, and the space that replaced it was then eaten as a
-     * leading space — `one··⏎two` came out `onetwo` (measured by `MarkdownPreviewReaderTest`,
-     * 2026-09-25). Kept, the `\n` leaves the soft break's space leading, hence skipped: nothing to add.
+     * ⚠️ **Nothing right after a hard break.** A hard break is always followed by the line end it
+     * sits on, which arrives here as a soft break: drawn too, `one··⏎two` would get a blank line
+     * between its two lines. Two hard breaks in a row — a line holding only `\` — still give two.
      */
-    fun softBreak(styles: Set<RunStyle>, link: LinkTarget?) = lineBreak(" ", styles, link)
+    fun softBreak(styles: Set<RunStyle>, link: LinkTarget?) {
+        if (afterHardBreak) {
+            afterHardBreak = false
+            return
+        }
+        lineBreak(styles, link)
+    }
 
-    fun hardBreak(styles: Set<RunStyle>, link: LinkTarget?) = lineBreak("\n", styles, link)
+    fun hardBreak(styles: Set<RunStyle>, link: LinkTarget?) {
+        lineBreak(styles, link)
+        afterHardBreak = runs.isNotEmpty()
+    }
 
-    private fun lineBreak(separator: String, styles: Set<RunStyle>, link: LinkTarget?) {
+    /**
+     * ⚠️ A line break drops trailing spaces and tabs, **never a `\n`**: dropping the `\n` of the
+     * break before it as trailing whitespace would erase that break — `one··⏎two` came out `onetwo`
+     * (measured by `MarkdownPreviewReaderTest`, 2026-09-25).
+     */
+    private fun lineBreak(styles: Set<RunStyle>, link: LinkTarget?) {
         if (runs.isEmpty()) return
         dropTrailing(' ', '\t')
-        text(separator, styles, link)
+        text("\n", styles, link)
         skipLeadingSpaces = true
     }
 

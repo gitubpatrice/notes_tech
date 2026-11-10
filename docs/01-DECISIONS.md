@@ -751,7 +751,11 @@ inactif depuis 2021. *`AnnotatedString.fromHtml`* : ni tableaux, ni cases, ni bl
   - `www.…` s'ouvre en `https://` (la 2.0.9 : `http://`) ;
   - les cases de tâche sont **nommées** pour un lecteur d'écran (« Fait » / « À faire ») ;
   - le code se replie à la ligne au lieu de défiler de côté ;
-  - « aucune application ne peut ouvrir ce lien » est dit, au lieu d'un appui sans effet.
+  - « aucune application ne peut ouvrir ce lien » est dit, au lieu d'un appui sans effet ;
+  - **depuis la 3.4.0 (D-045, `docs/15-VERSION-3.4.md`, issue #57)** : dans une note, un retour à la
+    ligne simple reste un retour à la ligne — la 2.0.9 et CommonMark en font une espace. Les pages
+    légales, qui passent par le même lecteur, écrivent donc chaque paragraphe sur une ligne
+    (`PagesLegalesTest`).
 - **Borné, quelle que soit la note** (`04-PIEGES.md` §147) : balayage linéaire avant l'analyse — plus
   de 500 000 caractères, plus de 8 marqueurs de conteneur en tête d'une ligne, plus de 300 `[` dans un
   bloc ou 3 000 dans la note (liens `[[…]]` et cases de tâche non comptés) : la note s'affiche **telle

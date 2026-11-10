@@ -33,6 +33,36 @@ class PagesLegalesTest {
         }
     }
 
+    /**
+     * 🔴 **No paragraph is wrapped at a width** (issue #57, D-045). The reader keeps every line end as
+     * a line break, as a note needs; a paragraph cut at 100 columns — the MIT notice of whisper.cpp
+     * was, until 3.4.0 — would come out cut short on every line of a phone's screen. The only lines a
+     * paragraph may hold are the notice's three copyright lines, which are lines in the licence too.
+     */
+    @Test
+    fun `no paragraph of a legal page is wrapped at a width — only the copyright lines are lines`() {
+        for (page in PAGES) {
+            val multilignes = paragraphes(MarkdownPreviewReader.read(page.readText()))
+                .map { runs -> runs.joinToString("") { it.text } }
+                .filter { '\n' in it }
+
+            val attendus = if (page.name == "terms.md") listOf(COPYRIGHTS) else emptyList()
+            assertWithMessage(page.path).that(multilignes).isEqualTo(attendus)
+        }
+    }
+
+    /** Every paragraph's runs, quotes and lists included — where a wrapped line would show. */
+    private fun paragraphes(blocs: List<PreviewBlock>): List<List<TextRun>> = blocs.flatMap { bloc ->
+        when (bloc) {
+            is PreviewBlock.Paragraph -> listOf(bloc.runs)
+            is PreviewBlock.ListBlock -> bloc.items.flatMap { paragraphes(it.blocks) }
+            is PreviewBlock.Quote -> paragraphes(bloc.blocks)
+            is PreviewBlock.Heading, is PreviewBlock.Table, is PreviewBlock.Code, is PreviewBlock.AsWritten,
+            is PreviewBlock.RawHtml, PreviewBlock.Rule,
+            -> emptyList()
+        }
+    }
+
     /** The control of the case above: the privacy pages do write a `[[…]]`, and it stays text. */
     @Test
     fun `the privacy pages write a note link in code, which stays text`() {
@@ -83,5 +113,10 @@ class PagesLegalesTest {
         val PAGES = LocalePreference.LANGUES.map { if (it == "en") "raw" else "raw-$it" }.flatMap { dossier ->
             listOf("privacy.md", "terms.md").map { File("src/main/res/$dossier/$it") }
         }
+
+        /** The three copyright lines of the MIT notice, one under the other as in the licence. */
+        const val COPYRIGHTS = "Copyright (c) 2023-2024 The ggml authors\n" +
+            "Copyright (C) 2024 Intel Corporation\n" +
+            "Copyright (c) 2023 Jeffrey Quesnelle and Bowen Peng"
     }
 }
