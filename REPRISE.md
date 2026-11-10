@@ -9,11 +9,23 @@ Patrice : « fais 2, 3, 4 ce serait génial pour la 3.4.0 + raccourcis et clavie
 « en intégrant les upgrade AGP aussi » (PR #51). **Spécification, décisions D-040 à D-044, audits, limites
 connues et état coché : `docs/15-VERSION-3.4.md`** — la lire en premier.
 
-- **2026-11-10 — issue #57 (koad1x) corrigée dans la 3.4.0, pas encore publiée** : l'aperçu garde les
-  retours à la ligne (D-045) ; pages légales (5 `terms.md`) recollées, un paragraphe par ligne. Branche
-  `fix/57-preview-line-breaks`. Journaux 5071-5073 ×5 complétés. **Répondre à l'issue APRÈS la release**
-  (brouillon dans la PR). Au 11-10, F-Droid sert toujours la 3.2.2 (aucun journal 5061-5063, index du
-  11-09 02 h 28 UTC) : l'attente de la 3.3.0 continue.
+- **📅 Release 3.4.0 prévue VENDREDI 2026-11-13 (Patrice, 11-10)**, si F-Droid sert alors la 3.3.0.
+- **2026-11-10 — issue #57 (koad1x) corrigée dans la 3.4.0** (PR #58) : l'aperçu garde les retours à la
+  ligne (D-045) ; pages légales (5 `terms.md`) recollées, un paragraphe par ligne. Journaux 5071-5073 ×5
+  complétés. **Répondre à l'issue APRÈS la release** (brouillon dans la PR #58).
+- **F-Droid au 11-10** : 3.2.2 servie ; la 3.3.0 est dans la recette `fdroiddata` (commit du robot, 11-10
+  05 h 52 UTC), à construire au cycle suivant (celui en cours a démarré le 11-09 à 10 h 02 UTC, avant).
+  Ce cycle a **construit SMS 1.30.0 (307) avec succès** (`status/running.json`) : AGP 9.5 passe chez eux.
+- **Prêt le 11-10** : 4 APK 3.4.0 construits depuis `4382a64` et signés, **TOUT OK** (cert, v2+v3,
+  5070-5073, mêmes 4 permissions que la 3.3.0, pas d'INTERNET) ; **mise à jour essayée sur le S9** :
+  3.3.0 arm64 (5062) → 3.4.0 signée (5072), 3 notes gardées dont la note de coffre PIN (verrouillée),
+  lancement sans plantage, défaut #57 vu en 3.3.0 et corrigé en 3.4.0. Le S9 est désormais en 3.4.0.
+  Site : **PR brouillon files-tech-site #45** (cartes des 5 nouveautés + méta, FR/EN/DE, `check-site` OK).
+- **Jour J** : API F-Droid (5061-5063 servies) ; CI de `main` verte ; tag léger `v3.4.0` sur le commit de
+  `main` ; build `assembleRelease -Pnotestech.replaceInstalledApp=true` + `signer_notes_tech.py 3.4.0
+  <sortie> <universel 3.3.0 retéléchargé>` ; release (notes EN puis FR), SHA retéléchargés ; site #45
+  complété (ligne `apps.php` à la date `publishedAt`, 3 résumés = journaux 5071 fr/en/de) puis fusionné ;
+  réponse à #57.
 - **PR #53 fusionnée** : `main` = `d523f1c` (commit de fusion), CI verte avant la fusion (porte, instrumentés
   API 29, release R8, zéro réseau, CodeQL), version 3.4.0 base **507** (5070-5073), journaux 5071-5073 ×5.
 - **⛔ Patrice, 2026-11-09 : « on attend que fdroid publie notes-tech 3.3.0 avant toute publication de la
