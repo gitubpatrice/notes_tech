@@ -9,6 +9,11 @@ Patrice : « fais 2, 3, 4 ce serait génial pour la 3.4.0 + raccourcis et clavie
 « en intégrant les upgrade AGP aussi » (PR #51). **Spécification, décisions D-040 à D-044, audits, limites
 connues et état coché : `docs/15-VERSION-3.4.md`** — la lire en premier.
 
+- **2026-11-10 — issue #57 (koad1x) corrigée dans la 3.4.0, pas encore publiée** : l'aperçu garde les
+  retours à la ligne (D-045) ; pages légales (5 `terms.md`) recollées, un paragraphe par ligne. Branche
+  `fix/57-preview-line-breaks`. Journaux 5071-5073 ×5 complétés. **Répondre à l'issue APRÈS la release**
+  (brouillon dans la PR). Au 11-10, F-Droid sert toujours la 3.2.2 (aucun journal 5061-5063, index du
+  11-09 02 h 28 UTC) : l'attente de la 3.3.0 continue.
 - **PR #53 fusionnée** : `main` = `d523f1c` (commit de fusion), CI verte avant la fusion (porte, instrumentés
   API 29, release R8, zéro réseau, CodeQL), version 3.4.0 base **507** (5070-5073), journaux 5071-5073 ×5.
 - **⛔ Patrice, 2026-11-09 : « on attend que fdroid publie notes-tech 3.3.0 avant toute publication de la

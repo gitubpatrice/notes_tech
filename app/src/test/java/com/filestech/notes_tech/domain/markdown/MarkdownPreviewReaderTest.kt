@@ -117,10 +117,10 @@ class MarkdownPreviewReaderTest {
                 PreviewBlock.Quote(
                     listOf(paragraph(run("outer")), PreviewBlock.Quote(listOf(paragraph(run("inner"))))),
                 ),
-                PreviewBlock.Quote(listOf(paragraph(run("first lazy")))),
+                PreviewBlock.Quote(listOf(paragraph(run("first\nlazy")))),
             ).inOrder()
             // The `>` token the library leaves inside a continued paragraph is not text.
-            assertThat(read("> a\n> b")).containsExactly(PreviewBlock.Quote(listOf(paragraph(run("a b")))))
+            assertThat(read("> a\n> b")).containsExactly(PreviewBlock.Quote(listOf(paragraph(run("a\nb")))))
         }
 
         @Test
@@ -190,7 +190,7 @@ class MarkdownPreviewReaderTest {
 
         @Test
         fun `block math is an ordinary paragraph, as in 2_0_9 which has no math`() {
-            assertThat(read("$$\nx^2\n$$")).containsExactly(paragraph(run("$$ x^2 $$")))
+            assertThat(read("$$\nx^2\n$$")).containsExactly(paragraph(run("$$\nx^2\n$$")))
         }
     }
 
@@ -223,13 +223,51 @@ class MarkdownPreviewReaderTest {
         }
 
         @Test
-        fun `a soft line break is a space, spaces around it folded — 2_0_9's softLineBreak false`() {
-            assertThat(runsOf("one \n   two\nthree")).containsExactly(run("one two three"))
+        fun `a line end stays a line break, spaces around it folded — a deliberate gap with 2_0_9 (issue #57)`() {
+            assertThat(runsOf("one \n   two\nthree")).containsExactly(run("one\ntwo\nthree"))
         }
 
         @Test
-        fun `a hard line break — two spaces or a backslash — is a line break`() {
+        fun `a hard line break — two spaces or a backslash — is ONE line break, not two`() {
             assertThat(runsOf("one  \ntwo\\\nthree")).containsExactly(run("one\ntwo\nthree"))
+        }
+
+        @Test
+        fun `a line holding only a backslash keeps its empty line`() {
+            assertThat(runsOf("one\\\n\\\ntwo")).containsExactly(run("one\n\ntwo"))
+        }
+
+        @Test
+        fun `a line break inside a style or a link stays in it`() {
+            assertThat(runsOf("**one\ntwo** [three\nfour](https://a.example)")).containsExactly(
+                run("one\ntwo", RunStyle.BOLD),
+                run(" "),
+                run("three\nfour", link = web("https://a.example")),
+            ).inOrder()
+        }
+
+        /**
+         * Issue #57: lines that look like a list to the user but are not one in CommonMark were
+         * joined into one line. They are not a list — the dot has no space after it, the dot or the
+         * space is full-width, the list starts at 2 under a line of text — but each stays on its line.
+         */
+        @Test
+        fun `lines that are not a list keep their own lines — issue #57`() {
+            assertThat(runsOf("1.Drink water\n2.Eat\n3.Sleep.")).containsExactly(run("1.Drink water\n2.Eat\n3.Sleep."))
+            assertThat(runsOf("1．Eat\n2．Drink")).containsExactly(run("1．Eat\n2．Drink"))
+            assertThat(runsOf("1.　Eat\n2.　Drink")).containsExactly(run("1.　Eat\n2.　Drink"))
+            assertThat(runsOf("Today:\n2. Eat\n3. Drink")).containsExactly(run("Today:\n2. Eat\n3. Drink"))
+        }
+
+        @Test
+        fun `a real ordered list is still a list — issue #57`() {
+            assertThat(read("1. Eat\n2. Drink\n3. Sleep")).containsExactly(
+                PreviewBlock.ListBlock(
+                    ordered = true,
+                    start = 1,
+                    items = listOf("Eat", "Drink", "Sleep").map { ListItem(null, listOf(paragraph(run(it)))) },
+                ),
+            )
         }
 
         @Test

@@ -130,6 +130,53 @@
   « Ajouter » la met dans la Boîte de réception, jamais dans un coffre.
 - Une note de coffre se partage scellée seulement coffre ouvert, comme l'export.
 
+## D-045 — Aperçu : un retour à la ligne d'une note reste un retour à la ligne (issue #57)
+
+**2026-11-10, ajoutée à la 3.4.0 après sa fusion, avant sa publication** (Patrice : « c'est possible de
+corriger ou non ?? »).
+
+**Signalement (koad1x, issue #57).** Une liste tapée ligne par ligne — `1.Drink water` ⏎ `2.Eat` ⏎
+`3.Sleep.` — sort dans l'aperçu sur UNE ligne : `1.Drink water 2.Eat 3.Sleep.`
+
+**Mesuré (JVM, 2026-11-10).** `1. Eat` ⏎ `2. Drink` (espace après le point) EST une liste dans l'aperçu.
+Tout le reste suivait CommonMark et la 2.0.9 (`softLineBreak: false`) : un retour à la ligne simple dans
+un paragraphe devient une espace. Sont donc écrasés sur une ligne : `1.Eat` sans espace (pas une liste),
+le point ou l'espace **pleine chasse** d'un clavier chinois (`1．Eat`, `1.　Eat`) ou une espace insécable,
+une liste qui commence à `2.` sous une ligne de texte (CommonMark l'interdit), et toute suite de lignes
+de texte ordinaire.
+
+**Décision.** Dans l'aperçu, un retour à la ligne simple est un **retour à la ligne**
+(`RunsBuilder`) : ce qui est sur sa propre ligne dans l'éditeur le reste. Une note s'écrit au téléphone,
+ligne par ligne, pas coupée à 80 colonnes ; c'est le défaut d'Obsidian, de Joplin et des commentaires
+GitHub. Écart assumé avec CommonMark et la 2.0.9. La reconnaissance des listes, elle, **ne change pas**
+(CommonMark strict) : `1.Eat` reste du texte, mais à sa ligne. **Une seule règle**, pour les notes et
+pour les pages légales, qui passent par le même lecteur.
+
+- **Pages légales recollées** (Patrice : « corrige les textes aussi alors dans à propos et autres pages
+  légales ») : les 5 `terms.md` citaient la licence MIT de whisper.cpp coupée à ~100 colonnes (et, en
+  anglais et en français, le paragraphe qui la présente) ; avec la nouvelle règle, chaque ligne se
+  serait arrêtée court sur un téléphone. Chaque paragraphe est remis sur UNE ligne — **seul l'espacement
+  change**, contrôlé par script (texte identique, espaces repliées) ; date de mise à jour inchangée.
+  Les trois lignes `Copyright` de la notice restent des lignes : elles le sont dans la licence, et
+  s'affichent enfin l'une sous l'autre (elles étaient collées bout à bout). Les `privacy.md` n'avaient
+  aucune coupure. « À propos » n'affiche que des chaînes traduites, sans Markdown : rien à y changer.
+- **Garde-fou** : `PagesLegalesTest` — aucun paragraphe d'une page légale n'a de fin de ligne, sauf les
+  trois lignes `Copyright`. **Contrôle négatif** : l'ancien `terms.md` anglais remis en place, le test
+  échoue sur le paragraphe de présentation et ceux de la licence ; restauré ensuite à l'octet.
+- Un premier essai gardait CommonMark pour les pages légales (un mode « document ») : abandonné pour
+  une seule règle, le mode n'ayant plus d'usage une fois les textes recollés.
+- **Coupure forcée** (deux espaces ou `\` en fin de ligne) : UN retour à la ligne, dans les deux modes —
+  elle est toujours suivie de la fin de ligne qui la porte, qui n'ajoute rien derrière elle. Une ligne
+  faite d'un seul `\` garde sa ligne vide.
+- **Non touchés** : la recherche dans la note (mot par mot, l'espace ou le `\n` n'y change rien), le
+  code en ligne (ses fins de ligne restent des espaces, CommonMark), l'export, l'import.
+- **Tests** (`MarkdownPreviewReaderTest`) : les cas de l'issue, la vraie liste, le mode document, la
+  coupure forcée unique, la ligne de `\`, le retour dans un style et un lien ; deux attendus qui figeaient
+  l'ancienne règle (citation continuée, bloc `$$`) mis à jour.
+- Journaux 5071-5073 : une ligne « l'aperçu garde les retours à la ligne » dans les 5 langues (≤ 491
+  caractères, l'allemand).
+- **Réponse à l'issue #57 : après la publication de la 3.4.0**, comme pour #48.
+
 ## État
 
 > **Audits et relectures (2026-11-09)** — tous appliqués avant la PR, sauf ce que « Limites connues » dit.
