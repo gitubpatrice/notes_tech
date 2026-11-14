@@ -6,18 +6,19 @@
 > app? »*. Patrice : « prépare le plan pour la 3.5.0 avec tout ce qui doit contenir ».
 >
 > **Ce document est la spécification**, écrit AVANT le code pour survivre à une compaction. Rien n'est
-> codé. Les décisions marquées **« à trancher »** attendent Patrice (section « Questions ») ; les autres
-> suivent ce qu'il a déjà dit, ou la recommandation par défaut.
+> codé. Les six questions ont été **tranchées le 2026-11-14** (Patrice : « pour les choix 1, 2, 3, 4, 5,
+> 6, fais ce qu'il y a de mieux ») — section « Décisions », avec la raison de chacune. Q1 n'a **pas**
+> suivi la première recommandation (une icône dans la barre) : le code montre qu'elle écraserait le titre.
 
 ## Contenu
 
 | Pièce | Origine | Statut |
 |---|---|---|
 | **D-046** Écran d'accueil : Toutes les notes / Boîte de réception | issue #59 | décidé par Patrice (11-11) |
-| **D-047** Cocher une case en lecture | courriel du 11-14 | proposé |
-| **D-048** Insérer une liste à cocher | courriel du 11-14 | proposé, emplacement à trancher |
-| **D-049** Entrée continue une liste | courriel du 11-14 | proposé, portée à trancher |
-| **C-1 à C-3** Petits correctifs (limites connues de la 3.4.0) | `15-VERSION-3.4.md` § Limites | proposés |
+| **D-047** Cocher une case en lecture ; tâche faite grisée | courriel du 11-14 | décidé (Q3) |
+| **D-048** Insérer une liste à cocher, depuis le menu ⋮ | courriel du 11-14 | décidé (Q1) |
+| **D-049** Entrée continue une liste, toutes les listes | courriel du 11-14 | décidé (Q2) |
+| **C-1 à C-3** Petits correctifs (limites connues de la 3.4.0) | `15-VERSION-3.4.md` § Limites | retenus (Q4) |
 
 **Aucune migration de schéma** (Room reste en version 11), aucune permission, aucun réseau, aucun
 changement des formats d'export, de sauvegarde ni de note scellée : tout ce qui suit est du texte de note
@@ -54,9 +55,13 @@ L'enregistrement chiffre une note de coffre, réécrit `updated_at`, l'index ple
 avec le `TextFieldValue` de l'état (`ChampDuCorps.kt:85-99`) : la frappe du clavier arrive sous forme de
 `TextFieldValue` dans `onContentChange`.
 
-**Barre d'écriture.** ✓ (vert), micro, lien (`NoteEditorScreen.kt:728-778`). Le lien y est une icône,
-pas une entrée de menu, parce que c'est « le geste d'écriture le plus fréquent de cet écran »
-(`NoteEditorScreen.kt:770-772`).
+**Barre d'écriture.** Flèche de retour, puis le **titre de la barre** (nom du dossier et état de
+l'enregistrement, `NoteEditorScreen.kt:681-692`), puis ✓ (vert), micro, lien et ⋮
+(`NoteEditorScreen.kt:693-781`). Le lien y est une icône parce que c'est « le geste d'écriture le plus
+fréquent de cet écran » (`NoteEditorScreen.kt:770-772`). ⚠️ **La barre est pleine** : mesuré sur le S9,
+cinq éléments d'action écrasaient le titre « à zéro pixel » — le nom du dossier et l'état de
+l'enregistrement disparaissaient (`NoteEditorScreen.kt:717-722`). Le menu ⋮ est présent en écriture
+comme en lecture (`NoteEditorScreen.kt:780-781`).
 
 **Accueil.** Le dossier affiché est lu dans le `SavedStateHandle` (`HomeViewModel.kt:143`), donc `null`
 (« Toutes les notes ») à chaque démarrage à froid. `onFolderSelected` écrit la clé, **`null` compris**
@@ -139,15 +144,29 @@ Le cœur de la demande : une liste de courses s'ouvre en lecture, on coche, on r
     récemment » ;
   - une note « après lecture » (D-043) peut être cochée, et s'efface quand même à la fermeture ;
   - pas d'annulation : un second toucher remet la case.
-- Une tâche faite ne change pas d'aspect aujourd'hui. **À trancher** (Q3).
+- **Tâche faite grisée, pas barrée** (Q3). La case dit déjà l'état ; griser laisse voir d'un coup d'œil
+  ce qui reste à faire dans une longue liste, et barrer rend le texte plus difficile à lire.
+  - Le texte propre à l'élément (ses paragraphes) prend `onSurfaceVariant`. Un sous-élément garde sa
+    propre case et son propre aspect. Les liens restent des liens.
+  - ⚠️ **Contraste à mesurer** : au moins 4,5:1 sur chaque couleur de note (3.1.0), en thème clair et
+    sombre. Si une couleur passe sous ce seuil, la teinte est choisie couleur par couleur (comme
+    `SemanticColors`). Le contraste n'est jamais sacrifié : à défaut, le texte reste inchangé.
+  - Rien ne change pour un lecteur d'écran : l'état est annoncé par la case.
 
 ## D-048 — Insérer une liste à cocher
 
 Sur un clavier de téléphone, `[` et `]` sont sur la page des symboles : écrire `- [ ] ` coûte trois
 changements de page par ligne.
 
-- Un bouton « Liste à cocher » dans l'écriture. Emplacement **à trancher** (Q1) ; recommandé : une icône
-  dans la barre, à côté du lien, pour la même raison que lui.
+- **Une entrée « Liste à cocher » dans le menu ⋮, en écriture seulement** (Q1). Pas une icône dans la
+  barre : une cinquième action y écraserait le titre, déjà mesuré sur le S9 (voir « Faits »). Le menu
+  suffit parce que, avec D-049, on ne s'en sert qu'**une fois par liste** : Entrée crée les cases
+  suivantes. Le lien, lui, sert à chaque lien.
+  - Placée en tête du menu en écriture : c'est un geste d'écriture, les autres entrées concernent la
+    note entière.
+  - La position du curseur vit dans l'état (`state.content.selection`), comme pour « Insérer un lien »,
+    qui ouvre une feuille avant d'insérer. Après l'insertion, le corps reprend le focus et le clavier
+    (`focaliserLeCorps`) : le menu les a pris. Test instrumenté.
 - Fonction pure `ListeACocher.basculer(valeur): TextFieldValue`, testée sur la JVM, sur **la ligne du
   curseur** (pas au milieu d'un mot) :
   - ligne vide → `- [ ] ` ;
@@ -161,7 +180,7 @@ changements de page par ligne.
 - Une liste numérotée **garde son numéro** : `1. texte` → `1. [ ] texte` (valide en GFM). Le numéro est
   une information de l'utilisateur, on ne le remplace pas par `- `.
 - Enregistrement par le même chemin que `insererAuCurseur`.
-- Texte : `contentDescription` du bouton, 5 langues.
+- Texte : libellé de l'entrée du menu, 5 langues.
 
 ## D-049 — Entrée continue une liste
 
@@ -185,14 +204,14 @@ changements de page par ligne.
   possible. Si le chemin `TextFieldValue` ne tient pas, passer par le champ natif lui-même
   (`TextWatcher`). Dans les deux cas, on ne réécrit qu'après le `\n`, jamais dans une composition en
   cours.
-- Portée **à trancher** (Q2) ; recommandé : toutes les listes. Une suite pour les seules cases serait
-  une règle qu'on ne devine pas.
+- **Toutes les listes** (Q2) : une suite pour les seules cases serait une règle qu'on ne devine pas. Et
+  c'est ce que font Obsidian, Joplin et Google Keep.
 - Pas de réglage pour la couper au départ : Entrée sur un élément vide en sort. À revoir si quelqu'un le
   demande.
 
 ## Petits correctifs — les limites connues de la 3.4.0 (`15-VERSION-3.4.md:234-240`)
 
-Proposés (Q4). Chacun est petit, et il ferme un écart déjà consigné.
+Retenus (Q4). Chacun est petit, et il ferme un écart déjà consigné.
 
 - **C-1 Partage reçu : lecture bornée dans le temps.** Le partage reçu (3.2.0) lit encore sans délai qui
   ferme le flux. Reprendre la garde du lecteur de note scellée de la 3.4.0 : une lecture à la fois, fil
@@ -222,16 +241,16 @@ Proposés (Q4). Chacun est petit, et il ferme un écart déjà consigné.
 - Rappels des refus précédents : « rouvrir le dernier dossier vu » (#59) ; titres de coffre dans la
   liste et historique des versions (#10, refus motivés publiquement).
 
-## Questions à Patrice
+## Décisions (2026-11-14 — Patrice : « fais ce qu'il y a de mieux »)
 
-| # | Question | Recommandé |
-|---|---|---|
-| Q1 | Bouton « Liste à cocher » : icône dans la barre d'écriture, ou entrée du menu ⋮ ? | **icône**, à côté du lien |
-| Q2 | Entrée continue : toutes les listes, seulement les cases, ou rien ? | **toutes les listes** |
-| Q3 | Tâche faite dans la lecture : inchangée, grisée ou barrée ? | **grisée** (barrer gêne la lecture) |
-| Q4 | Petits correctifs C-1 à C-3 dans la 3.5.0 ? | **oui** |
-| Q5 | Idées gardées (export ZIP de la sélection, filtre par couleur) dans la 3.5.0 ? | **non**, une version courte |
-| Q6 | Comme pour la 3.4.0 : pas de publication avant que F-Droid serve la version précédente (3.4.0) ? | **oui** |
+| # | Question | Retenu | Pourquoi |
+|---|---|---|---|
+| Q1 | Où mettre « Liste à cocher » ? | **menu ⋮, en écriture** | la barre est pleine : une 5e action écrase le titre (S9, `NoteEditorScreen.kt:717-722`) ; avec D-049, le geste sert une fois par liste |
+| Q2 | Entrée continue : quelles listes ? | **toutes** | une règle pour les seules cases ne se devine pas ; usage des autres éditeurs |
+| Q3 | Aspect d'une tâche faite | **grisée**, contraste ≥ 4,5:1 vérifié | se repère d'un coup d'œil ; barrer gêne la lecture |
+| Q4 | Petits correctifs C-1 à C-3 | **oui** | petits, déjà consignés ; C-1 est un durcissement de sécurité, C-2 un texte qui ne dit pas ce que fait le code |
+| Q5 | Export ZIP de la sélection, filtre par couleur | **non** (gardées pour plus tard) | une version courte, et donc relue à fond ; personne ne les a demandées |
+| Q6 | Attendre que F-Droid serve la 3.4.0 avant de publier la 3.5.0 | **oui** | même règle que pour la 3.4.0 : jamais deux versions en attente chez F-Droid |
 
 ## Ordre de travail
 
@@ -256,8 +275,8 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - **Instrumentés** (S9, puis CI API 29) :
   - toucher une case → texte de la note changé, enregistré, rouvert identique ;
   - note de coffre ouverte → enregistrée chiffrée ;
-  - sémantique de la case ;
-  - bouton d'insertion ;
+  - sémantique de la case ; contraste de la tâche grisée sur chaque couleur de note, thèmes clair et sombre ;
+  - entrée « Liste à cocher » du menu (insertion, puis focus et clavier rendus au corps) ;
   - Entrée dans le champ natif ;
   - réglage d'accueil après redémarrage à froid et après la panique ;
   - `ReglagesTest` mis à jour (nouvelle ligne).
@@ -273,8 +292,8 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 
 - `strings.xml` × 5 (en, fr, de, it, es) :
   - réglage d'accueil : titre et deux choix ;
-  - bouton d'insertion ;
-  - C-2 et C-3 si retenus.
+  - libellé de l'entrée « Liste à cocher » du menu ;
+  - C-2 et C-3.
 - Version **3.5.0, base 508** (5080-5083) ; journaux fastlane **5081-5083** × 5 langues, ≤ 500
   caractères (agent `android-i18n-strings-cleaner`).
 - `full_description.txt` × 5 : « Markdown : titres, listes, liens » devient « titres, listes, **listes à
@@ -302,12 +321,12 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 
 ## État
 
-- [ ] Questions Q1-Q6 tranchées par Patrice
+- [x] Questions Q1-Q6 tranchées (2026-11-14)
 - [ ] D-046 écran d'accueil
-- [ ] D-048 insertion
+- [ ] D-048 insertion (menu ⋮)
 - [ ] D-049 suite de liste (mesure des claviers comprise)
-- [ ] D-047 case cochable
-- [ ] C-1 · [ ] C-2 · [ ] C-3 (si retenus)
+- [ ] D-047 case cochable, tâche faite grisée (contraste mesuré)
+- [ ] C-1 · [ ] C-2 · [ ] C-3
 - [ ] Textes 5 langues · [ ] version 3.5.0 (508) · [ ] journaux 5081-5083 · [ ] README, fastlane
 - [ ] Audits · [ ] relecture externe · [ ] S9 · [ ] CI
 - [ ] Publication (après F-Droid 3.4.0 si Q6 = oui)
