@@ -6,7 +6,7 @@ agp = "9.5.0"
 # 2.4.20", measured on Agenda Tech). This is the EXACT compiler version: the root build.gradle.kts pins
 # the Kotlin Gradle Plugin to it with `strictly`, since AGP 9 would otherwise bring its own.
 kotlin = "2.4.10"
-ksp = "2.3.12"
+ksp = "2.3.13"
 
 # AndroidX / Compose — the releases built for AGP 9 and compileSdk 37, as in Agenda Tech.
 compose-bom = "2026.09.00"
