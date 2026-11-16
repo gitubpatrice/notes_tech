@@ -1,7 +1,7 @@
 [versions]
 # Build toolchain — AGP 9.5.0 (as SMS Tech since 2026-11-05; needs Gradle 9.6.0 or later) / Kotlin 2.4.10 /
 # KSP 2.3.12 / JDK 17. AGP 9 compiles Kotlin itself: there is no `org.jetbrains.kotlin.android` plugin any more.
-agp = "9.5.0"
+agp = "9.5.1"
 # Capped below 2.4.20: CodeQL 2.27 refuses to compile from there ("currently supports versions below
 # 2.4.20", measured on Agenda Tech). This is the EXACT compiler version: the root build.gradle.kts pins
 # the Kotlin Gradle Plugin to it with `strictly`, since AGP 9 would otherwise bring its own.
