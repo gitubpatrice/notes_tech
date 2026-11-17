@@ -366,6 +366,8 @@
     <string name="settings_theme_system">Système</string>
     <string name="settings_theme_light">Clair</string>
     <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_home_start">Écran d\'accueil</string>
+    <string name="settings_home_start_subtitle">%1$s — dès la prochaine ouverture</string>
     <string name="settings_secure_window">Masquer dans les apps récentes</string>
     <string name="settings_secure_window_subtitle">Empêche la capture d\'écran et masque l\'aperçu de l\'app dans le sélecteur Android.</string>
     <string name="settings_keyboard_no_learning">Clavier sans apprentissage</string>

@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.prefs.AppSettings
+import com.filestech.notes_tech.data.prefs.HomeStartPreference
 import com.filestech.notes_tech.data.prefs.LegacyPreferences
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
@@ -74,6 +75,7 @@ class ReglagesTest {
     private val themes = mutableListOf<ThemePreference>()
     private val langues = mutableListOf<LocalePreference>()
     private val tris = mutableListOf<NoteSortMode>()
+    private val accueils = mutableListOf<HomeStartPreference>()
     private val fenetresProtegees = mutableListOf<Boolean>()
     private val clavierSansApprentissage = mutableListOf<Boolean>()
     private val delais = mutableListOf<Int>()
@@ -120,6 +122,7 @@ class ReglagesTest {
                         onTheme = { themes += it },
                         onLocale = { langues += it },
                         onSort = { tris += it },
+                        onHomeStart = { accueils += it },
                         onSecureWindow = { fenetresProtegees += it },
                         onKeyboardNoLearning = { clavierSansApprentissage += it },
                         onAutoLock = { delais += it },
@@ -376,6 +379,35 @@ class ReglagesTest {
             regle.onNode(dansLeDialogue(libelleDeTriVisible(mode))).fetchSemanticsNode().id
         }
         assertThat(libelles.toSet()).hasSize(NoteSortMode.entries.size)
+    }
+
+    /**
+     * D-046 (3.5.0, issue #59): the home screen choice says the current list, offers both, and passes
+     * the choice up. The Inbox goes by the name the drawer gives it: a default stored name in the app's
+     * language, a name the user typed as typed.
+     */
+    @Test
+    fun le_choix_de_l_ecran_d_accueil_remonte_et_nomme_la_boite_comme_le_tiroir() {
+        val toutes = texte(R.string.home_all_notes)
+        poser(SettingsUiState(homeStart = HomeStartPreference.ALL_NOTES, inboxStoredName = "Perso"))
+
+        regle.onNodeWithText(regle.activity.getString(R.string.settings_home_start_subtitle, toutes))
+            .performScrollTo()
+            .assertIsDisplayed()
+        regle.onNode(hasText(texte(R.string.settings_home_start)) and hasClickAction()).performScrollTo().performClick()
+        regle.waitForIdle()
+        regle.onNode(dansLeDialogue(toutes)).assertIsDisplayed()
+        regle.onNode(dansLeDialogue("Perso")).performClick()
+        regle.waitForIdle()
+
+        assertThat(accueils).containsExactly(HomeStartPreference.INBOX)
+        regle.onNode(dansLeDialogue("Perso")).assertDoesNotExist()
+
+        // A stored DEFAULT name is shown in the app's language, as in the drawer.
+        poser(SettingsUiState(homeStart = HomeStartPreference.INBOX, inboxStoredName = "Inbox"))
+        regle.onNodeWithText(
+            regle.activity.getString(R.string.settings_home_start_subtitle, texte(R.string.home_folder_inbox)),
+        ).performScrollTo().assertIsDisplayed()
     }
 
     /**

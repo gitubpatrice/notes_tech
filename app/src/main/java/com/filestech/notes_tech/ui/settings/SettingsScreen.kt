@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FileUpload
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.Language
@@ -70,8 +71,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.data.importation.NoteImporter
+import com.filestech.notes_tech.data.prefs.HomeStartPreference
 import com.filestech.notes_tech.data.prefs.LocalePreference
 import com.filestech.notes_tech.data.prefs.ThemePreference
+import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.NoteSortMode
 import com.filestech.notes_tech.ui.applock.AppLockRecents
 import com.filestech.notes_tech.ui.applock.AppLockSection
@@ -81,6 +84,7 @@ import com.filestech.notes_tech.ui.common.CarteFilesTech
 import com.filestech.notes_tech.ui.common.HoteDeMessages
 import com.filestech.notes_tech.ui.common.MIME_ZIP
 import com.filestech.notes_tech.ui.common.TitreDeSection
+import com.filestech.notes_tech.ui.common.folderDisplayName
 import com.filestech.notes_tech.ui.common.libelleDeTri
 import com.filestech.notes_tech.ui.common.partagerUnFichier
 import com.filestech.notes_tech.ui.common.rememberAppResultLauncher
@@ -168,6 +172,7 @@ fun SettingsRoute(onBack: () -> Unit, onOpenAbout: () -> Unit, onOpenVoiceSetup:
             }
         },
         onSort = viewModel::setSort,
+        onHomeStart = viewModel::setHomeStart,
         onSecureWindow = viewModel::setSecureWindow,
         onKeyboardNoLearning = viewModel::setKeyboardNoLearning,
         onAutoLock = viewModel::setVaultAutoLockMinutes,
@@ -202,6 +207,8 @@ fun SettingsScreen(
     onTheme: (ThemePreference) -> Unit,
     onLocale: (LocalePreference) -> Unit,
     onSort: (NoteSortMode) -> Unit,
+    /** D-046 (3.5.0): the list the app opens on. */
+    onHomeStart: (HomeStartPreference) -> Unit,
     onSecureWindow: (Boolean) -> Unit,
     onKeyboardNoLearning: (Boolean) -> Unit,
     onAutoLock: (Int) -> Unit,
@@ -222,6 +229,20 @@ fun SettingsScreen(
     var choixDeLangue by remember { mutableStateOf(false) }
     var choixDeDelai by remember { mutableStateOf(false) }
     var choixDeTri by remember { mutableStateOf(false) }
+    var choixDAccueil by remember { mutableStateOf(false) }
+    // D-046: the Inbox under the name the drawer shows — a default name in the app's language, a name the
+    // user gave as typed.
+    val boiteParDefaut = stringResource(R.string.home_folder_inbox)
+    val toutesLesNotes = stringResource(R.string.home_all_notes)
+    val nomDeLaBoite = state.inboxStoredName
+        ?.let { folderDisplayName(Folder.INBOX_ID, it, boiteParDefaut) }
+        ?: boiteParDefaut
+    val libelleDAccueil: (HomeStartPreference) -> String = { choix ->
+        when (choix) {
+            HomeStartPreference.ALL_NOTES -> toutesLesNotes
+            HomeStartPreference.INBOX -> nomDeLaBoite
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -271,6 +292,20 @@ fun SettingsScreen(
                         trailingContent = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         modifier = Modifier.clickable { choixDeTheme = true },
+                    )
+                    HorizontalDivider()
+                    // D-046 (3.5.0, issue #59). Takes effect at the next start: the subtitle says so,
+                    // otherwise the choice would look ignored on the home screen the user goes back to.
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.settings_home_start)) },
+                        supportingContent = {
+                            val choix = libelleDAccueil(state.homeStart)
+                            Text(stringResource(R.string.settings_home_start_subtitle, choix))
+                        },
+                        leadingContent = { Icon(Icons.Outlined.Home, contentDescription = null) },
+                        trailingContent = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier.clickable { choixDAccueil = true },
                     )
                 }
             }
@@ -505,6 +540,19 @@ fun SettingsScreen(
             onSelect = {
                 choixDeTri = false
                 onSort(it)
+            },
+        )
+    }
+    if (choixDAccueil) {
+        DialogueDeChoix(
+            titre = stringResource(R.string.settings_home_start),
+            options = HomeStartPreference.entries,
+            actif = state.homeStart,
+            libelle = { libelleDAccueil(it) },
+            onDismiss = { choixDAccueil = false },
+            onSelect = {
+                choixDAccueil = false
+                onHomeStart(it)
             },
         )
     }
