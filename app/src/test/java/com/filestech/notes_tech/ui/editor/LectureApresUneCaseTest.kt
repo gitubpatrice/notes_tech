@@ -67,6 +67,23 @@ class LectureApresUneCaseTest {
         assertThat(apres.elements[1].bloc).isNotSameInstanceAs(avant.elements[1].bloc)
     }
 
+    /**
+     * 3-axes audit of 3.5.0: an item too heavy to draw block by block is shown as written, its `[ ]` in the
+     * text. It has no offset — no tap ticks it —, and its box changed by hand reads the note again: a patched
+     * icon would sit next to a "- [ ] …" saying the opposite.
+     */
+    @Test
+    fun `the box of an item shown as written cannot be tapped, and is read again`() {
+        val sousTaches = (1..MarkdownPreviewReader.MAX_BLOCKS_PER_ITEM + 1).joinToString("") { "  - sous-tâche $it\n" }
+        val lourd = "- [ ] tâche lourde\n$sousTaches"
+        val avant = lue(lourd)
+        val element = (avant.elements.first().bloc as PreviewBlock.ListBlock).items.first()
+        assertThat(element.blocks.single()).isInstanceOf(PreviewBlock.Code::class.java)
+        assertThat(element.taskOffset).isNull()
+
+        assertThat(lectureApresUneCase(avant, lourd, TaskBoxes.toggle(lourd, lourd.indexOf("[ ]"))!!)).isNull()
+    }
+
     /** Anything but one box turned over: read again. */
     @Test
     fun `any other change is read again`() {

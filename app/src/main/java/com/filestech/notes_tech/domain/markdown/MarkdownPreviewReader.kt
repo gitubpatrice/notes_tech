@@ -419,7 +419,9 @@ private class Reading(
                 val built = ListItem(task, blocks(content, depth + 1), taskOffset)
                 // Each item of a top-level list is one lazy item of the preview: bounded here.
                 val heavy = depth == 0 && built.blocks.sumOf { it.weight() } > MarkdownPreviewReader.MAX_BLOCKS_PER_ITEM
-                if (heavy) ListItem(task, listOf(asWritten(item)), taskOffset) else built
+                // Shown as written, its box is in the text drawn: no offset, so no tap ticks it — a patched
+                // icon would contradict that text (3-axes audit of 3.5.0). Changing it reads the note again.
+                if (heavy) ListItem(task, listOf(asWritten(item))) else built
             },
         )
     }

@@ -136,7 +136,11 @@ private fun caseRetournee(ancienne: String, nouvelle: String): Pair<Int, TaskMar
     return if (retournee && marque != null) (ici - 1) to marque else null
 }
 
-/** [bloc] with the item whose box is at [position] marked [marque]; [bloc] itself when it holds none. */
+/**
+ * [bloc] with the item whose box is at [position] marked [marque]; [bloc] itself when it holds none. An item
+ * too heavy to draw block by block has no offset (`MarkdownPreviewReader`): its box is never found here, and
+ * a change in its text reads the note again.
+ */
 private fun avecLaMarque(bloc: PreviewBlock, position: Int, marque: TaskMark): PreviewBlock = when (bloc) {
     is PreviewBlock.ListBlock -> {
         val items = bloc.items.map { item ->
