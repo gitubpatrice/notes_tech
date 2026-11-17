@@ -24,7 +24,7 @@ library.** The app does not hold the `INTERNET` permission.
 | JetBrains annotations, JSpecify | 23.0.0 / 1.0.0 | JetBrains / JSpecify | Apache 2.0 |
 | `javax.inject`, `jakarta.inject-api` | 1 / 2.0.1 | JSR-330 / Eclipse Foundation | Apache 2.0 |
 | Timber | 5.0.1 | Jake Wharton | Apache 2.0 |
-| **Bouncy Castle** `bcprov-jdk18on` — **Argon2id**, the key derivation of the vaults | 1.86 | The Legion of the Bouncy Castle | **MIT** — full text below |
+| **Bouncy Castle** `bcprov-jdk18on` — **Argon2id**, the key derivation of the vaults | 1.87 | The Legion of the Bouncy Castle | **MIT** — full text below |
 | **SQLCipher for Android** — the encrypted database | 4.20.0 | Zetetic LLC | **BSD-3-Clause** — full text below |
 
 SQLCipher bundles **SQLite** and **LibTomCrypt**, both released into the public domain by their
