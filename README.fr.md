@@ -4,7 +4,7 @@
 
 🇬🇧 [English version](README.md)
 
-**v3.3.0 — novembre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
+**v3.5.0 — novembre 2026** · [Politique de confidentialité](PRIVACY.md) · [Conditions d'utilisation](TERMS.md) · [Sécurité](SECURITY.fr.md)
 
 Application de prise de notes Markdown chiffrée pour Android, écrite en **Kotlin** avec Jetpack
 Compose. **100 % locale, sans permission Internet.** Interface en **anglais, français, allemand,
@@ -185,7 +185,12 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
   forme —, et **Éditer** permet de l'écrire. Un lien `[[Titre]]` ouvre la
   note qu'il désigne ; un lien `http`, `https` ou `mailto` s'ouvre dans l'application du système, tout
   autre schéma est ignoré. Les images ne sont jamais chargées : leur texte de remplacement s'affiche.
-- Épingler, favoris, couleurs, archives, corbeille (30 jours), ordre de tri, thème clair / sombre / système.
+- **Listes à cocher** (3.5.0) : une case `- [ ]` se coche d'un toucher en lecture, et une tâche faite
+  est grisée. En écriture, ⋮ › **Liste à cocher** met des cases devant les lignes du curseur ou de la
+  sélection, et Entrée continue toute liste — une case, une puce, le numéro suivant — ; Entrée sur un
+  élément vide la termine.
+- Épingler, favoris, couleurs, archives, corbeille (30 jours), ordre de tri, thème clair / sombre / système ;
+  la liste à l'ouverture, **Toutes les notes** ou la **Boîte de réception** (3.5.0).
 
 ### Coffres par dossier
 - **Mode phrase secrète** — Argon2id (64 Mio, t = 3) et AES-256-GCM. La clé du coffre (32 octets

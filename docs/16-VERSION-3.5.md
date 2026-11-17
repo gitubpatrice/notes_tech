@@ -163,8 +163,9 @@ changements de page par ligne.
   barre : une cinquième action y écraserait le titre, déjà mesuré sur le S9 (voir « Faits »). Le menu
   suffit parce que, avec D-049, on ne s'en sert qu'**une fois par liste** : Entrée crée les cases
   suivantes. Le lien, lui, sert à chaque lien.
-  - Placée en tête du menu en écriture : c'est un geste d'écriture, les autres entrées concernent la
-    note entière.
+  - ~~Placée en tête du menu en écriture~~ → **juste après « Rechercher dans la note »** (fait le
+    2026-11-17) : la recherche est en tête depuis la 3.2.0, et ce sont les deux seules entrées qui portent
+    sur le texte ; les autres concernent la note entière.
   - La position du curseur vit dans l'état (`state.content.selection`), comme pour « Insérer un lien »,
     qui ouvre une feuille avant d'insérer. Après l'insertion, le corps reprend le focus et le clavier
     (`focaliserLeCorps`) : le menu les a pris. Test instrumenté.
@@ -172,7 +173,9 @@ changements de page par ligne.
   curseur** (pas au milieu d'un mot) :
   - ligne vide → `- [ ] ` ;
   - ligne de texte → `- [ ] ` devant ;
-  - `- texte`, `* texte` ou `+ texte` → `- [ ] texte` ;
+  - `- texte`, `* texte` ou `+ texte` → `- [ ] texte`, `* [ ] texte`, `+ [ ] texte` : **la puce est
+    gardée** (écart avec la première rédaction, qui la changeait en `-`) — en CommonMark, une puce d'un
+    autre caractère commence une nouvelle liste, et la liste de l'utilisateur aurait été coupée en deux ;
   - `- [ ] texte` ou `- [x] texte` → `texte` (second appui = retire la case) ;
   - indentation et `> ` d'une citation gardés ;
   - sélection sur plusieurs lignes → chaque ligne non vide ;
@@ -243,7 +246,13 @@ Retenus (Q4). Chacun est petit, et il ferme un écart déjà consigné.
 - **C-2 Écran d'export : dire que les notes à durée de vie en sont exclues.** Le code les exclut
   (D-043), l'écran ne le dit pas. C'est un défaut « texte contre code ». Une phrase, 5 langues.
 - **C-3 Collage de plus de 500 000 caractères : un message.** Aujourd'hui il est ignoré sans rien dire,
-  donc le geste paraît sans effet. Une phrase, 5 langues.
+  donc le geste paraît sans effet. Une phrase, 5 langues. *Fait* : c'était le dépôt rapide (D-042,
+  `DepotViewModel`), où le TITRE refusait aussi en silence au-delà de 200 caractères — le même message
+  pour les deux, les deux limites dites.
+- *C-1 fait* : le mécanisme du lecteur des notes scellées (fil à lui, une lecture à la fois, flux fermés au
+  délai) est sorti dans `data/fournisseurs/LecteurDeFournisseur`, que les deux lecteurs utilisent. Trouvé
+  en route : un flux qui répond 0 octet sans fin faisait tourner la boucle du partage sur un cœur
+  (`read` rendant 0, le compte n'avançait plus) — refusé désormais, comme le lecteur scellé le faisait.
 - Laissés : index partiel pour la purge (aucun coût mesuré), « Mes fichiers » Samsung qui n'ouvre pas
   `.ntnote` (décision de Samsung ; le menu « Ouvrir une note scellée » marche partout), brouillon du
   dépôt gardé en mémoire après Home (voulu).
@@ -345,13 +354,38 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 
 ## État
 
+> **Réalisé le 2026-11-17** (Patrice : « fais tout ce qui est nécessaire pour que tout soit parfait »),
+> tests verts sur un émulateur API 29 identique à celui de la CI (AVD `ci-api29`, pixel_2, 4 Go). Les
+> contrôles négatifs cités ont été faits : la garde défaite, le test tombe.
+
 - [x] Questions Q1-Q6 tranchées (2026-11-14)
-- [ ] D-046 écran d'accueil
-- [ ] D-048 insertion (menu ⋮)
-- [ ] D-049 suite de liste (mesure des claviers comprise)
-- [ ] D-047 case cochable, tâche faite grisée (contraste mesuré)
-- [ ] C-1 · [ ] C-2 · [ ] C-3
-- [ ] D-050 remerciement d'« À propos »
-- [ ] Textes 5 langues · [ ] version 3.5.0 (508) · [ ] journaux 5081-5083 · [ ] README, fastlane
+- [x] **D-046** écran d'accueil (`77edbbc`) — `dossierAuDemarrage` (pur) : un état sauvegardé l'emporte,
+  même à `null` (« Toutes les notes » choisi exprès), et le choix est réécrit dans l'état. Le nom de la
+  Boîte de réception est celui du tiroir (renommée ou non). Tests : `DossierAuDemarrageTest` (JVM),
+  `AccueilAuDemarrageTest` (vrai ViewModel, vraie base ; contrôle négatif : réglage débranché → échec),
+  `ReglagesHeritesTest`, `ReglagesTest`.
+- [x] **D-048** et **D-049** (`9409ada`) — `ListesDeMarkdown.kt` : UNE lecture du début de ligne
+  (`DebutsDeLigne`) pour les deux. Les gestes d'écriture regroupés en `GestesDEcriture` (seuil detekt de
+  l'écran). Tests : `ListesDeMarkdownTest` (22, JVM), `EditeurTest`. **Reste à faire à la main** : la
+  suite de liste avec le clavier Samsung (S9, S24) et SwiftKey — sur émulateur, clavier AOSP, la suite
+  passe par le même `onContentChange` que les tests.
+- [x] **D-047** case cochable (`a569221`) — positions ramenées au texte de la note
+  (`WikiLinkMask.sourceOffset`, `collapsedReturns`), écriture gardée (`TaskBoxes.toggle`), lecture
+  corrigée sur place (`lectureApresUneCase`, égale à une lecture complète sur 13 cases), un nœud
+  `toggleable` par case (48 dp). Tâche faite en `onSurfaceVariant`, dont `CouleursDeNoteTest` mesure déjà le
+  contraste (≥ 4,5:1) sur chaque couleur de note : aucune mesure de plus à faire. Contrôle négatif : sans
+  la correspondance, 3 tests de positions et la comparaison CRLF tombent. Tests : `TaskBoxesTest`,
+  `LectureApresUneCaseTest`, `MarkdownPreviewReaderTest` (JVM), `ApercuMarkdownTest`, `CasesDeLaNoteTest`
+  (vrai ViewModel, coffre réel : enregistrée chiffrée).
+- [x] **C-1** · [x] **C-2** · [x] **C-3** (`8c1f61d`) — tests `LecteurDeFournisseurTest`, `DepotViewModelTest` ;
+  `FournisseurDUnPartageTest`, `NotesScelleesRecuesTest`, `FichierDeNoteScelleeTest` verts.
+- [x] **D-050** remerciement d'« À propos » (`e3eb010`) — `TeinteMonochromeTest`, `EcranAProposEtLegalTest`.
+- [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (398 à 470 caractères) ·
+  [x] README (+ la ligne de version restée à v3.3.0 depuis la 3.4.0), fastlane, SECURITY
 - [ ] Audits · [ ] relecture externe · [ ] S9 · [ ] CI
-- [ ] Publication (après F-Droid 3.4.0 si Q6 = oui)
+- [ ] Publication (après F-Droid 3.4.0, Q6)
+
+**CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
+parfois zygote avant que `on boot` (`init.ranchu.rc`) pose `dalvik.vm.heapsize` → tas de 16 Mo → Argon2
+en OutOfMemoryError. `tools/prepare-ci-emulator.sh` redémarre le framework par `su` une fois le démarrage
+fini (pas `adb root`, qui faisait mourir l'émulateur), AVANT le PIN.

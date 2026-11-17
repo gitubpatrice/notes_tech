@@ -4,7 +4,7 @@
 
 🇫🇷 [Version française](README.fr.md)
 
-**v3.3.0 — November 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
+**v3.5.0 — November 2026** · [Privacy policy](PRIVACY.md) · [Terms of use](TERMS.md) · [Security](SECURITY.md)
 
 Encrypted Markdown note-taking app for Android, written in **Kotlin** with Jetpack Compose.
 **100% local, no Internet permission.** Interface in **English, French, German, Italian and
@@ -174,7 +174,11 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
   and **Edit** writes it. A `[[Title]]` link
   opens the note it points to; an `http`, `https` or `mailto` link opens in the system app, any
   other scheme is ignored. Images are never loaded: their alternative text stands in.
-- Pin, favourites, colours, archive, trash (30-day retention), sort order, light / dark / system theme.
+- **Checklists** (3.5.0): a `- [ ]` task box is ticked with a tap while reading, and a done task is
+  greyed. While writing, ⋮ › **Checklist** puts boxes on the lines of the cursor or the selection, and
+  Enter continues any list — a box, a bullet, the next number —; Enter on an empty item ends it.
+- Pin, favourites, colours, archive, trash (30-day retention), sort order, light / dark / system theme;
+  the list the app opens on, **All notes** or the **Inbox** (3.5.0).
 
 ### Per-folder vaults
 - **Passphrase mode** — Argon2id (64 MiB, t = 3) and AES-256-GCM. The vault key (32 random bytes) is

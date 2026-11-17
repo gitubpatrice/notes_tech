@@ -2,9 +2,21 @@
 
 *Version française : [SECURITY.fr.md](SECURITY.fr.md)*
 
-**Current version: v3.4.0 — November 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
+**Current version: v3.5.0 — November 2026.** Notes Tech 3.0 is a rewrite in Kotlin. The security log
 of the Flutter versions 1.x and 2.x is kept as it was, in
 [`SECURITY.md` at tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.md).
+
+## v3.5.0 — the incoming share held like the sealed notes (2026-11)
+
+- **Incoming share**: another app's provider is now read as the sealed notes have been since 3.4.0 — on a
+  thread of its own, one share at a time, and every stream it opened CLOSED when the 20-second delay runs
+  out. Until then the delay gave up waiting but left a blocked read holding a thread of the shared IO
+  pool. A stream answering 0 bytes for ever is refused: it made the reading loop spin a core.
+- **Ticking a task box from the reading** writes three characters, `[ ]` ↔ `[x]`, at the box's offset in
+  the note, and only if those three characters are still a box; through the same path as a keystroke, so
+  a vault note is saved encrypted. The legal pages' boxes stay inert.
+- No new permission, no network, no new stored data: the home screen choice is one setting, reset by the
+  panic with the others.
 
 ## v3.4.0 — new doors, kept narrow (2026-11-09)
 
