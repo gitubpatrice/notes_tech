@@ -245,6 +245,7 @@
     <string name="move_to_folder_title">Sposta in un\'altra cartella</string>
     <string name="note_editor_menu_info">Info</string>
     <string name="note_editor_menu_find">Cerca nella nota</string>
+    <string name="note_editor_menu_checklist">Lista con caselle</string>
     <string name="note_find_previous">Occorrenza precedente</string>
     <string name="note_find_next">Occorrenza successiva</string>
     <string name="note_find_close">Chiudi la ricerca</string>
@@ -361,6 +362,8 @@
     <string name="settings_theme_system">Come il sistema</string>
     <string name="settings_theme_light">Chiaro</string>
     <string name="settings_theme_dark">Scuro</string>
+    <string name="settings_home_start">Schermata iniziale</string>
+    <string name="settings_home_start_subtitle">%1$s — dalla prossima apertura</string>
     <string name="settings_secure_window">Nascondi nelle app recenti</string>
     <string name="settings_secure_window_subtitle">Impedisce gli screenshot e nasconde l\'anteprima dell\'app nel selettore delle attività di Android.</string>
     <string name="settings_keyboard_no_learning">Tastiera senza apprendimento</string>
@@ -374,6 +377,7 @@
     <string name="depot_text">Testo</string>
     <string name="depot_action">Deposita</string>
     <string name="depot_failed">Non è stato possibile depositare la nota. Il testo è ancora qui.</string>
+    <string name="depot_too_long">Non aggiunto: troppo lungo. Un titolo contiene al massimo %1$,d caratteri, un testo %2$,d.</string>
     <string name="depot_done">Nota depositata nella cartella In arrivo</string>
     <string name="depot_discard_title">Scartare questo testo?</string>
     <string name="depot_discard_body">Non è stato depositato, e nulla lo conserva una volta chiusa questa schermata.</string>
@@ -443,7 +447,7 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Mai</string>
     <string name="settings_export_all">Esporta tutte le mie note</string>
-    <string name="settings_export_subtitle">Genera un archivio ZIP di file Markdown organizzato per cartelle.</string>
+    <string name="settings_export_subtitle">Genera un archivio ZIP di file Markdown organizzato per cartelle. Le note con una durata limitata non sono incluse.</string>
     <string name="settings_section_export_import">Esportazione e importazione</string>
     <string name="settings_import">Importa note</string>
     <string name="settings_import_subtitle">File Markdown o di testo, o un archivio ZIP di questi file, come un\'esportazione di Notes Tech.</string>
@@ -473,7 +477,7 @@
     </plurals>
     <string name="settings_section_backup">Backup cifrato</string>
     <string name="backup_create">Crea un backup</string>
-    <string name="backup_create_subtitle">Le sue note e cartelle, cestino compreso, in un unico file cifrato.</string>
+    <string name="backup_create_subtitle">Le sue note e cartelle, cestino compreso, in un unico file cifrato. Le note con una durata limitata non sono incluse.</string>
     <string name="backup_restore">Ripristina un backup</string>
     <string name="backup_restore_subtitle">Aggiunge ciò che un backup contiene. Su questo telefono non viene sovrascritto nulla.</string>
     <string name="backup_create_panic">La modalità panico non raggiunge questo file: lo conservi in un luogo sicuro e lo elimini lei stesso quando non le serve più.</string>
@@ -768,6 +772,7 @@
     <string name="about_section_legal">Note legali</string>
     <string name="about_legal_link">Visualizza le note legali complete</string>
     <string name="about_legal_subtitle">Editore, dati raccolti, autorizzazioni, diritti, licenza</string>
+    <string name="about_thanks_body">Grazie a tutte le persone che segnalano un problema, provano una nuova versione o propongono un\'idea: con il loro aiuto Notes Tech migliora.</string>
     <string name="about_link_copied">Link copiato: lo incolli nel suo browser.</string>
 
     <!-- Legal notice -->

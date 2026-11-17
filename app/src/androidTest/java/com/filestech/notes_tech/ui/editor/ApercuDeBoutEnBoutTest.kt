@@ -3,6 +3,7 @@ package com.filestech.notes_tech.ui.editor
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.filter
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
@@ -232,6 +233,53 @@ class ApercuDeBoutEnBoutTest {
         assertThat(attendreLeClavier(affiche = false)).isTrue()
     }
 
+    /**
+     * 🔴 **The keyboard comes back after the menu's "Checklist"** (D-048, 3.5.0). Measured on the S9: the
+     * entry asked for the keyboard while the menu still held the window's focus — refused, and never asked
+     * again once it closed: the next keystroke went nowhere. The field now asks when its window gets the
+     * focus back.
+     *
+     * ⚠️ The menu is tapped through the SYSTEM's input, as `adb shell input tap`: Compose's `performClick`
+     * does not move the window focus as a finger does: with it, this test failed with the fix in place.
+     * Measured on the CI's emulator (API 29, 2026-11-17): old field → the keyboard stays down, fixed → back.
+     */
+    @Test
+    fun the_keyboard_comes_back_after_the_checklist_entry() {
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasText(titreSource), TIMEOUT_MILLIS)
+        compose.onNodeWithText(titreSource).performClick()
+        attendreLaLecture()
+
+        compose.onNodeWithText(context.getString(R.string.note_editor_mode_edit)).performClick()
+        compose.onNodeWithTag(TAG_DU_CHAMP_DU_CORPS).performClick()
+        assumeTrue("No soft keyboard showed on this device", attendreLeClavier(affiche = true))
+        val listeACocher = hasText(context.getString(R.string.note_editor_menu_checklist))
+        try {
+            toucherParLeSysteme(hasContentDescription(context.getString(R.string.note_editor_tooltip_more)))
+            compose.waitUntilAtLeastOneExists(listeACocher, TIMEOUT_MILLIS)
+            toucherParLeSysteme(listeACocher)
+
+            compose.waitUntil(TIMEOUT_MILLIS) {
+                var coche = false
+                scenario?.onActivity { coche = champDuCorpsDe(it)?.text?.startsWith("- [ ] ") == true }
+                coche
+            }
+            assertThat(attendreLeClavier(affiche = true)).isTrue()
+        } finally {
+            // A system tap puts the whole device in touch mode; the other tests expect it out of it.
+            InstrumentationRegistry.getInstrumentation().setInTouchMode(false)
+        }
+    }
+
+    /** A tap at the middle of [cible], through the system's input — a finger, as far as Android can tell. */
+    private fun toucherParLeSysteme(cible: SemanticsMatcher) {
+        val noeud = compose.onNode(cible).fetchSemanticsNode()
+        val x = noeud.positionOnScreen.x + noeud.size.width / 2f
+        val y = noeud.positionOnScreen.y + noeud.size.height / 2f
+        shell("input tap ${x.toInt()} ${y.toInt()}")
+        compose.waitForIdle()
+    }
+
     /** Whether the system reaches [affiche] — a soft keyboard shown or not — within [TIMEOUT_MILLIS]. */
     private fun attendreLeClavier(affiche: Boolean): Boolean {
         val limite = SystemClock.uptimeMillis() + TIMEOUT_MILLIS
@@ -242,11 +290,12 @@ class ApercuDeBoutEnBoutTest {
         return false
     }
 
-    private fun clavierAffiche(): Boolean {
-        val automate = InstrumentationRegistry.getInstrumentation().uiAutomation
-        val sortie = automate.executeShellCommand("dumpsys input_method")
+    private fun clavierAffiche(): Boolean = shell("dumpsys input_method").contains("mInputShown=true")
+
+    /** [commande]'s output, read to its end — which is also what waits for the command to finish. */
+    private fun shell(commande: String): String {
+        val sortie = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(commande)
         return ParcelFileDescriptor.AutoCloseInputStream(sortie).bufferedReader().use { it.readText() }
-            .contains("mInputShown=true")
     }
 
     /** The note is shown to be read: its rendering is there, and no field to write in. */

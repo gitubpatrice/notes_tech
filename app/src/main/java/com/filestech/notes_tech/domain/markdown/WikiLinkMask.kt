@@ -30,7 +30,42 @@ internal class WikiLinkMask private constructor(
     /** The text given to the parser. */
     val text: String,
     private val entries: List<Entry>,
+    /** Where each placeholder starts in [text], in order — see [sourceOffset]. */
+    private val starts: IntArray,
 ) {
+
+    /**
+     * The offset in the text given to [mask] of the character at [maskedOffset] in [text] (D-047, 3.5.0):
+     * every placeholder before it gives back the length it took away, or the one it added. A task box is
+     * never inside a placeholder; an offset that is gets the placeholder's own start.
+     */
+    fun sourceOffset(maskedOffset: Int): Int {
+        // How many placeholders start before the offset: a binary search, a note may hold thousands.
+        var low = 0
+        var high = starts.size
+        while (low < high) {
+            val middle = (low + high) ushr 1
+            if (starts[middle] < maskedOffset) low = middle + 1 else high = middle
+        }
+        if (low == 0) return maskedOffset
+        val last = low - 1
+        return if (starts[last] + placeholderLength(last) > maskedOffset) {
+            starts[last] + shiftsBefore[last]
+        } else {
+            maskedOffset + shiftsBefore[low]
+        }
+    }
+
+    /** `shiftsBefore[i]`: what the placeholders before the i-th took away from the length, in all. */
+    private val shiftsBefore: IntArray by lazy {
+        IntArray(entries.size + 1).also { shifts ->
+            entries.forEachIndexed { index, entry ->
+                shifts[index + 1] = shifts[index] + entry.original.length - placeholderLength(index)
+            }
+        }
+    }
+
+    private fun placeholderLength(index: Int): Int = 2 + index.toString().length
 
     /** What a placeholder stands for. */
     private sealed interface Entry {
@@ -89,6 +124,9 @@ internal class WikiLinkMask private constructor(
 
         fun mask(source: String): WikiLinkMask {
             val entries = mutableListOf<Entry>()
+            val starts = mutableListOf<Int>()
+            // How much longer the masked text is than the source, so far — to place each placeholder.
+            var growth = 0
             val text = MASKED.replace(source) { match ->
                 val raw = match.groupValues[1]
                 val entry = when {
@@ -103,9 +141,12 @@ internal class WikiLinkMask private constructor(
                     }
                 }
                 entries += entry
-                "$OPEN${entries.lastIndex}$CLOSE"
+                val placeholder = "$OPEN${entries.lastIndex}$CLOSE"
+                starts += match.range.first + growth
+                growth += placeholder.length - match.value.length
+                placeholder
             }
-            return WikiLinkMask(text, entries)
+            return WikiLinkMask(text, entries, starts.toIntArray())
         }
     }
 }

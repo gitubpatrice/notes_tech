@@ -2,9 +2,22 @@
 
 *English version: [SECURITY.md](SECURITY.md)*
 
-**Version actuelle : v3.4.0 — novembre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
+**Version actuelle : v3.5.0 — novembre 2026.** Notes Tech 3.0 est une réécriture en Kotlin. Le journal
 de sécurité des versions Flutter 1.x et 2.x est conservé tel quel, dans
 [`SECURITY.fr.md` au tag v2.0.9](https://github.com/gitubpatrice/notes_tech/blob/v2.0.9/SECURITY.fr.md).
+
+## v3.5.0 — le partage entrant tenu comme les notes scellées (2026-11)
+
+- **Partage entrant** : le fournisseur d'une autre application est désormais lu comme les notes scellées
+  le sont depuis la 3.4.0 — sur un fil à lui, un partage à la fois, et chaque flux ouvert FERMÉ quand le
+  délai de 20 secondes expire. Jusque-là, le délai cessait d'attendre mais laissait une lecture bloquée
+  occuper un fil du pool d'E/S partagé. Un flux qui répond 0 octet sans fin est refusé : il faisait
+  tourner la boucle de lecture sur un cœur.
+- **Cocher une case depuis la lecture** écrit trois caractères, `[ ]` ↔ `[x]`, à la position de la case
+  dans la note, et seulement si ces trois caractères sont toujours une case ; par le même chemin qu'une
+  frappe, donc une note de coffre est enregistrée chiffrée. Les cases des pages légales restent inertes.
+- Aucune nouvelle permission, aucun réseau, aucune nouvelle donnée conservée : le choix de l'écran
+  d'accueil est un réglage, remis à zéro par la panique avec les autres.
 
 ## v3.4.0 — de nouvelles portes, tenues étroites (2026-11-09)
 

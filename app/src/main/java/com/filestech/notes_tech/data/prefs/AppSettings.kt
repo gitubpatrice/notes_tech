@@ -38,6 +38,13 @@ enum class LocalePreference(val code: String?) {
 }
 
 /**
+ * La liste sur laquelle l'application s'ouvre (D-046, 3.5.0, issue #59) : toutes les notes, ou la seule
+ * Boîte de réception — d'où une note rangée ailleurs sort. [ALL_NOTES] par défaut : rien ne change pour
+ * qui n'ouvre jamais le réglage.
+ */
+enum class HomeStartPreference { ALL_NOTES, INBOX }
+
+/**
  * Les réglages de l'application, dans le fichier de préférences hérité.
  *
  * Chaque valeur est lisible **tout de suite** (`…Now()`) et **observable** (`…Flow`). Les deux sont
@@ -99,6 +106,27 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
     val sort: Flow<NoteSortMode> = observing { sortNow() }
 
     fun setSort(value: NoteSortMode) = prefs.putString(KEY_SORT, persistedKey(value))
+
+    // ── Écran d'accueil (D-046, 3.5.0) ───────────────────────────────────────────────────────────
+
+    /**
+     * Lu une fois, quand l'accueil démarre sans rien à restaurer — cf. `HomeViewModel`. La panique l'efface
+     * avec les autres réglages : il revient à [HomeStartPreference.ALL_NOTES].
+     */
+    fun homeStartNow(): HomeStartPreference = when (prefs.string(KEY_HOME_START)) {
+        "inbox" -> HomeStartPreference.INBOX
+        else -> HomeStartPreference.ALL_NOTES
+    }
+
+    val homeStart: Flow<HomeStartPreference> = observing { homeStartNow() }
+
+    fun setHomeStart(value: HomeStartPreference) = prefs.putString(
+        KEY_HOME_START,
+        when (value) {
+            HomeStartPreference.ALL_NOTES -> "all"
+            HomeStartPreference.INBOX -> "inbox"
+        },
+    )
 
     // ── Fenêtre protégée ─────────────────────────────────────────────────────────────────────────
 
@@ -211,5 +239,8 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
 
         /** Né en 3.4.0 (D-040) : aucune version Flutter ne l'a écrit. */
         const val KEY_KEYBOARD_NO_LEARNING = "keyboard_no_learning"
+
+        /** Né en 3.5.0 (D-046) : aucune version Flutter ne l'a écrit. */
+        const val KEY_HOME_START = "home_start_folder"
     }
 }

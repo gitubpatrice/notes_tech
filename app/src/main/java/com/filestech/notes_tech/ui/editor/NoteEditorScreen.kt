@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteForever
@@ -450,8 +451,12 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             onQuitter = quitter,
             onTitreChange = viewModel::onTitleChange,
             onContenuChange = viewModel::onContentChange,
-            onDicter = dictee.demarrer,
-            onInsererUnLien = { autocompletionOuverte = true },
+            gestes = GestesDEcriture(
+                dicter = dictee.demarrer,
+                insererUnLien = { autocompletionOuverte = true },
+                basculerListeACocher = viewModel::basculerListeACocher,
+                basculerCase = viewModel::basculerCase,
+            ),
             onEpingler = viewModel::setPinned,
             onFavori = viewModel::setFavorite,
             onInfos = { infosOuvertes = true },
@@ -505,6 +510,20 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 }
 
 /**
+ * The gestures that WRITE into the note's body: from the writing bar and its menu, the microphone, the
+ * `[[Title]]` link, and since 3.5.0 the checklist (D-048); from the reading, a task box turned over, given
+ * its `[`'s offset in the note (D-047). Grouped as [FeuillesDeLaFiche] groups the card's sheets, which
+ * keeps the screen under detekt's parameter threshold. No default anywhere: an entry wired to `{}` would
+ * be a dead button that compiles.
+ */
+data class GestesDEcriture(
+    val dicter: () -> Unit,
+    val insererUnLien: () -> Unit,
+    val basculerListeACocher: () -> Unit,
+    val basculerCase: (position: Int) -> Unit,
+)
+
+/**
  * L'éditeur d'une note, **sans état** : ce qu'il montre ne dépend que de [state] et de [liens].
  *
  * ## 🔴 Cinquième écran à recevoir ce découpage, et pour la même raison que les quatre autres
@@ -531,8 +550,7 @@ fun NoteEditorScreen(
     onQuitter: () -> Unit,
     onTitreChange: (TextFieldValue) -> Unit,
     onContenuChange: (TextFieldValue) -> Unit,
-    onDicter: () -> Unit,
-    onInsererUnLien: () -> Unit,
+    gestes: GestesDEcriture,
     onEpingler: (Boolean) -> Unit,
     onFavori: (Boolean) -> Unit,
     // ⚠️ No default: a menu entry wired to `{}` would be a dead button that compiles.
@@ -746,7 +764,7 @@ fun NoteEditorScreen(
                         // `DictationViewModel` refuse le second appel de toute façon, mais un
                         // bouton qui accepte un geste sans effet se réappuie.
                         IconButton(
-                            onClick = onDicter,
+                            onClick = gestes.dicter,
                             enabled = !dicteeActive,
                         ) {
                             Icon(
@@ -770,7 +788,7 @@ fun NoteEditorScreen(
                         // ⚠️ « Insérer un lien » est un bouton d'icône, **pas** une entrée de menu :
                         // c'est le geste d'écriture le plus fréquent de cet écran, et l'application
                         // publiée le place au même endroit, à côté de l'épingle et du favori.
-                        IconButton(onClick = onInsererUnLien) {
+                        IconButton(onClick = gestes.insererUnLien) {
                             Icon(
                                 imageVector = Icons.Outlined.Link,
                                 contentDescription = stringResource(R.string.note_editor_tooltip_insert_link),
@@ -780,6 +798,16 @@ fun NoteEditorScreen(
                     if (ouvrable) {
                         MenuDeDebordement(
                             onRechercher = recherche::ouvrir,
+                            // D-048 (3.5.0): while writing only — there is no cursor in the reading. The
+                            // menu took the focus: the body gets it back, with the keyboard, to write the item.
+                            onListeACocher = if (lecture) {
+                                null
+                            } else {
+                                {
+                                    gestes.basculerListeACocher()
+                                    focaliserLeCorps = true
+                                }
+                            },
                             epinglee = note.pinned,
                             favorite = note.favorite,
                             // ⚠️ **La valeur inverse est calculée ICI**, où la note est connue, et le
@@ -885,7 +913,13 @@ fun NoteEditorScreen(
                         modifier = Modifier.fillMaxSize().imePadding(),
                     ) {
                         if (lecture) {
-                            FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu)
+                            FicheDeLecture(
+                                state = state,
+                                rendu = rendu,
+                                defilement = defilementDeLApercu,
+                                onCase = gestes.basculerCase,
+                                onLien = onLienDeLApercu,
+                            )
                         } else {
                             // 🔴 Android's own text field, not Compose's: a long note was unusable to
                             // write in — see `ChampDuCorps`. Its label is `note_editor_content`, as
@@ -969,6 +1003,8 @@ private fun FicheDeLecture(
     state: EditorUiState,
     rendu: LectureDeLApercu,
     defilement: LazyListState,
+    /** D-047 (3.5.0): a task box tapped, given its `[`'s offset in the note. Before [onLien], as in `apercuMarkdown`. */
+    onCase: (Int) -> Unit,
     onLien: (LinkTarget) -> Unit,
 ) {
     val schema = MaterialTheme.colorScheme
@@ -1005,7 +1041,7 @@ private fun FicheDeLecture(
                 state = defilement,
                 contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
             ) {
-                apercuMarkdown(rendu, onLien)
+                apercuMarkdown(rendu, onCase = onCase, onLien = onLien)
             }
             state.note?.updatedAt?.let { modifiee ->
                 Text(
@@ -1401,6 +1437,8 @@ private fun TitreDeLEditeur(dossier: String, enregistrement: Boolean, echec: Boo
 @Composable
 private fun MenuDeDebordement(
     onRechercher: () -> Unit,
+    /** D-048 (3.5.0): `null` hides the entry — in the reading, where there is no cursor to put a box at. */
+    onListeACocher: (() -> Unit)?,
     epinglee: Boolean,
     favorite: Boolean,
     onEpingler: () -> Unit,
@@ -1435,6 +1473,19 @@ private fun MenuDeDebordement(
                 onRechercher()
             },
         )
+        // D-048 (3.5.0): next to the other entry about the TEXT. In the menu and not in the bar: a fifth
+        // action there crushes the folder name and the save status (measured on the S9, see the tick's
+        // comment), and with Enter continuing a list (D-049) it is pressed once per list, not per item.
+        if (onListeACocher != null) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.note_editor_menu_checklist)) },
+                leadingIcon = { Icon(Icons.Outlined.Checklist, contentDescription = null) },
+                onClick = {
+                    ouvert = false
+                    onListeACocher()
+                },
+            )
+        }
         // 🔴🔴 **Épingle et favori sont ICI, et non dans la barre d'actions.**
         //
         // Ils y étaient. Mesuré sur le S9 après l'ajout du micro : six actions dans la barre

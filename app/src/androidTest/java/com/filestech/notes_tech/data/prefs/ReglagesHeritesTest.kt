@@ -245,6 +245,29 @@ class ReglagesHeritesTest {
         assertThat(reglages.keyboardNoLearningNow()).isTrue()
     }
 
+    /**
+     * D-046 (3.5.0): "All notes" while nothing is written — a cleared file (first start, panic) changes
+     * nothing for whoever never chose — the Inbox once chosen, under the plugin's prefix; an unknown
+     * value reads as the default.
+     */
+    @Test
+    fun l_ecran_d_accueil_est_toutes_les_notes_par_defaut_et_s_ecrit_dans_le_fichier_herite() {
+        assertThat(reglages.homeStartNow()).isEqualTo(HomeStartPreference.ALL_NOTES)
+
+        reglages.setHomeStart(HomeStartPreference.INBOX)
+
+        assertThat(fichier.getString("flutter.home_start_folder", null)).isEqualTo("inbox")
+        assertThat(reglages.homeStartNow()).isEqualTo(HomeStartPreference.INBOX)
+        reglages.setHomeStart(HomeStartPreference.ALL_NOTES)
+        assertThat(fichier.getString("flutter.home_start_folder", null)).isEqualTo("all")
+        // An unknown value — written by a later version, say — is the default, not a crash.
+        fichier.edit().putString("flutter.home_start_folder", "archive").commit()
+        assertThat(reglages.homeStartNow()).isEqualTo(HomeStartPreference.ALL_NOTES)
+        // The control: the bare key, without the prefix, is not read.
+        fichier.edit().remove("flutter.home_start_folder").putString("home_start_folder", "inbox").commit()
+        assertThat(reglages.homeStartNow()).isEqualTo(HomeStartPreference.ALL_NOTES)
+    }
+
     private companion object {
         /** Transcrit du greffon `shared_preferences`, pas lu depuis `LegacyPreferences`. */
         const val FICHIER_DU_GREFFON = "FlutterSharedPreferences"

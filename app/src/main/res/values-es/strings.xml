@@ -245,6 +245,7 @@
     <string name="move_to_folder_title">Mover a otra carpeta</string>
     <string name="note_editor_menu_info">Información</string>
     <string name="note_editor_menu_find">Buscar en la nota</string>
+    <string name="note_editor_menu_checklist">Lista con casillas</string>
     <string name="note_find_previous">Coincidencia anterior</string>
     <string name="note_find_next">Coincidencia siguiente</string>
     <string name="note_find_close">Cerrar la búsqueda</string>
@@ -361,6 +362,8 @@
     <string name="settings_theme_system">Según el sistema</string>
     <string name="settings_theme_light">Claro</string>
     <string name="settings_theme_dark">Oscuro</string>
+    <string name="settings_home_start">Pantalla de inicio</string>
+    <string name="settings_home_start_subtitle">%1$s — desde la próxima apertura</string>
     <string name="settings_secure_window">Ocultar en aplicaciones recientes</string>
     <string name="settings_secure_window_subtitle">Impide las capturas de pantalla y oculta la vista previa de la aplicación en el selector de tareas de Android.</string>
     <string name="settings_keyboard_no_learning">Teclado sin aprendizaje</string>
@@ -374,6 +377,7 @@
     <string name="depot_text">Texto</string>
     <string name="depot_action">Depositar</string>
     <string name="depot_failed">No se pudo depositar la nota. Su texto sigue aquí.</string>
+    <string name="depot_too_long">No se ha añadido: es demasiado largo. Un título admite como máximo %1$,d caracteres, un texto %2$,d.</string>
     <string name="depot_done">Nota depositada en la Bandeja de entrada</string>
     <string name="depot_discard_title">¿Descartar este texto?</string>
     <string name="depot_discard_body">No se ha depositado, y nada lo conserva una vez cerrada esta pantalla.</string>
@@ -443,7 +447,7 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Nunca</string>
     <string name="settings_export_all">Exportar todas mis notas</string>
-    <string name="settings_export_subtitle">Genera un archivo ZIP con archivos Markdown organizados por carpetas.</string>
+    <string name="settings_export_subtitle">Genera un archivo ZIP con archivos Markdown organizados por carpetas. Las notas con duración limitada no se incluyen.</string>
     <string name="settings_section_export_import">Exportar e importar</string>
     <string name="settings_import">Importar notas</string>
     <string name="settings_import_subtitle">Archivos Markdown o de texto, o un ZIP con ellos, como una exportación de Notes Tech.</string>
@@ -473,7 +477,7 @@
     </plurals>
     <string name="settings_section_backup">Copia de seguridad cifrada</string>
     <string name="backup_create">Crear una copia de seguridad</string>
-    <string name="backup_create_subtitle">Sus notas y carpetas, papelera incluida, en un solo archivo cifrado.</string>
+    <string name="backup_create_subtitle">Sus notas y carpetas, papelera incluida, en un solo archivo cifrado. Las notas con duración limitada no se incluyen.</string>
     <string name="backup_restore">Restaurar una copia de seguridad</string>
     <string name="backup_restore_subtitle">Añade lo que contiene una copia. No se sobrescribe nada en este teléfono.</string>
     <string name="backup_create_panic">El modo pánico no alcanza este archivo: guárdelo en un lugar seguro y bórrelo usted mismo cuando ya no lo necesite.</string>
@@ -768,6 +772,7 @@
     <string name="about_section_legal">Información legal</string>
     <string name="about_legal_link">Ver el aviso legal completo</string>
     <string name="about_legal_subtitle">Editor, datos recogidos, permisos, derechos, licencia</string>
+    <string name="about_thanks_body">Gracias a todas las personas que informan de un problema, prueban una nueva versión o proponen una idea: con su ayuda, Notes Tech mejora.</string>
     <string name="about_link_copied">Enlace copiado: péguelo en su navegador.</string>
 
     <!-- Legal notice -->

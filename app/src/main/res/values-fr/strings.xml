@@ -250,6 +250,7 @@
     <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
     <string name="note_editor_menu_info">Infos</string>
     <string name="note_editor_menu_find">Rechercher dans la note</string>
+    <string name="note_editor_menu_checklist">Liste à cocher</string>
     <string name="note_find_previous">Occurrence précédente</string>
     <string name="note_find_next">Occurrence suivante</string>
     <string name="note_find_close">Fermer la recherche</string>
@@ -366,6 +367,8 @@
     <string name="settings_theme_system">Système</string>
     <string name="settings_theme_light">Clair</string>
     <string name="settings_theme_dark">Sombre</string>
+    <string name="settings_home_start">Écran d\'accueil</string>
+    <string name="settings_home_start_subtitle">%1$s — dès la prochaine ouverture</string>
     <string name="settings_secure_window">Masquer dans les apps récentes</string>
     <string name="settings_secure_window_subtitle">Empêche la capture d\'écran et masque l\'aperçu de l\'app dans le sélecteur Android.</string>
     <string name="settings_keyboard_no_learning">Clavier sans apprentissage</string>
@@ -379,6 +382,7 @@
     <string name="depot_text">Texte</string>
     <string name="depot_action">Déposer</string>
     <string name="depot_failed">La note n\'a pas pu être déposée. Votre texte est toujours là.</string>
+    <string name="depot_too_long">Rien n\'a été ajouté : c\'est trop long. Un titre tient en %1$,d caractères au plus, un texte en %2$,d.</string>
     <string name="depot_done">Note déposée dans la Boîte de réception</string>
     <string name="depot_discard_title">Abandonner ce texte ?</string>
     <string name="depot_discard_body">Il n\'a pas été déposé, et rien ne le garde une fois cet écran fermé.</string>
@@ -448,7 +452,7 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Jamais</string>
     <string name="settings_export_all">Exporter toutes mes notes</string>
-    <string name="settings_export_subtitle">Génère une archive ZIP Markdown organisée par dossier.</string>
+    <string name="settings_export_subtitle">Génère une archive ZIP Markdown organisée par dossier. Les notes à durée de vie n\'y figurent pas.</string>
     <string name="settings_section_export_import">Export et import</string>
     <string name="settings_import">Importer des notes</string>
     <string name="settings_import_subtitle">Fichiers Markdown ou texte, ou une archive ZIP de ces fichiers, comme un export de Notes Tech.</string>
@@ -478,7 +482,7 @@
     </plurals>
     <string name="settings_section_backup">Sauvegarde chiffrée</string>
     <string name="backup_create">Créer une sauvegarde</string>
-    <string name="backup_create_subtitle">Vos notes et dossiers, corbeille comprise, dans un seul fichier chiffré.</string>
+    <string name="backup_create_subtitle">Vos notes et dossiers, corbeille comprise, dans un seul fichier chiffré. Les notes à durée de vie n\'y figurent pas.</string>
     <string name="backup_restore">Restaurer une sauvegarde</string>
     <string name="backup_restore_subtitle">Rajoute ce que contient une sauvegarde. Rien n\'est écrasé sur ce téléphone.</string>
     <string name="backup_create_panic">Le mode panique n\'atteint pas ce fichier : gardez-le en lieu sûr, et supprimez-le vous-même quand il ne sert plus.</string>
@@ -795,6 +799,7 @@
     <string name="about_section_legal">Mentions légales</string>
     <string name="about_legal_link">Voir les mentions légales complètes</string>
     <string name="about_legal_subtitle">Éditeur, données collectées, permissions, droits, licence</string>
+    <string name="about_thanks_body">Merci à toutes celles et à tous ceux qui signalent un problème, testent une nouvelle version ou proposent une idée : Notes Tech s\'améliore grâce à vous.</string>
     <string name="about_link_copied">Lien copié — collez-le dans votre navigateur.</string>
     <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
     <string name="about_voice_3">Enregistrements supprimés une fois transcrits</string>

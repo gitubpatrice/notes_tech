@@ -105,6 +105,8 @@ class EditeurTest {
     private val curseurs = mutableListOf<TextRange>()
     private val dictees = mutableListOf<Unit>()
     private val insertionsDeLien = mutableListOf<Unit>()
+    private val listesACocher = mutableListOf<Unit>()
+    private val casesBasculees = mutableListOf<Int>()
     private val epingles = mutableListOf<Boolean>()
     private val favoris = mutableListOf<Boolean>()
     private val infos = mutableListOf<Unit>()
@@ -174,8 +176,12 @@ class EditeurTest {
                             contenus += it.text
                             curseurs += it.selection
                         },
-                        onDicter = { dictees += Unit },
-                        onInsererUnLien = { insertionsDeLien += Unit },
+                        gestes = GestesDEcriture(
+                            dicter = { dictees += Unit },
+                            insererUnLien = { insertionsDeLien += Unit },
+                            basculerListeACocher = { listesACocher += Unit },
+                            basculerCase = { casesBasculees += it },
+                        ),
                         onEpingler = { epingles += it },
                         onFavori = { favoris += it },
                         onInfos = { infos += Unit },
@@ -535,6 +541,24 @@ class EditeurTest {
         regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_insert_link)).performClick()
 
         assertThat(insertionsDeLien).hasSize(1)
+    }
+
+    /**
+     * D-048 (3.5.0): "Checklist" is a writing entry of the ⋮ menu — there while writing, passed up; absent
+     * while reading, where there is no cursor to put a box at. The witness of the absence is the same menu
+     * open with its other entries.
+     */
+    @Test
+    fun the_checklist_entry_is_in_the_menu_while_writing_only() {
+        poser(noteChargee())
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_more)).performClick()
+        regle.onNodeWithText(texte(R.string.note_editor_menu_checklist)).performClick()
+        assertThat(listesACocher).hasSize(1)
+
+        poser(noteChargee(corps = "A paragraph."), lecture = true)
+        regle.onNodeWithContentDescription(texte(R.string.note_editor_tooltip_more)).performClick()
+        regle.onNodeWithText(texte(R.string.note_editor_menu_find)).assertExists()
+        regle.onNodeWithText(texte(R.string.note_editor_menu_checklist)).assertDoesNotExist()
     }
 
     // ------------------------------------------------------------- le menu de débordement

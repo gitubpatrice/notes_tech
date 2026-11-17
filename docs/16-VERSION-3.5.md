@@ -19,6 +19,7 @@
 | **D-048** Insérer une liste à cocher, depuis le menu ⋮ | courriel du 11-14 | décidé (Q1) |
 | **D-049** Entrée continue une liste, toutes les listes | courriel du 11-14 | décidé (Q2) |
 | **C-1 à C-3** Petits correctifs (limites connues de la 3.4.0) | `15-VERSION-3.4.md` § Limites | retenus (Q4) |
+| **D-050** Remerciement en bas de « À propos », mains jointes en gris | Patrice, 2026-11-17 | décidé |
 
 **Aucune migration de schéma** (Room reste en version 11), aucune permission, aucun réseau, aucun
 changement des formats d'export, de sauvegarde ni de note scellée : tout ce qui suit est du texte de note
@@ -162,8 +163,9 @@ changements de page par ligne.
   barre : une cinquième action y écraserait le titre, déjà mesuré sur le S9 (voir « Faits »). Le menu
   suffit parce que, avec D-049, on ne s'en sert qu'**une fois par liste** : Entrée crée les cases
   suivantes. Le lien, lui, sert à chaque lien.
-  - Placée en tête du menu en écriture : c'est un geste d'écriture, les autres entrées concernent la
-    note entière.
+  - ~~Placée en tête du menu en écriture~~ → **juste après « Rechercher dans la note »** (fait le
+    2026-11-17) : la recherche est en tête depuis la 3.2.0, et ce sont les deux seules entrées qui portent
+    sur le texte ; les autres concernent la note entière.
   - La position du curseur vit dans l'état (`state.content.selection`), comme pour « Insérer un lien »,
     qui ouvre une feuille avant d'insérer. Après l'insertion, le corps reprend le focus et le clavier
     (`focaliserLeCorps`) : le menu les a pris. Test instrumenté.
@@ -171,7 +173,9 @@ changements de page par ligne.
   curseur** (pas au milieu d'un mot) :
   - ligne vide → `- [ ] ` ;
   - ligne de texte → `- [ ] ` devant ;
-  - `- texte`, `* texte` ou `+ texte` → `- [ ] texte` ;
+  - `- texte`, `* texte` ou `+ texte` → `- [ ] texte`, `* [ ] texte`, `+ [ ] texte` : **la puce est
+    gardée** (écart avec la première rédaction, qui la changeait en `-`) — en CommonMark, une puce d'un
+    autre caractère commence une nouvelle liste, et la liste de l'utilisateur aurait été coupée en deux ;
   - `- [ ] texte` ou `- [x] texte` → `texte` (second appui = retire la case) ;
   - indentation et `> ` d'une citation gardés ;
   - sélection sur plusieurs lignes → chaque ligne non vide ;
@@ -191,6 +195,11 @@ changements de page par ligne.
   - indentation et `> ` gardés.
 - **Entrée sur un élément vide** (`- [ ] ` seul) retire le marqueur et laisse une ligne vide : on sort de
   la liste. C'est le comportement d'Obsidian, de Joplin et de Google Keep.
+  - **Écart mesuré sur le S9 (2026-11-17)** : le curseur passe à la ligne SUIVANT cette ligne vide. En
+    CommonMark, une ligne tapée juste sous un élément lui appartient (« continuation paresseuse ») :
+    `- [ ] pain` puis `fin` se lisait comme UN élément, « pain fin », grisé avec sa case. Pas de seconde
+    ligne vide si la précédente l'est déjà, ni en tête de note ; sous une liste imbriquée, la suite
+    revient dans l'élément parent, comme son indentation le dit.
 - Entrée au milieu du texte d'un élément : le reste part sur la ligne suivante, après le marqueur.
 - **Marqueurs CommonMark seulement** (marqueur + espace), cohérent avec D-045 : `1.Eat` n'est pas une
   liste, donc pas de suite.
@@ -209,6 +218,28 @@ changements de page par ligne.
 - Pas de réglage pour la couper au départ : Entrée sur un élément vide en sort. À revoir si quelqu'un le
   demande.
 
+## D-050 — Remerciement en bas de « À propos »
+
+Patrice, 2026-11-17 : « ajouter aussi dans à propos un encart en bas avec l'icone mains jointe en gris de
+remerciements comme pour sms tech ».
+
+- **Modèle : SMS Tech** (`c7d6d36a`, `AboutScreen.kt:359-434`, testé par `TeinteMonochromeTest`), repris
+  tel quel :
+  - un cadre de 1 dp en `outlineVariant`, coins de 16 dp, contenu centré ;
+  - l'émoji 🙏 (U+1F64F, 20 sp ; la bibliothèque d'icônes Material n'a pas de mains jointes) ramené à UNE
+    teinte `onSurfaceVariant` par une matrice de luminance (`teinteMonochrome`) : gris, avec son relief ;
+  - décoratif pour un lecteur d'écran (`clearAndSetSemantics {}`) : seul le texte est lu ;
+  - la phrase en `bodySmall`, `onSurfaceVariant`, centrée.
+- **Place** : tout en bas de l'écran, sous la carte « Mentions légales » (`AboutScreen.kt:155-170`) ; Notes
+  n'a pas de ligne « Créée par ».
+- **Texte `about_thanks_body`**, sans nom de contributeur, comme SMS Tech : personne n'a consenti à figurer
+  dans l'appli, et une liste nominative ne serait jamais à jour. Les cinq phrases de SMS Tech, le nom
+  changé. Le registre est le même (vouvoiement en fr, « Sie », « Lei », « usted » : relevé le 11-17).
+- **Code en double avec SMS Tech** (`teinteMonochrome`) : assumé, les deux applis n'ont pas de bibliothèque
+  commune.
+- Test JVM de la matrice (repris de `TeinteMonochromeTest`) ; l'écran À propos dans `AProposTest` si la
+  ligne y est atteignable.
+
 ## Petits correctifs — les limites connues de la 3.4.0 (`15-VERSION-3.4.md:234-240`)
 
 Retenus (Q4). Chacun est petit, et il ferme un écart déjà consigné.
@@ -220,7 +251,13 @@ Retenus (Q4). Chacun est petit, et il ferme un écart déjà consigné.
 - **C-2 Écran d'export : dire que les notes à durée de vie en sont exclues.** Le code les exclut
   (D-043), l'écran ne le dit pas. C'est un défaut « texte contre code ». Une phrase, 5 langues.
 - **C-3 Collage de plus de 500 000 caractères : un message.** Aujourd'hui il est ignoré sans rien dire,
-  donc le geste paraît sans effet. Une phrase, 5 langues.
+  donc le geste paraît sans effet. Une phrase, 5 langues. *Fait* : c'était le dépôt rapide (D-042,
+  `DepotViewModel`), où le TITRE refusait aussi en silence au-delà de 200 caractères — le même message
+  pour les deux, les deux limites dites.
+- *C-1 fait* : le mécanisme du lecteur des notes scellées (fil à lui, une lecture à la fois, flux fermés au
+  délai) est sorti dans `data/fournisseurs/LecteurDeFournisseur`, que les deux lecteurs utilisent. Trouvé
+  en route : un flux qui répond 0 octet sans fin faisait tourner la boucle du partage sur un cœur
+  (`read` rendant 0, le compte n'avançait plus) — refusé désormais, comme le lecteur scellé le faisait.
 - Laissés : index partiel pour la purge (aucun coût mesuré), « Mes fichiers » Samsung qui n'ouvre pas
   `.ntnote` (décision de Samsung ; le menu « Ouvrir une note scellée » marche partout), brouillon du
   dépôt gardé en mémoire après Home (voulu).
@@ -261,7 +298,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
    sur les claviers, avant d'aller plus loin.
 3. **D-047** (le plus gros) : positions dans la note, garde, bascule par le ViewModel, lecture corrigée
    sur place, sémantique.
-4. C-1 à C-3 si retenus.
+4. C-1 à C-3, puis D-050 (indépendants).
 5. Version, textes, documents, audits, essais, PR.
 
 ## Tests
@@ -293,6 +330,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - `strings.xml` × 5 (en, fr, de, it, es) :
   - réglage d'accueil : titre et deux choix ;
   - libellé de l'entrée « Liste à cocher » du menu ;
+  - remerciement d'« À propos » (D-050) ;
   - C-2 et C-3.
 - Version **3.5.0, base 508** (5080-5083) ; journaux fastlane **5081-5083** × 5 langues, ≤ 500
   caractères (agent `android-i18n-strings-cleaner`).
@@ -307,8 +345,8 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
   - page Notes Tech FR/EN/DE : une carte « Listes à cocher », la carte de l'accueil si elle décrit
     l'écran d'ouverture ;
   - méta-description et `og:description`.
-- Réponses, **après** la release : au courriel (Patrice) ; un commentaire sur #59, qui est fermée, comme
-  pour les mises à jour de #10.
+- Réponses, **après** la release : au courriel (Patrice) ; sur #59 (rouverte par koad1x le 11-17), puis la
+  fermer comme terminée.
 
 ## Publication
 
@@ -321,12 +359,75 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 
 ## État
 
+> **Réalisé le 2026-11-17** (Patrice : « fais tout ce qui est nécessaire pour que tout soit parfait »),
+> tests verts sur un émulateur API 29 identique à celui de la CI (AVD `ci-api29`, pixel_2, 4 Go). Les
+> contrôles négatifs cités ont été faits : la garde défaite, le test tombe.
+
 - [x] Questions Q1-Q6 tranchées (2026-11-14)
-- [ ] D-046 écran d'accueil
-- [ ] D-048 insertion (menu ⋮)
-- [ ] D-049 suite de liste (mesure des claviers comprise)
-- [ ] D-047 case cochable, tâche faite grisée (contraste mesuré)
-- [ ] C-1 · [ ] C-2 · [ ] C-3
-- [ ] Textes 5 langues · [ ] version 3.5.0 (508) · [ ] journaux 5081-5083 · [ ] README, fastlane
-- [ ] Audits · [ ] relecture externe · [ ] S9 · [ ] CI
-- [ ] Publication (après F-Droid 3.4.0 si Q6 = oui)
+- [x] **D-046** écran d'accueil (`77edbbc`) — `dossierAuDemarrage` (pur) : un état sauvegardé l'emporte,
+  même à `null` (« Toutes les notes » choisi exprès), et le choix est réécrit dans l'état. Le nom de la
+  Boîte de réception est celui du tiroir (renommée ou non). Tests : `DossierAuDemarrageTest` (JVM),
+  `AccueilAuDemarrageTest` (vrai ViewModel, vraie base ; contrôle négatif : réglage débranché → échec),
+  `ReglagesHeritesTest`, `ReglagesTest`.
+- [x] **D-048** et **D-049** (`9409ada`) — `ListesDeMarkdown.kt` : UNE lecture du début de ligne
+  (`DebutsDeLigne`) pour les deux. Les gestes d'écriture regroupés en `GestesDEcriture` (seuil detekt de
+  l'écran). Tests : `ListesDeMarkdownTest` (22, JVM), `EditeurTest`. **Reste à faire à la main** : la
+  suite de liste avec le clavier Samsung (S9, S24) et SwiftKey — sur émulateur, clavier AOSP, la suite
+  passe par le même `onContentChange` que les tests.
+- [x] **D-047** case cochable (`a569221`) — positions ramenées au texte de la note
+  (`WikiLinkMask.sourceOffset`, `collapsedReturns`), écriture gardée (`TaskBoxes.toggle`), lecture
+  corrigée sur place (`lectureApresUneCase`, égale à une lecture complète sur 13 cases), un nœud
+  `toggleable` par case (48 dp). Tâche faite en `onSurfaceVariant`, dont `CouleursDeNoteTest` mesure déjà le
+  contraste (≥ 4,5:1) sur chaque couleur de note : aucune mesure de plus à faire. Contrôle négatif : sans
+  la correspondance, 3 tests de positions et la comparaison CRLF tombent. Tests : `TaskBoxesTest`,
+  `LectureApresUneCaseTest`, `MarkdownPreviewReaderTest` (JVM), `ApercuMarkdownTest`, `CasesDeLaNoteTest`
+  (vrai ViewModel, coffre réel : enregistrée chiffrée).
+- [x] **C-1** · [x] **C-2** · [x] **C-3** (`8c1f61d`) — tests `LecteurDeFournisseurTest`, `DepotViewModelTest` ;
+  `FournisseurDUnPartageTest`, `NotesScelleesRecuesTest`, `FichierDeNoteScelleeTest` verts.
+- [x] **D-050** remerciement d'« À propos » (`e3eb010`) — `TeinteMonochromeTest`, `EcranAProposEtLegalTest`.
+- [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (398 à 470 caractères) ·
+  [x] README (+ la ligne de version restée à v3.3.0 depuis la 3.4.0), fastlane, SECURITY
+- [x] **Audits et relecture externe** (2026-11-17), tous appliqués :
+  - **Relecture externe GPT-5.6 sol** (0,35 $) : 5 défauts réels.
+    - **Lecteur de fournisseur** (`b85092c`) : une annulation de l'appelant laissait le verrou pris pour de
+      bon ; un flux ouvert après le délai n'était jamais fermé. Défaut déjà présent dans le lecteur scellé
+      de la 3.4.0.
+    - **Suite de liste** (`f937324`) : elle supprimait les espaces après le curseur ; elle continuait une
+      « liste » dans du code ; un `\r` seul ne terminait pas la ligne.
+  - **Audit 3 axes** : ni critique ni élevé.
+    - Recoupe GPT sur le lecteur, et ajoute un fil coincé qui bloquait tous les partages suivants : il est
+      désormais remplacé, 4 bloqués au plus.
+    - Un jeton empêche une lecture abandonnée de libérer la suivante.
+    - Un élément trop lourd n'a plus de case touchable (`0fec451`).
+    - Le test du `Bundle` (« Toutes les notes » à `null` après une mort du processus) a été ajouté.
+  - **Cohérence** (92/100) : nom TalkBack des cases jamais vide, choix « case et pas ligne » et 48 dp
+    écrits, ordre des paramètres, gestes tous en verbes, langue des commentaires (`08595fe`).
+  - **Traductions** : aucun défaut ; « durata limitata » et « duración limitada » plus clairs.
+  - Relecture Claude non lancée (Patrice : « pas besoin si c'est pas nécessaire »), GPT et l'audit
+    3 axes se recoupant.
+- [x] **D-050, icône** (Patrice, 2026-11-17 : « fond blanc avec un contour gris ») : le gris foncé de SMS
+  Tech remplacé par des mains blanches au contour gris moyen (`d3eabe5`), vérifié sur captures clair et
+  sombre. Patrice : « c mieux oui ».
+- [x] CI de la PR #70 verte (601 cas instrumentés, 12 nouveaux) avant ces corrections ; à revoir après
+- [x] **À la main sur le S9** (clavier Samsung, Android 10, 2026-11-17) : suite de liste à puces et
+  numérotée, fin de liste, entrée « Liste à cocher » dans les deux sens, case cochée en lecture (grisée,
+  enregistrée, sans saut). **Trois défauts trouvés et corrigés** :
+  - le clavier ne revenait pas après ⋮ → « Liste à cocher » (demandé pendant que le menu tenait le focus
+    de la fenêtre : refusé, jamais redemandé), la frappe suivante se perdait. Le champ le redemande au
+    retour du focus. Test `the_keyboard_comes_back_after_the_checklist_entry`, menu touché par l'entrée
+    SYSTÈME (`input tap`) : avec `performClick` de Compose, il échouait même corrigé. Contrôle négatif sur
+    l'émulateur de la CI : ancien champ → le test tombe ;
+  - une ligne tapée juste après la fin d'une liste rejoignait son dernier élément (voir D-049, écart) ;
+  - une tâche numérotée perdait son numéro en lecture, alors que « Liste à cocher » le garde dans le
+    texte : numéro puis case, comme GitHub (`a_numbered_task_keeps_its_number_before_its_box`).
+- [x] **À la main sur le S24** (One UI 8, Android 16, 2026-11-17), par Patrice : « tous les tests sont
+  ok ». Un défaut vu : l'appui sur une case dessinait un carré gris de 48 dp, la case dans son coin haut,
+  qui descendait sous le texte (« il dépasse largement la case »). Désormais un rond de 40 dp centré sur la
+  case, celui d'une case à cocher Android, la cible de 48 dp inchangée (`9d82693`). Patrice : « c'est
+  parfait ».
+- [ ] Publication (après F-Droid 3.4.0, Q6)
+
+**CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
+parfois zygote avant que `on boot` (`init.ranchu.rc`) pose `dalvik.vm.heapsize` → tas de 16 Mo → Argon2
+en OutOfMemoryError. `tools/prepare-ci-emulator.sh` redémarre le framework par `su` une fois le démarrage
+fini (pas `adb root`, qui faisait mourir l'émulateur), AVANT le PIN.

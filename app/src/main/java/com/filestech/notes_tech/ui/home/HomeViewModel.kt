@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filestech.notes_tech.data.prefs.AppSettings
+import com.filestech.notes_tech.data.prefs.HomeStartPreference
 import com.filestech.notes_tech.data.repository.DureesDeVie
 import com.filestech.notes_tech.data.repository.FoldersRepository
 import com.filestech.notes_tech.data.repository.NotesEnLot
@@ -139,8 +140,18 @@ class HomeViewModel @Inject constructor(
      * en arrière-plan. Sans ça, revenir dans l'application après quelques heures ramène sur
      * « toutes les notes » alors que l'écran affichait un dossier — et l'utilisateur croit ses
      * notes déplacées.
+     *
+     * Depuis la 3.5.0 (D-046), un démarrage NEUF s'ouvre sur le dossier que choisit le réglage — cf.
+     * [dossierAuDemarrage]. Le choix est réécrit aussitôt : une mort du processus restaure alors ce qui était
+     * affiché, même si le réglage a changé entre-temps.
      */
-    private val folderId = MutableStateFlow(savedState.get<String>(CLE_DOSSIER))
+    private val folderId = MutableStateFlow(
+        dossierAuDemarrage(
+            enregistre = savedState.contains(CLE_DOSSIER),
+            dossierEnregistre = savedState.get<String>(CLE_DOSSIER),
+            reglage = settings.homeStartNow(),
+        ).also { savedState[CLE_DOSSIER] = it },
+    )
 
     /** The archive is shown (3.3.0) — `folderId` is then `null`. Saved for the same reason as it. */
     private val archive = MutableStateFlow(savedState.get<Boolean>(CLE_ARCHIVE) ?: false)
@@ -549,13 +560,40 @@ class HomeViewModel @Inject constructor(
     private fun nomsDeDossiers(): Flow<Map<String, String>> =
         folders.observeAll().map { liste -> liste.associate { it.id to it.name } }.distinctUntilChanged()
 
-    private companion object {
+    internal companion object {
         /** `AppConstants.searchDebounce` — `core/constants.dart`. */
-        const val FREINAGE_MILLIS = 250L
-        const val ARRET_DIFFERE_MILLIS = 5_000L
-        const val CLE_DOSSIER = "home.folderId"
-        const val CLE_ARCHIVE = "home.archive"
-        const val CLE_RECHERCHE = "home.query"
-        const val CLE_SELECTION = "home.selection"
+        private const val FREINAGE_MILLIS = 250L
+        private const val ARRET_DIFFERE_MILLIS = 5_000L
+
+        /** Internal for the tests that restore a saved home screen. */
+        internal const val CLE_DOSSIER = "home.folderId"
+        private const val CLE_ARCHIVE = "home.archive"
+        private const val CLE_RECHERCHE = "home.query"
+        private const val CLE_SELECTION = "home.selection"
+    }
+}
+
+/**
+ * The folder the home screen shows when it starts (D-046, 3.5.0, issue #59), `null` for "All notes".
+ *
+ * A saved state wins, **including one holding `null`** — "All notes" picked in the drawer, or the
+ * archive: [enregistre] says the key exists, whatever its value. Without one, the screen starts anew
+ * (a cold start) and [reglage] decides. Reading the setting only then is the point: changing it must not
+ * move a screen the user is looking at.
+ *
+ * The Inbox is safe to open on: it cannot be deleted or moved (`FoldersRepository`), and the interface
+ * offers no way to make it a vault (`FoldersDrawer`) — the reason "reopen the last folder seen" was
+ * turned down: it could reopen on a vault.
+ */
+internal fun dossierAuDemarrage(
+    enregistre: Boolean,
+    dossierEnregistre: String?,
+    reglage: HomeStartPreference,
+): String? = if (enregistre) {
+    dossierEnregistre
+} else {
+    when (reglage) {
+        HomeStartPreference.ALL_NOTES -> null
+        HomeStartPreference.INBOX -> Folder.INBOX_ID
     }
 }

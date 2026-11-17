@@ -2,14 +2,18 @@ package com.filestech.notes_tech.ui.editor
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import com.filestech.notes_tech.core.text.DartTextSemantics
 import com.filestech.notes_tech.domain.markdown.MarkdownPreviewReader
 import com.filestech.notes_tech.domain.markdown.PreviewBlock
+import com.filestech.notes_tech.domain.markdown.TaskBoxes
+import com.filestech.notes_tech.domain.markdown.TaskMark
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import java.util.IdentityHashMap
 
 /** Where the Markdown preview of a note stands (D-024): nothing to show, being read, or read. */
 sealed interface LectureDeLApercu {
@@ -92,12 +96,85 @@ internal fun morceauxTelQuel(texte: String, max: Int = MORCEAU_TEL_QUEL_MAX): Li
 internal const val MORCEAU_TEL_QUEL_MAX = 2_000
 
 /**
+ * The reading of [nouvelle], made from [lue] — the reading of [ancienne] — when the only change between
+ * the two is ONE box turned over: one character between `[` and `]`, from one mark to another, at a box
+ * [lue] knows (D-047, 3.5.0). `null` for any other change: the note is then read again.
+ *
+ * 🔴 **Why patch instead of reading again.** A new text starts a new reading, which shows a "reading"
+ * item first: the list would flash and lose its position at every tick — scrolled down a shopping list,
+ * each box ticked would send the reader back to the top. A box turned over changes no structure: only the
+ * item's mark differs, which is what this returns (checked against a full reading, on the JVM).
+ *
+ * Unchanged blocks are kept as they are, the very objects: the search's highlights are keyed by them.
+ */
+internal fun lectureApresUneCase(lue: LectureDeLApercu.Lue, ancienne: String, nouvelle: String): LectureDeLApercu.Lue? {
+    val (position, marque) = caseRetournee(ancienne, nouvelle) ?: return null
+    val faits = IdentityHashMap<PreviewBlock, PreviewBlock>()
+    var trouvee = false
+    val elements = lue.elements.map { element ->
+        val bloc = faits.getOrPut(element.bloc) {
+            avecLaMarque(element.bloc, position, marque).also { if (it !== element.bloc) trouvee = true }
+        }
+        if (bloc === element.bloc) element else element.copy(bloc = bloc)
+    }
+    return if (trouvee) LectureDeLApercu.Lue(elements) else null
+}
+
+/**
+ * The box [nouvelle] turned over from [ancienne] — its `[`'s offset and its new mark —, or `null` when the
+ * change is anything else: another length, more than one character, a character outside `[` and `]`, or
+ * one that is no mark before or after (`[y]` is no box: the structure changes with it).
+ */
+private fun caseRetournee(ancienne: String, nouvelle: String): Pair<Int, TaskMark>? {
+    if (ancienne.length != nouvelle.length) return null
+    val ici = ancienne.indices.firstOrNull { ancienne[it] != nouvelle[it] } ?: return null
+    val entreCrochets = ici > 0 && ici + 1 < nouvelle.length && nouvelle[ici - 1] == '[' && nouvelle[ici + 1] == ']'
+    val seuleDifference = ancienne.regionMatches(ici + 1, nouvelle, ici + 1, ancienne.length - ici - 1)
+    val etaitUneMarque = TaskBoxes.markOf(ancienne[ici]) != null
+    val marque = TaskBoxes.markOf(nouvelle[ici])
+    val retournee = entreCrochets && seuleDifference && etaitUneMarque
+    return if (retournee && marque != null) (ici - 1) to marque else null
+}
+
+/**
+ * [bloc] with the item whose box is at [position] marked [marque]; [bloc] itself when it holds none. An item
+ * too heavy to draw block by block has no offset (`MarkdownPreviewReader`): its box is never found here, and
+ * a change in its text reads the note again.
+ */
+private fun avecLaMarque(bloc: PreviewBlock, position: Int, marque: TaskMark): PreviewBlock = when (bloc) {
+    is PreviewBlock.ListBlock -> {
+        val items = bloc.items.map { item ->
+            if (item.taskOffset == position) {
+                item.copy(task = marque)
+            } else {
+                val blocs = item.blocks.map { avecLaMarque(it, position, marque) }
+                if (blocs.indices.all { blocs[it] === item.blocks[it] }) item else item.copy(blocks = blocs)
+            }
+        }
+        if (items.indices.all { items[it] === bloc.items[it] }) bloc else bloc.copy(items = items)
+    }
+    is PreviewBlock.Quote -> {
+        val blocs = bloc.blocks.map { avecLaMarque(it, position, marque) }
+        if (blocs.indices.all { blocs[it] === bloc.blocks[it] }) bloc else bloc.copy(blocks = blocs)
+    }
+    else -> bloc
+}
+
+/** The last reading made, and the text it was made of — not snapshot state: nothing draws from it. */
+private class DerniereLecture {
+    var source: String? = null
+    var lue: LectureDeLApercu.Lue? = null
+}
+
+/**
  * Reads [source] for the preview, **off the main thread**: a pasted note can run to megabytes, and
  * the parse must not freeze the screen that shows it. The reader never throws — see
  * [MarkdownPreviewReader.read] — since a failure here would crash the editor holding the note, from a
  * coroutine nothing else watches.
  *
- * Keyed on [source]: a new text starts a new reading, never shows the blocks of the previous one.
+ * Keyed on [source]: a new text starts a new reading, never shows the blocks of the previous one —
+ * with ONE exception since 3.5.0, a box ticked or unticked, patched in from the last reading: see
+ * [lectureApresUneCase].
  *
  * @param actif `true` while the preview is shown. Called in both modes, so that a reading survives a
  *   trip to Edit and back when nothing was typed: the preview then comes back at once, **at the
@@ -108,7 +185,24 @@ internal const val MORCEAU_TEL_QUEL_MAX = 2_000
 fun rememberLectureDeLApercu(source: String, actif: Boolean): LectureDeLApercu {
     // Asked on every keystroke in Edit, where this is called too: no copy of the note.
     val vide = DartTextSemantics.isBlank(source)
-    val lecture = remember(source) { mutableStateOf(if (vide) LectureDeLApercu.Vide else LectureDeLApercu.EnCours) }
+    val derniere = remember { DerniereLecture() }
+    val lecture = remember(source) {
+        val apresUneCase = derniere.lue?.let { lue -> derniere.source?.let { lectureApresUneCase(lue, it, source) } }
+        mutableStateOf(
+            when {
+                vide -> LectureDeLApercu.Vide
+                apresUneCase != null -> apresUneCase
+                else -> LectureDeLApercu.EnCours
+            },
+        )
+    }
+    // Remembered once it is drawn, with its text: the next box ticked is patched in from it.
+    SideEffect {
+        (lecture.value as? LectureDeLApercu.Lue)?.let { lue ->
+            derniere.source = source
+            derniere.lue = lue
+        }
+    }
     LaunchedEffect(source, actif) {
         if (vide || !actif || lecture.value is LectureDeLApercu.Lue) return@LaunchedEffect
         // Leaving the preview cancels this effect; `ensureActive` hands that to the parser, which

@@ -272,6 +272,8 @@
     -->
     <string name="note_editor_menu_info">Info</string>
     <string name="note_editor_menu_find">Find in note</string>
+    <!-- D-048 (3.5.0): puts a task box on the lines of the cursor or the selection, or takes it off. -->
+    <string name="note_editor_menu_checklist">Checklist</string>
     <string name="note_find_previous">Previous match</string>
     <string name="note_find_next">Next match</string>
     <string name="note_find_close">Close search</string>
@@ -417,6 +419,9 @@
     <string name="settings_theme_system">Follow system</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <!-- D-046 (3.5.0, issue #59): the list the app opens on. %1$s = "All notes", or the Inbox's name. -->
+    <string name="settings_home_start">Home screen</string>
+    <string name="settings_home_start_subtitle">%1$s — from the next launch</string>
     <string name="settings_secure_window">Hide in recent apps</string>
     <string name="settings_secure_window_subtitle">Prevents screenshots and hides the app preview in the Android task switcher.</string>
     <string name="settings_keyboard_no_learning">Keyboard without learning</string>
@@ -430,6 +435,9 @@
     <string name="depot_text">Text</string>
     <string name="depot_action">Drop</string>
     <string name="depot_failed">The note could not be dropped. Your text is still here.</string>
+    <!-- C-3 (3.5.0): a change refused for its length, a paste above all. %1$,d: the title's bound (200),
+         %2$,d: the text's (500 000), grouped as the language writes numbers. -->
+    <string name="depot_too_long">Not added: too long. A title holds %1$,d characters at most, a text %2$,d.</string>
     <string name="depot_done">Note dropped in the Inbox</string>
     <string name="depot_discard_title">Discard this text?</string>
     <string name="depot_discard_body">It has not been dropped, and nothing keeps it once this screen is closed.</string>
@@ -495,7 +503,8 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Never</string>
     <string name="settings_export_all">Export all my notes</string>
-    <string name="settings_export_subtitle">Generates a Markdown ZIP archive organized by folder.</string>
+    <!-- C-2 (3.5.0): the export and the backup leave out the notes with a lifetime (D-043): said where they are made. -->
+    <string name="settings_export_subtitle">Generates a Markdown ZIP archive organized by folder. Notes with a lifetime are left out.</string>
     <string name="settings_section_export_import">Export and import</string>
     <string name="settings_import">Import notes</string>
     <string name="settings_import_subtitle">Markdown or text files, or a ZIP of them, such as a Notes Tech export.</string>
@@ -521,7 +530,7 @@
     </plurals>
     <string name="settings_section_backup">Encrypted backup</string>
     <string name="backup_create">Create a backup</string>
-    <string name="backup_create_subtitle">Your notes and folders, trash included, in one encrypted file.</string>
+    <string name="backup_create_subtitle">Your notes and folders, trash included, in one encrypted file. Notes with a lifetime are left out.</string>
     <string name="backup_restore">Restore a backup</string>
     <string name="backup_restore_subtitle">Adds back what a backup holds. Nothing on this phone is overwritten.</string>
     <string name="backup_create_panic">Panic mode does not reach this file: keep it somewhere safe, and delete it yourself when you no longer need it.</string>
@@ -894,6 +903,10 @@
     <string name="about_section_legal">Legal</string>
     <string name="about_legal_link">View full legal notice</string>
     <string name="about_legal_subtitle">Publisher, data collected, permissions, rights, license</string>
+    <!-- D-050 (3.5.0, Patrice): thanks to the contributors, without names — nobody agreed to appear in the
+         app, and a list of names would have to be kept up to date (and incomplete) at every version. The
+         same sentence as SMS Tech's. -->
+    <string name="about_thanks_body">Thank you to everyone who reports a problem, tests a new version or suggests an idea: Notes Tech gets better with your help.</string>
     <string name="about_link_copied">Link copied — paste it in your browser.</string>
     <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
     <string name="about_voice_1">On-device Whisper (whisper.cpp, built into the app)</string>

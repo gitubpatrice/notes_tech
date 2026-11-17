@@ -16,6 +16,7 @@ import com.filestech.notes_tech.data.repository.LinksRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.export.NoteMarkdown
+import com.filestech.notes_tech.domain.markdown.TaskBoxes
 import com.filestech.notes_tech.domain.model.DureeDeVie
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
@@ -818,10 +819,40 @@ class NoteEditorViewModel @Inject constructor(
      * report de l'écriture utile.
      */
     fun onContentChange(value: TextFieldValue) {
-        val texteAChange = value.text != _state.value.content.text
-        contenuPrecedent = _state.value.content
-        _state.value = _state.value.copy(content = value)
+        val avant = _state.value.content
+        // D-049 (3.5.0) : Entrée sur une ligne de liste ouvre l'élément suivant. Seul UN retour à la ligne
+        // tapé au curseur compte — cf. [SuiteDeListe] ; tout le reste est gardé tel que le champ l'envoie.
+        val retenue = SuiteDeListe.apres(avant, value) ?: value
+        val texteAChange = retenue.text != avant.text
+        contenuPrecedent = avant
+        _state.value = _state.value.copy(content = retenue)
         if (texteAChange) programmerLaSauvegarde()
+    }
+
+    /**
+     * D-047 (3.5.0) : une case touchée dans la lecture, son `[` à [position] dans le texte de la note.
+     * Retournée seulement si les trois caractères à cet endroit sont toujours une case — [TaskBoxes.toggle]
+     * les vérifie ; la lecture qui a donné la position peut avoir un toucher de retard. Même longueur : le
+     * curseur reste où il était. Enregistrée comme une frappe, donc chiffrée pour une note de coffre.
+     */
+    fun basculerCase(position: Int) {
+        val avant = _state.value.content
+        val texte = TaskBoxes.toggle(avant.text, position) ?: return
+        _state.value = _state.value.copy(content = TextFieldValue(texte, avant.selection))
+        programmerLaSauvegarde()
+    }
+
+    /**
+     * D-048 (3.5.0) : « Liste à cocher » du menu d'écriture, sur les lignes du curseur ou de la sélection —
+     * une case ajoutée à chacune, ou retirée quand toutes en ont une. La règle est [ListeACocher], pure et
+     * testée.
+     */
+    fun basculerListeACocher() {
+        val avant = _state.value.content
+        val apres = ListeACocher.basculer(avant)
+        if (apres.text == avant.text) return
+        _state.value = _state.value.copy(content = apres)
+        programmerLaSauvegarde()
     }
 
     /**

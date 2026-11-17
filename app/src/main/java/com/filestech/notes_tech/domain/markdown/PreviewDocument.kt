@@ -70,10 +70,18 @@ internal fun PreviewBlock.weight(): Int = 1 + when (this) {
     -> 0
 }
 
-/** @param task `null` for an ordinary item; the GFM `[ ]` / `[x]` box otherwise. */
-data class ListItem(val task: TaskMark?, val blocks: List<PreviewBlock>)
+/**
+ * @param task `null` for an ordinary item; the GFM `[ ]` / `[x]` box otherwise.
+ * @param taskOffset where the box's `[` is in the NOTE's text — not in the text the parser saw, which
+ *   `[[links]]` and Windows line ends make different (D-047, 3.5.0): what ticking the box rewrites.
+ *   `null` without a box.
+ */
+data class ListItem(val task: TaskMark?, val blocks: List<PreviewBlock>, val taskOffset: Int? = null)
 
-/** A GFM task box. Shown, never toggled: the preview does not write into the note. */
+/**
+ * A GFM task box. Until 3.5.0 shown only; since then ticked from the reading (D-047), which rewrites
+ * the three characters at [ListItem.taskOffset] — the preview itself still writes nothing.
+ */
 enum class TaskMark { DONE, OPEN }
 
 enum class CellAlignment { START, CENTER, END }

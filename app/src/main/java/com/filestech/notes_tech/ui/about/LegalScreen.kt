@@ -140,7 +140,8 @@ private fun TexteLegal(@RawRes fichier: Int, onLien: (LinkTarget) -> Unit) {
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 32.dp + barreDeNavigation),
         ) {
-            apercuMarkdown(lecture, onLien)
+            // No `onCase`: the legal pages' boxes, if any, are only drawn (D-047).
+            apercuMarkdown(lecture, onLien = onLien)
         }
     }
 }

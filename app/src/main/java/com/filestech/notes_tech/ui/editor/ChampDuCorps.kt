@@ -451,13 +451,32 @@ internal class ChampNatifDuCorps(context: Context) : EditText(context) {
     fun focaliser() {
         doOnAttach {
             requestFocus()
-            val fenetre = context.activite()?.window
-            if (fenetre != null) {
-                WindowCompat.getInsetsController(fenetre, this).show(WindowInsetsCompat.Type.ime())
-            } else {
-                post { clavier()?.showSoftInput(this, 0) }
-            }
+            // 🔴 Measured on the S9 (3.5.0, the ⋮ menu's "Checklist"): asked while a menu still holds the
+            // window focus, the keyboard is refused — Android serves only the focused window — and nothing
+            // asked again once the menu closed: the next keystroke went nowhere. So ask when it comes back.
+            clavierAttendu = !hasWindowFocus()
+            if (!clavierAttendu) montrerLeClavier()
             amenerLeCurseur()
+        }
+    }
+
+    /** [focaliser] was called while another window had the focus: the keyboard is owed when it comes back. */
+    private var clavierAttendu = false
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus || !clavierAttendu) return
+        clavierAttendu = false
+        // The field may have lost its focus meanwhile (a tap on the title): then no keyboard is owed.
+        if (hasFocus()) montrerLeClavier()
+    }
+
+    private fun montrerLeClavier() {
+        val fenetre = context.activite()?.window
+        if (fenetre != null) {
+            WindowCompat.getInsetsController(fenetre, this).show(WindowInsetsCompat.Type.ime())
+        } else {
+            post { clavier()?.showSoftInput(this, 0) }
         }
     }
 

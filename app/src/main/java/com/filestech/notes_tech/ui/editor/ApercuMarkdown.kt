@@ -1,6 +1,8 @@
 package com.filestech.notes_tech.ui.editor
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckBox
@@ -22,11 +25,15 @@ import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,9 +45,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -58,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.markdown.CellAlignment
 import com.filestech.notes_tech.domain.markdown.LinkTarget
+import com.filestech.notes_tech.domain.markdown.ListItem
 import com.filestech.notes_tech.domain.markdown.MarkdownPreviewReader
 import com.filestech.notes_tech.domain.markdown.PreviewBlock
 import com.filestech.notes_tech.domain.markdown.RunStyle
@@ -82,9 +92,15 @@ import kotlinx.coroutines.delay
  * inside a lazy item is measured with an infinite height, and Compose crashes on that (see
  * `LiensDeLaNote`).
  *
+ * @param onCase a tapped task box, given its `[`'s offset in the note (D-047, 3.5.0); `null` leaves the
+ *   boxes drawn but inert — the legal pages. Before [onLien], so that a trailing lambda stays [onLien].
  * @param onLien a tapped link: a `[[Title]]` to open or create, or an address for another app.
  */
-fun LazyListScope.apercuMarkdown(lecture: LectureDeLApercu, onLien: (LinkTarget) -> Unit) {
+fun LazyListScope.apercuMarkdown(
+    lecture: LectureDeLApercu,
+    onCase: ((Int) -> Unit)? = null,
+    onLien: (LinkTarget) -> Unit,
+) {
     val marges = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
     when (lecture) {
         LectureDeLApercu.Vide -> item(contentType = "vide") {
@@ -109,7 +125,9 @@ fun LazyListScope.apercuMarkdown(lecture: LectureDeLApercu, onLien: (LinkTarget)
                 }
                 // A note shown as written is cut in pieces (see [aplatir]): its last one closes the block.
                 val dernier = index == elements.lastIndex || elements[index + 1].partie == 0
-                Box(marges.padding(top = ecart)) { Element(element, dernier, onLien) }
+                Box(marges.padding(top = ecart)) {
+                    CompositionLocalProvider(LocalBasculeDeCase provides onCase) { Element(element, dernier, onLien) }
+                }
             }
         }
     }
@@ -281,39 +299,122 @@ private fun ElementDeListe(
     modifier: Modifier = Modifier,
 ) {
     val element = liste.items[index]
+    val tache = element.task
     Row(modifier) {
-        Box(Modifier.widthIn(min = 24.dp).padding(end = 6.dp)) {
-            val tache = element.task
-            when {
-                tache != null -> CaseDeTache(tache)
+        // A numbered task keeps its number before its box, as on GitHub: 🔴 seen on the S9 (3.5.0), the
+        // menu's "Checklist" turns `1. a` into `1. [ ] a` — the number is the user's, D-048 keeps it in the
+        // text, and the reading dropped it. A bulleted task shows its box alone, the box being its bullet.
+        if (tache == null || liste.ordered) {
+            Box(PLACE_DE_LA_MARQUE) {
                 // `Long`: a list may start at 999 999 999, and its tenth item must not wrap.
-                liste.ordered -> Text("${liste.start.toLong() + index}.", style = MaterialTheme.typography.bodyLarge)
-                else -> Text("•", style = MaterialTheme.typography.bodyLarge)
+                val marque = if (liste.ordered) "${liste.start.toLong() + index}." else "•"
+                Text(marque, style = MaterialTheme.typography.bodyLarge)
             }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ESPACE_DANS_UNE_LISTE)) {
-            element.blocks.forEach { Bloc(it, onLien) }
+        if (tache != null) CaseDeTache(tache, element.taskOffset, libelle = libelleDeLElement(element))
+        // D-047 (3.5.0): a done task's own text is greyed — the same `onSurfaceVariant` whose contrast
+        // `CouleursDeNoteTest` measures on every note colour —, not struck through, which reads worse. An
+        // open task sets its colour back, so that one nested in a done task is not greyed with it.
+        val couleur = when (tache) {
+            TaskMark.DONE -> MaterialTheme.colorScheme.onSurfaceVariant
+            TaskMark.OPEN -> MaterialTheme.colorScheme.onSurface
+            null -> LocalContentColor.current
+        }
+        CompositionLocalProvider(LocalContentColor provides couleur) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ESPACE_DANS_UNE_LISTE)) {
+                element.blocks.forEach { Bloc(it, onLien) }
+            }
         }
     }
 }
 
 /**
+ * What a screen reader says a task is about: the texts of its first block, whatever it is (a paragraph, a
+ * heading, code…). Empty only for an item with no text at all — [CaseDeTache] then says its state.
+ */
+private fun libelleDeLElement(element: ListItem): String {
+    val libelle = StringBuilder()
+    element.blocks.firstOrNull()?.let { bloc ->
+        textesDuBloc(bloc) { _, texte -> libelle.append(if (libelle.isEmpty()) texte else " $texte") }
+    }
+    return libelle.toString().trim()
+}
+
+/**
  * A GFM task box, drawn and **named**: notes_tech 2.0.9 draws the icon with no label, so a screen
- * reader passes over whether the task is done. Never toggled — the preview does not write.
+ * reader passes over whether the task is done.
+ *
+ * Since 3.5.0 (D-047) a tap turns it over, where the screen allows it ([LocalBasculeDeCase]) and the box
+ * is known in the note's text ([position]). ONE node then, as `04-PIEGES.md` asks of every control with a
+ * state: the role, the state ("Done" / "To do") and what the task is about ([libelle] — its state when the
+ * item has no text, never an empty name).
+ *
+ * ⚠️ The BOX is the control, not the whole row as in the settings (`04-PIEGES.md`): an item's text may hold
+ * links, and nested items — a row that ticks would tick from a tap meant for them. The cost, accepted: the
+ * task's text is read once more after the box, on its own node.
+ *
+ * ⚠️ 48 dp, Material's minimum target: a task row is taller, and its text further right, than a bullet's —
+ * a checklist is made to be tapped. The icon stays on the item's first line, the rest of the target below.
  */
 @Composable
-private fun CaseDeTache(tache: TaskMark) {
+private fun CaseDeTache(tache: TaskMark, position: Int?, libelle: String) {
     val (icone, etat) = when (tache) {
         TaskMark.DONE -> Icons.Outlined.CheckBox to R.string.note_preview_task_done
         TaskMark.OPEN -> Icons.Outlined.CheckBoxOutlineBlank to R.string.note_preview_task_open
     }
-    Icon(
-        imageVector = icone,
-        contentDescription = stringResource(etat),
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 2.dp).size(20.dp),
-    )
+    val etatDit = stringResource(etat)
+    val teinte = MaterialTheme.colorScheme.onSurfaceVariant
+    val dessin = Modifier.padding(top = 2.dp).size(20.dp)
+    val basculer = LocalBasculeDeCase.current
+    if (basculer == null || position == null) {
+        Box(PLACE_DE_LA_MARQUE) {
+            Icon(icone, contentDescription = etatDit, tint = teinte, modifier = dessin)
+        }
+        return
+    }
+    // 🔴 Seen on the S9 and the S24 (3.5.0, Patrice: "it goes well past the box"): the press drew a grey
+    // 48 dp square with the box in its top corner, down past the item's second line. The press now shows
+    // on the box itself, as a round state layer — an Android checkbox's —, the 48 dp target unchanged.
+    val appuis = remember { MutableInteractionSource() }
+    Box(
+        contentAlignment = Alignment.TopCenter,
+        modifier = Modifier
+            .size(CIBLE_DE_CASE)
+            .toggleable(
+                value = tache == TaskMark.DONE,
+                interactionSource = appuis,
+                indication = null,
+                role = Role.Checkbox,
+                onValueChange = { basculer(position) },
+            )
+            .semantics {
+                contentDescription = libelle.ifBlank { etatDit }
+                stateDescription = etatDit
+            },
+    ) {
+        val appui = ripple(bounded = false, radius = RAYON_DE_L_APPUI)
+        Icon(icone, contentDescription = null, tint = teinte, modifier = dessin.indication(appuis, appui))
+    }
 }
+
+/**
+ * What a box does when tapped, given the `[`'s offset in the note (D-047): `null` where boxes are only
+ * shown — the legal pages, which go through the same reader.
+ *
+ * A composition local, unlike `onLien`, which every block takes as a parameter: links are in every kind of
+ * text, the boxes only in list items, deep in the tree — through quotes and nested lists. A parameter would
+ * cross every block for the one that reads it. Private: this file alone provides and reads it.
+ */
+private val LocalBasculeDeCase = compositionLocalOf<((Int) -> Unit)?> { null }
+
+/** Material's minimum touch target. */
+private val CIBLE_DE_CASE = 48.dp
+
+/** The press around a box: Material's checkbox state layer, 40 dp across, centred on the box. */
+private val RAYON_DE_L_APPUI = 20.dp
+
+/** The place of a bullet, a number, or a box that cannot be tapped: before the item's text. */
+private val PLACE_DE_LA_MARQUE = Modifier.widthIn(min = 24.dp).padding(end = 6.dp)
 
 @Composable
 private fun Citation(citation: PreviewBlock.Quote, onLien: (LinkTarget) -> Unit) {

@@ -168,6 +168,9 @@ fun AboutRoute(onBack: () -> Unit, onOpenLegal: () -> Unit) {
                     modifier = Modifier.clickable(onClick = onOpenLegal),
                 )
             }
+
+            // D-050 (3.5.0, Patrice): the thanks, at the very bottom, as in SMS Tech.
+            Remerciement(Modifier.padding(top = 24.dp))
         }
     }
 }

@@ -10,12 +10,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.filter
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isHeading
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onChildren
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -62,16 +69,56 @@ class ApercuMarkdownTest {
 
     private fun texte(id: Int): String = regle.activity.getString(id)
 
-    private fun poser(source: String) {
+    /** @param onCase the box handler (D-047); `null`, as on the legal pages, leaves the boxes inert. */
+    private fun poser(source: String, onCase: ((Int) -> Unit)? = null) {
         val blocs = MarkdownPreviewReader.read(source)
         regle.setContent {
             NotesTechTheme {
                 LazyColumn(Modifier.fillMaxSize()) {
-                    apercuMarkdown(LectureDeLApercu.Lue(aplatir(blocs))) { liens += it }
+                    apercuMarkdown(LectureDeLApercu.Lue(aplatir(blocs)), onCase = onCase) { liens += it }
                 }
             }
         }
         regle.waitForIdle()
+    }
+
+    /**
+     * D-047 (3.5.0): with a box handler, each box is ONE node — toggleable, the checkbox role, named by its
+     * task and saying its state, as `04-PIEGES.md` asks of a control with a state — and a tap reports the
+     * `[`'s offset in the note. The sweeps stay clean with them on screen.
+     */
+    @Test
+    fun a_box_that_can_be_ticked_is_one_named_checkbox_and_reports_its_offset() {
+        val cases = mutableListOf<Int>()
+        poser("- [x] bought\n- [ ] to buy", onCase = { cases += it })
+
+        val achetee = regle.onNode(isToggleable() and hasContentDescription("bought"))
+        achetee.assertIsOn()
+        val dite = texte(R.string.note_preview_task_done)
+        achetee.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, dite))
+        val aAcheter = regle.onNode(isToggleable() and hasContentDescription("to buy"))
+        aAcheter.assertIsOff()
+        aAcheter.performClick()
+
+        // "- [x] bought\n" is 13 characters; the second box's `[` is 2 further.
+        assertThat(cases).containsExactly(15)
+        assertThat(regle.actionnablesSansNom()).isEmpty()
+        assertThat(regle.actionsPerduesALaFusion()).isEmpty()
+    }
+
+    /**
+     * 🔴 Seen on the S9 (3.5.0): the menu's "Checklist" keeps a list's numbers in the text (`1. [ ] a`), and
+     * the reading dropped them. A numbered task shows its number AND its box; a bulleted one, its box alone.
+     */
+    @Test
+    fun a_numbered_task_keeps_its_number_before_its_box() {
+        poser("3. [ ] first\n4. [x] second\n\n- [ ] bulleted", onCase = {})
+
+        regle.onNodeWithText("3.").assertIsDisplayed()
+        regle.onNodeWithText("4.").assertIsDisplayed()
+        regle.onAllNodes(isToggleable()).assertCountEquals(3)
+        // The control: the bulleted task draws no bullet next to its box.
+        regle.onNodeWithText("•").assertDoesNotExist()
     }
 
     /** The link nodes Compose lays over [texteAffiche] — clickable children of its text node. */
@@ -113,7 +160,8 @@ class ApercuMarkdownTest {
      * paragraph and in a table cell, task boxes.
      *
      * ⚠️ The unnamed actionables must be **exactly** the link nodes — whose names the test above
-     * proves reach the reader — no more, no fewer. A task box is not actionable (never toggled).
+     * proves reach the reader — no more, no fewer. A task box is not actionable here: no box handler, as
+     * on the legal pages (D-047 — with one, see the test above).
      */
     @Test
     fun the_only_unnamed_actionables_are_the_links_whose_text_names_them() {

@@ -227,6 +227,7 @@
     <string name="move_to_folder_title">In einen anderen Ordner verschieben</string>
     <string name="note_editor_menu_info">Info</string>
     <string name="note_editor_menu_find">In der Notiz suchen</string>
+    <string name="note_editor_menu_checklist">Checkliste</string>
     <string name="note_find_previous">Vorheriger Treffer</string>
     <string name="note_find_next">Nächster Treffer</string>
     <string name="note_find_close">Suche schließen</string>
@@ -342,6 +343,8 @@
     <string name="settings_theme_system">Wie im System</string>
     <string name="settings_theme_light">Hell</string>
     <string name="settings_theme_dark">Dunkel</string>
+    <string name="settings_home_start">Startbildschirm</string>
+    <string name="settings_home_start_subtitle">%1$s – ab dem nächsten Öffnen</string>
     <string name="settings_secure_window">In den letzten Apps ausblenden</string>
     <string name="settings_secure_window_subtitle">Verhindert Bildschirmfotos und blendet die Vorschau der App in der Android-Übersicht der letzten Apps aus.</string>
     <string name="settings_keyboard_no_learning">Tastatur ohne Lernen</string>
@@ -355,6 +358,7 @@
     <string name="depot_text">Text</string>
     <string name="depot_action">Ablegen</string>
     <string name="depot_failed">Die Notiz konnte nicht abgelegt werden. Ihr Text ist noch da.</string>
+    <string name="depot_too_long">Nicht übernommen: zu lang. Ein Titel fasst höchstens %1$,d Zeichen, ein Text %2$,d.</string>
     <string name="depot_done">Notiz im Eingang abgelegt</string>
     <string name="depot_discard_title">Diesen Text verwerfen?</string>
     <string name="depot_discard_body">Er wurde nicht abgelegt, und nichts bewahrt ihn auf, sobald dieser Bildschirm geschlossen ist.</string>
@@ -420,7 +424,7 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Nie</string>
     <string name="settings_export_all">Alle meine Notizen exportieren</string>
-    <string name="settings_export_subtitle">Erstellt ein ZIP-Archiv mit Markdown-Dateien, nach Ordnern gegliedert.</string>
+    <string name="settings_export_subtitle">Erstellt ein ZIP-Archiv mit Markdown-Dateien, nach Ordnern gegliedert. Notizen mit Lebensdauer sind nicht enthalten.</string>
     <string name="settings_section_export_import">Export und Import</string>
     <string name="settings_import">Notizen importieren</string>
     <string name="settings_import_subtitle">Markdown- oder Textdateien oder ein ZIP davon, etwa ein Export von Notes Tech.</string>
@@ -446,7 +450,7 @@
     </plurals>
     <string name="settings_section_backup">Verschlüsselte Sicherung</string>
     <string name="backup_create">Sicherung erstellen</string>
-    <string name="backup_create_subtitle">Ihre Notizen und Ordner, Papierkorb inbegriffen, in einer einzigen verschlüsselten Datei.</string>
+    <string name="backup_create_subtitle">Ihre Notizen und Ordner, Papierkorb inbegriffen, in einer einzigen verschlüsselten Datei. Notizen mit Lebensdauer sind nicht enthalten.</string>
     <string name="backup_restore">Sicherung wiederherstellen</string>
     <string name="backup_restore_subtitle">Fügt hinzu, was eine Sicherung enthält. Auf diesem Telefon wird nichts überschrieben.</string>
     <string name="backup_create_panic">Der Panikmodus erreicht diese Datei nicht: Bewahren Sie sie sicher auf und löschen Sie sie selbst, wenn Sie sie nicht mehr brauchen.</string>
@@ -726,6 +730,7 @@
     <string name="about_section_legal">Rechtliches</string>
     <string name="about_legal_link">Vollständige rechtliche Hinweise anzeigen</string>
     <string name="about_legal_subtitle">Herausgeber, erhobene Daten, Berechtigungen, Rechte, Lizenz</string>
+    <string name="about_thanks_body">Danke an alle, die einen Fehler melden, eine neue Version testen oder eine Idee vorschlagen: Mit Ihrer Hilfe wird Notes Tech besser.</string>
     <string name="about_link_copied">Link kopiert – fügen Sie ihn in Ihren Browser ein.</string>
 
     <!-- Legal notice -->
