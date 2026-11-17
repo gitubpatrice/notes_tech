@@ -420,7 +420,11 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
   - une ligne tapée juste après la fin d'une liste rejoignait son dernier élément (voir D-049, écart) ;
   - une tâche numérotée perdait son numéro en lecture, alors que « Liste à cocher » le garde dans le
     texte : numéro puis case, comme GitHub (`a_numbered_task_keeps_its_number_before_its_box`).
-- [ ] **À la main sur le S24** (One UI 8) : en cours, par Patrice
+- [x] **À la main sur le S24** (One UI 8, Android 16, 2026-11-17), par Patrice : « tous les tests sont
+  ok ». Un défaut vu : l'appui sur une case dessinait un carré gris de 48 dp, la case dans son coin haut,
+  qui descendait sous le texte (« il dépasse largement la case »). Désormais un rond de 40 dp centré sur la
+  case, celui d'une case à cocher Android, la cible de 48 dp inchangée (`9d82693`). Patrice : « c'est
+  parfait ».
 - [ ] Publication (après F-Droid 3.4.0, Q6)
 
 **CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
