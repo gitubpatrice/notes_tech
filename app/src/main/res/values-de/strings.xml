@@ -227,6 +227,7 @@
     <string name="move_to_folder_title">In einen anderen Ordner verschieben</string>
     <string name="note_editor_menu_info">Info</string>
     <string name="note_editor_menu_find">In der Notiz suchen</string>
+    <string name="note_editor_menu_checklist">Checkliste</string>
     <string name="note_find_previous">Vorheriger Treffer</string>
     <string name="note_find_next">Nächster Treffer</string>
     <string name="note_find_close">Suche schließen</string>

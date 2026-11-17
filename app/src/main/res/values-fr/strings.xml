@@ -250,6 +250,7 @@
     <string name="move_to_folder_title">Déplacer vers un autre dossier</string>
     <string name="note_editor_menu_info">Infos</string>
     <string name="note_editor_menu_find">Rechercher dans la note</string>
+    <string name="note_editor_menu_checklist">Liste à cocher</string>
     <string name="note_find_previous">Occurrence précédente</string>
     <string name="note_find_next">Occurrence suivante</string>
     <string name="note_find_close">Fermer la recherche</string>

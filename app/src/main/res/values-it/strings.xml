@@ -245,6 +245,7 @@
     <string name="move_to_folder_title">Sposta in un\'altra cartella</string>
     <string name="note_editor_menu_info">Info</string>
     <string name="note_editor_menu_find">Cerca nella nota</string>
+    <string name="note_editor_menu_checklist">Lista con caselle</string>
     <string name="note_find_previous">Occorrenza precedente</string>
     <string name="note_find_next">Occorrenza successiva</string>
     <string name="note_find_close">Chiudi la ricerca</string>

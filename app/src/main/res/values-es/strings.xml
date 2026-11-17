@@ -245,6 +245,7 @@
     <string name="move_to_folder_title">Mover a otra carpeta</string>
     <string name="note_editor_menu_info">Información</string>
     <string name="note_editor_menu_find">Buscar en la nota</string>
+    <string name="note_editor_menu_checklist">Lista con casillas</string>
     <string name="note_find_previous">Coincidencia anterior</string>
     <string name="note_find_next">Coincidencia siguiente</string>
     <string name="note_find_close">Cerrar la búsqueda</string>

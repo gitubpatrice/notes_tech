@@ -818,10 +818,26 @@ class NoteEditorViewModel @Inject constructor(
      * report de l'écriture utile.
      */
     fun onContentChange(value: TextFieldValue) {
-        val texteAChange = value.text != _state.value.content.text
-        contenuPrecedent = _state.value.content
-        _state.value = _state.value.copy(content = value)
+        val avant = _state.value.content
+        // D-049 (3.5.0): Enter on a list line opens the next item. Only ONE line break typed at the
+        // cursor qualifies — see [SuiteDeListe]; anything else is kept as the field sent it.
+        val retenue = SuiteDeListe.apres(avant, value) ?: value
+        val texteAChange = retenue.text != avant.text
+        contenuPrecedent = avant
+        _state.value = _state.value.copy(content = retenue)
         if (texteAChange) programmerLaSauvegarde()
+    }
+
+    /**
+     * D-048 (3.5.0): the writing menu's "Checklist", on the lines of the cursor or of the selection — a box
+     * added to each, or taken off when they all have one. The rule is [ListeACocher], pure and tested.
+     */
+    fun basculerListeACocher() {
+        val avant = _state.value.content
+        val apres = ListeACocher.basculer(avant)
+        if (apres == avant) return
+        _state.value = _state.value.copy(content = apres)
+        if (apres.text != avant.text) programmerLaSauvegarde()
     }
 
     /**

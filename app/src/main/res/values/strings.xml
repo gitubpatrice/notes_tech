@@ -272,6 +272,8 @@
     -->
     <string name="note_editor_menu_info">Info</string>
     <string name="note_editor_menu_find">Find in note</string>
+    <!-- D-048 (3.5.0): puts a task box on the lines of the cursor or the selection, or takes it off. -->
+    <string name="note_editor_menu_checklist">Checklist</string>
     <string name="note_find_previous">Previous match</string>
     <string name="note_find_next">Next match</string>
     <string name="note_find_close">Close search</string>
