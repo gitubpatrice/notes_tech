@@ -284,9 +284,15 @@ pour les pages légales, qui passent par le même lecteur.
   appareil** : « Ouvrir avec » depuis une messagerie (l'activité exportée) — à faire avec une vraie
   messagerie, ou au moins un gestionnaire de fichiers.
 - [x] Textes 5 langues · [x] version 3.4.0 (507) · [x] journaux 5071-5073 · [x] README, SECURITY, confidentialité
-- [x] Audits (3 axes, cohérence, i18n) · [x] relecture externe · [x] S9 (suite complète puis classes touchées) · [ ] CI
-- [ ] **⛔ Patrice, 2026-11-09 : pas de tag ni de release de la 3.4.0 tant que F-Droid ne sert pas la 3.3.0**
+- [x] Audits (3 axes, cohérence, i18n) · [x] relecture externe · [x] S9 (suite complète puis classes touchées) · [x] CI
+  (CI Kotlin et CodeQL verts sur `fe8b003`, après une relance due à une panne de l'émulateur de GitHub)
+- [x] **⛔ Patrice, 2026-11-09 : pas de tag ni de release de la 3.4.0 tant que F-Droid ne sert pas la 3.3.0**
   (API `packages/com.filestech.notes_tech`, versions 5061-5063). La fusion dans `main` n'y change rien :
-  F-Droid ne construit que les tags.
-- [ ] Avant le tag : build F-Droid sous AGP 9.5 — au 2026-11-09 au soir, F-Droid n'a construit ni SMS 1.30.0
+  F-Droid ne construit que les tags. — **Remplie** : l'API servait 5061-5063 le 2026-11-17.
+- [x] Avant le tag : build F-Droid sous AGP 9.5 — au 2026-11-09 au soir, F-Droid n'a construit ni SMS 1.30.0
   (pas de journal `_307`) ni Notes 3.3.0 : aucune preuve encore ; essai de mise à jour depuis la 3.3.0 sur le S9
+  — **Fait** : SMS 1.30.0 (AGP 9.5.0) construite puis servie par F-Droid ; mise à jour 3.3.0 → 3.4.0 essayée
+  sur le S9 (11-10) et, le jour de la publication, sur un émulateur API 34.
+- [x] **Publiée le 2026-11-17** : tag léger `v3.4.0` sur `fe8b003`, release « Latest » (4 APK, empreintes
+  dans `REPRISE.md`), site files-tech (PR #45), réponses à #57 et #65. F-Droid : tag seul ; la 3.4.0 reste
+  à voir servie.
