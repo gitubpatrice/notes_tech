@@ -80,7 +80,7 @@ class RechercheDansLaNoteEcranTest {
                         contenus += it
                         etat.value = etat.value.copy(content = it)
                     },
-                    gestes = GestesDEcriture(dicter = {}, insererUnLien = {}, listeACocher = {}),
+                    gestes = GestesDEcriture(dicter = {}, insererUnLien = {}, listeACocher = {}, basculerCase = {}),
                     onEpingler = {},
                     onFavori = {},
                     onInfos = {},

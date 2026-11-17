@@ -106,6 +106,7 @@ class EditeurTest {
     private val dictees = mutableListOf<Unit>()
     private val insertionsDeLien = mutableListOf<Unit>()
     private val listesACocher = mutableListOf<Unit>()
+    private val casesBasculees = mutableListOf<Int>()
     private val epingles = mutableListOf<Boolean>()
     private val favoris = mutableListOf<Boolean>()
     private val infos = mutableListOf<Unit>()
@@ -179,6 +180,7 @@ class EditeurTest {
                             dicter = { dictees += Unit },
                             insererUnLien = { insertionsDeLien += Unit },
                             listeACocher = { listesACocher += Unit },
+                            basculerCase = { casesBasculees += it },
                         ),
                         onEpingler = { epingles += it },
                         onFavori = { favoris += it },

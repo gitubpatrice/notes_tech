@@ -31,6 +31,68 @@ class MarkdownPreviewReaderTest {
     /** The runs of a single-paragraph note. */
     private fun runsOf(source: String): List<TextRun> = (read(source).single() as PreviewBlock.Paragraph).runs
 
+    /**
+     * D-047 (3.5.0): where each task box is in the NOTE — what ticking it from the reading rewrites. The
+     * parser sees another text: `[[links]]` masked (placeholders of another length), `\r\n` made `\n`. Each
+     * case puts one of those BEFORE the box; read without the mapping, the offset would point elsewhere.
+     */
+    @Nested
+    @DisplayName("task box offsets")
+    inner class TaskOffsets {
+
+        /** Every box the reading found, as the note's own three characters at its offset. */
+        private fun boxesOf(source: String): List<String> {
+            val found = mutableListOf<String>()
+            fun walk(blocks: List<PreviewBlock>) {
+                blocks.forEach { block ->
+                    when (block) {
+                        is PreviewBlock.ListBlock -> block.items.forEach { item ->
+                            item.taskOffset?.let { found += source.substring(it, it + 3) }
+                            walk(item.blocks)
+                        }
+                        is PreviewBlock.Quote -> walk(block.blocks)
+                        else -> Unit
+                    }
+                }
+            }
+            walk(read(source))
+            return found
+        }
+
+        @Test
+        fun `a box after a note link, on its line and above it, is found in the note`() {
+            assertThat(boxesOf("[[Courses]] du jour\n- [ ] Lait\n- [x] Pain")).containsExactly("[ ]", "[x]").inOrder()
+            assertThat(boxesOf("- [[Liste]] [ ] pas une case\n- [x] après [[Deux]] [[liens]]")).containsExactly("[x]")
+            val apres = "[[Un titre bien plus long que son repère]]\n".repeat(12) + "- [ ] Lait"
+            assertThat(boxesOf(apres)).containsExactly("[ ]")
+        }
+
+        @Test
+        fun `a box after Windows line ends, or lone carriage returns, is found in the note`() {
+            assertThat(boxesOf("Courses\r\n\r\n- [ ] Lait\r\n- [x] Pain\r\n")).containsExactly("[ ]", "[x]").inOrder()
+            assertThat(boxesOf("Courses\r\r- [ ] Lait")).containsExactly("[ ]")
+            assertThat(boxesOf("[[Lien]]\r\n- [X] Pain")).containsExactly("[X]")
+        }
+
+        @Test
+        fun `a box after the placeholder characters themselves is found in the note`() {
+            // The note starts with U+E000 and U+E001, typed in it: masked too, one placeholder each.
+            assertThat(boxesOf(" icônes\n- [ ] Lait")).containsExactly("[ ]")
+        }
+
+        @Test
+        fun `boxes in quotes and nested lists are found, in code they are no boxes`() {
+            assertThat(boxesOf("> - [ ] cité\n\n- a\n  - [x] imbriquée")).containsExactly("[ ]", "[x]").inOrder()
+            assertThat(boxesOf("```\n- [ ] du code\n```\n- [ ] Lait")).containsExactly("[ ]")
+        }
+
+        @Test
+        fun `an item without a box has no offset`() {
+            val list = read("- a\n- [ ] b").single() as PreviewBlock.ListBlock
+            assertThat(list.items.map { it.taskOffset }).containsExactly(null, 6).inOrder()
+        }
+    }
+
     @Nested
     @DisplayName("blocks")
     inner class Blocks {
@@ -79,7 +141,8 @@ class MarkdownPreviewReaderTest {
                     start = 1,
                     items = listOf(
                         ListItem(null, listOf(paragraph(run("a")))),
-                        ListItem(TaskMark.OPEN, listOf(paragraph(run("open")))),
+                        // D-047: the box's `[` in the note — "- a\n- " is 6 characters.
+                        ListItem(TaskMark.OPEN, listOf(paragraph(run("open"))), taskOffset = 6),
                         ListItem(
                             TaskMark.DONE,
                             listOf(
@@ -90,6 +153,7 @@ class MarkdownPreviewReaderTest {
                                     listOf(ListItem(null, listOf(paragraph(run("nested"))))),
                                 ),
                             ),
+                            taskOffset = 17,
                         ),
                     ),
                 ),

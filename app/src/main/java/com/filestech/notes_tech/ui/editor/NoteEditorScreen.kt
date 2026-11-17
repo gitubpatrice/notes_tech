@@ -455,6 +455,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
                 dicter = dictee.demarrer,
                 insererUnLien = { autocompletionOuverte = true },
                 listeACocher = viewModel::basculerListeACocher,
+                basculerCase = viewModel::basculerCase,
             ),
             onEpingler = viewModel::setPinned,
             onFavori = viewModel::setFavorite,
@@ -509,12 +510,18 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 }
 
 /**
- * The gestures that WRITE into the note's body, from the writing bar and its menu: the microphone, the
- * `[[Title]]` link, and since 3.5.0 the checklist (D-048). Grouped as [FeuillesDeLaFiche] groups the card's
- * sheets, which keeps the screen under detekt's parameter threshold. No default anywhere: an entry wired
- * to `{}` would be a dead button that compiles.
+ * The gestures that WRITE into the note's body: from the writing bar and its menu, the microphone, the
+ * `[[Title]]` link, and since 3.5.0 the checklist (D-048); from the reading, a task box turned over, given
+ * its `[`'s offset in the note (D-047). Grouped as [FeuillesDeLaFiche] groups the card's sheets, which
+ * keeps the screen under detekt's parameter threshold. No default anywhere: an entry wired to `{}` would
+ * be a dead button that compiles.
  */
-data class GestesDEcriture(val dicter: () -> Unit, val insererUnLien: () -> Unit, val listeACocher: () -> Unit)
+data class GestesDEcriture(
+    val dicter: () -> Unit,
+    val insererUnLien: () -> Unit,
+    val listeACocher: () -> Unit,
+    val basculerCase: (position: Int) -> Unit,
+)
 
 /**
  * L'éditeur d'une note, **sans état** : ce qu'il montre ne dépend que de [state] et de [liens].
@@ -906,7 +913,7 @@ fun NoteEditorScreen(
                         modifier = Modifier.fillMaxSize().imePadding(),
                     ) {
                         if (lecture) {
-                            FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu)
+                            FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu, gestes.basculerCase)
                         } else {
                             // 🔴 Android's own text field, not Compose's: a long note was unusable to
                             // write in — see `ChampDuCorps`. Its label is `note_editor_content`, as
@@ -991,6 +998,8 @@ private fun FicheDeLecture(
     rendu: LectureDeLApercu,
     defilement: LazyListState,
     onLien: (LinkTarget) -> Unit,
+    /** D-047 (3.5.0): a task box tapped, given its `[`'s offset in the note. */
+    onCase: (Int) -> Unit,
 ) {
     val schema = MaterialTheme.colorScheme
     val teinte = state.note?.color?.let { CouleursDeNote.teinte(it, schema) }
@@ -1026,7 +1035,7 @@ private fun FicheDeLecture(
                 state = defilement,
                 contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
             ) {
-                apercuMarkdown(rendu, onLien)
+                apercuMarkdown(rendu, onCase = onCase, onLien = onLien)
             }
             state.note?.updatedAt?.let { modifiee ->
                 Text(

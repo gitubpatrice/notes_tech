@@ -16,6 +16,7 @@ import com.filestech.notes_tech.data.repository.LinksRepository
 import com.filestech.notes_tech.data.repository.NotesRepository
 import com.filestech.notes_tech.di.ApplicationScope
 import com.filestech.notes_tech.domain.export.NoteMarkdown
+import com.filestech.notes_tech.domain.markdown.TaskBoxes
 import com.filestech.notes_tech.domain.model.DureeDeVie
 import com.filestech.notes_tech.domain.model.Folder
 import com.filestech.notes_tech.domain.model.Note
@@ -826,6 +827,19 @@ class NoteEditorViewModel @Inject constructor(
         contenuPrecedent = avant
         _state.value = _state.value.copy(content = retenue)
         if (texteAChange) programmerLaSauvegarde()
+    }
+
+    /**
+     * D-047 (3.5.0): a task box tapped in the reading, its `[` at [position] in the note's text. Turned
+     * over only if the three characters there are still a box — [TaskBoxes.toggle] checks them; the
+     * reading that gave the offset may be one tap behind. Same length: the cursor stays where it was.
+     * Saved like a keystroke, so a vault note is written encrypted as when it is typed in.
+     */
+    fun basculerCase(position: Int) {
+        val avant = _state.value.content
+        val texte = TaskBoxes.toggle(avant.text, position) ?: return
+        _state.value = _state.value.copy(content = TextFieldValue(texte, avant.selection))
+        programmerLaSauvegarde()
     }
 
     /**

@@ -125,7 +125,41 @@ object MarkdownPreviewReader {
         if (tooCostly(mask.text)) return listOf(PreviewBlock.AsWritten(source))
         val parser = MarkdownParser(GFMFlavourDescriptor(), assertionsEnabled = true, CancellationToken(checkCancelled))
         val tree = parser.buildMarkdownTreeFromString(mask.text as CharSequence)
-        return Reading(mask, definitionsOf(tree, mask)).blocks(tree.children, depth = 0)
+        // D-047: the tree's offsets point into the masked text; a task box is ticked in the NOTE's.
+        val returns = collapsedReturns(source)
+        val inSource = { masked: Int -> sourceOffsetOf(mask.sourceOffset(masked), returns) }
+        return Reading(mask, definitionsOf(tree, mask), inSource).blocks(tree.children, depth = 0)
+    }
+
+    /**
+     * For each `\r\n` that [lineFeedsOnly] made a `\n`, that `\n`'s offset in the text it returns, in order
+     * (D-047, 3.5.0). Empty for the usual note, which has no `\r`. A lone `\r` became a `\n` in place: it
+     * moves nothing.
+     */
+    internal fun collapsedReturns(source: String): IntArray {
+        if (source.indexOf('\r') < 0) return IntArray(0)
+        val positions = ArrayList<Int>()
+        var index = 0
+        while (index < source.length) {
+            if (source[index] == '\r' && index + 1 < source.length && source[index + 1] == '\n') {
+                positions += index - positions.size
+                index += 2
+            } else {
+                index++
+            }
+        }
+        return positions.toIntArray()
+    }
+
+    /** The offset in the note of [lineFeedOffset], an offset in [lineFeedsOnly]'s text: one more per `\r` taken out before it. */
+    internal fun sourceOffsetOf(lineFeedOffset: Int, collapsed: IntArray): Int {
+        var low = 0
+        var high = collapsed.size
+        while (low < high) {
+            val middle = (low + high) ushr 1
+            if (collapsed[middle] < lineFeedOffset) low = middle + 1 else high = middle
+        }
+        return lineFeedOffset + low
     }
 
     /**
@@ -326,7 +360,12 @@ object MarkdownPreviewReader {
  * Every offset of the tree points into the **masked** text, the one the parser saw — [raw] reads
  * from it, and [WikiLinkMask.restore] turns a literal context back into what the user wrote.
  */
-private class Reading(private val mask: WikiLinkMask, private val definitions: Map<String, String>) {
+private class Reading(
+    private val mask: WikiLinkMask,
+    private val definitions: Map<String, String>,
+    /** An offset of the tree, in the note's own text (D-047): what a ticked box writes to. */
+    private val inSource: (Int) -> Int,
+) {
 
     fun blocks(nodes: List<ASTNode>, depth: Int): List<PreviewBlock> = nodes.mapNotNull { node ->
         val built = block(node, depth)
@@ -373,13 +412,14 @@ private class Reading(private val mask: WikiLinkMask, private val definitions: M
             ordered = node.type == MarkdownElementTypes.ORDERED_LIST,
             start = start,
             items = items.map { item ->
-                val task = item.child(GFMTokenTypes.CHECK_BOX)?.let { box ->
-                    if (raw(box).any { it == 'x' || it == 'X' }) TaskMark.DONE else TaskMark.OPEN
-                }
-                val built = ListItem(task, blocks(item.children.filter { it.type !in ITEM_MARKERS }, depth + 1))
+                val box = item.child(GFMTokenTypes.CHECK_BOX)
+                val task = box?.let { if (raw(it).any { c -> c == 'x' || c == 'X' }) TaskMark.DONE else TaskMark.OPEN }
+                val taskOffset = box?.let { inSource(it.startOffset) }
+                val content = item.children.filter { it.type !in ITEM_MARKERS }
+                val built = ListItem(task, blocks(content, depth + 1), taskOffset)
                 // Each item of a top-level list is one lazy item of the preview: bounded here.
                 val heavy = depth == 0 && built.blocks.sumOf { it.weight() } > MarkdownPreviewReader.MAX_BLOCKS_PER_ITEM
-                if (heavy) ListItem(task, listOf(asWritten(item))) else built
+                if (heavy) ListItem(task, listOf(asWritten(item)), taskOffset) else built
             },
         )
     }
