@@ -56,6 +56,86 @@ internal object DebutsDeLigne {
         return (chiffres.toLong() + 1).toString() + marqueur.substring(chiffres.length)
     }
 
+    // ── Lines, as the app reads them ─────────────────────────────────────────────────────────────────
+    // `\n`, `\r\n` or a lone `\r` (`MarkdownPreviewReader.lineFeedsOnly`): an imported Windows or old Mac
+    // file keeps its line ends, and a lone `\r` must not merge two lines (GPT-5.6 review of 3.5.0).
+
+    fun estUneFinDeLigne(caractere: Char): Boolean = caractere == '\n' || caractere == '\r'
+
+    /** Where the line holding [position] starts in [texte]. */
+    fun debutDeLaLigne(texte: String, position: Int): Int {
+        var i = position
+        while (i > 0 && !estUneFinDeLigne(texte[i - 1])) i--
+        return i
+    }
+
+    /** Where the line holding [position] ends: at its line end, or at the end of [texte]. */
+    fun finDeLaLigne(texte: String, position: Int): Int {
+        var i = position
+        while (i < texte.length && !estUneFinDeLigne(texte[i])) i++
+        return i
+    }
+
+    /** Where the line after the one ending at [fin] starts: past its `\n`, `\r` or `\r\n`. */
+    fun ligneSuivante(texte: String, fin: Int): Int =
+        if (fin + 1 < texte.length && texte[fin] == '\r' && texte[fin + 1] == '\n') fin + 2 else fin + 1
+
+    /**
+     * Whether the list line starting at [debut] is in fact CODE (D-049, GPT-5.6 review of 3.5.0): inside a
+     * ``` or ~~~ fence, or indented by four columns at least with no list item on the line above —
+     * CommonMark's indented code. Enter there is an ordinary line break, never a new item.
+     *
+     * Erring on the side of code: a nested item under a parent written on several lines is not continued —
+     * an Enter that does nothing special, rather than a marker typed into someone's code.
+     */
+    fun estDuCode(texte: String, debut: Int, ligne: DebutDeLigne): Boolean {
+        val indenteCommeDuCode = colonnesDIndentation(ligne.conteneur) >= COLONNES_DU_CODE
+        return dansUneClotureDeCode(texte, debut) || (indenteCommeDuCode && !listeJusteAuDessus(texte, debut))
+    }
+
+    private fun dansUneClotureDeCode(texte: String, jusqua: Int): Boolean {
+        var ouverture: String? = null
+        var debut = 0
+        while (debut < jusqua) {
+            val fin = finDeLaLigne(texte, debut)
+            // The quote markers off, not the indentation: four spaces before ``` make code, not a fence.
+            val sansCitation = texte.substring(debut, fin).replaceFirst(CITATIONS, "")
+            val cloture = CLOTURE.find(sansCitation)?.groupValues?.get(1)
+            if (cloture != null) {
+                ouverture = when {
+                    ouverture == null -> cloture
+                    cloture[0] == ouverture[0] && cloture.length >= ouverture.length -> null
+                    else -> ouverture
+                }
+            }
+            debut = ligneSuivante(texte, fin)
+        }
+        return ouverture != null
+    }
+
+    private fun listeJusteAuDessus(texte: String, debut: Int): Boolean {
+        var courante = debut
+        while (courante > 0) {
+            var fin = courante - 1
+            if (texte[fin] == '\n' && fin > 0 && texte[fin - 1] == '\r') fin--
+            val precedente = texte.substring(debutDeLaLigne(texte, fin), fin)
+            if (precedente.isNotBlank()) return lire(precedente).marqueur != null
+            courante = debutDeLaLigne(texte, fin)
+        }
+        return false
+    }
+
+    /** The columns of indentation after the last quote marker; a tab counts as four, as CommonMark's tab stops. */
+    private fun colonnesDIndentation(conteneur: String): Int =
+        conteneur.substringAfterLast('>').sumOf { if (it == '\t') COLONNES_DU_CODE else 1 }
+
+    /** A fence opening or closing a code block: up to three spaces, then three backticks or tildes at least. */
+    private val CLOTURE = Regex("^ {0,3}(`{3,}|~{3,})")
+
+    /** The quote markers opening a line, with the one space each may take. */
+    private val CITATIONS = Regex("^(?: {0,3}> ?)*")
+    private const val COLONNES_DU_CODE = 4
+
     const val CASE_VIDE = "[ ] "
 }
 
@@ -152,14 +232,20 @@ internal object ListeACocher {
      * that line: it was selected up to the line break before it.
      */
     private fun lignesTouchees(texte: String, debut: Int, fin: Int): List<Ligne> {
-        val derniere = if (fin > debut && texte[fin - 1] == '\n') fin - 1 else fin
+        // Ending right after a line end: the selection stops at the line above — at the START of that line
+        // end, a `\r\n` being one.
+        val derniere = when {
+            fin <= debut || !DebutsDeLigne.estUneFinDeLigne(texte[fin - 1]) -> fin
+            texte[fin - 1] == '\n' && fin - 2 >= debut && texte[fin - 2] == '\r' -> fin - 2
+            else -> fin - 1
+        }
         val lignes = mutableListOf<Ligne>()
-        var depart = texte.lastIndexOf('\n', debut - 1) + 1
+        var depart = DebutsDeLigne.debutDeLaLigne(texte, debut)
         while (true) {
-            val bout = texte.indexOf('\n', depart).let { if (it < 0) texte.length else it }
+            val bout = DebutsDeLigne.finDeLaLigne(texte, depart)
             lignes += Ligne(depart, bout)
             if (bout >= derniere || bout == texte.length) return lignes
-            depart = bout + 1
+            depart = DebutsDeLigne.ligneSuivante(texte, bout)
         }
     }
 
@@ -171,7 +257,8 @@ internal object ListeACocher {
  *
  * - `- [ ] a` and `- [x] a` → `- [ ] ` (a new item is never ticked); `- a`, `* a`, `+ a` → the same
  *   bullet; `1. a` → `2. `, `1) a` → `2) `. Indentation and quote markers are kept.
- * - Enter in the middle of an item: the rest of the line goes to the new item.
+ * - Enter in the middle of an item: the rest of the line goes to the new item, as typed.
+ * - Not in code: a ``` fence, or four columns of indentation with no list item above (CommonMark's code).
  * - **Enter on an empty item** (`- [ ] ` alone) takes the marker off, and the line break with it: the
  *   list ends there, as in Obsidian, Joplin or Google Keep.
  *
@@ -189,18 +276,19 @@ internal object SuiteDeListe {
         val ici = avant.selection.start
         if (!estUnRetourALaLigneTapeIci(texte, ici, avant.selection.collapsed, apres)) return null
 
-        val debutDeLigne = texte.lastIndexOf('\n', ici - 1) + 1
-        val finDeLigne = texte.indexOf('\n', ici).let { if (it < 0) texte.length else it }
+        val debutDeLigne = DebutsDeLigne.debutDeLaLigne(texte, ici)
+        val finDeLigne = DebutsDeLigne.finDeLaLigne(texte, ici)
         val ligne = texte.substring(debutDeLigne, finDeLigne)
         val debut = DebutsDeLigne.lire(ligne)
         val marqueur = debut.marqueur
-        // Not a list item, or Enter inside the marker itself: an ordinary line break.
-        if (marqueur == null || ici - debutDeLigne < debut.longueur) return null
+        // Not a list item, Enter inside the marker itself, or a "list" in code: an ordinary line break.
+        val dansLeMarqueur = ici - debutDeLigne < debut.longueur
+        if (marqueur == null || dansLeMarqueur || DebutsDeLigne.estDuCode(texte, debutDeLigne, debut)) return null
 
         return if (ligne.substring(debut.longueur).isBlank()) {
             finDeListe(texte, debutDeLigne, finDeLigne, debut)
         } else {
-            elementSuivant(texte, ici, finDeLigne, debut, marqueur)
+            elementSuivant(texte, ici, debut, marqueur)
         }
     }
 
@@ -211,17 +299,12 @@ internal object SuiteDeListe {
     }
 
     /** The next item, the rest of the line in it, the cursor after its marker. */
-    private fun elementSuivant(
-        texte: String,
-        ici: Int,
-        finDeLigne: Int,
-        debut: DebutDeLigne,
-        marqueur: String,
-    ): TextFieldValue {
+    private fun elementSuivant(texte: String, ici: Int, debut: DebutDeLigne, marqueur: String): TextFieldValue {
         val case = if (debut.case != null) DebutsDeLigne.CASE_VIDE else ""
         val suite = debut.conteneur + DebutsDeLigne.marqueurSuivant(marqueur) + case
-        val reste = texte.substring(ici, finDeLigne).trimStart(' ', '\t')
-        val nouveau = texte.substring(0, ici) + "\n" + suite + reste + texte.substring(finDeLigne)
+        // The rest of the line follows AS TYPED, its spaces included (GPT-5.6 review of 3.5.0): nothing the
+        // user wrote disappears — the rule the preview follows since D-024.
+        val nouveau = texte.substring(0, ici) + "\n" + suite + texte.substring(ici)
         return TextFieldValue(nouveau, TextRange(ici + 1 + suite.length))
     }
 

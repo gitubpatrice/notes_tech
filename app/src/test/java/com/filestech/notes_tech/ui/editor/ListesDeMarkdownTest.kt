@@ -107,6 +107,14 @@ class ListesDeMarkdownTest {
             assertThat(basculer("«Lait\n»Pain")).isEqualTo("«- [ ] Lait\n»Pain")
         }
 
+        /** GPT-5.6 review of 3.5.0: a lone `\r` ends a line — `second` alone gets the box. */
+        @Test
+        fun `the line is found across Windows and old Mac line ends`() {
+            assertThat(basculer("premier\r«second»")).isEqualTo("premier\r«- [ ] second»")
+            assertThat(basculer("premier\r\nsec|ond")).isEqualTo("premier\r\n- [ ] sec|ond")
+            assertThat(basculer("«Lait\r\n»Pain")).isEqualTo("«- [ ] Lait\r\n»Pain")
+        }
+
         @Test
         fun `a selection beyond the text is bounded, not thrown`() {
             val horsDuTexte = TextFieldValue("Lait", TextRange(40, 80))
@@ -138,9 +146,30 @@ class ListesDeMarkdownTest {
             assertThat(entree("> - cité|")).isEqualTo("> - cité\n> - |")
         }
 
+        /** GPT-5.6 review of 3.5.0: the rest follows as typed — its spaces were trimmed, text the user wrote. */
         @Test
-        fun `Enter in the middle of an item takes the rest along`() {
-            assertThat(entree("- [ ] Lait| Pain")).isEqualTo("- [ ] Lait\n- [ ] |Pain")
+        fun `Enter in the middle of an item takes the rest along, as typed`() {
+            assertThat(entree("- [ ] Lait| Pain")).isEqualTo("- [ ] Lait\n- [ ] | Pain")
+            assertThat(entree("- foo|  bar")).isEqualTo("- foo\n- |  bar")
+        }
+
+        /** GPT-5.6 review of 3.5.0: a "list" in code is code — Enter there is an ordinary line break. */
+        @Test
+        fun `no item is added in code`() {
+            assertThat(entree("```\n- a|\n```")).isNull()
+            assertThat(entree("> ~~~\n> - a|")).isNull()
+            assertThat(entree("Texte\n\n    - du code|")).isNull()
+            // The controls: after the fence closes, and a nested list indented by four, are lists.
+            assertThat(entree("```\ncode\n```\n- a|")).isEqualTo("```\ncode\n```\n- a\n- |")
+            assertThat(entree("1. un\n    - deux|")).isEqualTo("1. un\n    - deux\n    - |")
+        }
+
+        /** GPT-5.6 review of 3.5.0: `\r\n` and a lone `\r` end a line too. */
+        @Test
+        fun `Windows and old Mac line ends are line ends`() {
+            assertThat(entree("- a\r- b|")).isEqualTo("- a\r- b\n- |")
+            assertThat(entree("- a\r\n- [ ] b|\r\nsuite")).isEqualTo("- a\r\n- [ ] b\n- [ ] |\r\nsuite")
+            assertThat(entree("```\r\n- a|")).isNull()
         }
 
         @Test
