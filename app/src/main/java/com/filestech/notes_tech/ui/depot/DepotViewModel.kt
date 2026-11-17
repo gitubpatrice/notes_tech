@@ -16,13 +16,19 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-/** What the blind drop shows: what is being typed, and nothing else (D-042). */
+/**
+ * What the blind drop shows: what is being typed, and nothing else (D-042).
+ *
+ * @param tropLong the last change was refused for its length (C-3, 3.5.0): a paste past the bound did
+ *   nothing, and said nothing, until then.
+ */
 data class EtatDuDepot(
     val titre: String = "",
     val texte: String = "",
     val enCours: Boolean = false,
     val echec: Boolean = false,
     val depose: Boolean = false,
+    val tropLong: Boolean = false,
 ) {
     val peutDeposer: Boolean get() = (titre.isNotBlank() || texte.isNotBlank()) && !enCours && !depose
 }
@@ -45,12 +51,22 @@ class DepotViewModel @Inject constructor(private val notes: NotesRepository, pri
     private val _etat = MutableStateFlow(EtatDuDepot())
     val etat: StateFlow<EtatDuDepot> = _etat.asStateFlow()
 
+    /** Past the bound, nothing changes — and the screen says why (C-3, 3.5.0). */
     fun titre(valeur: String) {
-        if (valeur.length <= NotesRepository.TITLE_MAX_LENGTH) _etat.update { it.copy(titre = valeur, echec = false) }
+        if (valeur.length <= NotesRepository.TITLE_MAX_LENGTH) {
+            _etat.update { it.copy(titre = valeur, echec = false, tropLong = false) }
+        } else {
+            _etat.update { it.copy(tropLong = true) }
+        }
     }
 
+    /** Past the bound, nothing changes — and the screen says why (C-3, 3.5.0). */
     fun texte(valeur: String) {
-        if (valeur.length <= LongueurDUneNote.CARACTERES_MAX) _etat.update { it.copy(texte = valeur, echec = false) }
+        if (valeur.length <= LongueurDUneNote.CARACTERES_MAX) {
+            _etat.update { it.copy(texte = valeur, echec = false, tropLong = false) }
+        } else {
+            _etat.update { it.copy(tropLong = true) }
+        }
     }
 
     fun deposer() {

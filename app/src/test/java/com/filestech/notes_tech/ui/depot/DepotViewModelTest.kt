@@ -96,4 +96,21 @@ class DepotViewModelTest {
         assertThat(depot.etat.value.titre).isEmpty()
         assertThat(depot.etat.value.texte).isEmpty()
     }
+
+    /** C-3 (3.5.0): refused, and SAID — until then a paste past the bound did nothing, silently. */
+    @Test
+    fun `a refused length is said, and the next accepted change clears it`() {
+        depot.texte("déjà là")
+        depot.texte("x".repeat(LongueurDUneNote.CARACTERES_MAX + 1))
+        assertThat(depot.etat.value.tropLong).isTrue()
+        assertThat(depot.etat.value.texte).isEqualTo("déjà là")
+
+        depot.texte("déjà là, et la suite")
+        assertThat(depot.etat.value.tropLong).isFalse()
+
+        depot.titre("t".repeat(NotesRepository.TITLE_MAX_LENGTH + 1))
+        assertThat(depot.etat.value.tropLong).isTrue()
+        depot.titre("Un titre")
+        assertThat(depot.etat.value.tropLong).isFalse()
+    }
 }

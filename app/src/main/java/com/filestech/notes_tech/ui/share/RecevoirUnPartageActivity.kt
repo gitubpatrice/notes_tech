@@ -8,18 +8,17 @@ import android.provider.OpenableColumns
 import androidx.activity.ComponentActivity
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
+import com.filestech.notes_tech.data.fournisseurs.LecteurDeFournisseur
+import com.filestech.notes_tech.data.fournisseurs.lireAuPlus
 import com.filestech.notes_tech.domain.importation.FichierPartage
 import com.filestech.notes_tech.domain.importation.LectureDUnPartage
 import com.filestech.notes_tech.domain.importation.PartageRecu
 import com.filestech.notes_tech.ui.common.ouvrirLAppli
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
-import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.io.InputStream
 import javax.inject.Inject
 
 /**
@@ -56,18 +55,18 @@ class RecevoirUnPartageActivity : ComponentActivity() {
         val recu = intent
         lifecycleScope.launch {
             // 🔴 Bounded in time too (security review of 3.2.0, M1): a provider that never answers
-            // must not keep this window over the sending app. The read goes on in the background if
-            // a read call blocks, its result dropped; the app opens without it.
-            val lecture = async(Dispatchers.IO) { lire(recu) }
-            val partage = withTimeoutOrNull(DELAI_MAX_MS) { lecture.await() }
-            if (partage == null) lecture.cancel()
+            // must not keep this window over the sending app; the app opens without the share.
+            // Since 3.5.0 (C-1) through [LecteurDeFournisseur], as the sealed notes: its own thread, one
+            // share at a time, and the streams CLOSED when the delay runs out — until then a blocked read
+            // kept a thread of the shared IO pool for good.
+            val partage = LECTEUR_DES_PARTAGES.lire(DELAI_MAX_MS, refus = null) { suivre -> lire(recu, suivre) }
             if (partage != null) enAttente.deposer(partage)
             ouvrirLAppli()
             finish()
         }
     }
 
-    private fun lire(intent: Intent): PartageRecu? {
+    private fun lire(intent: Intent, suivre: (InputStream) -> InputStream): PartageRecu? {
         if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) return null
         return try {
             val texte = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
@@ -82,7 +81,7 @@ class RecevoirUnPartageActivity : ComponentActivity() {
                 LectureDUnPartage.lireUnTexte(texte, sujet)
             } else {
                 LectureDUnPartage.lireDesFichiers(flux.size) { index, maxOctets ->
-                    lireUnFichier(flux[index], maxOctets)
+                    lireUnFichier(flux[index], maxOctets, suivre)
                 }
             }
         } catch (e: RuntimeException) {
@@ -92,25 +91,13 @@ class RecevoirUnPartageActivity : ComponentActivity() {
         }
     }
 
-    private fun lireUnFichier(uri: Uri, maxOctets: Int): FichierPartage {
+    private fun lireUnFichier(uri: Uri, maxOctets: Int, suivre: (InputStream) -> InputStream): FichierPartage {
         if (!estDUneAutreAppli(uri, packageName)) return FichierPartage(null, null)
-        return FichierPartage(nomAffiche(uri), lireBorne(uri, maxOctets))
+        return FichierPartage(nomAffiche(uri), lireBorne(uri, maxOctets, suivre))
     }
 
-    /** At most [maxOctets] + 1 bytes: one more than allowed is enough to know it is over. */
-    private fun lireBorne(uri: Uri, maxOctets: Int): ByteArray? = try {
-        contentResolver.openInputStream(uri)?.use { flux ->
-            val sortie = ByteArrayOutputStream()
-            val tampon = ByteArray(TAMPON)
-            var lus = 0
-            while (lus <= maxOctets) {
-                val n = flux.read(tampon, 0, minOf(tampon.size, maxOctets + 1 - lus))
-                if (n < 0) break
-                sortie.write(tampon, 0, n)
-                lus += n
-            }
-            sortie.toByteArray()
-        }
+    private fun lireBorne(uri: Uri, maxOctets: Int, suivre: (InputStream) -> InputStream): ByteArray? = try {
+        contentResolver.openInputStream(uri)?.let(suivre)?.use { flux -> lireAuPlus(flux, maxOctets) }
     } catch (e: IOException) {
         Timber.w(e, "fichier partage illisible")
         null
@@ -140,9 +127,10 @@ class RecevoirUnPartageActivity : ComponentActivity() {
             '@' !in uri.authority.orEmpty() &&
             !uri.host.orEmpty().startsWith(paquet, ignoreCase = true)
 
-        private const val TAMPON = 64 * 1024
-
         /** Past this, a share is dropped: the app opens without it. */
         private const val DELAI_MAX_MS = 20_000L
+
+        /** The share receiver's own thread and "one at a time" — see [LecteurDeFournisseur]. */
+        private val LECTEUR_DES_PARTAGES = LecteurDeFournisseur("partages-recus")
     }
 }

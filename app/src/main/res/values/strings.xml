@@ -435,6 +435,9 @@
     <string name="depot_text">Text</string>
     <string name="depot_action">Drop</string>
     <string name="depot_failed">The note could not be dropped. Your text is still here.</string>
+    <!-- C-3 (3.5.0): a change refused for its length, a paste above all. %1$,d: the title's bound (200),
+         %2$,d: the text's (500 000), grouped as the language writes numbers. -->
+    <string name="depot_too_long">Not added: too long. A title holds %1$,d characters at most, a text %2$,d.</string>
     <string name="depot_done">Note dropped in the Inbox</string>
     <string name="depot_discard_title">Discard this text?</string>
     <string name="depot_discard_body">It has not been dropped, and nothing keeps it once this screen is closed.</string>
@@ -500,7 +503,8 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Never</string>
     <string name="settings_export_all">Export all my notes</string>
-    <string name="settings_export_subtitle">Generates a Markdown ZIP archive organized by folder.</string>
+    <!-- C-2 (3.5.0): the export and the backup leave out the notes with a lifetime (D-043): said where they are made. -->
+    <string name="settings_export_subtitle">Generates a Markdown ZIP archive organized by folder. Notes with a lifetime are left out.</string>
     <string name="settings_section_export_import">Export and import</string>
     <string name="settings_import">Import notes</string>
     <string name="settings_import_subtitle">Markdown or text files, or a ZIP of them, such as a Notes Tech export.</string>
@@ -526,7 +530,7 @@
     </plurals>
     <string name="settings_section_backup">Encrypted backup</string>
     <string name="backup_create">Create a backup</string>
-    <string name="backup_create_subtitle">Your notes and folders, trash included, in one encrypted file.</string>
+    <string name="backup_create_subtitle">Your notes and folders, trash included, in one encrypted file. Notes with a lifetime are left out.</string>
     <string name="backup_restore">Restore a backup</string>
     <string name="backup_restore_subtitle">Adds back what a backup holds. Nothing on this phone is overwritten.</string>
     <string name="backup_create_panic">Panic mode does not reach this file: keep it somewhere safe, and delete it yourself when you no longer need it.</string>

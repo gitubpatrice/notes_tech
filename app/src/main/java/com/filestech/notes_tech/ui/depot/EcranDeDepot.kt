@@ -34,6 +34,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.filestech.notes_tech.R
+import com.filestech.notes_tech.data.repository.NotesRepository
+import com.filestech.notes_tech.domain.importation.LongueurDUneNote
 import com.filestech.notes_tech.ui.common.DialogueDestructif
 
 /**
@@ -98,6 +100,18 @@ internal fun EcranDeDepot(
             if (etat.echec) {
                 Text(
                     text = stringResource(R.string.depot_failed),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+            // C-3 (3.5.0): a paste past the bound is refused — said, as the failure is.
+            if (etat.tropLong) {
+                Text(
+                    text = stringResource(
+                        R.string.depot_too_long,
+                        NotesRepository.TITLE_MAX_LENGTH,
+                        LongueurDUneNote.CARACTERES_MAX,
+                    ),
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
