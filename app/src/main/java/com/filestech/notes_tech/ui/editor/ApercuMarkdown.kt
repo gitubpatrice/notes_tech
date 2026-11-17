@@ -1,6 +1,8 @@
 package com.filestech.notes_tech.ui.editor
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -369,17 +372,28 @@ private fun CaseDeTache(tache: TaskMark, position: Int?, libelle: String) {
         }
         return
     }
+    // 🔴 Seen on the S9 and the S24 (3.5.0, Patrice: "it goes well past the box"): the press drew a grey
+    // 48 dp square with the box in its top corner, down past the item's second line. The press now shows
+    // on the box itself, as a round state layer — an Android checkbox's —, the 48 dp target unchanged.
+    val appuis = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.TopCenter,
         modifier = Modifier
             .size(CIBLE_DE_CASE)
-            .toggleable(value = tache == TaskMark.DONE, role = Role.Checkbox, onValueChange = { basculer(position) })
+            .toggleable(
+                value = tache == TaskMark.DONE,
+                interactionSource = appuis,
+                indication = null,
+                role = Role.Checkbox,
+                onValueChange = { basculer(position) },
+            )
             .semantics {
                 contentDescription = libelle.ifBlank { etatDit }
                 stateDescription = etatDit
             },
     ) {
-        Icon(icone, contentDescription = null, tint = teinte, modifier = dessin)
+        val appui = ripple(bounded = false, radius = RAYON_DE_L_APPUI)
+        Icon(icone, contentDescription = null, tint = teinte, modifier = dessin.indication(appuis, appui))
     }
 }
 
@@ -395,6 +409,9 @@ private val LocalBasculeDeCase = compositionLocalOf<((Int) -> Unit)?> { null }
 
 /** Material's minimum touch target. */
 private val CIBLE_DE_CASE = 48.dp
+
+/** The press around a box: Material's checkbox state layer, 40 dp across, centred on the box. */
+private val RAYON_DE_L_APPUI = 20.dp
 
 /** The place of a bullet, a number, or a box that cannot be tapped: before the item's text. */
 private val PLACE_DE_LA_MARQUE = Modifier.widthIn(min = 24.dp).padding(end = 6.dp)
