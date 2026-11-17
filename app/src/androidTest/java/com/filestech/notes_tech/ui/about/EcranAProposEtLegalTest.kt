@@ -13,6 +13,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -91,6 +92,19 @@ class EcranAProposEtLegalTest {
         regle.waitForIdle()
 
         assertThat(regle.actionnablesSansNom()).isEmpty()
+    }
+
+    /**
+     * D-050 (3.5.0): the thanks is at the bottom of the screen, and a screen reader reads its words only —
+     * the folded hands are decoration, out of the accessibility tree.
+     */
+    @Test
+    fun le_remerciement_est_en_bas_et_les_mains_jointes_ne_sont_pas_lues() {
+        regle.setContent { NotesTechTheme { AboutRoute(onBack = {}, onOpenLegal = {}) } }
+        regle.waitForIdle()
+
+        regle.onNodeWithText(texte(R.string.about_thanks_body)).performScrollTo().assertIsDisplayed()
+        regle.onAllNodesWithText("🙏", substring = true).assertCountEquals(0)
     }
 
     // ── Les mentions légales ─────────────────────────────────────────────────────────────────────

@@ -798,6 +798,7 @@
     <string name="about_section_legal">Mentions légales</string>
     <string name="about_legal_link">Voir les mentions légales complètes</string>
     <string name="about_legal_subtitle">Éditeur, données collectées, permissions, droits, licence</string>
+    <string name="about_thanks_body">Merci à toutes celles et à tous ceux qui signalent un problème, testent une nouvelle version ou proposent une idée : Notes Tech s\'améliore grâce à vous.</string>
     <string name="about_link_copied">Lien copié — collez-le dans votre navigateur.</string>
     <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
     <string name="about_voice_3">Enregistrements supprimés une fois transcrits</string>

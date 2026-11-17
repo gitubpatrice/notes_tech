@@ -771,6 +771,7 @@
     <string name="about_section_legal">Note legali</string>
     <string name="about_legal_link">Visualizza le note legali complete</string>
     <string name="about_legal_subtitle">Editore, dati raccolti, autorizzazioni, diritti, licenza</string>
+    <string name="about_thanks_body">Grazie a tutte le persone che segnalano un problema, provano una nuova versione o propongono un\'idea: con il loro aiuto Notes Tech migliora.</string>
     <string name="about_link_copied">Link copiato: lo incolli nel suo browser.</string>
 
     <!-- Legal notice -->

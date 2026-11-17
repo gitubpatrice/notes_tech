@@ -899,6 +899,10 @@
     <string name="about_section_legal">Legal</string>
     <string name="about_legal_link">View full legal notice</string>
     <string name="about_legal_subtitle">Publisher, data collected, permissions, rights, license</string>
+    <!-- D-050 (3.5.0, Patrice): thanks to the contributors, without names — nobody agreed to appear in the
+         app, and a list of names would have to be kept up to date (and incomplete) at every version. The
+         same sentence as SMS Tech's. -->
+    <string name="about_thanks_body">Thank you to everyone who reports a problem, tests a new version or suggests an idea: Notes Tech gets better with your help.</string>
     <string name="about_link_copied">Link copied — paste it in your browser.</string>
     <!-- ⚠️⚠️ REECRITURE, pas un ajout : voir REMPLACEES (aboutVoice1-3, aboutLinkVoice). -->
     <string name="about_voice_1">On-device Whisper (whisper.cpp, built into the app)</string>
