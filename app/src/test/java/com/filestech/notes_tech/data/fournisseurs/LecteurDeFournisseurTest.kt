@@ -3,7 +3,11 @@ package com.filestech.notes_tech.data.fournisseurs
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.io.ByteArrayInputStream
@@ -100,24 +104,137 @@ class LecteurDeFournisseurTest {
     }
 
     /**
+     * GPT-5.6 review and 3-axes audit of 3.5.0: the share screen gone (its scope cancelled) while a provider
+     * blocks. Until then nothing was given up — the stream stayed open, the slot taken for good, and every
+     * later share refused.
+     */
+    @Test
+    fun `a cancelled caller gives the reading up, its stream closed and its slot free`(): Unit = runBlocking {
+        val lecteur = LecteurDeFournisseur("test-annule")
+        val flux = FluxMuet()
+        val ouvert = CountDownLatch(1)
+        val appelant = launch(Dispatchers.Default) {
+            lecteur.lire(DELAI_LONG_MS, refus = "refus") { suivre ->
+                suivre(flux).also { ouvert.countDown() }.read()
+                "lu"
+            }
+        }
+        assertThat(ouvert.await(DELAI_LONG_MS, TimeUnit.MILLISECONDS)).isTrue()
+
+        appelant.cancelAndJoin()
+
+        assertThat(flux.fermeLe.await(LIBERATION_MS, TimeUnit.MILLISECONDS)).isTrue()
+        assertThat(lecteur.lire(DELAI_LONG_MS, refus = "refus") { "suivante" }).isEqualTo("suivante")
+    }
+
+    /** A provider slow to OPEN: the stream it hands over after the delay is closed at once, never read. */
+    @Test
+    fun `a stream opened after the reading was given up is closed at once`(): Unit = runBlocking {
+        val lecteur = LecteurDeFournisseur("test-tardif")
+        val delaiPasse = CountDownLatch(1)
+        val tardif = FluxMuet()
+        val issue = CountDownLatch(1)
+        var refuse = false
+
+        val lu = lecteur.lire(DELAI_COURT_MS, refus = "refus") { suivre ->
+            delaiPasse.await(DELAI_LONG_MS, TimeUnit.MILLISECONDS)
+            try {
+                suivre(tardif)
+                "lu"
+            } catch (e: IOException) {
+                refuse = true
+                throw e
+            } finally {
+                issue.countDown()
+            }
+        }
+        assertThat(lu).isEqualTo("refus")
+        delaiPasse.countDown()
+
+        assertThat(issue.await(LIBERATION_MS, TimeUnit.MILLISECONDS)).isTrue()
+        assertThat(refuse).isTrue()
+        assertThat(tardif.fermeLe.count).isEqualTo(0)
+    }
+
+    /** A reading given up and finishing late must not free the slot of the reading running now. */
+    @Test
+    fun `a reading given up cannot free the slot of a newer one`(): Unit = runBlocking {
+        val lecteur = LecteurDeFournisseur("test-jeton")
+        val ancienneLibre = CountDownLatch(1)
+        val ancienneFinie = CountDownLatch(1)
+        assertThat(
+            lecteur.lire(DELAI_COURT_MS, refus = "refus") {
+                ancienneLibre.await(DELAI_LONG_MS, TimeUnit.MILLISECONDS)
+                ancienneFinie.countDown()
+                "ancienne"
+            },
+        ).isEqualTo("refus")
+        val nouvelleCommencee = CountDownLatch(1)
+        val nouvelleLibre = CountDownLatch(1)
+        val nouvelle = async(Dispatchers.Default) {
+            lecteur.lire(DELAI_LONG_MS, refus = "refus") {
+                nouvelleCommencee.countDown()
+                nouvelleLibre.await(DELAI_LONG_MS, TimeUnit.MILLISECONDS)
+                "nouvelle"
+            }
+        }
+        assertThat(nouvelleCommencee.await(DELAI_LONG_MS, TimeUnit.MILLISECONDS)).isTrue()
+
+        ancienneLibre.countDown()
+        assertThat(ancienneFinie.await(LIBERATION_MS, TimeUnit.MILLISECONDS)).isTrue()
+        // The old reading is over; the newer one still holds the slot.
+        assertThat(lecteur.lire(DELAI_LONG_MS, refus = "refus") { "troisieme" }).isEqualTo("refus")
+
+        nouvelleLibre.countDown()
+        assertThat(nouvelle.await()).isEqualTo("nouvelle")
+    }
+
+    /**
+     * A provider stuck where no stream can be closed keeps its thread: the next reading runs on another one,
+     * up to a bound — past it, readings are refused — and the bound frees itself when the stuck ones return.
+     */
+    @Test
+    fun `a stuck thread is replaced, a bounded number of times`(): Unit = runBlocking {
+        val lecteur = LecteurDeFournisseur("test-coince")
+        val coinces = CountDownLatch(1)
+        repeat(FILS_BLOQUES_MAX) {
+            val lu = lecteur.lire(DELAI_COURT_MS, refus = "refus") {
+                coinces.await()
+                "coince"
+            }
+            assertThat(lu).isEqualTo("refus")
+        }
+        assertThat(lecteur.lire(DELAI_LONG_MS, refus = "refus") { "au-dela" }).isEqualTo("refus")
+
+        coinces.countDown()
+        withTimeout(LIBERATION_MS) {
+            while (lecteur.lire(DELAI_LONG_MS, refus = "refus") { "suivante" } != "suivante") delay(SONDE_MS)
+        }
+    }
+
+    /**
      * A provider that never answers: `read` blocks until the stream is closed, then fails — what closing
      * the descriptor of a real provider's pipe does. (`PipedInputStream` would not do: it does not look at
      * its own closing while it waits for a writer that never came.)
      */
     private class FluxMuet : InputStream() {
-        private val ferme = CountDownLatch(1)
+        val fermeLe = CountDownLatch(1)
 
         override fun read(): Int {
-            ferme.await()
+            fermeLe.await()
             throw IOException("ferme")
         }
 
-        override fun close() = ferme.countDown()
+        override fun close() = fermeLe.countDown()
     }
 
     private companion object {
         const val DELAI_LONG_MS = 5_000L
         const val DELAI_COURT_MS = 200L
         const val LIBERATION_MS = 3_000L
+        const val SONDE_MS = 50L
+
+        /** `LecteurDeFournisseur.FILS_BLOQUES_MAX`, private there. */
+        const val FILS_BLOQUES_MAX = 4
     }
 }
