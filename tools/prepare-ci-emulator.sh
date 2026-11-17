@@ -16,6 +16,10 @@
 #   fails 9 out of 9 with OutOfMemoryError and the same "Clamp target GC heap … to 16MB" as on CI;
 # - this script, in this workflow's order (script, PIN, install) on a wiped emulator →
 #   SauvegardeChiffreeTest and NoteExporteurTest: OK (15 tests). The framework is back within 10 s.
+# - restart through `su` (no `adb root`), 2026-11-17: system_server replaced, sys.boot_completed 0 then
+#   1, the adb shell still the `shell` user. Then, on a wiped emulator put in the failing state (zygote
+#   started at 16 MB, the property back at 576m): this script, PIN, install → the same two classes,
+#   OK (15 tests), no OutOfMemoryError.
 #
 # Called from the emulator step of `.github/workflows/android.yml`, where the emulator is the only
 # device. Locally, pick the device first: `ANDROID_SERIAL=emulator-5554 sh tools/prepare-ci-emulator.sh`.
@@ -30,12 +34,14 @@ if [ -z "$heap" ]; then
 fi
 echo "dalvik.vm.heapsize = $heap; restarting the framework so that zygote reads it"
 
-# `stop` and `start` need a root shell; the shell goes back to its usual user at the end.
-adb root
-adb wait-for-device
-adb shell stop
-adb shell setprop sys.boot_completed 0
-adb shell start
+# `stop` and `start` need root. Through `su`, which this userdebug image ships, and NOT `adb root`:
+# `adb root` restarts adbd, and on 2026-11-17 (PR #68) the emulator lost the device right then and died
+# ("device 'emulator-5554' not found", then its console port refused). `su` leaves adbd alone.
+if [ "$(adb shell su 0 id -u | tr -d '\r')" != 0 ]; then
+    echo "::error::su does not give root on this emulator image: the framework cannot be restarted"
+    exit 1
+fi
+adb shell "su 0 sh -c 'setprop sys.boot_completed 0; stop; start'"
 
 waited=0
 until [ "$(prop sys.boot_completed)" = 1 ]; do
@@ -61,6 +67,3 @@ until adb shell dumpsys user | grep -q "State: RUNNING_UNLOCKED"; do
     waited=$((waited + 2))
 done
 echo "user unlocked"
-
-adb unroot
-adb wait-for-device
