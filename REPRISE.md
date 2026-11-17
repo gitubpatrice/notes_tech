@@ -1,9 +1,33 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, **puis le 2026-11-09**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, le 2026-11-09, **puis le 2026-11-17**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-11-09, tard) — la 3.4.0 est FUSIONNÉE, PAS publiée
+## 🧭 À LA REPRISE (écrit le 2026-11-17) — la 3.4.0 est PUBLIÉE, la 3.5.0 est spécifiée
+
+- **Publiée le 2026-11-17** sur le feu vert de Patrice (« ok oui publie la 3.4.0 »), une fois sa condition
+  remplie : F-Droid servait la 3.3.0 (API lue le 11-17 : 5061-5063, suggéré 5063, index du 11-13).
+- **Tag léger `v3.4.0`** sur `fe8b003` (CI Kotlin et CodeQL verts). Build
+  `assembleRelease -Pnotestech.replaceInstalledApp=true`, 4 APK signés par `signer_notes_tech.py` contre
+  l'universel 3.3.0 retéléchargé : **TOUT OK** (cert `ddb385de…`, v2 + v3, 5070-5073, mêmes 4 permissions
+  que la 3.3.0, pas d'INTERNET). Mise à jour 3.3.0 publiée → 3.4.0 essayée sur un émulateur API 34 sans
+  fenêtre (lancement sans plantage) ; le même arbre l'avait été sur le S9 le 11-10.
+- **Release « Latest »** à 13 h 18 UTC, APK retéléchargés = empreintes enregistrées par GitHub : universel
+  `abefe770…c2aa`, arm64 `410f8cfe…62f3`, armeabi-v7a `4847d625…1ed`, x86_64 `c5035e43…cbe6`.
+- **Site files-tech** : PR #45 fusionnée et déployée (`2296500`) — 9 surfaces FR/EN/DE et les trois flux
+  RSS en 3.4.0. Vérification après release : 7 couches sur 7, aucun défaut.
+- **Issues** : réponse à #57 postée après la release (brouillon de la PR #58) ; #65 (koad1x, « Progress »)
+  répondue — #57 corrigé dans la 3.4.0, écran d'accueil prévu en 3.5.0 — puis fermée. **#59 reste
+  ouverte** jusqu'à la 3.5.0 : y poster à sa sortie.
+- **F-Droid** : tag seul, aucune MR. La 3.4.0 (5071-5073) n'était pas encore servie le 11-17 ; c'est la
+  première build de Notes sous AGP 9.5 chez eux (SMS 1.30.0, sous AGP 9.5, y est passée). Relire l'API
+  `packages/com.filestech.notes_tech`, et le journal de build si elle tarde.
+- **Ensuite : la 3.5.0**, spécifiée dans `docs/16-VERSION-3.5.md` — D-046 écran d'accueil (#59), D-047 à
+  D-049 listes à cocher (demande reçue par courriel le 11-14), C-1 à C-3 limites de la 3.4.0 ; les six
+  questions tranchées le 11-14. Branche `feat/3.5.0` depuis `main`. **Publication seulement quand F-Droid
+  sert la 3.4.0** (Q6).
+
+## Précédemment (écrit le 2026-11-09, tard) — la 3.4.0 est FUSIONNÉE, PAS publiée
 
 Patrice : « fais 2, 3, 4 ce serait génial pour la 3.4.0 + raccourcis et clavier sans apprentissage »,
 « en intégrant les upgrade AGP aussi » (PR #51). **Spécification, décisions D-040 à D-044, audits, limites
