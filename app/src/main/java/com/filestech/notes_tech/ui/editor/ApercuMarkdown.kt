@@ -301,7 +301,7 @@ private fun ElementDeListe(
         if (tache != null) {
             CaseDeTache(tache, element.taskOffset, libelle = libelleDeLElement(element))
         } else {
-            Box(Modifier.widthIn(min = 24.dp).padding(end = 6.dp)) {
+            Box(PLACE_DE_LA_MARQUE) {
                 // `Long`: a list may start at 999 999 999, and its tenth item must not wrap.
                 val marque = if (liste.ordered) "${liste.start.toLong() + index}." else "•"
                 Text(marque, style = MaterialTheme.typography.bodyLarge)
@@ -323,10 +323,17 @@ private fun ElementDeListe(
     }
 }
 
-/** What a screen reader says a task is about: its first paragraph's text. */
-private fun libelleDeLElement(element: ListItem): String = element.blocks
-    .firstNotNullOfOrNull { (it as? PreviewBlock.Paragraph)?.runs?.let(::texteDesRuns) }
-    .orEmpty()
+/**
+ * What a screen reader says a task is about: the texts of its first block, whatever it is (a paragraph, a
+ * heading, code…). Empty only for an item with no text at all — [CaseDeTache] then says its state.
+ */
+private fun libelleDeLElement(element: ListItem): String {
+    val libelle = StringBuilder()
+    element.blocks.firstOrNull()?.let { bloc ->
+        textesDuBloc(bloc) { _, texte -> libelle.append(if (libelle.isEmpty()) texte else " $texte") }
+    }
+    return libelle.toString().trim()
+}
 
 /**
  * A GFM task box, drawn and **named**: notes_tech 2.0.9 draws the icon with no label, so a screen
@@ -334,8 +341,15 @@ private fun libelleDeLElement(element: ListItem): String = element.blocks
  *
  * Since 3.5.0 (D-047) a tap turns it over, where the screen allows it ([LocalBasculeDeCase]) and the box
  * is known in the note's text ([position]). ONE node then, as `04-PIEGES.md` asks of every control with a
- * state: the role, the state ("Done" / "To do") and what the task is about ([libelle]), on a target of
- * 48 dp — the icon stays aligned with the item's first line, the rest of the target below it.
+ * state: the role, the state ("Done" / "To do") and what the task is about ([libelle] — its state when the
+ * item has no text, never an empty name).
+ *
+ * ⚠️ The BOX is the control, not the whole row as in the settings (`04-PIEGES.md`): an item's text may hold
+ * links, and nested items — a row that ticks would tick from a tap meant for them. The cost, accepted: the
+ * task's text is read once more after the box, on its own node.
+ *
+ * ⚠️ 48 dp, Material's minimum target: a task row is taller, and its text further right, than a bullet's —
+ * a checklist is made to be tapped. The icon stays on the item's first line, the rest of the target below.
  */
 @Composable
 private fun CaseDeTache(tache: TaskMark, position: Int?, libelle: String) {
@@ -348,7 +362,7 @@ private fun CaseDeTache(tache: TaskMark, position: Int?, libelle: String) {
     val dessin = Modifier.padding(top = 2.dp).size(20.dp)
     val basculer = LocalBasculeDeCase.current
     if (basculer == null || position == null) {
-        Box(Modifier.widthIn(min = 24.dp).padding(end = 6.dp)) {
+        Box(PLACE_DE_LA_MARQUE) {
             Icon(icone, contentDescription = etatDit, tint = teinte, modifier = dessin)
         }
         return
@@ -359,7 +373,7 @@ private fun CaseDeTache(tache: TaskMark, position: Int?, libelle: String) {
             .size(CIBLE_DE_CASE)
             .toggleable(value = tache == TaskMark.DONE, role = Role.Checkbox, onValueChange = { basculer(position) })
             .semantics {
-                contentDescription = libelle
+                contentDescription = libelle.ifBlank { etatDit }
                 stateDescription = etatDit
             },
     ) {
@@ -369,13 +383,19 @@ private fun CaseDeTache(tache: TaskMark, position: Int?, libelle: String) {
 
 /**
  * What a box does when tapped, given the `[`'s offset in the note (D-047): `null` where boxes are only
- * shown — the legal pages, which go through the same reader — and while nothing may write the note.
- * A composition local and not one more parameter on every block of the tree: only the box reads it.
+ * shown — the legal pages, which go through the same reader.
+ *
+ * A composition local, unlike `onLien`, which every block takes as a parameter: links are in every kind of
+ * text, the boxes only in list items, deep in the tree — through quotes and nested lists. A parameter would
+ * cross every block for the one that reads it. Private: this file alone provides and reads it.
  */
 private val LocalBasculeDeCase = compositionLocalOf<((Int) -> Unit)?> { null }
 
 /** Material's minimum touch target. */
 private val CIBLE_DE_CASE = 48.dp
+
+/** The place of a bullet, a number, or a box that cannot be tapped: before the item's text. */
+private val PLACE_DE_LA_MARQUE = Modifier.widthIn(min = 24.dp).padding(end = 6.dp)
 
 @Composable
 private fun Citation(citation: PreviewBlock.Quote, onLien: (LinkTarget) -> Unit) {

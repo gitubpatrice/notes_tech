@@ -454,7 +454,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
             gestes = GestesDEcriture(
                 dicter = dictee.demarrer,
                 insererUnLien = { autocompletionOuverte = true },
-                listeACocher = viewModel::basculerListeACocher,
+                basculerListeACocher = viewModel::basculerListeACocher,
                 basculerCase = viewModel::basculerCase,
             ),
             onEpingler = viewModel::setPinned,
@@ -519,7 +519,7 @@ fun NoteEditorRoute(onBack: () -> Unit, onOpenNote: (String) -> Unit, onInstalle
 data class GestesDEcriture(
     val dicter: () -> Unit,
     val insererUnLien: () -> Unit,
-    val listeACocher: () -> Unit,
+    val basculerListeACocher: () -> Unit,
     val basculerCase: (position: Int) -> Unit,
 )
 
@@ -804,7 +804,7 @@ fun NoteEditorScreen(
                                 null
                             } else {
                                 {
-                                    gestes.listeACocher()
+                                    gestes.basculerListeACocher()
                                     focaliserLeCorps = true
                                 }
                             },
@@ -913,7 +913,13 @@ fun NoteEditorScreen(
                         modifier = Modifier.fillMaxSize().imePadding(),
                     ) {
                         if (lecture) {
-                            FicheDeLecture(state, rendu, defilementDeLApercu, onLienDeLApercu, gestes.basculerCase)
+                            FicheDeLecture(
+                                state = state,
+                                rendu = rendu,
+                                defilement = defilementDeLApercu,
+                                onCase = gestes.basculerCase,
+                                onLien = onLienDeLApercu,
+                            )
                         } else {
                             // 🔴 Android's own text field, not Compose's: a long note was unusable to
                             // write in — see `ChampDuCorps`. Its label is `note_editor_content`, as
@@ -997,9 +1003,9 @@ private fun FicheDeLecture(
     state: EditorUiState,
     rendu: LectureDeLApercu,
     defilement: LazyListState,
-    onLien: (LinkTarget) -> Unit,
-    /** D-047 (3.5.0): a task box tapped, given its `[`'s offset in the note. */
+    /** D-047 (3.5.0): a task box tapped, given its `[`'s offset in the note. Before [onLien], as in `apercuMarkdown`. */
     onCase: (Int) -> Unit,
+    onLien: (LinkTarget) -> Unit,
 ) {
     val schema = MaterialTheme.colorScheme
     val teinte = state.note?.color?.let { CouleursDeNote.teinte(it, schema) }

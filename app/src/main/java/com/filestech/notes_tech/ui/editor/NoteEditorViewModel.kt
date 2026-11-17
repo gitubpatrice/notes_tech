@@ -820,8 +820,8 @@ class NoteEditorViewModel @Inject constructor(
      */
     fun onContentChange(value: TextFieldValue) {
         val avant = _state.value.content
-        // D-049 (3.5.0): Enter on a list line opens the next item. Only ONE line break typed at the
-        // cursor qualifies — see [SuiteDeListe]; anything else is kept as the field sent it.
+        // D-049 (3.5.0) : Entrée sur une ligne de liste ouvre l'élément suivant. Seul UN retour à la ligne
+        // tapé au curseur compte — cf. [SuiteDeListe] ; tout le reste est gardé tel que le champ l'envoie.
         val retenue = SuiteDeListe.apres(avant, value) ?: value
         val texteAChange = retenue.text != avant.text
         contenuPrecedent = avant
@@ -830,10 +830,10 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     /**
-     * D-047 (3.5.0): a task box tapped in the reading, its `[` at [position] in the note's text. Turned
-     * over only if the three characters there are still a box — [TaskBoxes.toggle] checks them; the
-     * reading that gave the offset may be one tap behind. Same length: the cursor stays where it was.
-     * Saved like a keystroke, so a vault note is written encrypted as when it is typed in.
+     * D-047 (3.5.0) : une case touchée dans la lecture, son `[` à [position] dans le texte de la note.
+     * Retournée seulement si les trois caractères à cet endroit sont toujours une case — [TaskBoxes.toggle]
+     * les vérifie ; la lecture qui a donné la position peut avoir un toucher de retard. Même longueur : le
+     * curseur reste où il était. Enregistrée comme une frappe, donc chiffrée pour une note de coffre.
      */
     fun basculerCase(position: Int) {
         val avant = _state.value.content
@@ -843,15 +843,16 @@ class NoteEditorViewModel @Inject constructor(
     }
 
     /**
-     * D-048 (3.5.0): the writing menu's "Checklist", on the lines of the cursor or of the selection — a box
-     * added to each, or taken off when they all have one. The rule is [ListeACocher], pure and tested.
+     * D-048 (3.5.0) : « Liste à cocher » du menu d'écriture, sur les lignes du curseur ou de la sélection —
+     * une case ajoutée à chacune, ou retirée quand toutes en ont une. La règle est [ListeACocher], pure et
+     * testée.
      */
     fun basculerListeACocher() {
         val avant = _state.value.content
         val apres = ListeACocher.basculer(avant)
-        if (apres == avant) return
+        if (apres.text == avant.text) return
         _state.value = _state.value.copy(content = apres)
-        if (apres.text != avant.text) programmerLaSauvegarde()
+        programmerLaSauvegarde()
     }
 
     /**

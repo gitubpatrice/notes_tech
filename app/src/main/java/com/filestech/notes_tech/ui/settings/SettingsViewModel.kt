@@ -92,7 +92,7 @@ class SettingsViewModel @Inject constructor(private val settings: AppSettings, f
 
     fun setVaultAutoLockMinutes(value: Int) = settings.setVaultAutoLockMinutes(value)
 
-    /** D-046: takes effect at the next start, never on a home screen already shown. */
+    /** D-046 : pris en compte au prochain démarrage, jamais sur un accueil déjà affiché. */
     fun setHomeStart(value: HomeStartPreference) = settings.setHomeStart(value)
 
     /**

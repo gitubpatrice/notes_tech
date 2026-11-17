@@ -38,9 +38,9 @@ enum class LocalePreference(val code: String?) {
 }
 
 /**
- * The list the app opens on (D-046, 3.5.0, issue #59): every note, or the Inbox only — where a note
- * filed in another folder leaves the list. [ALL_NOTES] is the default: nothing changes for whoever
- * never opens the setting.
+ * La liste sur laquelle l'application s'ouvre (D-046, 3.5.0, issue #59) : toutes les notes, ou la seule
+ * Boîte de réception — d'où une note rangée ailleurs sort. [ALL_NOTES] par défaut : rien ne change pour
+ * qui n'ouvre jamais le réglage.
  */
 enum class HomeStartPreference { ALL_NOTES, INBOX }
 
@@ -110,8 +110,8 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
     // ── Écran d'accueil (D-046, 3.5.0) ───────────────────────────────────────────────────────────
 
     /**
-     * Read once, when the home screen starts with nothing to restore — see `HomeViewModel`. The panic
-     * clears it with the other settings: it goes back to [HomeStartPreference.ALL_NOTES].
+     * Lu une fois, quand l'accueil démarre sans rien à restaurer — cf. `HomeViewModel`. La panique l'efface
+     * avec les autres réglages : il revient à [HomeStartPreference.ALL_NOTES].
      */
     fun homeStartNow(): HomeStartPreference = when (prefs.string(KEY_HOME_START)) {
         "inbox" -> HomeStartPreference.INBOX
@@ -240,7 +240,7 @@ class AppSettings @Inject constructor(private val prefs: LegacyPreferences) {
         /** Né en 3.4.0 (D-040) : aucune version Flutter ne l'a écrit. */
         const val KEY_KEYBOARD_NO_LEARNING = "keyboard_no_learning"
 
-        /** Born in 3.5.0 (D-046): no Flutter version wrote it. */
+        /** Né en 3.5.0 (D-046) : aucune version Flutter ne l'a écrit. */
         const val KEY_HOME_START = "home_start_folder"
     }
 }

@@ -179,7 +179,7 @@ class EditeurTest {
                         gestes = GestesDEcriture(
                             dicter = { dictees += Unit },
                             insererUnLien = { insertionsDeLien += Unit },
-                            listeACocher = { listesACocher += Unit },
+                            basculerListeACocher = { listesACocher += Unit },
                             basculerCase = { casesBasculees += it },
                         ),
                         onEpingler = { epingles += it },

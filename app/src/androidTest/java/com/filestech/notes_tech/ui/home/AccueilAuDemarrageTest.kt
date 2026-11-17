@@ -133,6 +133,22 @@ class AccueilAuDemarrageTest {
         assertThat(restauree.contains(HomeViewModel.CLE_DOSSIER)).isTrue()
     }
 
+    /**
+     * 3-axes audit of 3.5.0: the test above builds the restored state in memory. What a process death
+     * really goes through is a Bundle — this proves a key holding `null` comes back out of it as a key,
+     * which is what tells "All notes" chosen from "nothing to restore".
+     */
+    @Test
+    fun a_saved_All_notes_survives_the_bundle_of_a_process_death() {
+        val avant = SavedStateHandle()
+        avant[HomeViewModel.CLE_DOSSIER] = null
+
+        val apres = SavedStateHandle.createHandle(avant.savedStateProvider().saveState(), null)
+
+        assertThat(apres.contains(HomeViewModel.CLE_DOSSIER)).isTrue()
+        assertThat(apres.get<String>(HomeViewModel.CLE_DOSSIER)).isNull()
+    }
+
     /** The control: with nothing set, a new start opens on All notes, as before 3.5.0. */
     @Test
     fun by_default_a_new_start_opens_on_All_notes(): Unit = runBlocking {

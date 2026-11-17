@@ -141,9 +141,9 @@ class HomeViewModel @Inject constructor(
      * « toutes les notes » alors que l'écran affichait un dossier — et l'utilisateur croit ses
      * notes déplacées.
      *
-     * Since 3.5.0 (D-046) a NEW start opens on the folder the setting chooses — see [dossierAuDemarrage].
-     * The choice is written back at once: a process death then restores what was shown, even if the
-     * setting changed meanwhile.
+     * Depuis la 3.5.0 (D-046), un démarrage NEUF s'ouvre sur le dossier que choisit le réglage — cf.
+     * [dossierAuDemarrage]. Le choix est réécrit aussitôt : une mort du processus restaure alors ce qui était
+     * affiché, même si le réglage a changé entre-temps.
      */
     private val folderId = MutableStateFlow(
         dossierAuDemarrage(

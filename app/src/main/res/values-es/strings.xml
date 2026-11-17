@@ -447,7 +447,7 @@
     </plurals>
     <string name="settings_vault_auto_lock_never">Nunca</string>
     <string name="settings_export_all">Exportar todas mis notas</string>
-    <string name="settings_export_subtitle">Genera un archivo ZIP con archivos Markdown organizados por carpetas. Las notas con duración no se incluyen.</string>
+    <string name="settings_export_subtitle">Genera un archivo ZIP con archivos Markdown organizados por carpetas. Las notas con duración limitada no se incluyen.</string>
     <string name="settings_section_export_import">Exportar e importar</string>
     <string name="settings_import">Importar notas</string>
     <string name="settings_import_subtitle">Archivos Markdown o de texto, o un ZIP con ellos, como una exportación de Notes Tech.</string>
@@ -477,7 +477,7 @@
     </plurals>
     <string name="settings_section_backup">Copia de seguridad cifrada</string>
     <string name="backup_create">Crear una copia de seguridad</string>
-    <string name="backup_create_subtitle">Sus notas y carpetas, papelera incluida, en un solo archivo cifrado. Las notas con duración no se incluyen.</string>
+    <string name="backup_create_subtitle">Sus notas y carpetas, papelera incluida, en un solo archivo cifrado. Las notas con duración limitada no se incluyen.</string>
     <string name="backup_restore">Restaurar una copia de seguridad</string>
     <string name="backup_restore_subtitle">Añade lo que contiene una copia. No se sobrescribe nada en este teléfono.</string>
     <string name="backup_create_panic">El modo pánico no alcanza este archivo: guárdelo en un lugar seguro y bórrelo usted mismo cuando ya no lo necesite.</string>
