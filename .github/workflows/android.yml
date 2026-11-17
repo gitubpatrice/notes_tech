@@ -192,7 +192,12 @@ jobs:
           ram-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          # One command per line: the action runs each line on its own. The first one restarts the
+          # framework so that the app heap is the one asked for, not ART's 16 MB default — a boot race
+          # of the API 29 image, explained in the script. It must come BEFORE the PIN: with a PIN set,
+          # the restart would leave the user locked.
           script: |
+            sh tools/prepare-ci-emulator.sh
             adb shell locksettings set-pin 1234
             adb shell svc power stayon true
             ./gradlew --no-daemon :app:connectedDebugAndroidTest || echo "::notice::the task fails on what the emulator cannot do; the next step judges each test"
