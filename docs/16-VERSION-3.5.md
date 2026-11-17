@@ -195,6 +195,11 @@ changements de page par ligne.
   - indentation et `> ` gardés.
 - **Entrée sur un élément vide** (`- [ ] ` seul) retire le marqueur et laisse une ligne vide : on sort de
   la liste. C'est le comportement d'Obsidian, de Joplin et de Google Keep.
+  - **Écart mesuré sur le S9 (2026-11-17)** : le curseur passe à la ligne SUIVANT cette ligne vide. En
+    CommonMark, une ligne tapée juste sous un élément lui appartient (« continuation paresseuse ») :
+    `- [ ] pain` puis `fin` se lisait comme UN élément, « pain fin », grisé avec sa case. Pas de seconde
+    ligne vide si la précédente l'est déjà, ni en tête de note ; sous une liste imbriquée, la suite
+    revient dans l'élément parent, comme son indentation le dit.
 - Entrée au milieu du texte d'un élément : le reste part sur la ligne suivante, après le marqueur.
 - **Marqueurs CommonMark seulement** (marqueur + espace), cohérent avec D-045 : `1.Eat` n'est pas une
   liste, donc pas de suite.
@@ -404,7 +409,18 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
   Tech remplacé par des mains blanches au contour gris moyen (`d3eabe5`), vérifié sur captures clair et
   sombre. Patrice : « c mieux oui ».
 - [x] CI de la PR #70 verte (601 cas instrumentés, 12 nouveaux) avant ces corrections ; à revoir après
-- [ ] **À la main** : la suite de liste au clavier Samsung (S9, S24) — seul essai impossible sur émulateur
+- [x] **À la main sur le S9** (clavier Samsung, Android 10, 2026-11-17) : suite de liste à puces et
+  numérotée, fin de liste, entrée « Liste à cocher » dans les deux sens, case cochée en lecture (grisée,
+  enregistrée, sans saut). **Trois défauts trouvés et corrigés** :
+  - le clavier ne revenait pas après ⋮ → « Liste à cocher » (demandé pendant que le menu tenait le focus
+    de la fenêtre : refusé, jamais redemandé), la frappe suivante se perdait. Le champ le redemande au
+    retour du focus. Test `the_keyboard_comes_back_after_the_checklist_entry`, menu touché par l'entrée
+    SYSTÈME (`input tap`) : avec `performClick` de Compose, il échouait même corrigé. Contrôle négatif sur
+    l'émulateur de la CI : ancien champ → le test tombe ;
+  - une ligne tapée juste après la fin d'une liste rejoignait son dernier élément (voir D-049, écart) ;
+  - une tâche numérotée perdait son numéro en lecture, alors que « Liste à cocher » le garde dans le
+    texte : numéro puis case, comme GitHub (`a_numbered_task_keeps_its_number_before_its_box`).
+- [ ] **À la main sur le S24** (One UI 8) : en cours, par Patrice
 - [ ] Publication (après F-Droid 3.4.0, Q6)
 
 **CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait

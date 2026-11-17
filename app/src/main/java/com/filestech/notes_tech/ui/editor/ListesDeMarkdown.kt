@@ -80,6 +80,12 @@ internal object DebutsDeLigne {
     fun ligneSuivante(texte: String, fin: Int): Int =
         if (fin + 1 < texte.length && texte[fin] == '\r' && texte[fin + 1] == '\n') fin + 2 else fin + 1
 
+    /** Where the line before the one starting at [debut] ends, before its line end; [debut] is past the first line. */
+    fun finDeLaLignePrecedente(texte: String, debut: Int): Int {
+        val fin = debut - 1
+        return if (texte[fin] == '\n' && fin > 0 && texte[fin - 1] == '\r') fin - 1 else fin
+    }
+
     /**
      * Whether the list line starting at [debut] is in fact CODE (D-049, GPT-5.6 review of 3.5.0): inside a
      * ``` or ~~~ fence, or indented by four columns at least with no list item on the line above —
@@ -116,8 +122,7 @@ internal object DebutsDeLigne {
     private fun listeJusteAuDessus(texte: String, debut: Int): Boolean {
         var courante = debut
         while (courante > 0) {
-            var fin = courante - 1
-            if (texte[fin] == '\n' && fin > 0 && texte[fin - 1] == '\r') fin--
+            val fin = finDeLaLignePrecedente(texte, courante)
             val precedente = texte.substring(debutDeLaLigne(texte, fin), fin)
             if (precedente.isNotBlank()) return lire(precedente).marqueur != null
             courante = debutDeLaLigne(texte, fin)
@@ -292,10 +297,27 @@ internal object SuiteDeListe {
         }
     }
 
-    /** The empty item: the list ends. The line keeps its container — a quote stays a quote. */
+    /**
+     * The empty item: the list ends. The line keeps its container — a quote stays a quote —, and an empty
+     * line comes before it.
+     *
+     * 🔴 Seen on the S9 (3.5.0): in CommonMark, a line typed right under a list item belongs to that item
+     * ("lazy continuation") — `- [ ] bread` then `end` read as ONE item, "bread end", greyed with its box.
+     * The empty line ends the list for the reader too; under a nested list, what follows goes back to the
+     * parent item, as its indentation says.
+     */
     private fun finDeListe(texte: String, debutDeLigne: Int, finDeLigne: Int, debut: DebutDeLigne): TextFieldValue {
-        val sansElement = texte.substring(0, debutDeLigne) + debut.conteneur + texte.substring(finDeLigne)
-        return TextFieldValue(sansElement, TextRange(debutDeLigne + debut.conteneur.length))
+        val separation = if (apresUneLigneVide(texte, debutDeLigne)) "" else debut.conteneur.trimEnd() + "\n"
+        val avant = texte.substring(0, debutDeLigne) + separation + debut.conteneur
+        return TextFieldValue(avant + texte.substring(finDeLigne), TextRange(avant.length))
+    }
+
+    /** Whether the line starting at [debut] is the first one, or follows a line holding nothing but its container. */
+    private fun apresUneLigneVide(texte: String, debut: Int): Boolean {
+        if (debut == 0) return true
+        val fin = DebutsDeLigne.finDeLaLignePrecedente(texte, debut)
+        val precedente = texte.substring(DebutsDeLigne.debutDeLaLigne(texte, fin), fin)
+        return precedente.substring(DebutsDeLigne.lire(precedente).conteneur.length).isBlank()
     }
 
     /** The next item, the rest of the line in it, the cursor after its marker. */

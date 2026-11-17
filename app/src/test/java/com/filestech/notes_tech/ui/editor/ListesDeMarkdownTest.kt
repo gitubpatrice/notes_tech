@@ -172,9 +172,24 @@ class ListesDeMarkdownTest {
             assertThat(entree("```\r\n- a|")).isNull()
         }
 
+        /**
+         * 🔴 Seen on the S9: with no empty line between them, a line typed under the list was read as part
+         * of its last item (CommonMark's lazy continuation) — ticked with it.
+         */
         @Test
-        fun `Enter on an empty item ends the list`() {
-            assertThat(entree("- [ ] Lait\n- [ ] |")).isEqualTo("- [ ] Lait\n|")
+        fun `Enter on an empty item ends the list, an empty line before what follows`() {
+            assertThat(entree("- [ ] Lait\n- [ ] |")).isEqualTo("- [ ] Lait\n\n|")
+            assertThat(entree("> - a\n> - |")).isEqualTo("> - a\n>\n> |")
+            // Under a nested list, the line goes back to the parent item.
+            assertThat(entree("- a\n  - b\n  - |")).isEqualTo("- a\n  - b\n\n  |")
+            assertThat(entree("- a\r\n- |\r\nsuite")).isEqualTo("- a\r\n\n|\r\nsuite")
+        }
+
+        /** The controls: no second empty line where one is there already, nor above the first line. */
+        @Test
+        fun `no empty line is added where none is needed`() {
+            assertThat(entree("Texte\n\n- [ ] |")).isEqualTo("Texte\n\n|")
+            assertThat(entree("> - a\n>\n> - |")).isEqualTo("> - a\n>\n> |")
             assertThat(entree("- [ ]|")).isEqualTo("|")
             assertThat(entree("> - |")).isEqualTo("> |")
             assertThat(entree("- [ ] |\nsuite")).isEqualTo("|\nsuite")

@@ -298,15 +298,17 @@ private fun ElementDeListe(
     val element = liste.items[index]
     val tache = element.task
     Row(modifier) {
-        if (tache != null) {
-            CaseDeTache(tache, element.taskOffset, libelle = libelleDeLElement(element))
-        } else {
+        // A numbered task keeps its number before its box, as on GitHub: 🔴 seen on the S9 (3.5.0), the
+        // menu's "Checklist" turns `1. a` into `1. [ ] a` — the number is the user's, D-048 keeps it in the
+        // text, and the reading dropped it. A bulleted task shows its box alone, the box being its bullet.
+        if (tache == null || liste.ordered) {
             Box(PLACE_DE_LA_MARQUE) {
                 // `Long`: a list may start at 999 999 999, and its tenth item must not wrap.
                 val marque = if (liste.ordered) "${liste.start.toLong() + index}." else "•"
                 Text(marque, style = MaterialTheme.typography.bodyLarge)
             }
         }
+        if (tache != null) CaseDeTache(tache, element.taskOffset, libelle = libelleDeLElement(element))
         // D-047 (3.5.0): a done task's own text is greyed — the same `onSurfaceVariant` whose contrast
         // `CouleursDeNoteTest` measures on every note colour —, not struck through, which reads worse. An
         // open task sets its colour back, so that one nested in a done task is not greyed with it.

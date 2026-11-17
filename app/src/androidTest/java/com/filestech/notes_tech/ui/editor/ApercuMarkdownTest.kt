@@ -106,6 +106,21 @@ class ApercuMarkdownTest {
         assertThat(regle.actionsPerduesALaFusion()).isEmpty()
     }
 
+    /**
+     * 🔴 Seen on the S9 (3.5.0): the menu's "Checklist" keeps a list's numbers in the text (`1. [ ] a`), and
+     * the reading dropped them. A numbered task shows its number AND its box; a bulleted one, its box alone.
+     */
+    @Test
+    fun a_numbered_task_keeps_its_number_before_its_box() {
+        poser("3. [ ] first\n4. [x] second\n\n- [ ] bulleted", onCase = {})
+
+        regle.onNodeWithText("3.").assertIsDisplayed()
+        regle.onNodeWithText("4.").assertIsDisplayed()
+        regle.onAllNodes(isToggleable()).assertCountEquals(3)
+        // The control: the bulleted task draws no bullet next to its box.
+        regle.onNodeWithText("•").assertDoesNotExist()
+    }
+
     /** The link nodes Compose lays over [texteAffiche] — clickable children of its text node. */
     private fun noeudsDeLien(texteAffiche: String) =
         regle.onNode(hasText(texteAffiche), useUnmergedTree = true).onChildren().filter(hasClickAction())
