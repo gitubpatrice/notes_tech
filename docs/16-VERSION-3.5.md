@@ -19,6 +19,7 @@
 | **D-048** Insérer une liste à cocher, depuis le menu ⋮ | courriel du 11-14 | décidé (Q1) |
 | **D-049** Entrée continue une liste, toutes les listes | courriel du 11-14 | décidé (Q2) |
 | **C-1 à C-3** Petits correctifs (limites connues de la 3.4.0) | `15-VERSION-3.4.md` § Limites | retenus (Q4) |
+| **D-050** Remerciement en bas de « À propos », mains jointes en gris | Patrice, 2026-11-17 | décidé |
 
 **Aucune migration de schéma** (Room reste en version 11), aucune permission, aucun réseau, aucun
 changement des formats d'export, de sauvegarde ni de note scellée : tout ce qui suit est du texte de note
@@ -209,6 +210,28 @@ changements de page par ligne.
 - Pas de réglage pour la couper au départ : Entrée sur un élément vide en sort. À revoir si quelqu'un le
   demande.
 
+## D-050 — Remerciement en bas de « À propos »
+
+Patrice, 2026-11-17 : « ajouter aussi dans à propos un encart en bas avec l'icone mains jointe en gris de
+remerciements comme pour sms tech ».
+
+- **Modèle : SMS Tech** (`c7d6d36a`, `AboutScreen.kt:359-434`, testé par `TeinteMonochromeTest`), repris
+  tel quel :
+  - un cadre de 1 dp en `outlineVariant`, coins de 16 dp, contenu centré ;
+  - l'émoji 🙏 (U+1F64F, 20 sp ; la bibliothèque d'icônes Material n'a pas de mains jointes) ramené à UNE
+    teinte `onSurfaceVariant` par une matrice de luminance (`teinteMonochrome`) : gris, avec son relief ;
+  - décoratif pour un lecteur d'écran (`clearAndSetSemantics {}`) : seul le texte est lu ;
+  - la phrase en `bodySmall`, `onSurfaceVariant`, centrée.
+- **Place** : tout en bas de l'écran, sous la carte « Mentions légales » (`AboutScreen.kt:155-170`) ; Notes
+  n'a pas de ligne « Créée par ».
+- **Texte `about_thanks_body`**, sans nom de contributeur, comme SMS Tech : personne n'a consenti à figurer
+  dans l'appli, et une liste nominative ne serait jamais à jour. Les cinq phrases de SMS Tech, le nom
+  changé. Le registre est le même (vouvoiement en fr, « Sie », « Lei », « usted » : relevé le 11-17).
+- **Code en double avec SMS Tech** (`teinteMonochrome`) : assumé, les deux applis n'ont pas de bibliothèque
+  commune.
+- Test JVM de la matrice (repris de `TeinteMonochromeTest`) ; l'écran À propos dans `AProposTest` si la
+  ligne y est atteignable.
+
 ## Petits correctifs — les limites connues de la 3.4.0 (`15-VERSION-3.4.md:234-240`)
 
 Retenus (Q4). Chacun est petit, et il ferme un écart déjà consigné.
@@ -261,7 +284,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
    sur les claviers, avant d'aller plus loin.
 3. **D-047** (le plus gros) : positions dans la note, garde, bascule par le ViewModel, lecture corrigée
    sur place, sémantique.
-4. C-1 à C-3 si retenus.
+4. C-1 à C-3, puis D-050 (indépendants).
 5. Version, textes, documents, audits, essais, PR.
 
 ## Tests
@@ -293,6 +316,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - `strings.xml` × 5 (en, fr, de, it, es) :
   - réglage d'accueil : titre et deux choix ;
   - libellé de l'entrée « Liste à cocher » du menu ;
+  - remerciement d'« À propos » (D-050) ;
   - C-2 et C-3.
 - Version **3.5.0, base 508** (5080-5083) ; journaux fastlane **5081-5083** × 5 langues, ≤ 500
   caractères (agent `android-i18n-strings-cleaner`).
@@ -307,8 +331,8 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
   - page Notes Tech FR/EN/DE : une carte « Listes à cocher », la carte de l'accueil si elle décrit
     l'écran d'ouverture ;
   - méta-description et `og:description`.
-- Réponses, **après** la release : au courriel (Patrice) ; un commentaire sur #59, qui est fermée, comme
-  pour les mises à jour de #10.
+- Réponses, **après** la release : au courriel (Patrice) ; sur #59 (rouverte par koad1x le 11-17), puis la
+  fermer comme terminée.
 
 ## Publication
 
@@ -327,6 +351,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - [ ] D-049 suite de liste (mesure des claviers comprise)
 - [ ] D-047 case cochable, tâche faite grisée (contraste mesuré)
 - [ ] C-1 · [ ] C-2 · [ ] C-3
+- [ ] D-050 remerciement d'« À propos »
 - [ ] Textes 5 langues · [ ] version 3.5.0 (508) · [ ] journaux 5081-5083 · [ ] README, fastlane
 - [ ] Audits · [ ] relecture externe · [ ] S9 · [ ] CI
 - [ ] Publication (après F-Droid 3.4.0 si Q6 = oui)
