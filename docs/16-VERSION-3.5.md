@@ -382,7 +382,29 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - [x] **D-050** remerciement d'« À propos » (`e3eb010`) — `TeinteMonochromeTest`, `EcranAProposEtLegalTest`.
 - [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (398 à 470 caractères) ·
   [x] README (+ la ligne de version restée à v3.3.0 depuis la 3.4.0), fastlane, SECURITY
-- [ ] Audits · [ ] relecture externe · [ ] S9 · [ ] CI
+- [x] **Audits et relecture externe** (2026-11-17), tous appliqués :
+  - **Relecture externe GPT-5.6 sol** (0,35 $) : 5 défauts réels.
+    - **Lecteur de fournisseur** (`b85092c`) : une annulation de l'appelant laissait le verrou pris pour de
+      bon ; un flux ouvert après le délai n'était jamais fermé. Défaut déjà présent dans le lecteur scellé
+      de la 3.4.0.
+    - **Suite de liste** (`f937324`) : elle supprimait les espaces après le curseur ; elle continuait une
+      « liste » dans du code ; un `\r` seul ne terminait pas la ligne.
+  - **Audit 3 axes** : ni critique ni élevé.
+    - Recoupe GPT sur le lecteur, et ajoute un fil coincé qui bloquait tous les partages suivants : il est
+      désormais remplacé, 4 bloqués au plus.
+    - Un jeton empêche une lecture abandonnée de libérer la suivante.
+    - Un élément trop lourd n'a plus de case touchable (`0fec451`).
+    - Le test du `Bundle` (« Toutes les notes » à `null` après une mort du processus) a été ajouté.
+  - **Cohérence** (92/100) : nom TalkBack des cases jamais vide, choix « case et pas ligne » et 48 dp
+    écrits, ordre des paramètres, gestes tous en verbes, langue des commentaires (`08595fe`).
+  - **Traductions** : aucun défaut ; « durata limitata » et « duración limitada » plus clairs.
+  - Relecture Claude non lancée (Patrice : « pas besoin si c'est pas nécessaire »), GPT et l'audit
+    3 axes se recoupant.
+- [x] **D-050, icône** (Patrice, 2026-11-17 : « fond blanc avec un contour gris ») : le gris foncé de SMS
+  Tech remplacé par des mains blanches au contour gris moyen (`d3eabe5`), vérifié sur captures clair et
+  sombre. Patrice : « c mieux oui ».
+- [x] CI de la PR #70 verte (601 cas instrumentés, 12 nouveaux) avant ces corrections ; à revoir après
+- [ ] **À la main** : la suite de liste au clavier Samsung (S9, S24) — seul essai impossible sur émulateur
 - [ ] Publication (après F-Droid 3.4.0, Q6)
 
 **CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
