@@ -72,6 +72,8 @@ internal fun Remerciement(modifier: Modifier = Modifier) {
                     val zone = Rect(-epaisseur, -epaisseur, size.width + epaisseur, size.height + epaisseur)
                     val pinceauDuContour = Paint().apply { colorFilter = ColorFilter.tint(contour, BlendMode.SrcIn) }
                     val pinceauDuFond = Paint().apply { colorFilter = ColorFilter.colorMatrix(versLeBlanc(PLANCHER)) }
+                    val pinceauDuMasque = Paint().apply { blendMode = BlendMode.DstIn }
+                    val milieu = size.width / 2
                     val decalages = (0 until DIRECTIONS).map { i ->
                         val angle = 2 * PI * i / DIRECTIONS
                         Offset((cos(angle) * epaisseur).toFloat(), (sin(angle) * epaisseur).toFloat())
@@ -85,6 +87,15 @@ internal fun Remerciement(modifier: Modifier = Modifier) {
                             }
                             canvas.saveLayer(zone, pinceauDuFond)
                             drawContent()
+                            canvas.restore()
+                            // The seam between the two hands (Patrice, 2026-11-18), faded to near white with the
+                            // other inner lines: a grey line down the middle, kept to the emoji's own shape
+                            // (`DstIn`). Every emoji font draws 🙏 symmetric, its hands meeting at the centre.
+                            canvas.saveLayer(zone, Paint())
+                            drawLine(contour, Offset(milieu, 0f), Offset(milieu, size.height), SEPARATION.toPx())
+                            canvas.saveLayer(zone, pinceauDuMasque)
+                            drawContent()
+                            canvas.restore()
                             canvas.restore()
                         }
                     }
@@ -108,6 +119,9 @@ private const val MAINS_JOINTES = "🙏"
 private val EPAISSEUR_DU_CONTOUR = 1.5.dp
 private const val OPACITE_DU_CONTOUR = 0.6f
 private const val DIRECTIONS = 12
+
+/** The width of the line between the two hands, in the outline's grey. */
+private val SEPARATION = 1.dp
 
 /** The darkest grey the fill keeps — its inner lines, faint: 0 would keep black, 1 a flat white. */
 private const val PLANCHER = 0.72f
