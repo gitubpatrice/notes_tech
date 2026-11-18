@@ -32,7 +32,9 @@ class SearchRepository @Inject constructor(private val databases: DatabaseProvid
      *
      * Rend un flux vide — jamais une erreur — si la saisie ne contient aucun terme exploitable :
      * taper trois espaces n'est pas une faute de l'utilisateur.
+     *
+     * @param archived dans les seules notes archivées (la vue Archives, D-051) plutôt que dans les autres.
      */
-    fun observe(query: String): Flow<List<Note>> =
-        flow { emitAll(databases.get().noteSearchDao().search(query)) }.map { it.toDomain() }
+    fun observe(query: String, archived: Boolean = false): Flow<List<Note>> =
+        flow { emitAll(databases.get().noteSearchDao().search(query, archived)) }.map { it.toDomain() }
 }

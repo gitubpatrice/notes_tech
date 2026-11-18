@@ -21,7 +21,7 @@ Notes Tech: 100% local Markdown note-taking, encrypted at rest. Written in Kotli
 <b>Editing</b>
 • Notes open to be read (Markdown: headings, lists, links, checklists you tick while reading); “Edit” to write, autosave
 • Long press to select notes, then archive, move, trash with Undo, pin, color or delete them at once
-• An Archive for the notes you keep out of your lists
+• An Archive, with its own search, for the notes you keep out of your lists
 • Notes that erase themselves: after 1 hour, 24 hours, 7 or 30 days, or after reading
 • Share a note sealed: an encrypted file that only its code opens, sent by any app
 • Quick drop: write a note without unlocking the app, from a quick settings tile or the icon's shortcuts

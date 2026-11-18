@@ -179,6 +179,8 @@ A copy installed from F-Droid receives the 3.0.0 through F-Droid.
   Enter continues any list — a box, a bullet, the next number —; Enter on an empty item ends it.
 - Pin, favourites, colours, archive, trash (30-day retention), sort order, light / dark / system theme;
   the list the app opens on, **All notes** or the **Inbox** (3.5.0).
+- **Search**: the home screen's looks through the notes that are not archived; the **Archive** has its own,
+  through its notes alone (3.5.0, [#72](https://github.com/gitubpatrice/notes_tech/issues/72)).
 
 ### Per-folder vaults
 - **Passphrase mode** — Argon2id (64 MiB, t = 3) and AES-256-GCM. The vault key (32 random bytes) is

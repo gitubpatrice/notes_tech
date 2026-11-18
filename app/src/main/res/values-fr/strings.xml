@@ -49,6 +49,7 @@
     <string name="home_folders">Dossiers</string>
     <string name="home_new_note">Nouvelle note</string>
     <string name="home_search_hint">Rechercher une note</string>
+    <string name="home_search_archive_hint">Rechercher dans les archives</string>
     <string name="home_no_notes">Aucune note</string>
     <string name="home_no_notes_in">Aucune note dans ce dossier</string>
     <string name="home_start_writing">Tapez le bouton + pour créer votre première note.</string>
