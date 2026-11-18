@@ -385,7 +385,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - [x] **C-1** · [x] **C-2** · [x] **C-3** (`8c1f61d`) — tests `LecteurDeFournisseurTest`, `DepotViewModelTest` ;
   `FournisseurDUnPartageTest`, `NotesScelleesRecuesTest`, `FichierDeNoteScelleeTest` verts.
 - [x] **D-050** remerciement d'« À propos » (`e3eb010`) — `TeinteMonochromeTest`, `EcranAProposEtLegalTest`.
-- [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (398 à 470 caractères) ·
+- [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (398 à 479 caractères) ·
   [x] README (+ la ligne de version restée à v3.3.0 depuis la 3.4.0), fastlane, SECURITY
 - [x] **Audits et relecture externe** (2026-11-17), tous appliqués :
   - **Relecture externe GPT-5.6 sol** (0,35 $) : 5 défauts réels.
@@ -407,8 +407,12 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
     3 axes se recoupant.
 - [x] **D-050, icône** (Patrice, 2026-11-17 : « fond blanc avec un contour gris ») : le gris foncé de SMS
   Tech remplacé par des mains blanches au contour gris moyen (`d3eabe5`), vérifié sur captures clair et
-  sombre. Patrice : « c mieux oui ».
-- [x] CI de la PR #70 verte (601 cas instrumentés, 12 nouveaux) avant ces corrections ; à revoir après
+  sombre. Patrice : « c mieux oui ». Le 2026-11-18 (Patrice : « ajouter une séparation entre les 2
+  mains ») : la jointure des mains, effacée avec les autres traits intérieurs, redessinée par un trait de
+  1 dp au milieu, du gris du contour, limité à la forme de l'émoji ; vérifié sur le S9 (émoji Samsung).
+  Patrice : « oui très bien ».
+- [x] CI de la PR #70 verte sur `2b72cf4` (604 cas instrumentés), PR fusionnée (`1540ed7`), CI de `main`
+  et CodeQL verts
 - [x] **À la main sur le S9** (clavier Samsung, Android 10, 2026-11-17) : suite de liste à puces et
   numérotée, fin de liste, entrée « Liste à cocher » dans les deux sens, case cochée en lecture (grisée,
   enregistrée, sans saut). **Trois défauts trouvés et corrigés** :
