@@ -20,6 +20,7 @@
 | **D-049** Entrée continue une liste, toutes les listes | courriel du 11-14 | décidé (Q2) |
 | **C-1 à C-3** Petits correctifs (limites connues de la 3.4.0) | `15-VERSION-3.4.md` § Limites | retenus (Q4) |
 | **D-050** Remerciement en bas de « À propos », mains jointes en gris | Patrice, 2026-11-17 | décidé |
+| **D-051** Une recherche dans les Archives, sur leurs seules notes | issue #72 (koad1x, 11-18) | décidé (Patrice, 11-18) |
 
 **Aucune migration de schéma** (Room reste en version 11), aucune permission, aucun réseau, aucun
 changement des formats d'export, de sauvegarde ni de note scellée : tout ce qui suit est du texte de note
@@ -240,6 +241,40 @@ remerciements comme pour sms tech ».
 - Test JVM de la matrice (repris de `TeinteMonochromeTest`) ; l'écran À propos dans `AProposTest` si la
   ligne y est atteignable.
 
+## D-051 — Une recherche dans les Archives (issue #72)
+
+koad1x, 2026-11-18 : *« It is not possible to search for the titles and content of archived notes within the
+archive. »* Pas une panne : D-036 (3.3.0) laissait les archives hors de la recherche (Patrice : « recherche
+sans archives, comme la 2.0.9 »), et donc la vue Archives sans champ — « il chercherait hors archives ».
+Patrice, 11-18, après avis : le champ dans les Archives, dans la 3.5.0.
+
+- **Chaque liste cherche dans ce qu'elle montre** : l'accueil dans les notes non archivées (D-036 inchangé),
+  les Archives dans leurs seules notes. La raison qui écartait le champ en 3.3.0 — une limite, pas un
+  choix — tombe ; mettre les archives dans la recherche de l'accueil défairait au contraire l'archivage.
+- **Requête** : la même (`NoteSearchDao.SEARCH_SQL`), `n.archived = ?` au lieu de `= 0` ; `search(…,
+  archived)`, `SearchRepository.observe(…, archived)`. Les deux gardes du coffre restent dans la requête.
+  La recherche globale (icône loupe, `SearchViewModel`) ne change pas.
+- **Accueil** : en vue Archives, une saisie cherche dans les archives (`HomeViewModel.listeDeNotes`). Entrer
+  dans les Archives vide la recherche (déjà en 3.3.0) ; **en sortir la vide aussi** — gardée, elle
+  continuerait dans les autres notes.
+- **Écran** : le champ dit où il cherche (`home_search_archive_hint`, 5 langues). Pendant une recherche,
+  liste simple, par pertinence — pas d'intertitres de mois, qui se répéteraient. Aucun résultat : « Aucun
+  résultat », pas « Aucune note archivée », qui laisserait croire les notes disparues.
+- **Tests** : `LegacyDatabaseOpeningTest` (requête, garde du coffre comprise), `AccueilAuDemarrageTest`
+  (vrai ViewModel : deux notes archivées dont une seule porte le mot, plus une non archivée qui le porte —
+  une liste qui ignorerait la recherche, ou une recherche hors archives, ne passe pas), `AccueilTest`
+  (champ, mois, état vide).
+- **Textes** : journaux 5081-5083 (430 à 494 caractères), description longue, README.
+- **Retour dans les Archives** (vu par Patrice sur le S9 en essayant D-051 : « dès que je fais retour l'appli
+  se ferme », défaut présent depuis la 3.3.0) : Retour ramène à la liste montrée avant les Archives — un
+  dossier, ou Toutes les notes ; un dossier supprimé entre-temps donne Toutes les notes. Le tiroir ouvert
+  passe d'abord (`HomeRoute`), puis la sélection, puis les Archives (`HomeScreen`). Le dossier d'avant est
+  gardé dans l'état sauvegardé (`home.beforeArchive`). Tests : `AccueilTest` (Retour pris dans les Archives,
+  la sélection d'abord ; témoin : rien ne le prend sur une liste ordinaire), `AccueilAuDemarrageTest` (vrai
+  ViewModel : retour au dossier, pas à Toutes les notes). Contrôle négatif : les deux tombent.
+- **Pas d'icône Archives dans la barre** (Patrice, 11-18 : « ok pas d'icone ») : les Archives restent dans
+  le tiroir, au-dessus de la Corbeille — la barre est pleine, une cinquième icône couperait le titre.
+
 ## Petits correctifs — les limites connues de la 3.4.0 (`15-VERSION-3.4.md:234-240`)
 
 Retenus (Q4). Chacun est petit, et il ferme un écart déjà consigné.
@@ -385,7 +420,7 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - [x] **C-1** · [x] **C-2** · [x] **C-3** (`8c1f61d`) — tests `LecteurDeFournisseurTest`, `DepotViewModelTest` ;
   `FournisseurDUnPartageTest`, `NotesScelleesRecuesTest`, `FichierDeNoteScelleeTest` verts.
 - [x] **D-050** remerciement d'« À propos » (`e3eb010`) — `TeinteMonochromeTest`, `EcranAProposEtLegalTest`.
-- [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (398 à 479 caractères) ·
+- [x] Textes 5 langues · [x] version 3.5.0 (508) · [x] journaux 5081-5083 (430 à 494 caractères depuis D-051) ·
   [x] README (+ la ligne de version restée à v3.3.0 depuis la 3.4.0), fastlane, SECURITY
 - [x] **Audits et relecture externe** (2026-11-17), tous appliqués :
   - **Relecture externe GPT-5.6 sol** (0,35 $) : 5 défauts réels.
@@ -429,7 +464,10 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
   qui descendait sous le texte (« il dépasse largement la case »). Désormais un rond de 40 dp centré sur la
   case, celui d'une case à cocher Android, la cible de 48 dp inchangée (`9d82693`). Patrice : « c'est
   parfait ».
-- [ ] Publication (après F-Droid 3.4.0, Q6)
+- [x] **D-051** recherche dans les Archives (issue #72, 2026-11-18) et Retour dans les Archives : tests et
+  contrôles négatifs faits, essayés sur le S9 par Patrice (« la recherche fonctionne », « c'est bon test
+  ok »). PR #73.
+- [ ] Publication (après F-Droid 3.4.0, Q6) — **lundi 2026-11-23** (Patrice, 11-17)
 
 **CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
 parfois zygote avant que `on boot` (`init.ranchu.rc`) pose `dalvik.vm.heapsize` → tas de 16 Mo → Argon2

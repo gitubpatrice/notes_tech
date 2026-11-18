@@ -155,6 +155,9 @@ class HomeViewModel @Inject constructor(
 
     /** The archive is shown (3.3.0) — `folderId` is then `null`. Saved for the same reason as it. */
     private val archive = MutableStateFlow(savedState.get<Boolean>(CLE_ARCHIVE) ?: false)
+
+    /** The folder shown when the archive was opened, `null` for All notes — where Back from it returns. */
+    private var dossierAvantLArchive: String? = savedState[CLE_AVANT_ARCHIVE]
     private val query = MutableStateFlow(savedState.get<String>(CLE_RECHERCHE).orEmpty())
     private val vaultLostCount = MutableStateFlow(settings.vaultLostDrafts().size)
 
@@ -226,8 +229,13 @@ class HomeViewModel @Inject constructor(
         savedState[CLE_RECHERCHE] = value
     }
 
-    /** A folder, or `null` for "All notes" — which leaves the archive, and the selection made in another list. */
+    /**
+     * A folder, or `null` for "All notes" — which leaves the archive, and the selection made in another list.
+     * A search typed in the archive is cleared on the way out: it was looking through the archive, and kept
+     * it would go on looking through the other notes (D-051).
+     */
     fun onFolderSelected(id: String?) {
+        if (archive.value) onQueryChange("")
         folderId.value = id
         savedState[CLE_DOSSIER] = id
         montrerLArchive(false)
@@ -235,16 +243,28 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * The drawer's "Archive" (3.3.0). The search is cleared: the archive has no search field, and a
-     * search kept from before would still filter a list that cannot show it (the search leaves
-     * archived notes out, as notes_tech 2.0.9's does — D-036).
+     * The drawer's "Archive" (3.3.0). The search is cleared: each list searches what it shows — the home
+     * screen the notes that are not archived, as notes_tech 2.0.9's search (D-036), the archive its own
+     * (D-051, 3.5.0, issue #72) —, so a search typed elsewhere means nothing here.
      */
     fun onArchiveSelected() {
+        if (!archive.value) {
+            dossierAvantLArchive = folderId.value
+            savedState[CLE_AVANT_ARCHIVE] = folderId.value
+        }
         folderId.value = null
         savedState[CLE_DOSSIER] = null
         onQueryChange("")
         montrerLArchive(true)
         viderLaSelection()
+    }
+
+    /**
+     * Back in the archive (3.5.0): the list shown before it — a folder, or All notes. Until 3.5.0 Back left
+     * the app from the archive (Patrice, on the S9). A folder deleted meanwhile gives All notes.
+     */
+    fun quitterLArchive() {
+        onFolderSelected(dossierAvantLArchive?.takeIf { it in state.value.folderNamesById })
     }
 
     fun onSortSelected(mode: NoteSortMode) = settings.setSort(mode)
@@ -527,7 +547,7 @@ class HomeViewModel @Inject constructor(
      *
      * ⚠️ **Une recherche ignore le filtre de dossier**, et c'est voulu : on cherche dans toutes ses
      * notes, pas dans celles du dossier qu'on regardait. Et elle laisse les archives de côté, comme la
-     * recherche de la 2.0.9 (D-036) : l'archive, elle, ignore la recherche — l'écran n'en a pas le champ.
+     * recherche de la 2.0.9 (D-036). L'archive a la sienne, dans ses seules notes (D-051, 3.5.0, issue #72).
      */
     private fun listeDeNotes(): Flow<Result<List<Note>>> =
         combine(queryFreinee, folderId, archive, settings.sort) { texte, dossier, enArchive, tri ->
@@ -535,8 +555,8 @@ class HomeViewModel @Inject constructor(
         }
             .flatMapLatest { vue ->
                 when {
+                    vue.texte.isNotBlank() -> search.observe(vue.texte, archived = vue.archive)
                     vue.archive -> notes.observeOutOfTrash(vue.tri, archived = true)
-                    vue.texte.isNotBlank() -> search.observe(vue.texte)
                     vue.dossier == null -> notes.observeOutOfTrash(vue.tri, archived = false)
                     else -> notes.observeInFolder(vue.dossier, vue.tri)
                 }
@@ -568,6 +588,7 @@ class HomeViewModel @Inject constructor(
         /** Internal for the tests that restore a saved home screen. */
         internal const val CLE_DOSSIER = "home.folderId"
         private const val CLE_ARCHIVE = "home.archive"
+        private const val CLE_AVANT_ARCHIVE = "home.beforeArchive"
         private const val CLE_RECHERCHE = "home.query"
         private const val CLE_SELECTION = "home.selection"
     }

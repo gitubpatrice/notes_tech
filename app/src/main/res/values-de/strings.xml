@@ -44,6 +44,7 @@
     <string name="home_folders">Ordner</string>
     <string name="home_new_note">Neue Notiz</string>
     <string name="home_search_hint">Notiz suchen</string>
+    <string name="home_search_archive_hint">Im Archiv suchen</string>
     <string name="home_no_notes">Noch keine Notizen</string>
     <string name="home_no_notes_in">Keine Notizen in diesem Ordner</string>
     <string name="home_start_writing">Tippen Sie auf +, um Ihre erste Notiz zu erstellen.</string>

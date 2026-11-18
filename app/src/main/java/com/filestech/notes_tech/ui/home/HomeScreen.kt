@@ -94,6 +94,8 @@ fun HomeScreen(
     actionsDeSelection: ActionsDeSelection,
     onNewNote: () -> Unit,
     onOpenDrawer: () -> Unit,
+    /** Back in the archive: the list shown before it (3.5.0 — until then, Back left the app). */
+    onQuitterLArchive: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -111,9 +113,11 @@ fun HomeScreen(
     // here, at display time, in the language the user chose (notes_tech 2.0.9 parity).
     val nomDuDossier = rememberFolderDisplayName()
 
-    // The archive's months, recomputed only when the list or its order changes.
-    val lignesDeLArchive = remember(state.notes, state.sort, state.archive) {
-        if (state.archive) lignesDeLArchive(state.notes, state.sort, ZoneId.systemDefault()) else emptyList()
+    // The archive's months, recomputed only when the list or its order changes. Not while searching the
+    // archive (D-051): the results come by relevance, and months over them would repeat and jumble.
+    val enMois = state.archive && state.query.isBlank()
+    val lignesDeLArchive = remember(state.notes, state.sort, enMois) {
+        if (enMois) lignesDeLArchive(state.notes, state.sort, ZoneId.systemDefault()) else emptyList()
     }
     val nomDuMois = rememberFormateurDeMois()
     val carte: @Composable (Note) -> Unit = { note ->
@@ -134,6 +138,10 @@ fun HomeScreen(
 
     // Back leaves the selection first, as in every app that selects — not the app.
     BackHandler(enabled = state.enSelection, onBack = actionsDeSelection.onFermer)
+    // 🔴 Then the archive, back to the list shown before it (3.5.0, Patrice on the S9: "dès que je fais retour
+    // l'appli se ferme"). The archive reads as a screen of its own; Back left the app from it since 3.3.0.
+    // Not while selecting: the selection goes first. The open drawer goes before both (`HomeRoute`).
+    BackHandler(enabled = state.archive && !state.enSelection, onBack = onQuitterLArchive)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -195,29 +203,29 @@ fun HomeScreen(
             if (state.vaultLostCount > 0) {
                 BanniereBrouillonsPerdus(state.vaultLostCount, onDismissVaultLostBanner)
             }
-            // Not in the archive: the search leaves archived notes out (D-036).
-            if (!state.archive) {
-                OutlinedTextField(
-                    value = state.query,
-                    onValueChange = onQueryChange,
-                    label = { Text(stringResource(R.string.home_search_hint)) },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (state.query.isNotEmpty()) {
-                            IconButton(onClick = { onQueryChange("") }) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = stringResource(R.string.search_clear),
-                                )
-                            }
+            // Each list searches what it shows: here the notes that are not archived (D-036), in the archive
+            // the archived ones alone (D-051, 3.5.0, issue #72) — and the field says which.
+            val indication = if (state.archive) R.string.home_search_archive_hint else R.string.home_search_hint
+            OutlinedTextField(
+                value = state.query,
+                onValueChange = onQueryChange,
+                label = { Text(stringResource(indication)) },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (state.query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.search_clear),
+                            )
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 4.dp),
-                )
-            }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 4.dp),
+            )
 
             when {
                 state.loading -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
@@ -246,8 +254,8 @@ fun HomeScreen(
                     // `key = { it.id }` stabilise l'identité des éléments entre recompositions.
                     // Sans clé, un changement de filtre réassocie les états par position, et les
                     // cartes se réutilisent pour la mauvaise note.
-                    // The archive is cut into months (3.3.0); the other lists are not.
-                    if (state.archive) {
+                    // The archive is cut into months (3.3.0); the other lists, and its search, are not.
+                    if (enMois) {
                         items(lignesDeLArchive, key = { it.cle }) { ligne ->
                             when (ligne) {
                                 is LigneDeLArchive.Mois -> IntertitreDeMois(nomDuMois(ligne.mois))
@@ -266,7 +274,8 @@ fun HomeScreen(
 @Composable
 private fun ListeVide(state: HomeUiState, onNewNote: () -> Unit) {
     val enRecherche = state.query.isNotEmpty()
-    if (state.archive) {
+    // A search with no result says so, in the archive too (D-051): not "the archive is empty".
+    if (state.archive && !enRecherche) {
         EmptyState(
             icon = Icons.Outlined.Archive,
             title = stringResource(R.string.archive_empty_title),

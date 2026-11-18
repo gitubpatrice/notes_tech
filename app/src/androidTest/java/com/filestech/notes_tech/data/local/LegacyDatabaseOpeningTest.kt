@@ -357,6 +357,26 @@ class LegacyDatabaseOpeningTest {
         assertThat(db.noteSearchDao().search("reunion").first()).isEmpty()
     }
 
+    /**
+     * D-051 (3.5.0, issue #72) : la recherche de la vue Archives trouve les notes archivées, et elles
+     * seules — le jumeau du test au-dessus. Et la garde du coffre y tient de même.
+     */
+    @Test
+    fun la_recherche_des_archives_ne_trouve_que_les_notes_archivees(): Unit = runBlocking {
+        val db = openDatabase()
+        // Le témoin : pas encore archivée, la note est celle de l'accueil, pas des archives.
+        assertThat(db.noteSearchDao().search("reunion", archived = true).first()).isEmpty()
+
+        listOf(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN, LegacyDatabaseFixture.Fixtures.NOTE_LOCKED).forEach {
+            db.noteWriteDao().updateFlags(id = it, updatedAt = 9_999L, archived = true)
+        }
+
+        assertThat(db.noteSearchDao().search("reunion", archived = true).first().map(NoteEntity::id))
+            .containsExactly(LegacyDatabaseFixture.Fixtures.NOTE_PLAIN)
+        assertThat(db.noteSearchDao().search(LegacyDatabaseFixture.Fixtures.LOCKED_TITLE, archived = true).first())
+            .isEmpty()
+    }
+
     // ── 6. Refus sans destruction ────────────────────────────────────────────
 
     @Test

@@ -21,7 +21,7 @@ Notes Tech: Markdown-Notizen, 100 % lokal und im Ruhezustand verschlüsselt. In 
 <b>Bearbeiten</b>
 • Notizen öffnen sich zum Lesen (Markdown: Überschriften, Listen, Links, Checklisten zum Abhaken beim Lesen); „Bearbeiten“ zum Schreiben, automatisches Speichern
 • Langes Drücken wählt Notizen aus: archivieren, verschieben, in den Papierkorb mit Rückgängig, anheften, einfärben oder löschen, alle auf einmal
-• Ein Archiv für die Notizen, die Sie aus Ihren Listen heraushalten
+• Ein Archiv mit eigener Suche für die Notizen, die Sie aus Ihren Listen heraushalten
 • Notizen, die sich selbst löschen: nach 1 Stunde, 24 Stunden, 7 oder 30 Tagen oder nach dem Lesen
 • Versiegelt teilen: eine verschlüsselte Datei, die nur ihr Code öffnet, über jede App gesendet
 • Schnellablage: eine Notiz schreiben, ohne die App zu entsperren, per Schnelleinstellungs-Kachel oder Verknüpfungen des Symbols

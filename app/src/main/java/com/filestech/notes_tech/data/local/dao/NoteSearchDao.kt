@@ -40,10 +40,13 @@ abstract class NoteSearchDao {
      * dans l'index pour toute note dont `encrypted_content` n'est pas nul. La garde est donc dans
      * les données, pas dans cette requête — c'est plus solide, mais ça veut dire qu'un futur
      * changement de trigger casserait la promesse sans toucher à ce fichier.
+     *
+     * @param archived `false` : les notes ordinaires, comme la recherche de la 2.0.9 (D-036) ; `true` : les
+     *   seules notes archivées — la recherche de la vue Archives (D-051, 3.5.0, issue #72). Jamais les deux.
      */
-    fun search(rawInput: String, limit: Int = DEFAULT_LIMIT): Flow<List<NoteEntity>> {
+    fun search(rawInput: String, archived: Boolean = false, limit: Int = DEFAULT_LIMIT): Flow<List<NoteEntity>> {
         val match = FtsMatchExpression.from(rawInput) ?: return flowOf(emptyList())
-        return searchRaw(SimpleSQLiteQuery(SEARCH_SQL, arrayOf<Any?>(match, limit)))
+        return searchRaw(SimpleSQLiteQuery(SEARCH_SQL, arrayOf<Any?>(match, if (archived) 1 else 0, limit)))
     }
 
     private companion object {
@@ -81,7 +84,7 @@ abstract class NoteSearchDao {
             JOIN notes n ON n.rowid = f.rowid
             WHERE notes_fts MATCH ?
               AND n.trashed_at IS NULL
-              AND n.archived = 0
+              AND n.archived = ?
               AND n.encrypted_content IS NULL
             ORDER BY bm25(notes_fts), n.updated_at DESC
             LIMIT ?

@@ -191,6 +191,8 @@ avec sa propre clé. Une copie installée depuis F-Droid reçoit la 3.0.0 par F-
   élément vide la termine.
 - Épingler, favoris, couleurs, archives, corbeille (30 jours), ordre de tri, thème clair / sombre / système ;
   la liste à l'ouverture, **Toutes les notes** ou la **Boîte de réception** (3.5.0).
+- **Recherche** : celle de l'accueil parcourt les notes qui ne sont pas archivées ; les **Archives** ont la
+  leur, dans leurs seules notes (3.5.0, [#72](https://github.com/gitubpatrice/notes_tech/issues/72)).
 
 ### Coffres par dossier
 - **Mode phrase secrète** — Argon2id (64 Mio, t = 3) et AES-256-GCM. La clé du coffre (32 octets

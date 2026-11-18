@@ -50,6 +50,8 @@ import java.time.ZoneOffset
  * The rule itself — which of saved state and setting wins — is `DossierAuDemarrageTest`, on the JVM. This
  * class checks that the view model applies it, and the control (the default) that it applies nothing
  * else.
+ *
+ * Also D-051 (3.5.0, issue #72), on the same real view model and database: the archive's own search.
  */
 @RunWith(AndroidJUnit4::class)
 class AccueilAuDemarrageTest {
@@ -159,6 +161,56 @@ class AccueilAuDemarrageTest {
         assertThat(etat.currentFolder).isNull()
         assertThat(sauvegarde.contains(HomeViewModel.CLE_DOSSIER)).isTrue()
         assertThat(sauvegarde.get<String>(HomeViewModel.CLE_DOSSIER)).isNull()
+    }
+
+    // ── D-051 (3.5.0, issue #72): the archive's own search ──────────────────────────────────────────────
+
+    /**
+     * In the archive, the search looks through the archived notes alone; on the home screen, through the
+     * others alone. Leaving the archive clears its search, rather than going on through the other notes.
+     */
+    @Test
+    fun the_archive_searches_its_own_notes_and_leaving_it_clears_the_search(): Unit = runBlocking {
+        val plain = LegacyDatabaseFixture.Fixtures.NOTE_PLAIN
+        notes.setArchived(plain, true)
+        // A second archived note WITHOUT the word: the whole archive is two notes, its search one — so a list
+        // that ignored the search could not pass for it.
+        val autreArchivee = notes.create(folderId = Folder.INBOX_ID, title = "Liste de courses", content = "")
+        notes.setArchived(autreArchivee.id, true)
+        // And a note that is NOT archived, holding the word: what a search outside the archive would find.
+        val ordinaire = notes.create(folderId = Folder.INBOX_ID, title = "Réunion de rentrée", content = "")
+        val accueil = accueil(SavedStateHandle())
+
+        withContext(Dispatchers.Main) {
+            accueil.onArchiveSelected()
+            accueil.onQueryChange("reunion")
+        }
+        // Times out if the archive ignores the search (two notes) or searches outside it (the other note).
+        etatCharge(accueil) { it.archive && it.notes.map { n -> n.id } == listOf(plain) }
+
+        withContext(Dispatchers.Main) { accueil.onFolderSelected(null) }
+        assertThat(etatCharge(accueil) { !it.archive }.query).isEmpty()
+
+        withContext(Dispatchers.Main) { accueil.onQueryChange("reunion") }
+        etatCharge(accueil) { !it.archive && it.notes.map { n -> n.id } == listOf(ordinaire.id) }
+    }
+
+    /**
+     * Back from the archive returns to the list shown before it — here a folder (3.5.0; until then, Back left
+     * the app from the archive). All notes would be the wrong list: the test fails on it.
+     */
+    @Test
+    fun back_from_the_archive_returns_to_the_folder_shown_before_it(): Unit = runBlocking {
+        val travail = LegacyDatabaseFixture.Fixtures.FOLDER_WORK
+        val accueil = accueil(SavedStateHandle())
+        withContext(Dispatchers.Main) { accueil.onFolderSelected(travail) }
+        etatCharge(accueil) { it.currentFolder?.id == travail }
+
+        withContext(Dispatchers.Main) { accueil.onArchiveSelected() }
+        etatCharge(accueil) { it.archive }
+        withContext(Dispatchers.Main) { accueil.quitterLArchive() }
+
+        etatCharge(accueil) { !it.archive && it.currentFolder?.id == travail }
     }
 
     private suspend fun accueil(sauvegarde: SavedStateHandle): HomeViewModel = withContext(Dispatchers.Main) {

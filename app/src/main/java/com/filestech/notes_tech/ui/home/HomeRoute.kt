@@ -289,6 +289,7 @@ fun HomeRoute(
                 // that comes while the creation runs is dropped by the ViewModel.
                 onNewNote = dropUnlessResumed { homeViewModel.createNote() },
                 onOpenDrawer = { portee.launch { drawerState.open() } },
+                onQuitterLArchive = homeViewModel::quitterLArchive,
                 onOpenSearch = onOpenSearch,
                 onOpenSettings = onOpenSettings,
                 onOpenAbout = onOpenAbout,

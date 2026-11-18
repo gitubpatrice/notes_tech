@@ -47,6 +47,7 @@
     <string name="home_folders">Cartelle</string>
     <string name="home_new_note">Nuova nota</string>
     <string name="home_search_hint">Cerca una nota</string>
+    <string name="home_search_archive_hint">Cerca nell\'archivio</string>
     <string name="home_no_notes">Ancora nessuna nota</string>
     <string name="home_no_notes_in">Nessuna nota in questa cartella</string>
     <string name="home_start_writing">Tocchi il pulsante + per creare la sua prima nota.</string>
