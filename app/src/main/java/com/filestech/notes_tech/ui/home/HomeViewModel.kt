@@ -155,6 +155,9 @@ class HomeViewModel @Inject constructor(
 
     /** The archive is shown (3.3.0) — `folderId` is then `null`. Saved for the same reason as it. */
     private val archive = MutableStateFlow(savedState.get<Boolean>(CLE_ARCHIVE) ?: false)
+
+    /** The folder shown when the archive was opened, `null` for All notes — where Back from it returns. */
+    private var dossierAvantLArchive: String? = savedState[CLE_AVANT_ARCHIVE]
     private val query = MutableStateFlow(savedState.get<String>(CLE_RECHERCHE).orEmpty())
     private val vaultLostCount = MutableStateFlow(settings.vaultLostDrafts().size)
 
@@ -245,11 +248,23 @@ class HomeViewModel @Inject constructor(
      * (D-051, 3.5.0, issue #72) —, so a search typed elsewhere means nothing here.
      */
     fun onArchiveSelected() {
+        if (!archive.value) {
+            dossierAvantLArchive = folderId.value
+            savedState[CLE_AVANT_ARCHIVE] = folderId.value
+        }
         folderId.value = null
         savedState[CLE_DOSSIER] = null
         onQueryChange("")
         montrerLArchive(true)
         viderLaSelection()
+    }
+
+    /**
+     * Back in the archive (3.5.0): the list shown before it — a folder, or All notes. Until 3.5.0 Back left
+     * the app from the archive (Patrice, on the S9). A folder deleted meanwhile gives All notes.
+     */
+    fun quitterLArchive() {
+        onFolderSelected(dossierAvantLArchive?.takeIf { it in state.value.folderNamesById })
     }
 
     fun onSortSelected(mode: NoteSortMode) = settings.setSort(mode)
@@ -573,6 +588,7 @@ class HomeViewModel @Inject constructor(
         /** Internal for the tests that restore a saved home screen. */
         internal const val CLE_DOSSIER = "home.folderId"
         private const val CLE_ARCHIVE = "home.archive"
+        private const val CLE_AVANT_ARCHIVE = "home.beforeArchive"
         private const val CLE_RECHERCHE = "home.query"
         private const val CLE_SELECTION = "home.selection"
     }

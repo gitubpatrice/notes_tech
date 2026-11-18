@@ -265,6 +265,15 @@ Patrice, 11-18, après avis : le champ dans les Archives, dans la 3.5.0.
   une liste qui ignorerait la recherche, ou une recherche hors archives, ne passe pas), `AccueilTest`
   (champ, mois, état vide).
 - **Textes** : journaux 5081-5083 (430 à 494 caractères), description longue, README.
+- **Retour dans les Archives** (vu par Patrice sur le S9 en essayant D-051 : « dès que je fais retour l'appli
+  se ferme », défaut présent depuis la 3.3.0) : Retour ramène à la liste montrée avant les Archives — un
+  dossier, ou Toutes les notes ; un dossier supprimé entre-temps donne Toutes les notes. Le tiroir ouvert
+  passe d'abord (`HomeRoute`), puis la sélection, puis les Archives (`HomeScreen`). Le dossier d'avant est
+  gardé dans l'état sauvegardé (`home.beforeArchive`). Tests : `AccueilTest` (Retour pris dans les Archives,
+  la sélection d'abord ; témoin : rien ne le prend sur une liste ordinaire), `AccueilAuDemarrageTest` (vrai
+  ViewModel : retour au dossier, pas à Toutes les notes). Contrôle négatif : les deux tombent.
+- **Pas d'icône Archives dans la barre** (Patrice, 11-18 : « ok pas d'icone ») : les Archives restent dans
+  le tiroir, au-dessus de la Corbeille — la barre est pleine, une cinquième icône couperait le titre.
 
 ## Petits correctifs — les limites connues de la 3.4.0 (`15-VERSION-3.4.md:234-240`)
 
@@ -455,7 +464,10 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
   qui descendait sous le texte (« il dépasse largement la case »). Désormais un rond de 40 dp centré sur la
   case, celui d'une case à cocher Android, la cible de 48 dp inchangée (`9d82693`). Patrice : « c'est
   parfait ».
-- [ ] Publication (après F-Droid 3.4.0, Q6)
+- [x] **D-051** recherche dans les Archives (issue #72, 2026-11-18) et Retour dans les Archives : tests et
+  contrôles négatifs faits, essayés sur le S9 par Patrice (« la recherche fonctionne », « c'est bon test
+  ok »). PR #73.
+- [ ] Publication (après F-Droid 3.4.0, Q6) — **lundi 2026-11-23** (Patrice, 11-17)
 
 **CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
 parfois zygote avant que `on boot` (`init.ranchu.rc`) pose `dalvik.vm.heapsize` → tas de 16 Mo → Argon2

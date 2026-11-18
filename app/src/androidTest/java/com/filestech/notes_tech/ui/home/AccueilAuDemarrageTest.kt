@@ -195,6 +195,24 @@ class AccueilAuDemarrageTest {
         etatCharge(accueil) { !it.archive && it.notes.map { n -> n.id } == listOf(ordinaire.id) }
     }
 
+    /**
+     * Back from the archive returns to the list shown before it — here a folder (3.5.0; until then, Back left
+     * the app from the archive). All notes would be the wrong list: the test fails on it.
+     */
+    @Test
+    fun back_from_the_archive_returns_to_the_folder_shown_before_it(): Unit = runBlocking {
+        val travail = LegacyDatabaseFixture.Fixtures.FOLDER_WORK
+        val accueil = accueil(SavedStateHandle())
+        withContext(Dispatchers.Main) { accueil.onFolderSelected(travail) }
+        etatCharge(accueil) { it.currentFolder?.id == travail }
+
+        withContext(Dispatchers.Main) { accueil.onArchiveSelected() }
+        etatCharge(accueil) { it.archive }
+        withContext(Dispatchers.Main) { accueil.quitterLArchive() }
+
+        etatCharge(accueil) { !it.archive && it.currentFolder?.id == travail }
+    }
+
     private suspend fun accueil(sauvegarde: SavedStateHandle): HomeViewModel = withContext(Dispatchers.Main) {
         HomeViewModel(
             notes = notes,

@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.filestech.notes_tech.R
 import com.filestech.notes_tech.domain.model.Folder
@@ -73,6 +74,7 @@ class AccueilTest {
     private val trisChoisis = mutableListOf<NoteSortMode>()
     private val requetes = mutableListOf<String>()
     private val tiroirsOuverts = mutableListOf<Unit>()
+    private val sortiesDeLArchive = mutableListOf<Unit>()
     private val recherchesOuvertes = mutableListOf<Unit>()
     private val reglagesOuverts = mutableListOf<Unit>()
 
@@ -123,6 +125,7 @@ class AccueilTest {
                     ),
                     onNewNote = { nouvellesNotesDemandees += Unit },
                     onOpenDrawer = { tiroirsOuverts += Unit },
+                    onQuitterLArchive = { sortiesDeLArchive += Unit },
                     onOpenSearch = { recherchesOuvertes += Unit },
                     onOpenSettings = { reglagesOuverts += Unit },
                     onOpenAbout = {},
@@ -523,6 +526,28 @@ class AccueilTest {
         )
         regle.onNodeWithText(enTete(11)).assertDoesNotExist()
         regle.onNodeWithText("Vieille").assertExists()
+    }
+
+    /**
+     * 🔴 Back in the archive goes back to the list shown before it (3.5.0, Patrice on the S9: the app
+     * closed). A selection goes first. The control: on an ordinary list nothing of the screen takes Back —
+     * it still leaves the app, as on any app's first screen.
+     */
+    @Test
+    fun back_in_the_archive_goes_back_to_the_list_and_a_selection_goes_first() {
+        poser(HomeUiState(notes = listOf(note("a", "Vieille")), loading = false, archive = true))
+        Espresso.pressBack()
+        assertThat(sortiesDeLArchive).hasSize(1)
+
+        poser(
+            HomeUiState(notes = listOf(note("a", "Vieille")), loading = false, archive = true, selection = setOf("a")),
+        )
+        Espresso.pressBack()
+        assertThat(gestesDeSelection).containsExactly("fermer")
+        assertThat(sortiesDeLArchive).hasSize(1)
+
+        poser(HomeUiState(notes = listOf(note("a", "Vieille")), loading = false))
+        assertThat(regle.runOnIdle { regle.activity.onBackPressedDispatcher.hasEnabledCallbacks() }).isFalse()
     }
 
     /**

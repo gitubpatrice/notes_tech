@@ -94,6 +94,8 @@ fun HomeScreen(
     actionsDeSelection: ActionsDeSelection,
     onNewNote: () -> Unit,
     onOpenDrawer: () -> Unit,
+    /** Back in the archive: the list shown before it (3.5.0 — until then, Back left the app). */
+    onQuitterLArchive: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -136,6 +138,10 @@ fun HomeScreen(
 
     // Back leaves the selection first, as in every app that selects — not the app.
     BackHandler(enabled = state.enSelection, onBack = actionsDeSelection.onFermer)
+    // 🔴 Then the archive, back to the list shown before it (3.5.0, Patrice on the S9: "dès que je fais retour
+    // l'appli se ferme"). The archive reads as a screen of its own; Back left the app from it since 3.3.0.
+    // Not while selecting: the selection goes first. The open drawer goes before both (`HomeRoute`).
+    BackHandler(enabled = state.archive && !state.enSelection, onBack = onQuitterLArchive)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
