@@ -467,7 +467,10 @@ Branche `feat/3.5.0`, à partir de `main` **après** la publication de la 3.4.0.
 - [x] **D-051** recherche dans les Archives (issue #72, 2026-11-18) et Retour dans les Archives : tests et
   contrôles négatifs faits, essayés sur le S9 par Patrice (« la recherche fonctionne », « c'est bon test
   ok »). PR #73.
-- [ ] Publication (après F-Droid 3.4.0, Q6) — **lundi 2026-11-23** (Patrice, 11-17)
+- [x] **Publiée le 2026-11-27** (prévue le lundi 23 ; F-Droid servait la 3.4.0) : tag léger `v3.5.0` sur
+  `6dd47e5`, 4 APK signés TOUT OK, mise à jour 3.4.0 → 3.5.0 essayée sur émulateur, release « Latest »,
+  site files-tech PR #49. Détail : `REPRISE.md`.
+- [ ] F-Droid sert la 3.5.0 (5081-5083)
 
 **CI réparée en route** (hors 3.5.0, PR #67 puis #69, fusionnées) : l'émulateur API 29 de la CI démarrait
 parfois zygote avant que `on boot` (`init.ranchu.rc`) pose `dalvik.vm.heapsize` → tas de 16 Mo → Argon2
