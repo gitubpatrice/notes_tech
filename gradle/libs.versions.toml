@@ -12,7 +12,7 @@ ksp = "2.3.14"
 # The BOM stays on 2026.09.00, as in Agenda Tech and SMS Tech: 2026.11 (Compose 1.13, Material3 1.5)
 # requires compileSdk 37.1 (checkDebugAarMetadata fails on 37.0, PR #74, 2026-11-23). F-Droid builds Notes
 # itself: raise it only with an F-Droid build proven on a 37.1 platform.
-compose-bom = "2026.09.00"
+compose-bom = "2026.11.01"
 core-ktx = "1.19.1"
 activity-compose = "1.13.0"
 lifecycle = "2.11.0"
