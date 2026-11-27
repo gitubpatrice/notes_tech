@@ -1,14 +1,17 @@
 [versions]
-# Build toolchain — AGP 9.5.0 (as SMS Tech since 2026-11-05; needs Gradle 9.6.0 or later) / Kotlin 2.4.10 /
-# KSP 2.3.12 / JDK 17. AGP 9 compiles Kotlin itself: there is no `org.jetbrains.kotlin.android` plugin any more.
-agp = "9.5.1"
+# Build toolchain — AGP 9.5 (as SMS Tech since 2026-11-05; needs Gradle 9.6.0 or later) / Kotlin 2.4.10 /
+# KSP 2.3 / JDK 17. AGP 9 compiles Kotlin itself: there is no `org.jetbrains.kotlin.android` plugin any more.
+agp = "9.5.2"
 # Capped below 2.4.20: CodeQL 2.27 refuses to compile from there ("currently supports versions below
 # 2.4.20", measured on Agenda Tech). This is the EXACT compiler version: the root build.gradle.kts pins
 # the Kotlin Gradle Plugin to it with `strictly`, since AGP 9 would otherwise bring its own.
 kotlin = "2.4.10"
-ksp = "2.3.13"
+ksp = "2.3.14"
 
 # AndroidX / Compose — the releases built for AGP 9 and compileSdk 37, as in Agenda Tech.
+# The BOM stays on 2026.09.00, as in Agenda Tech and SMS Tech: 2026.11 (Compose 1.13, Material3 1.5)
+# requires compileSdk 37.1 (checkDebugAarMetadata fails on 37.0, PR #74, 2026-11-23). F-Droid builds Notes
+# itself: raise it only with an F-Droid build proven on a 37.1 platform.
 compose-bom = "2026.09.00"
 core-ktx = "1.19.1"
 activity-compose = "1.13.0"
