@@ -1,9 +1,38 @@
 # Reprise — portage Kotlin de Notes Tech
 
-> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, le 2026-11-09, **puis le 2026-11-17**. À lire en premier, avant `docs/00-PLAN.md`.
+> Écrit le 2026-08-15 au soir, mis à jour le 2026-08-19, le 2026-09-24, le 2026-09-25, le 2026-10-05, puis le 2026-10-10, puis le 2026-10-30 (deux fois), le 2026-10-31, le 2026-11-09, le 2026-11-17, **puis le 2026-11-27**. À lire en premier, avant `docs/00-PLAN.md`.
 > Ce fichier ne remplace pas les docs : il dit **où on en est** et **quoi faire ensuite**.
 
-## 🧭 À LA REPRISE (écrit le 2026-11-17) — la 3.4.0 est PUBLIÉE, la 3.5.0 est spécifiée
+## 🧭 À LA REPRISE (écrit le 2026-11-27) — la 3.5.0 est PUBLIÉE
+
+- **Publiée le 2026-11-27** sur le feu vert de Patrice (« enchaine ok pour la release 3.5.0 »), quatre jours
+  après la date prévue (lundi 23). Condition Q6 remplie : F-Droid servait la 3.4.0 (API lue le 11-27 :
+  5071-5073, suggéré 5073, index du 11-25). Gradle 9.9.1 (monté depuis la 3.4.0) est au
+  `gradle-transparency-log` de F-Droid, même somme que `distributionSha256Sum`.
+- **Construite AVANT le tag** depuis `6dd47e5` (CI Kotlin, ses 4 jobs, et CodeQL verts ; aucun
+  `continue-on-error`) : `--no-build-cache clean assembleRelease -Pnotestech.replaceInstalledApp=true`
+  (3 min 10). 4 APK signés par `signer_notes_tech.py` contre l'universel 3.4.0 retéléchargé (empreintes
+  = celles du 11-17) : **TOUT OK** (cert `ddb385de…`, v2 + v3, 5080-5083, mêmes 4 permissions que la
+  3.4.0, pas d'INTERNET).
+- **Mise à jour essayée** sur l'émulateur `emu-test-api34` sans fenêtre : 3.4.0 publiée → 3.5.0 (5070 →
+  5080), 3 notes gardées dont la note de coffre (verrouillée), réglage « Écran d'accueil » présent, aucun
+  plantage. Recherche des Archives vérifiée dans les deux sens (note archivée trouvée dans les Archives et
+  plus depuis l'accueil, note non archivée absente des Archives) ; Retour ne ferme plus l'appli.
+- **Tag léger `v3.5.0`** sur `6dd47e5`, posé après ces essais. **Release « Latest »** à 20 h 31 UTC, APK
+  retéléchargés = fichiers locaux : universel `02559dba…b15a`, arm64 `044a9b5a…e30f`, armeabi-v7a
+  `d5e41245…dc5a`, x86_64 `1cf23633…8cc8`.
+- **Site files-tech** : PR #49 (cartes Listes à cocher et Écran d'accueil, recherche des Archives,
+  étiquettes 3.4.0 retirées, méta-description ; entrée `apps.php` à 2026-11-27T20:31:14Z ; résumés =
+  journaux 5081 fr/en/de), `check-site` OK, CI verte.
+- **Issues** : #59 et #72 fermées par koad1x lui-même le 11-26, sans commentaire. « 3.5.0 is out » posté
+  sur les deux le 11-27 ; sur #72, réponse aussi à son message du 11-18 resté sans suite (il voulait deux
+  recherches séparées : c'est D-051).
+- **Ensuite** : F-Droid doit SERVIR la 3.5.0 (5081-5083) ; Dependabot #74-#77 (AGP 9.5.2, KSP 2.3.14,
+  wrapper 9.9.2, Compose BOM 2026.11.01), laissées hors de la 3.5.0 ; réponse au courriel des listes à
+  cocher (Patrice) ; essai « Ouvrir avec » d'un `.ntnote` depuis une vraie messagerie, resté à faire
+  depuis la 3.4.0 (`16-VERSION-3.5.md`, C-1).
+
+## Précédemment (écrit le 2026-11-17) — la 3.4.0 est PUBLIÉE, la 3.5.0 est spécifiée
 
 - **Publiée le 2026-11-17** sur le feu vert de Patrice (« ok oui publie la 3.4.0 »), une fois sa condition
   remplie : F-Droid servait la 3.3.0 (API lue le 11-17 : 5061-5063, suggéré 5063, index du 11-13).
